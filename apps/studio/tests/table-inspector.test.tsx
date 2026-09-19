@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  PowerShowElement,
+  PresentationElement,
   FontResource,
   SimpleTableElement,
   Slide,
   StructuredTableElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
@@ -118,7 +118,7 @@ function structuredTable(): StructuredTableElement {
   };
 }
 
-function wrapSlide(element: PowerShowElement): Slide[] {
+function wrapSlide(element: PresentationElement): Slide[] {
   return [
     {
       id: "slide",
@@ -133,8 +133,8 @@ function wrapSlide(element: PowerShowElement): Slide[] {
 describe("TableInspector", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let elementState: PowerShowElement;
-  let updates: PowerShowElement[];
+  let elementState: PresentationElement;
+  let updates: PresentationElement[];
   let controls: TableAuthoringControls;
   let selectedTableStructuralNode: TableStructuralSelection = null;
 
@@ -163,7 +163,7 @@ describe("TableInspector", () => {
     );
   }
 
-  function mount(initial: PowerShowElement) {
+  function mount(initial: PresentationElement) {
     elementState = initial;
     updates = [];
     selectedTableStructuralNode = null;

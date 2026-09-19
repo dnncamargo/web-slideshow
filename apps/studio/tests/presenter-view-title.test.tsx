@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { PresenterView } from "../src/features/control/presenter/presenter-view";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

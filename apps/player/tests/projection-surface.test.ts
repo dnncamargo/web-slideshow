@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
-import { paletteColorCssVariableName } from "@powershow/renderer";
+import { PresentationSchema } from "@web-slideshow/document-schema";
+import { paletteColorCssVariableName } from "@web-slideshow/renderer";
 
 import { mountProjectionSurface } from "../src/projection-surface";
 

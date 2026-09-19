@@ -1,8 +1,8 @@
 import {
-  mapPowerShowElementColorValues,
-  type PowerShowElement,
+  mapPresentationElementColorValues,
+  type PresentationElement,
   type PresentationPalette,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { getSelectableElementProperties } from "./element-property-selection";
 
@@ -12,11 +12,11 @@ export interface ElementRecipeProperty {
 }
 
 export interface ElementRecipeDraft {
-  type: PowerShowElement["type"];
+  type: PresentationElement["type"];
   properties: ElementRecipeProperty[];
 }
 
-function getValueAtPath(element: PowerShowElement, path: string): unknown {
+function getValueAtPath(element: PresentationElement, path: string): unknown {
   let value: unknown = element;
 
   for (const segment of path.split(".")) {
@@ -41,11 +41,11 @@ export class PaletteRecipeResolutionError extends Error {
 }
 
 export function extractElementRecipeDraft(
-  element: PowerShowElement,
+  element: PresentationElement,
   selectedPaths: ReadonlySet<string>,
   palette?: PresentationPalette,
 ): ElementRecipeDraft {
-  const mappedElement = mapPowerShowElementColorValues(element, (value, path) => {
+  const mappedElement = mapPresentationElementColorValues(element, (value, path) => {
     if (typeof value === "string") return value;
     const paletteColor = palette?.colors.find((color) => color.id === value.colorId);
     if (paletteColor === undefined) {

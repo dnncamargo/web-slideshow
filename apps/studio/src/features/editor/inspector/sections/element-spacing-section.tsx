@@ -1,4 +1,4 @@
-import type { Length } from "@powershow/document-schema";
+import type { Length } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

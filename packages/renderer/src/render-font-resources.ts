@@ -2,7 +2,7 @@ import {
   getFontResourceFaces,
   type FontFaceResource,
   type FontResource,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   escapeCssDeclarationValue,

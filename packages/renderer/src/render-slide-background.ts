@@ -1,7 +1,7 @@
 import type {
   SlideBackground,
   SlideBackgroundPattern,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   renderGradient,

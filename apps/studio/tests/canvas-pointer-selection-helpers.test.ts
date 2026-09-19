@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { TextElement } from "@powershow/document-schema";
+import type { TextElement } from "@web-slideshow/document-schema";
 
 import {
   resolveCanvasEmbedPointerTarget,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ContentSlotSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
 } from "../src";
 
 function textElement(overrides: Record<string, unknown> = {}) {
@@ -116,7 +116,7 @@ describe("ContentSlotSchema", () => {
     }
   });
 
-  it("accepts mixed PowerShowElement children", () => {
+  it("accepts mixed PresentationElement children", () => {
     const result = ContentSlotSchema.safeParse({
       id: "slot-1",
       children: [
@@ -281,13 +281,13 @@ describe("ContentSlotSchema", () => {
     expect(restored).toEqual(source);
   });
 
-  it("parses as a ContentSlot but not as an autonomous PowerShowElement", () => {
+  it("parses as a ContentSlot but not as an autonomous PresentationElement", () => {
     const slot = {
       id: "slot-1",
       children: [],
     };
 
     expect(ContentSlotSchema.safeParse(slot).success).toBe(true);
-    expect(PowerShowElementSchema.safeParse(slot).success).toBe(false);
+    expect(PresentationElementSchema.safeParse(slot).success).toBe(false);
   });
 });

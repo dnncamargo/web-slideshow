@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -29,7 +29,7 @@ const LINKED_STYLE = {
   effect: { opacity: 0.8 },
 } as const;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { id, type: "text", hidden: false, variant: "body", content };
 }
 
@@ -43,7 +43,7 @@ function container(id: string, overrides: Partial<ContainerElement> = {}): Conta
   };
 }
 
-function presentation(elements: PowerShowElement[], linkedStyles: readonly object[] = [LINKED_STYLE]): Presentation {
+function presentation(elements: PresentationElement[], linkedStyles: readonly object[] = [LINKED_STYLE]): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4f2-linked-style-usage-detach",
@@ -65,7 +65,7 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
 }
 
 function findContainer(document: Presentation, id: string): ContainerElement {
-  const visit = (elements: readonly PowerShowElement[]): ContainerElement | undefined => {
+  const visit = (elements: readonly PresentationElement[]): ContainerElement | undefined => {
     for (const element of elements) {
       if (element.type === "container" && element.id === id) return element;
       if (element.type === "container") {

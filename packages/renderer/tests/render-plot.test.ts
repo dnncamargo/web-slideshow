@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlotElement, InteractiveElement } from "@powershow/document-schema";
+import type { PlotElement, InteractiveElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderPlot as renderPlotWithOptions } from "../src/render-plot";

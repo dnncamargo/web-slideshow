@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MathGeometryResult, MathViewport2D } from "@powershow/math-source";
+import type { MathGeometryResult, MathViewport2D } from "@web-slideshow/math-source";
 import { renderMathGeometrySvg } from "../src/render-plot-svg";
 
 const squareViewport: MathViewport2D = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };

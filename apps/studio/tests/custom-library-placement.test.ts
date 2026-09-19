@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { ContentSlot, PowerShowElement, Slide, StructuredTableElement, TopicItem, TopicsElement } from "@powershow/document-schema";
+import type { ContentSlot, PresentationElement, Slide, StructuredTableElement, TopicItem, TopicsElement } from "@web-slideshow/document-schema";
 import { collectAuthoringIds, findElementById } from "../src/features/editor/element-hierarchy";
 import { placeCustomLibraryElementRecipe, type CustomLibraryPlacementResult } from "../src/features/custom-library/custom-library-placement";
 import type { CustomLibraryElementRecipe } from "../src/features/custom-library/custom-library-recipe";
 
-const slide = (elements: PowerShowElement[] = []): Slide => ({ id: "slide-1", title: "", summary: "", speakerNotes: "", elements });
-const text = (id: string, content = id): PowerShowElement => ({ id, type: "text", hidden: false, variant: "body", content });
-const image = (id: string): PowerShowElement => ({ id, type: "image", hidden: false, src: "/" + id + ".png", alt: id, fit: "contain" });
-const container = (id: string, children: PowerShowElement[] = []): PowerShowElement => ({ id, type: "container", hidden: false, children });
-const slot = (id: string, children: PowerShowElement[] = []): ContentSlot => ({ id, children });
+const slide = (elements: PresentationElement[] = []): Slide => ({ id: "slide-1", title: "", summary: "", speakerNotes: "", elements });
+const text = (id: string, content = id): PresentationElement => ({ id, type: "text", hidden: false, variant: "body", content });
+const image = (id: string): PresentationElement => ({ id, type: "image", hidden: false, src: "/" + id + ".png", alt: id, fit: "contain" });
+const container = (id: string, children: PresentationElement[] = []): PresentationElement => ({ id, type: "container", hidden: false, children });
+const slot = (id: string, children: PresentationElement[] = []): ContentSlot => ({ id, children });
 const topics = (id: string, items: TopicItem[]): TopicsElement => ({ id, type: "topics", hidden: false, kind: "unordered", items });
 function recipe(type: CustomLibraryElementRecipe["type"], properties: CustomLibraryElementRecipe["properties"] = [], children?: CustomLibraryElementRecipe[]): CustomLibraryElementRecipe {
   return children === undefined ? { type, properties } : { type, properties, children };
@@ -122,7 +122,7 @@ describe("Custom Library placement core", () => {
   });
 
   it("supports same-type Plot merge", () => {
-    const plot: PowerShowElement = { id: "plot", type: "plot", hidden: false, source: "" };
+    const plot: PresentationElement = { id: "plot", type: "plot", hidden: false, source: "" };
     const current = slide([text("before"), plot, text("after")]);
     const result = success(placeCustomLibraryElementRecipe(recipe("plot", [{ path: "source", value: "y = x^2" }]), current, [current], "plot"));
     expect(result.mode).toBe("merge-selected");

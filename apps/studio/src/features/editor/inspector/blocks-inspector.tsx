@@ -1,4 +1,4 @@
-import type { BlocksElement, ElementEffect } from "@powershow/document-schema";
+import type { BlocksElement, ElementEffect } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
 import type { ElementInspectorUpdate } from "./inspector-types";

@@ -1,4 +1,4 @@
-import type { GalleryElement } from "@powershow/document-schema";
+import type { GalleryElement } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
 import { InspectorSection } from "./inspector-section";

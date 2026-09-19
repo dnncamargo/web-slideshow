@@ -3,10 +3,10 @@ import { useRef, useState } from "react";
 import type {
   FontResource,
   ElementEffect,
-  PowerShowElement,
+  PresentationElement,
   SimpleTableElement,
   StructuredTableElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
@@ -39,7 +39,7 @@ import {
 // ============================================================
 
 type TableElement = Extract<
-  PowerShowElement,
+  PresentationElement,
   {
     type: "table";
   }
@@ -54,7 +54,7 @@ type TableCellValue = TableRow[string];
 interface TableInspectorProps {
   element: TableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
 
@@ -452,7 +452,7 @@ function SimpleTableInspector({
 }: {
   element: SimpleTableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   fontResources: readonly FontResource[];
 }) {
@@ -1014,7 +1014,7 @@ function SimpleTableInspector({
 interface StructuredTableInspectorProps {
   element: StructuredTableElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   tableAuthoringControls: TableAuthoringControls;
 

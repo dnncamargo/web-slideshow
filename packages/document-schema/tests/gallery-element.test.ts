@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   GalleryElementSchema,
   ImageElementSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
 } from "../src/elements";
 
 function gallery(overrides: Record<string, unknown> = {}) {
@@ -26,7 +26,7 @@ function gallery(overrides: Record<string, unknown> = {}) {
 describe("Gallery element schema", () => {
   it("parses a valid Gallery with multiple items", () => {
     const result =
-      PowerShowElementSchema.safeParse(gallery());
+      PresentationElementSchema.safeParse(gallery());
 
     expect(result.success).toBe(true);
 
@@ -37,7 +37,7 @@ describe("Gallery element schema", () => {
 
   it("preserves item order", () => {
     const result =
-      PowerShowElementSchema.safeParse(gallery());
+      PresentationElementSchema.safeParse(gallery());
 
     expect(result.success).toBe(true);
 
@@ -50,7 +50,7 @@ describe("Gallery element schema", () => {
 
   it("defaults fit to contain", () => {
     const result =
-      PowerShowElementSchema.safeParse(gallery());
+      PresentationElementSchema.safeParse(gallery());
 
     expect(result.success).toBe(true);
 
@@ -83,7 +83,7 @@ describe("Gallery element schema", () => {
   it.each(["contain", "cover", "fill"] as const)(
     "accepts %s fit",
     (fit) => {
-      const result = PowerShowElementSchema.safeParse(
+      const result = PresentationElementSchema.safeParse(
         gallery({ fit }),
       );
 
@@ -92,7 +92,7 @@ describe("Gallery element schema", () => {
   );
 
   it("accepts an empty items array", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       gallery({ items: [] }),
     );
 
@@ -120,7 +120,7 @@ describe("Gallery element schema", () => {
   });
 
   it("rejects an unsupported fit", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       gallery({ fit: "crop" }),
     );
 
@@ -169,8 +169,8 @@ describe("Gallery element schema", () => {
     })).success).toBe(false);
   });
 
-  it("accepts a Gallery through PowerShowElementSchema", () => {
-    const result = PowerShowElementSchema.safeParse(
+  it("accepts a Gallery through PresentationElementSchema", () => {
+    const result = PresentationElementSchema.safeParse(
       gallery(),
     );
 
@@ -178,7 +178,7 @@ describe("Gallery element schema", () => {
   });
 
   it("confirms Gallery items receive no synthetic id", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       gallery(),
     );
 

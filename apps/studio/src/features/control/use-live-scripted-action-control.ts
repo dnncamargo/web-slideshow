@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Presentation,
   visitSlideElements,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { writeScriptedAction } from "./control-command-writer";
 import type { LiveCurrent } from "./live-current";

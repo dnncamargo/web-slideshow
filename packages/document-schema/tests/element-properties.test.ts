@@ -9,7 +9,7 @@ import {
   ElementTypographySchema,
   ElementVisualStyleSchema,
 } from "../src/element-properties";
-import { PowerShowElementSchema } from "../src/elements";
+import { PresentationElementSchema } from "../src/elements";
 
 describe("canonical element property vocabulary", () => {
   it("does not materialize optional namespaces or their fields", () => {
@@ -146,7 +146,7 @@ describe("canonical element property vocabulary", () => {
     });
 
     expect(parsed).toMatchObject({ flexShrink: 0, width: "80%", height: 100 });
-    const nested = PowerShowElementSchema.parse({
+    const nested = PresentationElementSchema.parse({
       id: "outer",
       type: "container",
       hidden: false,

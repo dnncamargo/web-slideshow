@@ -10,7 +10,7 @@ import {
   type CodeElement,
   type PlotElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { CodeInspector } from "../src/features/editor/inspector/code-inspector";

@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   FontFaceResourceSchema,
   type FontFaceResource,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryFontDraft } from "./custom-library-font";
 

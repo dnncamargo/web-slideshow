@@ -6,7 +6,7 @@ import {
 
 import type {
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   renderPresentation,

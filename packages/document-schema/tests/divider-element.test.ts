@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema } from "../src/elements";
+import { PresentationElementSchema } from "../src/elements";
 
 function divider(overrides: Record<string, unknown> = {}) {
   return {
@@ -15,8 +15,8 @@ function divider(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Divider element schema", () => {
-  it("parses as a PowerShowElement", () => {
-    const result = PowerShowElementSchema.safeParse(divider());
+  it("parses as a PresentationElement", () => {
+    const result = PresentationElementSchema.safeParse(divider());
 
     expect(result.success).toBe(true);
 
@@ -26,7 +26,7 @@ describe("Divider element schema", () => {
   });
 
   it("defaults a missing orientation to horizontal", () => {
-    const result = PowerShowElementSchema.safeParse(divider());
+    const result = PresentationElementSchema.safeParse(divider());
 
     expect(result.success).toBe(true);
 
@@ -38,7 +38,7 @@ describe("Divider element schema", () => {
   it.each(["horizontal", "vertical"] as const)(
     "accepts %s orientation",
     (orientation) => {
-      const result = PowerShowElementSchema.safeParse(
+      const result = PresentationElementSchema.safeParse(
         divider({ orientation }),
       );
 
@@ -47,7 +47,7 @@ describe("Divider element schema", () => {
   );
 
   it("rejects an invalid orientation", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       divider({ orientation: "diagonal" }),
     );
 
@@ -55,7 +55,7 @@ describe("Divider element schema", () => {
   });
 
   it("accepts the canonical Divider namespaces", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       divider({
         orientation: "vertical",
 
@@ -84,6 +84,6 @@ describe("Divider element schema", () => {
     { typography: { fontSize: 12 } },
     { layout: { margin: 1 } },
   ])("rejects unsupported canonical entitlement %#", (unsupported) => {
-    expect(PowerShowElementSchema.safeParse(divider(unsupported)).success).toBe(false);
+    expect(PresentationElementSchema.safeParse(divider(unsupported)).success).toBe(false);
   });
 });

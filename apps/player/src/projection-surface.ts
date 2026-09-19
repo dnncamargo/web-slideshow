@@ -1,5 +1,5 @@
-import type { Presentation } from "@powershow/document-schema";
-import type { ScriptedReportMessage } from "@powershow/renderer";
+import type { Presentation } from "@web-slideshow/document-schema";
+import type { ScriptedReportMessage } from "@web-slideshow/renderer";
 
 import {
   fitLogicalSlideGeometry,
@@ -9,7 +9,7 @@ import {
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 
 import {
   postScriptedAction,

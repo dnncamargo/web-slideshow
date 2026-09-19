@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 
 import type {
   ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderScripted } from "../src/render-scripted";

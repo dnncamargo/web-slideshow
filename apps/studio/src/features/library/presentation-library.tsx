@@ -15,7 +15,7 @@ import {
   Topbar,
   TopbarActions,
   TopbarLocale,
-} from "@powershow/ui";
+} from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { StudioTranslate } from "../i18n/studio-i18n";
@@ -54,7 +54,7 @@ import type { CustomLibraryFontRecord } from "../custom-library/custom-library-f
 import { CustomLibraryFontAcquisition } from "../custom-library/custom-library-font-acquisition";
 import { areFontFacesEquivalent, normalizeFontFamily } from "../fonts/font-face-helpers";
 import type { FontFamilyFaces } from "../fonts/font-acquisition-types";
-import type { FontFaceResource } from "@powershow/document-schema";
+import type { FontFaceResource } from "@web-slideshow/document-schema";
 import {
   subscribeLiveCurrent,
   activateLivePresentation,

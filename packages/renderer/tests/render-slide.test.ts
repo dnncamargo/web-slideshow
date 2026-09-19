@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   Slide,
   SlideBackgroundPatternType,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderSlide } from "../src/render-slide";
 

@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 function clampIndex(index: number, slideCount: number): number {
   if (slideCount === 0) return 0;

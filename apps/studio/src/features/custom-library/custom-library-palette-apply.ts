@@ -3,7 +3,7 @@ import {
   type PaletteOperationFailure,
   type Presentation,
   type PresentationPaletteColor,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryPaletteDraft } from "./custom-library-palette";
 

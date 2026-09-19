@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { isAuthoredPowerShowLink } from "../src/features/editor/canvas-link-interception";
+import { isAuthoredPresentationLink } from "../src/features/editor/canvas-link-interception";
 
 function createCanvas(html: string): HTMLDivElement {
   const canvas = document.createElement("div");
@@ -16,13 +16,13 @@ function createCanvas(html: string): HTMLDivElement {
 // handler attached to the canvas suppresses only authored links.
 function createCanvasClickHandler() {
   return (event: MouseEvent) => {
-    if (isAuthoredPowerShowLink(event.target)) {
+    if (isAuthoredPresentationLink(event.target)) {
       event.preventDefault();
     }
   };
 }
 
-describe("isAuthoredPowerShowLink", () => {
+describe("isAuthoredPresentationLink", () => {
   it("recognizes a rendered authored PowerShow link", () => {
     const canvas = createCanvas(
       '<a href="https://example.com" data-powershow-link="true"' +
@@ -32,7 +32,7 @@ describe("isAuthoredPowerShowLink", () => {
     const anchor = canvas.querySelector("a");
 
     expect(anchor).not.toBeNull();
-    expect(isAuthoredPowerShowLink(anchor)).toBe(true);
+    expect(isAuthoredPresentationLink(anchor)).toBe(true);
   });
 
   it("recognizes activation inside a nested child of an authored link", () => {
@@ -44,7 +44,7 @@ describe("isAuthoredPowerShowLink", () => {
     const strong = canvas.querySelector("strong");
 
     expect(strong).not.toBeNull();
-    expect(isAuthoredPowerShowLink(strong)).toBe(true);
+    expect(isAuthoredPresentationLink(strong)).toBe(true);
   });
 
   it("ignores plain anchors without the PowerShow marker", () => {
@@ -53,7 +53,7 @@ describe("isAuthoredPowerShowLink", () => {
     const anchor = canvas.querySelector("a");
 
     expect(anchor).not.toBeNull();
-    expect(isAuthoredPowerShowLink(anchor)).toBe(false);
+    expect(isAuthoredPresentationLink(anchor)).toBe(false);
   });
 
   it("ignores non-link canvas content", () => {
@@ -62,13 +62,13 @@ describe("isAuthoredPowerShowLink", () => {
     const button = canvas.querySelector("button");
     const div = canvas.querySelector("div");
 
-    expect(isAuthoredPowerShowLink(button)).toBe(false);
-    expect(isAuthoredPowerShowLink(div)).toBe(false);
+    expect(isAuthoredPresentationLink(button)).toBe(false);
+    expect(isAuthoredPresentationLink(div)).toBe(false);
   });
 
   it("ignores null or undefined targets", () => {
-    expect(isAuthoredPowerShowLink(null)).toBe(false);
-    expect(isAuthoredPowerShowLink(undefined)).toBe(false);
+    expect(isAuthoredPresentationLink(null)).toBe(false);
+    expect(isAuthoredPresentationLink(undefined)).toBe(false);
   });
 
   it("recognizes the linked Image renderer output through its anchor marker", () => {
@@ -87,8 +87,8 @@ describe("isAuthoredPowerShowLink", () => {
     expect(anchor).not.toBeNull();
     expect(media).not.toBeNull();
 
-    expect(isAuthoredPowerShowLink(anchor)).toBe(true);
-    expect(isAuthoredPowerShowLink(media)).toBe(true);
+    expect(isAuthoredPresentationLink(anchor)).toBe(true);
+    expect(isAuthoredPresentationLink(media)).toBe(true);
   });
 
   it("ignores an unlinked Image (plain img) in the canvas", () => {
@@ -101,7 +101,7 @@ describe("isAuthoredPowerShowLink", () => {
     const media = canvas.querySelector("img");
 
     expect(media).not.toBeNull();
-    expect(isAuthoredPowerShowLink(media)).toBe(false);
+    expect(isAuthoredPresentationLink(media)).toBe(false);
   });
 
   it("recognizes the linked Container surface through its renderer markers", () => {
@@ -125,11 +125,11 @@ describe("isAuthoredPowerShowLink", () => {
     expect(surface).not.toBeNull();
     expect(container).not.toBeNull();
 
-    expect(isAuthoredPowerShowLink(surface)).toBe(true);
+    expect(isAuthoredPresentationLink(surface)).toBe(true);
 
     // The surface is a sibling overlay, not a wrapper. The Container
     // root and ordinary children are not inside an authored anchor.
-    expect(isAuthoredPowerShowLink(container)).toBe(false);
+    expect(isAuthoredPresentationLink(container)).toBe(false);
   });
 
   it("ignores an unlinked Container (no overlay) in the canvas", () => {
@@ -145,8 +145,8 @@ describe("isAuthoredPowerShowLink", () => {
     );
     const child = canvas.querySelector("p");
 
-    expect(isAuthoredPowerShowLink(container)).toBe(false);
-    expect(isAuthoredPowerShowLink(child)).toBe(false);
+    expect(isAuthoredPresentationLink(container)).toBe(false);
+    expect(isAuthoredPresentationLink(child)).toBe(false);
   });
 });
 

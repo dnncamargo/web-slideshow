@@ -547,8 +547,8 @@ Run tests appropriate to the affected package.
 For the document schema:
 
 ```bash
-pnpm --filter @powershow/document-schema typecheck
-pnpm --filter @powershow/document-schema test
+pnpm --filter @web-slideshow/document-schema typecheck
+pnpm --filter @web-slideshow/document-schema test
 ```
 
 When appropriate, run repository-wide:
@@ -1232,18 +1232,18 @@ unrelated.
 For narrow Studio work, useful commands may include:
 
 ```bash
-pnpm --filter @powershow/studio test -- <focused-test>
-pnpm --filter @powershow/studio typecheck
+pnpm --filter @web-slideshow/studio test -- <focused-test>
+pnpm --filter @web-slideshow/studio typecheck
 git diff --check
 ```
 
 For broader Studio work:
 
 ```bash
-pnpm --filter @powershow/studio test
-pnpm --filter @powershow/studio typecheck
-pnpm --filter @powershow/studio lint
-pnpm --filter @powershow/studio build
+pnpm --filter @web-slideshow/studio test
+pnpm --filter @web-slideshow/studio typecheck
+pnpm --filter @web-slideshow/studio lint
+pnpm --filter @web-slideshow/studio build
 git diff --check
 ```
 

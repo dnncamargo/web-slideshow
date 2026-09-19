@@ -2,21 +2,21 @@ import {
   formatColorAsHex,
   parseColor,
   resolveColorValue,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import type {
   BlocksVisualStyle,
   CodeVisualStyle,
   ElementEffect,
   GradientSurfaceBackground,
   GradientSurfaceVisualStyle,
-  PowerShowElement,
+  PresentationElement,
   TerminalVisualStyle,
   SimpleTableVisualStyle,
   StructuredTableVisualStyle,
   ColorValue,
-} from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults, TERMINAL_SEMANTIC_COLORS } from "@powershow/theme/element-style-defaults";
-import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "@powershow/renderer";
+} from "@web-slideshow/document-schema";
+import { resolveEffectiveElementStyleDefaults, TERMINAL_SEMANTIC_COLORS } from "@web-slideshow/theme/element-style-defaults";
+import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "@web-slideshow/renderer";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
@@ -30,7 +30,7 @@ import { useAuthoringHistory } from "../../authoring-history-context";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle | StructuredTableVisualStyle;
 type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
-type DataElement = Extract<PowerShowElement, { type: "code" | "terminal" | "table" | "blocks" }>;
+type DataElement = Extract<PresentationElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
 

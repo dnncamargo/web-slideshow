@@ -1,11 +1,11 @@
 import type {
   ContainerElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   StructuredTableElement,
   TextElement,
   TopicItem,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 
 // ============================================================
@@ -19,7 +19,7 @@ import type {
 // ============================================================
 
 function collectElementIds(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   ids: Set<string>,
 ) {
   for (const element of elements) {
@@ -64,13 +64,13 @@ function collectElementIds(
 
 
 /**
- * Reaches every PowerShowElement array owned by the TopicItem
+ * Reaches every PresentationElement array owned by the TopicItem
  * ContentSlots, recursively through nested TopicItems. Blocks (and
  * Containers containing Blocks) located there must participate in the
  * authoring ID inventory.
  *
  * TopicItem/ContentSlot structure IDs are NOT collected here: they are
- * not PowerShowElements and this duplicate-slide path has always
+ * not PresentationElements and this duplicate-slide path has always
  * preserved them.
  */
 function collectTopicSlotElementIds(
@@ -92,7 +92,7 @@ function collectTopicSlotElementIds(
 
 
 /**
- * Reaches every PowerShowElement array owned by the Structured Table
+ * Reaches every PresentationElement array owned by the Structured Table
  * header/column and row cell ContentSlots.
  *
  * Column/header/row/cell structural IDs are NOT collected here.
@@ -204,9 +204,9 @@ function createUniqueId(
 // ============================================================
 
 function cloneElementWithUniqueIds(
-  element: PowerShowElement,
+  element: PresentationElement,
   usedIds: Set<string>,
-): PowerShowElement {
+): PresentationElement {
   const clone =
     structuredClone(
       element,
@@ -331,9 +331,9 @@ function cloneElementWithUniqueIds(
  * Renews ids of a cloned TopicsElement reached through the NORMAL
  * historical slide clone path.
  *
- * The Topics PowerShowElement id follows the normal -copy convention,
+ * The Topics PresentationElement id follows the normal -copy convention,
  * and the TopicItem/ContentSlot structural ids are preserved. The
- * PowerShowElements inside each ContentSlot keep their historical identity
+ * PresentationElements inside each ContentSlot keep their historical identity
  * rules while remaining independently cloned.
  */
 function cloneTopicItemRenewingBlocks(
@@ -366,10 +366,10 @@ function cloneTopicItemRenewingBlocks(
 
 
 /**
- * Blocks-only traversal for PowerShowElements inside a ContentSlot
+ * Blocks-only traversal for PresentationElements inside a ContentSlot
  * (TopicItem ContentSlot, Structured Table header/cell ContentSlot).
  *
- * Blocks roots are renewed, while every other PowerShowElement keeps its own
+ * Blocks roots are renewed, while every other PresentationElement keeps its own
  * id exactly and is only recursed into where nested content may live. This
  * preserves the historical duplicate-slide semantics for unrelated
  * ContentSlot elements while extending reachability to nested Blocks.
@@ -378,9 +378,9 @@ function cloneTopicItemRenewingBlocks(
  * never shares references with the source.
  */
 function cloneContentSlotElementRenewingBlocksOnly(
-  element: PowerShowElement,
+  element: PresentationElement,
   usedIds: Set<string>,
-): PowerShowElement {
+): PresentationElement {
   if (
     element.type ===
     "blocks"
@@ -488,9 +488,9 @@ function cloneContentSlotElementRenewingBlocksOnly(
 
 
 function cloneContentSlotElementsRenewingBlocksOnly(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   usedIds: Set<string>,
-): PowerShowElement[] {
+): PresentationElement[] {
   return elements.map(
     (element) =>
       cloneContentSlotElementRenewingBlocksOnly(
@@ -579,7 +579,7 @@ export function createSlideFromPreset(
   }
 
 
-  function buildSlide(elements: PowerShowElement[]): Slide {
+  function buildSlide(elements: PresentationElement[]): Slide {
     return {
       id: slideId,
       title: "Untitled slide",
@@ -593,7 +593,7 @@ export function createSlideFromPreset(
   function container(
     name: string,
     layout: NonNullable<ContainerElement["layout"]>,
-    children: PowerShowElement[] = [],
+    children: PresentationElement[] = [],
     style?: ContainerElement["style"],
   ): ContainerElement {
     return {

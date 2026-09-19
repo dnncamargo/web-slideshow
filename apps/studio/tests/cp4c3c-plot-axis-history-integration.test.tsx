@@ -9,7 +9,7 @@ import {
   type PlotElement,
   type PlotVisualStyle,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,

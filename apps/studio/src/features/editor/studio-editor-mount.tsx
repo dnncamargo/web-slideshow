@@ -5,8 +5,8 @@ import type { ComponentPropsWithoutRef } from "react";
 
 import { useRouter } from "next/navigation";
 
-import type { Presentation } from "@powershow/document-schema";
-import { Button } from "@powershow/ui";
+import type { Presentation } from "@web-slideshow/document-schema";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();

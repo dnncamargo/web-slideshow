@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type {
   ContentSlot,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   findElementById,
@@ -13,7 +13,7 @@ import {
   updateElementById,
 } from "../src/features/editor/element-tree";
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): PresentationElement {
   return {
     type: "text",
     id,
@@ -34,7 +34,7 @@ function image(id: string): ImageElement {
   };
 }
 
-function container(id: string, children: PowerShowElement[] = []): PowerShowElement {
+function container(id: string, children: PresentationElement[] = []): PresentationElement {
   return {
     type: "container",
     id,
@@ -43,7 +43,7 @@ function container(id: string, children: PowerShowElement[] = []): PowerShowElem
   };
 }
 
-function contentSlot(id: string, children: PowerShowElement[] = []): ContentSlot {
+function contentSlot(id: string, children: PresentationElement[] = []): ContentSlot {
   return {
     id,
     children,

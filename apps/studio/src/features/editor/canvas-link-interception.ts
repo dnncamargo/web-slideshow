@@ -13,7 +13,7 @@ const AUTHORED_LINK_SELECTOR = 'a[data-powershow-link="true"]';
 // this helper.
 // ============================================================
 
-export function isAuthoredPowerShowLink(
+export function isAuthoredPresentationLink(
   target: EventTarget | null | undefined,
 ): boolean {
   return (

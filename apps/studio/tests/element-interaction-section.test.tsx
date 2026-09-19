@@ -8,9 +8,9 @@ import type {
   ContainerElement,
   ElementLink,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   TextElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
@@ -23,7 +23,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const FONT_RESOURCES: readonly { id: string; family: string }[] = [];
 
 type LinkableElement = Extract<
-  PowerShowElement,
+  PresentationElement,
   { type: "text" | "image" | "container" }
 >;
 
@@ -160,7 +160,7 @@ describe("ElementInteractionSection", () => {
   }
 
   function isLinkableElementType(
-    element: PowerShowElement,
+    element: PresentationElement,
   ): element is LinkableElement {
     return (
       element.type === "text" ||

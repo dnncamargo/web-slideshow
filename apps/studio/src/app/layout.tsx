@@ -16,8 +16,8 @@ import type {
 // quando necessário.
 // ============================================================
 
-import "@powershow/theme/index.css";
-import "@powershow/ui/styles.css";
+import "@web-slideshow/theme/index.css";
+import "@web-slideshow/ui/styles.css";
 
 import "./globals.css";
 

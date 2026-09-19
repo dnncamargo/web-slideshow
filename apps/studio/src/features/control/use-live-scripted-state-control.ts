@@ -2,7 +2,7 @@
 
 import { onValue, ref } from "firebase/database";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type Presentation, visitSlideElements } from "@powershow/document-schema";
+import { type Presentation, visitSlideElements } from "@web-slideshow/document-schema";
 import { writeScriptedInput } from "./control-command-writer";
 import type { LiveCurrent } from "./live-current";
 import type { PlayerOperationalStatus } from "./player-presence";

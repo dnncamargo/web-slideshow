@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -34,7 +34,7 @@ const OTHER_STYLE = {
 
 const repositories = { listPalettes: async () => [], listFonts: async () => [] } as never;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { id, type: "text", hidden: false, variant: "body", content };
 }
 
@@ -50,7 +50,7 @@ function container(id: string, overrides: Partial<ContainerElement> = {}): Conta
   };
 }
 
-type SlideInput = { id: string; title: string; elements: PowerShowElement[] };
+type SlideInput = { id: string; title: string; elements: PresentationElement[] };
 
 function presentation(slides: SlideInput[]): Presentation {
   return PresentationSchema.parse({
@@ -74,7 +74,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-function findElement(elements: readonly PowerShowElement[], id: string): PowerShowElement | undefined {
+function findElement(elements: readonly PresentationElement[], id: string): PresentationElement | undefined {
   for (const element of elements) {
     if (element.id === id) return element;
     if (element.type === "container") {
@@ -85,7 +85,7 @@ function findElement(elements: readonly PowerShowElement[], id: string): PowerSh
   return undefined;
 }
 
-function elementFrom(document: Presentation, id: string): PowerShowElement {
+function elementFrom(document: Presentation, id: string): PresentationElement {
   for (const slide of document.slides) {
     const element = findElement(slide.elements, id);
     if (element) return element;

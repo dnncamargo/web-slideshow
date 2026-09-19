@@ -2,7 +2,7 @@ import {
   resolveColorValue,
   type ColorValue,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

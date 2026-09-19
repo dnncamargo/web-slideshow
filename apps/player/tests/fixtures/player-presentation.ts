@@ -1,6 +1,6 @@
 import {
   PresentationSchema,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export const playerTestPresentation =
   PresentationSchema.parse({

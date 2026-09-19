@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, resolveLinkedTopicsStyle, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, resolveLinkedTopicsStyle, type Presentation } from "@web-slideshow/document-schema";
 
 import {
   attachLinkedTopicsStyle,

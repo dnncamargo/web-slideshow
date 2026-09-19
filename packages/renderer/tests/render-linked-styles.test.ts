@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement, renderPresentation } from "../src";
 

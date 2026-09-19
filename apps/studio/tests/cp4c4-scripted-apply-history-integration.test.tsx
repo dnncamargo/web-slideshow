@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type Presentation,
   type ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,

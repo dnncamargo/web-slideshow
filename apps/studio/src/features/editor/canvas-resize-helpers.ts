@@ -1,6 +1,6 @@
 import type {
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 export type CanvasResizeDirection =
   | "n"
@@ -12,7 +12,7 @@ export type CanvasResizeDirection =
   | "w"
   | "nw";
 
-const RESIZABLE_ELEMENT_TYPES = new Set<PowerShowElement["type"]>([
+const RESIZABLE_ELEMENT_TYPES = new Set<PresentationElement["type"]>([
   "container",
   "image",
   "code",
@@ -43,7 +43,7 @@ function includesSouth(direction: CanvasResizeDirection): boolean {
   return direction === "s" || direction === "sw" || direction === "se";
 }
 
-export function isCanvasResizable(element: PowerShowElement): boolean {
+export function isCanvasResizable(element: PresentationElement): boolean {
   return RESIZABLE_ELEMENT_TYPES.has(element.type);
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ElementLinkSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
   isAbsoluteHttpHref,
 } from "../src";
 
@@ -152,7 +152,7 @@ describe("ElementLinkSchema", () => {
 
 describe("Text and Container element links", () => {
   it("accepts a Text element with a valid https link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       textElement({
         link: {
           kind: "url",
@@ -177,7 +177,7 @@ describe("Text and Container element links", () => {
   });
 
   it("rejects a Text element with an unsafe link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       textElement({
         link: {
           kind: "url",
@@ -190,11 +190,11 @@ describe("Text and Container element links", () => {
   });
 
   it("accepts a Text element without a link", () => {
-    expect(PowerShowElementSchema.safeParse(textElement()).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(textElement()).success).toBe(true);
   });
 
   it("rejects a legacy Textbox element", () => {
-    const result = PowerShowElementSchema.safeParse({
+    const result = PresentationElementSchema.safeParse({
       type: "textbox",
       id: "textbox-1",
       content: "legacy",
@@ -204,7 +204,7 @@ describe("Text and Container element links", () => {
   });
 
   it("validates the canonical Container + Text composition", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         children: [
           textElement({
@@ -228,7 +228,7 @@ describe("Text and Container element links", () => {
 
 describe("Image element links", () => {
   it("accepts an Image element with a valid https link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -251,7 +251,7 @@ describe("Image element links", () => {
   });
 
   it("accepts an Image element with a valid http link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -274,7 +274,7 @@ describe("Image element links", () => {
   });
 
   it("accepts an Image element link with an explicit _self target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -299,7 +299,7 @@ describe("Image element links", () => {
   });
 
   it("accepts an Image element link with a _blank target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -328,7 +328,7 @@ describe("Image element links", () => {
     "data:text/html,<script>alert(1)</script>",
     "file:///etc/passwd",
   ] as const)("rejects unsafe Image link scheme %s", (href) => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -345,7 +345,7 @@ describe("Image element links", () => {
     "/relative/path",
     " https://example.com ",
   ] as const)("rejects malformed Image link URL %s", (href) => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -358,7 +358,7 @@ describe("Image element links", () => {
   });
 
   it("rejects an Image element link with an invalid target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       imageElement({
         link: {
           kind: "url",
@@ -372,13 +372,13 @@ describe("Image element links", () => {
   });
 
   it("still accepts an Image without a link (backward compatibility)", () => {
-    expect(PowerShowElementSchema.safeParse(imageElement()).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(imageElement()).success).toBe(true);
   });
 });
 
 describe("Container element links", () => {
   it("accepts a Container with a valid https link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -401,7 +401,7 @@ describe("Container element links", () => {
   });
 
   it("accepts a Container with a valid http link", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -424,7 +424,7 @@ describe("Container element links", () => {
   });
 
   it("accepts a Container link with an explicit _self target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -449,7 +449,7 @@ describe("Container element links", () => {
   });
 
   it("accepts a Container link with a _blank target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -478,7 +478,7 @@ describe("Container element links", () => {
     "data:text/html,<script>alert(1)</script>",
     "file:///etc/passwd",
   ] as const)("rejects unsafe Container link scheme %s", (href) => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -495,7 +495,7 @@ describe("Container element links", () => {
     "/relative/path",
     " https://example.com ",
   ] as const)("rejects malformed Container link URL %s", (href) => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -508,7 +508,7 @@ describe("Container element links", () => {
   });
 
   it("rejects a Container link with an invalid target", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -522,7 +522,7 @@ describe("Container element links", () => {
   });
 
   it("still accepts a Container without a link (backward compatibility)", () => {
-    const result = PowerShowElementSchema.safeParse(containerElement());
+    const result = PresentationElementSchema.safeParse(containerElement());
 
     expect(result.success).toBe(true);
 
@@ -532,7 +532,7 @@ describe("Container element links", () => {
   });
 
   it("allows nested Containers to independently carry their own links", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -578,7 +578,7 @@ describe("Container element links", () => {
   });
 
   it("keeps child Text and Image links canonical inside a linked Container", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         link: {
           kind: "url",
@@ -631,7 +631,7 @@ describe("unsupported element types and links", () => {
   ] as const)(
     "rejects a link property from a %s element per schema strictness conventions",
     (_type, element) => {
-      const result = PowerShowElementSchema.safeParse({
+      const result = PresentationElementSchema.safeParse({
         ...element,
         link: {
           kind: "url",
@@ -648,19 +648,19 @@ describe("unsupported element types and links", () => {
     ["terminal", { type: "terminal", id: "term-1", hidden: false, lines: [] }],
     ["table", { type: "table", id: "table-1", hidden: false, columns: [], rows: [] }],
   ] as const)("rejects a link property from a canonical %s element", (_type, element) => {
-    expect(PowerShowElementSchema.safeParse({ ...element, link: { kind: "url", href: "https://example.com" } }).success).toBe(false);
+    expect(PresentationElementSchema.safeParse({ ...element, link: { kind: "url", href: "https://example.com" } }).success).toBe(false);
   });
 });
 
 describe("no-link backward compatibility", () => {
   it("parses legacy Text elements without a link property", () => {
-    const legacy = PowerShowElementSchema.parse(textElement());
+    const legacy = PresentationElementSchema.parse(textElement());
 
     expect(legacy).not.toHaveProperty("link");
   });
 
   it("parses legacy Container elements without a link property", () => {
-    const legacy = PowerShowElementSchema.parse(containerElement());
+    const legacy = PresentationElementSchema.parse(containerElement());
 
     expect(legacy).not.toHaveProperty("link");
   });
@@ -668,7 +668,7 @@ describe("no-link backward compatibility", () => {
 
 describe("link parse/roundtrip", () => {
   it("roundtrips a linked Text element through JSON serialization", () => {
-    const source = PowerShowElementSchema.parse(
+    const source = PresentationElementSchema.parse(
       textElement({
         link: {
           kind: "url",
@@ -678,7 +678,7 @@ describe("link parse/roundtrip", () => {
       }),
     );
 
-    const restored = PowerShowElementSchema.parse(
+    const restored = PresentationElementSchema.parse(
       JSON.parse(JSON.stringify(source)),
     );
 
@@ -686,7 +686,7 @@ describe("link parse/roundtrip", () => {
   });
 
   it("round-trips a linked Image element through JSON serialization", () => {
-    const source = PowerShowElementSchema.parse(
+    const source = PresentationElementSchema.parse(
       imageElement({
         link: {
           kind: "url",
@@ -696,7 +696,7 @@ describe("link parse/roundtrip", () => {
       }),
     );
 
-    const restored = PowerShowElementSchema.parse(
+    const restored = PresentationElementSchema.parse(
       JSON.parse(JSON.stringify(source)),
     );
 
@@ -704,7 +704,7 @@ describe("link parse/roundtrip", () => {
   });
 
   it("roundtrips a linked Container element through JSON serialization", () => {
-    const source = PowerShowElementSchema.parse(
+    const source = PresentationElementSchema.parse(
       containerElement({
         link: {
           kind: "url",
@@ -723,7 +723,7 @@ describe("link parse/roundtrip", () => {
       }),
     );
 
-    const restored = PowerShowElementSchema.parse(
+    const restored = PresentationElementSchema.parse(
       JSON.parse(JSON.stringify(source)),
     );
 

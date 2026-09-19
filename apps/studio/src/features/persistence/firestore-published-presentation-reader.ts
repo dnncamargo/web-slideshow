@@ -1,7 +1,7 @@
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
-import type { Presentation } from "@powershow/document-schema";
-import { assertPresentationId } from "@powershow/firebase";
+import type { Presentation } from "@web-slideshow/document-schema";
+import { assertPresentationId } from "@web-slideshow/firebase";
 
 import { getFirebaseFirestore } from "./firebase-client";
 import { FirestoreOperationError } from "./persistence-errors";
@@ -87,7 +87,7 @@ function pointerOperationError(
  *   publishedPresentations/{publicationId}/versions/{versionId}
  *
  * The stored Presentation is validated through the same canonical
- * @powershow/document-schema validation path used for drafts, so malformed
+ * @web-slideshow/document-schema validation path used for drafts, so malformed
  * persisted data is never returned as a valid Presentation.
  */
 export class FirestorePublishedPresentationReader

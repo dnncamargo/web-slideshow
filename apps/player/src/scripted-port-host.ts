@@ -2,14 +2,14 @@ import {
   visitSlideElements,
   type ScriptedElement,
   type Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   SCRIPTED_ACTION_MESSAGE_TYPE,
   SCRIPTED_INPUT_MESSAGE_TYPE,
   SCRIPTED_REPORT_MESSAGE_TYPE,
   type ScriptedReportMessage,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 
 function findScriptedElement(
   slide: Slide | undefined,

@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { loadPublishedVersion } from "./published-presentation-loader";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";

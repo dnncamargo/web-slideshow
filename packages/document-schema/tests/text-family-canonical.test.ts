@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PowerShowElementSchema } from "../src/elements";
+import { PresentationElementSchema } from "../src/elements";
 
 const typography = {
   fontFamily: "Inter",
@@ -19,7 +19,7 @@ const visualStyle = {
 
 describe("Text family canonical contract", () => {
   it("accepts the canonical Text namespace", () => {
-    expect(PowerShowElementSchema.safeParse({
+    expect(PresentationElementSchema.safeParse({
       id: "text",
       type: "text",
       hidden: false,
@@ -33,7 +33,7 @@ describe("Text family canonical contract", () => {
   });
 
   it("rejects the legacy Textbox namespace", () => {
-    expect(PowerShowElementSchema.safeParse({
+    expect(PresentationElementSchema.safeParse({
       id: "textbox",
       type: "textbox",
       hidden: false,
@@ -42,7 +42,7 @@ describe("Text family canonical contract", () => {
   });
 
   it("validates the canonical Container + Text composition", () => {
-    expect(PowerShowElementSchema.safeParse({
+    expect(PresentationElementSchema.safeParse({
       id: "box",
       type: "container",
       role: "content",
@@ -68,7 +68,7 @@ describe("Text family canonical contract", () => {
       { ...base, style: { placement: { mode: "absolute" } } },
       { ...base, style: { background: { pattern: { image: "radial-gradient(#000000 1px, transparent 1px)" } } } },
     ]) {
-      expect(PowerShowElementSchema.safeParse(input).success).toBe(false);
+      expect(PresentationElementSchema.safeParse(input).success).toBe(false);
     }
   });
 });

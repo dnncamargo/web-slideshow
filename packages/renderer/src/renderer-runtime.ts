@@ -1,6 +1,6 @@
 import { hydrateContainerFits } from "./container-fit-runtime";
 import { hydrateImageCrops } from "./image-crop-runtime";
-import type { Slide } from "@powershow/document-schema";
+import type { Slide } from "@web-slideshow/document-schema";
 import {
   disposePlotAnimations,
   getPlotAnimationController as getInternalPlotAnimationController,

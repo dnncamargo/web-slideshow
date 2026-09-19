@@ -1,6 +1,6 @@
 import type {
   CodeElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";

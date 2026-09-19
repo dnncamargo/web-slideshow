@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 import { reconcileSelectedElementAfterReplay } from "../src/features/editor/editor-history-selection-reconciliation";
 
 describe("history selection reconciliation", () => {

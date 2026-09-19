@@ -4,8 +4,8 @@ import {
   PresentationSchema,
   TextElementSchema,
   resolveTextStyle,
-} from "@powershow/document-schema";
-import { renderPresentation } from "@powershow/renderer";
+} from "@web-slideshow/document-schema";
+import { renderPresentation } from "@web-slideshow/renderer";
 
 import {
   detachTextStyle,

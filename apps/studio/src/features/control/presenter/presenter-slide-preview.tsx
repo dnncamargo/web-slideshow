@@ -9,8 +9,8 @@ import {
   paletteColorCssVariableName,
   renderSlide,
   resolveLogicalSlideSize,
-} from "@powershow/renderer";
-import type { Presentation, Slide } from "@powershow/document-schema";
+} from "@web-slideshow/renderer";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
 
 import styles from "./presenter-view.module.css";
 
@@ -81,7 +81,7 @@ export interface PresenterSlidePreviewProps {
 }
 
 /**
- * Renders a single Slide with the existing @powershow/renderer.
+ * Renders a single Slide with the existing @web-slideshow/renderer.
  *
  * The outer box applies the presentation aspect ratio so the preview scales
  * correctly. It is reusable for both the current and next slide and owns only

@@ -1,4 +1,4 @@
-import type { MathGeometryResult, MathViewport2D } from "@powershow/math-source";
+import type { MathGeometryResult, MathViewport2D } from "@web-slideshow/math-source";
 
 import { escapeHtml } from "./escape-html";
 

@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 
-import { renderElement, resolveLogicalSlideSize } from "@powershow/renderer";
-import type { PowerShowElement, Presentation } from "@powershow/document-schema";
+import { renderElement, resolveLogicalSlideSize } from "@web-slideshow/renderer";
+import type { PresentationElement, Presentation } from "@web-slideshow/document-schema";
 
 import styles from "./editor-workspace.module.css";
 
@@ -15,7 +15,7 @@ export function ClipboardPreview({
   element,
   presentation,
 }: {
-  element: PowerShowElement;
+  element: PresentationElement;
   presentation: Presentation;
 }) {
   const markup = useMemo(

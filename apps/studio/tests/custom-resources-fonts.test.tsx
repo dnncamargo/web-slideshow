@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type FontResource, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type FontResource, type Presentation } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";

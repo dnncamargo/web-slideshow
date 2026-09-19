@@ -4,7 +4,7 @@ import {
   PresentationSchema,
   resolveLinkedContainerStyle,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   attachLinkedStyleToMatchingContainers,

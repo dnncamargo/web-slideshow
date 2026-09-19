@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BlocksElement, CodeElement, SimpleTableElement, TerminalElement } from "@powershow/document-schema";
+import type { BlocksElement, CodeElement, SimpleTableElement, TerminalElement } from "@web-slideshow/document-schema";
 import { updateCanonicalSurfaceForCanvasDrag, updateSurfaceForCanvasResize } from "../src/features/editor/canonical-text-canvas-geometry";
 
 const geometry = { parentWidthPx: 1000, parentHeightPx: 600, initialLeftPx: 20, initialTopPx: 30, initialRightPx: 660, initialBottomPx: 390, initialWidthPx: 320, initialHeightPx: 180 };

@@ -3,8 +3,8 @@ import { useState } from "react";
 import type {
   ScriptedElement,
   ScriptedPort,
-} from "@powershow/document-schema";
-import { ScriptedElementSchema } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { ScriptedElementSchema } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

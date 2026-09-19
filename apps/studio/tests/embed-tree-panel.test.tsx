@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { EmbedElement, Slide } from "@powershow/document-schema";
+import type { EmbedElement, Slide } from "@web-slideshow/document-schema";
 
 import { ElementTreePanel } from "../src/features/editor/element-tree-panel";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

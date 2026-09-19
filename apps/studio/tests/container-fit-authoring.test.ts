@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { ContainerElement } from "@powershow/document-schema";
+import type { ContainerElement } from "@web-slideshow/document-schema";
 
 import {
   isInsideContainerFitSurface,

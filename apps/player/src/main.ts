@@ -1,4 +1,4 @@
-import "@powershow/theme/index.css";
+import "@web-slideshow/theme/index.css";
 import { displayName } from "@web-slideshow/instance-branding";
 import "./player.css";
 

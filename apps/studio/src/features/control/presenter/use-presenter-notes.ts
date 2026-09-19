@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import { getDefaultPresentationNotesRepository } from "@/features/persistence/presentation-notes-repository-instance";
 import {

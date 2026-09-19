@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
-import type { PresentationPalette } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
+import type { PresentationPalette } from "@web-slideshow/document-schema";
 
 import {
   composeCustomLibraryElementRecipe,
@@ -9,7 +9,7 @@ import {
 } from "../src/features/custom-library/custom-library-recipe";
 
 const compose = (
-  root: PowerShowElement,
+  root: PresentationElement,
   selections: ElementPropertySelectionMap = new Map(),
   palette?: PresentationPalette,
 ) => composeCustomLibraryElementRecipe(root, selections, palette);
@@ -17,7 +17,7 @@ const compose = (
 describe("composeCustomLibraryElementRecipe", () => {
   it("resolves presentation-local palette references for portable recipes", () => {
     const accent = { kind: "palette" as const, colorId: "accent" };
-    const text: PowerShowElement = {
+    const text: PresentationElement = {
       type: "text",
       id: "text-palette",
       hidden: false,
@@ -59,7 +59,7 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("fails extraction when a selected source reference cannot resolve", () => {
-    const text: PowerShowElement = {
+    const text: PresentationElement = {
       type: "text", id: "unresolved", hidden: false, content: "Palette",
       variant: "body",
       style: { color: { kind: "palette", colorId: "missing" } },
@@ -70,11 +70,11 @@ describe("composeCustomLibraryElementRecipe", () => {
 
   it("resolves palette references inside selected intrinsic payloads and recipe children", () => {
     const accent = { kind: "palette" as const, colorId: "accent" };
-    const nestedText: PowerShowElement = {
+    const nestedText: PresentationElement = {
       type: "text", id: "nested-text", hidden: false, content: "Nested", variant: "body",
       style: { color: accent },
     };
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container", id: "root-payloads", hidden: false, children: [
         {
           type: "text", id: "rich", hidden: false, content: {
@@ -132,7 +132,7 @@ describe("composeCustomLibraryElementRecipe", () => {
 
   it("leaves selected opaque interactive and scripted payloads unchanged", () => {
     const payload = { kind: "palette", colorId: "accent" };
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container", id: "opaque-root", hidden: false, children: [
         { type: "interactive", id: "interactive", hidden: false, widget: "function-plot", config: { payload } },
         { type: "scripted", id: "scripted", hidden: false, title: "Script", html: JSON.stringify(payload), css: JSON.stringify(payload), script: JSON.stringify(payload), ports: [] },
@@ -154,7 +154,7 @@ describe("composeCustomLibraryElementRecipe", () => {
     ]);
   });
   it("composes a leaf with explicit properties and omits children", () => {
-    const text: PowerShowElement = {
+    const text: PresentationElement = {
       type: "text",
       id: "title-1",
       hidden: false,
@@ -176,7 +176,7 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("uses defaults only when selection is absent and preserves explicit empty selections", () => {
-    const text: PowerShowElement = {
+    const text: PresentationElement = {
       type: "text",
       id: "text-1",
       hidden: false,
@@ -191,14 +191,14 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("recursively composes container children without including canonical children as properties", () => {
-    const text: PowerShowElement = {
+    const text: PresentationElement = {
       type: "text",
       id: "text-b",
       hidden: false,
       content: "Child",
       variant: "body",
     };
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "container-a",
       hidden: false,
@@ -222,7 +222,7 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("preserves nested authored order and retains children with empty properties", () => {
-    const childB: PowerShowElement = {
+    const childB: PresentationElement = {
       type: "container",
       id: "container-b",
       hidden: false,
@@ -234,7 +234,7 @@ describe("composeCustomLibraryElementRecipe", () => {
         variant: "body",
       }],
     };
-    const childD: PowerShowElement = {
+    const childD: PresentationElement = {
       type: "container",
       id: "container-d",
       hidden: false,
@@ -246,7 +246,7 @@ describe("composeCustomLibraryElementRecipe", () => {
         variant: "body",
       }],
     };
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "container-a",
       hidden: false,
@@ -281,7 +281,7 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("keeps each element selection independent and excludes source ids", () => {
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "root-id",
       hidden: false,
@@ -320,7 +320,7 @@ describe("composeCustomLibraryElementRecipe", () => {
   });
 
   it("keeps intrinsic payload arrays as properties and isolates recipe values", () => {
-    const table: PowerShowElement = {
+    const table: PresentationElement = {
       type: "table",
       id: "table-id",
       hidden: false,

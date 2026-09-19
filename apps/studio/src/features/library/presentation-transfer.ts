@@ -1,25 +1,25 @@
 import {
   PresentationSchema,
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   type ContentSlot,
   type GalleryElement,
   type ImageElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation as CanonicalPresentation,
   type TextStyle,
   type TopicItem,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 const LEGACY_DEMO_ASSET_PATH = "/powershow-demo.svg";
 const CURRENT_DEMO_ASSET_PATH = "/instance-demo.svg";
 
 const LEGACY_TEXT_STYLE_IDS = {
-  "powershow:table-column-header": POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-  "powershow:table-cell": POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  "powershow:topics": POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  "powershow:table-column-header": SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  "powershow:table-cell": SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  "powershow:topics": SYSTEM_TOPICS_TEXT_STYLE_ID,
 } as const;
 
 function normalizeLegacyTextStyleId(id: string): TextStyle["id"] {
@@ -43,7 +43,7 @@ function normalizeLegacyTopicItem(item: TopicItem): TopicItem {
     : { ...item, content, children };
 }
 
-function normalizeLegacyElement(element: PowerShowElement): PowerShowElement {
+function normalizeLegacyElement(element: PresentationElement): PresentationElement {
   if (element.type === "text") {
     const variant = normalizeLegacyTextStyleId(element.variant);
     return variant === element.variant ? element : { ...element, variant };
@@ -99,10 +99,10 @@ function normalizeLegacyElement(element: PowerShowElement): PowerShowElement {
   return element;
 }
 
-function normalizeLegacyElements(elements: readonly PowerShowElement[]): PowerShowElement[] {
+function normalizeLegacyElements(elements: readonly PresentationElement[]): PresentationElement[] {
   const normalized = elements.map(normalizeLegacyElement);
   return normalized.every((element, index) => element === elements[index])
-    ? elements as PowerShowElement[]
+    ? elements as PresentationElement[]
     : normalized;
 }
 

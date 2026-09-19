@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { renderFontResources } from "@powershow/renderer";
+import { renderFontResources } from "@web-slideshow/renderer";
 import {
   Button,
   Separator,
@@ -13,7 +13,7 @@ import {
   TopbarActions,
   TopbarLocale,
   TopbarTitle,
-} from "@powershow/ui";
+} from "@web-slideshow/ui";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import type { StudioTranslate } from "@/features/i18n/studio-i18n";

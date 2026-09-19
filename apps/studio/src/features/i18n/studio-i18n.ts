@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 // ============================================================
 // BEGIN: STUDIO LOCALES
@@ -2353,7 +2353,7 @@ export const ELEMENT_TYPE_MESSAGE_KEYS = {
   embed: "element.embed",
   blocks: "element.blocks",
   scripted: "element.scripted",
-} satisfies Record<PowerShowElement["type"], StudioMessageKey>;
+} satisfies Record<PresentationElement["type"], StudioMessageKey>;
 
 // ============================================================
 // END: ELEMENT TYPE LABELS

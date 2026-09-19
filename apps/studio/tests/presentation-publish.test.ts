@@ -36,8 +36,8 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
-import { PresentationSchema, type Presentation } from "@powershow/document-schema";
-import { encodePresentationForFirestore } from "@powershow/firebase";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { encodePresentationForFirestore } from "@web-slideshow/firebase";
 
 const repository = new FirestorePresentationRepository();
 

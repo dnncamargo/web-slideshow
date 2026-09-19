@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 export interface ElementPropertyEntry {
   path: string;
@@ -41,7 +41,7 @@ function appendValue(
 }
 
 export function getElementPropertyEntries(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): ElementPropertyEntry[] {
   const entries: ElementPropertyEntry[] = [];
 

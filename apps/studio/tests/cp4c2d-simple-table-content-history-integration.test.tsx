@@ -6,11 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type SimpleTableElement,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -411,7 +411,7 @@ describe("CP4C2D Simple Table content history", () => {
   });
 
   it("authors label, string, and number values without a History provider", async () => {
-    let elementState: PowerShowElement = tableElement();
+    let elementState: PresentationElement = tableElement();
 
     const renderInspector = () => {
       root.render(

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ColorSchema } from "@powershow/document-schema";
+import { ColorSchema } from "@web-slideshow/document-schema";
 
 import type {
   CustomLibraryPaletteColor,

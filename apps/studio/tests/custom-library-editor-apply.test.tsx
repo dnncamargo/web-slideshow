@@ -6,10 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PresentationSchema,
   type FontFaceResource,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
-import { paletteColorCssVariableName } from "@powershow/renderer";
+} from "@web-slideshow/document-schema";
+import { paletteColorCssVariableName } from "@web-slideshow/renderer";
 
 import type {
   CustomLibraryItemRecord,
@@ -24,11 +24,11 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { type: "text", id, hidden: false, variant: "body", content };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -43,7 +43,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
 }
 
-function container(id: string, children: PowerShowElement[]): PowerShowElement {
+function container(id: string, children: PresentationElement[]): PresentationElement {
   return { type: "container", id, hidden: false, children };
 }
 
@@ -88,7 +88,7 @@ const items: CustomLibraryItemRecord[] = [
   { id: "plot-item", item: { name: "Plot preset", root: plotRecipe } },
 ];
 
-function topicsElement(): PowerShowElement {
+function topicsElement(): PresentationElement {
   return {
     type: "topics",
     id: "topics-1",
@@ -103,7 +103,7 @@ function topicsElement(): PowerShowElement {
 }
 
 function makePresentation(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   secondSlide = false,
   fonts?: NonNullable<Presentation["resources"]>["fonts"],
 ): Presentation {
@@ -222,6 +222,10 @@ describe("Custom Library Editor integration", () => {
     } else {
       await clickToolbarMode("Custom Resources");
     }
+    const addSavedElementButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "+ Add saved element");
+    if (!addSavedElementButton) throw new Error("Saved element chooser not found");
+    await act(async () => addSavedElementButton.click());
     await act(async () => undefined);
   }
 

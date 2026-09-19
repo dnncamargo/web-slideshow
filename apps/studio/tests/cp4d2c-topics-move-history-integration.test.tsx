@@ -5,13 +5,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();
@@ -40,7 +40,7 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   });
 }
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return {
     type: "text",
     id,
@@ -50,7 +50,7 @@ function text(id: string, content: string): PowerShowElement {
   };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -65,7 +65,7 @@ function topicItem(
   id: string,
   content = id,
   children: TopicItem[] = [],
-  contentChildren: PowerShowElement[] = [text(`text-${id}`, content)],
+  contentChildren: PresentationElement[] = [text(`text-${id}`, content)],
 ): TopicItem {
   return {
     id,
@@ -96,7 +96,7 @@ function presentation(
   overrides: Partial<Omit<TopicsElement, "type" | "id" | "items">> = {},
   textStyles: Presentation["textStyles"] = [
     { id: "custom-style", name: "Custom", role: "body" },
-    { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
+    { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Topics", role: "body" },
   ],
   linkedStyles: Presentation["linkedStyles"] = [{
     target: "topics",

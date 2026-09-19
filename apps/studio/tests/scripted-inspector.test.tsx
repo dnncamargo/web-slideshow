@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PowerShowElement, ScriptedElement, Slide } from "@powershow/document-schema";
+import type { PresentationElement, ScriptedElement, Slide } from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { ScriptedInspector } from "../src/features/editor/inspector/scripted-inspector";
@@ -960,7 +960,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
   });
 
   it("dispatches the ScriptedInspector for a selected Scripted element", async () => {
-    const element: PowerShowElement = scripted({
+    const element: PresentationElement = scripted({
       html: "<h1>Hello</h1>",
     });
 
@@ -998,7 +998,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
   });
 
   it("does not show the unsupported-element hint for Scripted", async () => {
-    const element: PowerShowElement = scripted();
+    const element: PresentationElement = scripted();
 
     await act(async () => {
       root.render(
@@ -1025,7 +1025,7 @@ describe("ElementInspector dispatcher for Scripted", () => {
   });
 
   it("shows the Scripted type label correctly", async () => {
-    const element: PowerShowElement = scripted();
+    const element: PresentationElement = scripted();
 
     await act(async () => {
       root.render(

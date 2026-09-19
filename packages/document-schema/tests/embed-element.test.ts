@@ -4,7 +4,7 @@ import {
   EmbedElementSchema,
   GalleryElementSchema,
   ImageElementSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
 } from "../src/elements";
 
 function embed(overrides: Record<string, unknown> = {}) {
@@ -46,8 +46,8 @@ describe("Embed element schema", () => {
     }
   });
 
-  it("accepts Embed through PowerShowElementSchema", () => {
-    const result = PowerShowElementSchema.safeParse(embed());
+  it("accepts Embed through PresentationElementSchema", () => {
+    const result = PresentationElementSchema.safeParse(embed());
 
     expect(result.success).toBe(true);
 

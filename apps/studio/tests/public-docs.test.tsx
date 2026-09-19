@@ -7,7 +7,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 import { DocsPage } from "../src/app/docs/docs-page";
 import { allDocsTopics, docsGroups } from "../src/app/docs/docs-content";
-import { parseBlocksSource } from "@powershow/renderer";
+import { parseBlocksSource } from "@web-slideshow/renderer";
+import { displayName } from "@web-slideshow/instance-branding";
 import { analyzeMathSource } from "../../../packages/math-source/src";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -156,7 +157,7 @@ describe("public Docs", () => {
   });
 
   it("exposes home and GitHub navigation without coupling Docs to Studio auth", () => {
-    expect(container.querySelector('a[href="/"]')?.textContent).toBe("PowerShow");
+    expect(container.querySelector('a[href="/"]')?.textContent).toBe(displayName);
     expect(
       container.querySelector('a[href="https://github.com/dnncamargo/web-slideshow"]')?.textContent,
     ).toBe("GitHub");

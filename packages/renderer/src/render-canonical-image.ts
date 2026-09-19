@@ -1,4 +1,4 @@
-import type { ImageElement } from "@powershow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import { renderLength } from "./render-length";
 import { renderBackground, renderBorder, renderGradientBorder, renderGradientBorderBox, renderShadow } from "./render-visual";

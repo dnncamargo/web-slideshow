@@ -1,6 +1,6 @@
 import type {
   DividerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";

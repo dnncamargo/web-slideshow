@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ContainerElement,
   DividerElement,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { DividerInspector } from "../src/features/editor/inspector/divider-inspector";
@@ -365,7 +365,7 @@ describe("ElementInspector dispatcher for Divider", () => {
   });
 
   it("renders the DividerInspector for a selected Divider", async () => {
-    const element: PowerShowElement = dividerElement();
+    const element: PresentationElement = dividerElement();
     const parent: ContainerElement | null = null;
 
     await act(async () => {

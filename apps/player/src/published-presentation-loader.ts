@@ -1,8 +1,8 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 import {
   assertPresentationId,
   decodePresentationFromFirestore,
-} from "@powershow/firebase";
+} from "@web-slideshow/firebase";
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from "firebase/app";
 import { doc, getDoc, getFirestore } from "firebase/firestore/lite";
 

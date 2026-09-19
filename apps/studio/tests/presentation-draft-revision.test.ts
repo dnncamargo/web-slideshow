@@ -24,13 +24,13 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import type {
   Presentation,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
-import { PresentationSchema } from "@powershow/document-schema";
-import { encodePresentationForFirestore } from "@powershow/firebase";
+} from "@web-slideshow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
+import { encodePresentationForFirestore } from "@web-slideshow/firebase";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
@@ -58,7 +58,7 @@ const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 
 const repository = new FirestorePresentationRepository();
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): PresentationElement {
   return {
     type: "text",
     id,
@@ -110,7 +110,7 @@ function nestedAutonomousTopicsElement(): TopicsElement {
   };
 }
 
-function nestedContainerElement(depth: number): PowerShowElement {
+function nestedContainerElement(depth: number): PresentationElement {
   if (depth <= 0) {
     return text("leaf-text");
   }

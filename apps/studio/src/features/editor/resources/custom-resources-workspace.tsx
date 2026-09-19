@@ -1,10 +1,10 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type PowerShowElement, type TopicMarkerStyle, type TopicsElement } from "@powershow/document-schema";
-import { paletteColorCssVariableName, renderElement } from "@powershow/renderer";
-import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@powershow/theme/element-style-defaults";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement } from "@web-slideshow/document-schema";
+import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
+import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 import { InspectorSection } from "@/features/editor/inspector/inspector-section";
@@ -77,7 +77,7 @@ interface CustomResourcesWorkspaceProps {
   onSelectTextStyleElement?: (location: TextStyleUsageLocation) => void;
   onRequestDetachLinkedStyle?: (styleId: string, styleName: string, location: LinkedStyleContainerLocation) => void;
   onRequestDetachTextStyleElement?: (styleId: string, styleName: string, location: TextStyleUsageLocation) => void;
-  selectedElement?: PowerShowElement | null;
+  selectedElement?: PresentationElement | null;
   onCreateLinkedStyleFromSelected?: (name: string) => void;
   resourceSections?: Record<string, boolean>;
   onResourceSectionChange?: (id: string, open: boolean) => void;
@@ -388,7 +388,7 @@ function LinkedStylesWorkspace({
   onAttach: (id: string) => void;
   onSelectContainer: (location: LinkedStyleContainerLocation) => void;
   onRequestDetach: (styleId: string, styleName: string, location: LinkedStyleContainerLocation) => void;
-  selectedElement: PowerShowElement | null;
+  selectedElement: PresentationElement | null;
   onCreateFromSelected: (name: string) => void;
 }) {
   const { t } = useStudioI18n();
@@ -794,7 +794,7 @@ function TextStylesWorkspace({
   onSelectElement: (location: TextStyleUsageLocation) => void;
   onRequestDetachElement: (styleId: string, styleName: string, location: TextStyleUsageLocation) => void;
   isInUse: (id: string) => boolean;
-  selectedElement?: PowerShowElement | null;
+  selectedElement?: PresentationElement | null;
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();

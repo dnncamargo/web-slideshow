@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   GalleryElement,
   Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   createElement,

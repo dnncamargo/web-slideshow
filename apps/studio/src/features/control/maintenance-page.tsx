@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
-import { Topbar, TopbarActions } from "@powershow/ui";
+import { Topbar, TopbarActions } from "@web-slideshow/ui";
 import {
   subscribeLiveCurrent,
   type LiveState,

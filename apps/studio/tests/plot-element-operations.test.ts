@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PlotElementSchema } from "@powershow/document-schema";
+import { PlotElementSchema } from "@web-slideshow/document-schema";
 
 import type { ElementCreateType } from "../src/features/editor/element-operations";
 import { createElement } from "../src/features/editor/element-operations";

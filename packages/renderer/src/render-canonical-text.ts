@@ -4,7 +4,7 @@ import type {
   TextElement,
   TextVisualStyle,
   TextStyleVisualProperties,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
 import { renderBorder, renderGradient, renderShadow } from "./render-visual";

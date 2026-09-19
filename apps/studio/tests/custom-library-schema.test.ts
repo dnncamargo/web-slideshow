@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import {
   createCustomLibraryItemDraft,
@@ -10,7 +10,7 @@ import {
   parseCustomLibraryItemDraft,
 } from "../src/features/custom-library/custom-library-schema";
 
-const text = (id = "text-1"): PowerShowElement => ({
+const text = (id = "text-1"): PresentationElement => ({
   type: "text",
   id,
   hidden: false,
@@ -67,13 +67,13 @@ describe("Custom Library persisted contract", () => {
 
   it("accepts builder-produced and nested container compositions", () => {
     const child = text("child");
-    const nested: PowerShowElement = {
+    const nested: PresentationElement = {
       type: "container",
       id: "nested",
       hidden: false,
       children: [child],
     };
-    const root: PowerShowElement = {
+    const root: PresentationElement = {
       type: "container",
       id: "root",
       hidden: false,
@@ -183,7 +183,7 @@ describe("Custom Library persisted contract", () => {
   });
 
   it("keeps builder output reference-independent", () => {
-    const source: PowerShowElement = {
+    const source: PresentationElement = {
       type: "table",
       id: "table-id",
       hidden: false,

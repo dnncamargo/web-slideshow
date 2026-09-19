@@ -1,7 +1,7 @@
 "use client";
 
-import type { PresentationPalette } from "@powershow/document-schema";
-import { Button } from "@powershow/ui";
+import type { PresentationPalette } from "@web-slideshow/document-schema";
+import { Button } from "@web-slideshow/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";

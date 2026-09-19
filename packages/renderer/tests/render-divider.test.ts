@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   DividerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderDivider } from "../src/render-divider";
 

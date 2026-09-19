@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PresentationSummary } from "./presentation-persistence";
 import type {

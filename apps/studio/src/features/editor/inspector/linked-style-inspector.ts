@@ -1,4 +1,4 @@
-import type { ContainerElement, LinkedContainerStyle, Presentation } from "@powershow/document-schema";
+import type { ContainerElement, LinkedContainerStyle, Presentation } from "@web-slideshow/document-schema";
 
 export type LinkedSource = "local" | "linked" | "theme";
 export type ContainerShareableProperty =

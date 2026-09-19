@@ -80,7 +80,7 @@ Do not begin a new work area or create a new feature branch from a stale local `
 
 Reference: PR #2.
 
-Established strict `@powershow/document-schema`, recursive semantic elements, runtime validation and `schemaVersion: 1`.
+Established strict `@web-slideshow/document-schema`, recursive semantic elements, runtime validation and `schemaVersion: 1`.
 
 ## P1 — Renderer and Player foundation ✅
 
@@ -455,7 +455,7 @@ TopicsElement
    │   ├── layout?
    │   ├── style?
    │   ├── typography?
-   │   └── children: PowerShowElement[]
+   │   └── children: PresentationElement[]
    └── children: TopicItem[]
 ```
 

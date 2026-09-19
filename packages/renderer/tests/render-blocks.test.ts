@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BlocksElementSchema } from "@powershow/document-schema";
+import { BlocksElementSchema } from "@web-slideshow/document-schema";
 import { renderBlocks } from "../src/render-blocks";
 import { createDidacticBlocksElement } from "./fixtures/render-fixtures";
 

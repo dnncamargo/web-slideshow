@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PlotElement, PowerShowElement, Slide } from "@powershow/document-schema";
+import type { PlotElement, PresentationElement, Slide } from "@web-slideshow/document-schema";
 
 import { renderPlot, renderPlotFrame } from "../src/render-plot";
 import {
@@ -50,7 +50,7 @@ function node(element: PlotElement): PlotNode {
   };
 }
 
-function slide(elements: PowerShowElement[]): Slide {
+function slide(elements: PresentationElement[]): Slide {
   return { id: "slide-1", elements } as Slide;
 }
 
@@ -405,7 +405,7 @@ describe("Plot animation runtime", () => {
     const containerPlot = plot("container-plot", { parameter: "t", from: 0, to: 1, durationMs: 1000 });
     const tablePlot = plot("table-plot", { parameter: "t", from: 0, to: 1, durationMs: 1000 });
     const topicsPlot = plot("topics-plot", { parameter: "t", from: 0, to: 1, durationMs: 1000 });
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       { id: "container", type: "container", hidden: false, children: [containerPlot] },
       {
         id: "table",

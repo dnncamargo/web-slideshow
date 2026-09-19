@@ -1,6 +1,6 @@
 import type {
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderFontResources } from "./render-font-resources";

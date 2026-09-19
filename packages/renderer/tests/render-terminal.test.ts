@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TerminalElement } from "@powershow/document-schema";
+import type { TerminalElement } from "@web-slideshow/document-schema";
 
 import { renderTerminal } from "../src/render-terminal";
 

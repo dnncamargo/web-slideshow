@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ContentSlotSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
   TableElementSchema,
   TopicItemSchema,
   TopicsElementSchema,
@@ -400,7 +400,7 @@ describe("TopicItemSchema", () => {
 });
 
 describe("ContentSlotSchema", () => {
-  it("accepts mixed PowerShowElement children", () => {
+  it("accepts mixed PresentationElement children", () => {
     const result = ContentSlotSchema.safeParse(
       contentSlot({
         id: "slot-mixed",
@@ -481,9 +481,9 @@ describe("ContentSlotSchema", () => {
   });
 });
 
-describe("PowerShowElementSchema integration", () => {
+describe("PresentationElementSchema integration", () => {
   it("accepts topics inside a container", () => {
-    const result = PowerShowElementSchema.safeParse(
+    const result = PresentationElementSchema.safeParse(
       containerElement({
         id: "topics-container",
         children: [
@@ -589,7 +589,7 @@ describe("TableElementSchema", () => {
     );
 
     expect(restored).toEqual(result);
-    expect(PowerShowElementSchema.safeParse(result).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result).success).toBe(true);
   });
 
   it("preserves headers when showHeader is false", () => {

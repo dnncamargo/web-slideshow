@@ -19,7 +19,7 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePublishedPresentationReader } from "../src/features/persistence/firestore-published-presentation-reader";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 const reader = new FirestorePublishedPresentationReader();
 

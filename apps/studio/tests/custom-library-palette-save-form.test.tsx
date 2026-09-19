@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PresentationPalette } from "@powershow/document-schema";
+import type { PresentationPalette } from "@web-slideshow/document-schema";
 import { CustomLibraryPaletteSaveForm } from "../src/features/custom-library/custom-library-palette-save-form";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 

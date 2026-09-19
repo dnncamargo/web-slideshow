@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   buildPresentationExportFilename,
@@ -243,13 +243,13 @@ describe("canonical presentation transfer", () => {
     const table = elements[1];
 
     expect(imported.textStyles?.map((style) => style.id)).toEqual([
-      POWERSHOW_TOPICS_TEXT_STYLE_ID,
-      POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-      POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+      SYSTEM_TOPICS_TEXT_STYLE_ID,
+      SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
     ]);
-    expect(topics?.type === "topics" && topics.items[0]?.content.children[0]).toMatchObject({ variant: POWERSHOW_TOPICS_TEXT_STYLE_ID, content: "PowerShow" });
-    expect(table?.type === "table" && table.mode === "structured" && table.columns[0]?.header.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
-    expect(table?.type === "table" && table.mode === "structured" && table.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID });
+    expect(topics?.type === "topics" && topics.items[0]?.content.children[0]).toMatchObject({ variant: SYSTEM_TOPICS_TEXT_STYLE_ID, content: "PowerShow" });
+    expect(table?.type === "table" && table.mode === "structured" && table.columns[0]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(table?.type === "table" && table.mode === "structured" && table.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
     expect(elements[2]).toMatchObject({ src: "/instance-demo.svg" });
     expect(elements[3]).toMatchObject({ src: "https://example.test/powershow-demo.svg?source=powershow" });
     expect(elements[4]).toMatchObject({ html: "<p>Hello PowerShow</p>", css: ".powershow { color: red; }", script: "PowerShow.ports.value = 'PowerShow';" });
@@ -260,7 +260,7 @@ describe("canonical presentation transfer", () => {
     const legacy = {
       ...source,
       textStyles: [
-        { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Canonical topics", role: "body" },
+        { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Canonical topics", role: "body" },
         { id: "powershow:topics", name: "Legacy topics", role: "body" },
       ],
       slides: [{
@@ -271,7 +271,7 @@ describe("canonical presentation transfer", () => {
     const imported = parsePresentationImport(JSON.stringify(legacy));
 
     expect(imported.textStyles).toHaveLength(1);
-    expect(imported.textStyles?.[0]?.id).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
-    expect(imported.slides[0]?.elements[0]).toMatchObject({ variant: POWERSHOW_TOPICS_TEXT_STYLE_ID });
+    expect(imported.textStyles?.[0]?.id).toBe(SYSTEM_TOPICS_TEXT_STYLE_ID);
+    expect(imported.slides[0]?.elements[0]).toMatchObject({ variant: SYSTEM_TOPICS_TEXT_STYLE_ID });
   });
 });

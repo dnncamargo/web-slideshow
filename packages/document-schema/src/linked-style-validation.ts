@@ -1,4 +1,4 @@
-import type { ContentSlot, PowerShowElement, TopicItem } from "./elements";
+import type { ContentSlot, PresentationElement, TopicItem } from "./elements";
 import type { Presentation } from "./presentation";
 
 function validateSlot(
@@ -26,7 +26,7 @@ function validateTopic(
 
 function validateElement(
   presentation: Presentation,
-  element: PowerShowElement,
+  element: PresentationElement,
   path: (string | number)[],
   addIssue: (path: (string | number)[], message: string) => void,
 ): void {

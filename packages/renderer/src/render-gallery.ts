@@ -1,4 +1,4 @@
-import type { GalleryElement } from "@powershow/document-schema";
+import type { GalleryElement } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderImageCropMetadata } from "./render-canonical-image";

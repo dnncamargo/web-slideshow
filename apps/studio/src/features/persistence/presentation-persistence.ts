@@ -1,11 +1,11 @@
-import type { Presentation, Slide } from "@powershow/document-schema";
-import { PresentationSchema } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 import {
   decodePresentationFromFirestore,
   encodePresentationForFirestore,
-} from "@powershow/firebase";
+} from "@web-slideshow/firebase";
 
-export { MAX_PRESENTATION_SAFE_BYTES } from "@powershow/firebase";
+export { MAX_PRESENTATION_SAFE_BYTES } from "@web-slideshow/firebase";
 
 import {
   InvalidPersistedPresentationError,

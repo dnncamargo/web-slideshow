@@ -1,4 +1,4 @@
-import type { ContentSlot, PowerShowElement, TopicItem } from "./elements";
+import type { ContentSlot, PresentationElement, TopicItem } from "./elements";
 import type { Presentation } from "./presentation";
 import {
   FundamentalTextStyleIdSchema,
@@ -6,7 +6,7 @@ import {
 
 function validateText(
   presentation: Presentation,
-  element: Extract<PowerShowElement, { type: "text" }>,
+  element: Extract<PresentationElement, { type: "text" }>,
   path: (string | number)[],
   addIssue: (path: (string | number)[], message: string) => void,
 ): void {
@@ -49,7 +49,7 @@ function validateTopic(
 
 function validateElement(
   presentation: Presentation,
-  element: PowerShowElement,
+  element: PresentationElement,
   path: (string | number)[],
   addIssue: (path: (string | number)[], message: string) => void,
 ): void {

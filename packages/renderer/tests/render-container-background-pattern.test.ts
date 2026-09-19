@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { BackgroundPattern } from "@powershow/document-schema";
+import type { BackgroundPattern } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 

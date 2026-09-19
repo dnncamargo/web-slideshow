@@ -1,7 +1,7 @@
 import type {
   ContainerChildrenFit,
   ContainerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 export type ContainerFitMode = ContainerChildrenFit["mode"];
 

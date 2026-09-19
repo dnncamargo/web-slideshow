@@ -1,7 +1,7 @@
 "use client";
 
-import type { FontResource, LinkedStyle, PowerShowElement, PresentationPalette, TextStyle } from "@powershow/document-schema";
-import { Button } from "@powershow/ui";
+import type { FontResource, LinkedStyle, PresentationElement, PresentationPalette, TextStyle } from "@web-slideshow/document-schema";
+import { Button } from "@web-slideshow/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { getDefaultCustomLibraryRepository } from "@/features/persistence/custom-library-repository-instance";
@@ -14,7 +14,7 @@ import type { CustomLibraryRepository } from "./custom-library-repository";
 import styles from "../editor/editor-workspace.module.css";
 
 interface CustomLibrarySaveFormProps {
-  root: PowerShowElement;
+  root: PresentationElement;
   selections: ElementPropertySelectionMap;
   palette?: PresentationPalette;
   fontResources?: readonly FontResource[];

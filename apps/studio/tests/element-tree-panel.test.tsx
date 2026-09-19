@@ -8,20 +8,20 @@ import type {
   ContentSlot,
   ImageElement,
   GalleryElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   TableElement,
   StructuredTableElement,
   TopicItem,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { ElementTreePanel } from "../src/features/editor/element-tree-panel";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function text(id: string, content = id): PowerShowElement {
+function text(id: string, content = id): PresentationElement {
   return {
     type: "text",
     id,
@@ -85,8 +85,8 @@ function galleryElement(id: string, itemCount: number): GalleryElement {
 
 function topicContainer(
   id: string,
-  children: PowerShowElement[] = [],
-): PowerShowElement {
+  children: PresentationElement[] = [],
+): PresentationElement {
   return {
     type: "container",
     id,
@@ -97,7 +97,7 @@ function topicContainer(
 
 function contentSlot(
   id: string,
-  children: PowerShowElement[] = [],
+  children: PresentationElement[] = [],
 ): ContentSlot {
   return {
     id,

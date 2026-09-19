@@ -8,7 +8,7 @@ import type {
   SimpleTableElement,
   TerminalElement,
   TextElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 /**
  * A static, renderer-only educational source used to exercise the current

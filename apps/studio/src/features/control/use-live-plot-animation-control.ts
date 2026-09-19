@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ContentSlot,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
   TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { writePlotAnimationAction } from "./control-command-writer";
 import type { LiveCurrent } from "./live-current";
@@ -65,11 +65,11 @@ function sourceExcerpt(source: string): string | undefined {
   return normalized === "" ? undefined : normalized;
 }
 
-function visitContentSlot(slot: ContentSlot, visit: (element: PowerShowElement) => void): void {
+function visitContentSlot(slot: ContentSlot, visit: (element: PresentationElement) => void): void {
   slot.children.forEach((element) => visitElement(element, visit));
 }
 
-function visitElement(element: PowerShowElement, visit: (element: PowerShowElement) => void): void {
+function visitElement(element: PresentationElement, visit: (element: PresentationElement) => void): void {
   visit(element);
   if (element.type === "container") {
     element.children.forEach((child) => visitElement(child, visit));
@@ -81,7 +81,7 @@ function visitElement(element: PowerShowElement, visit: (element: PowerShowEleme
   }
 }
 
-function visitTopicItems(element: TopicsElement, visit: (element: PowerShowElement) => void): void {
+function visitTopicItems(element: TopicsElement, visit: (element: PresentationElement) => void): void {
   function visitItems(items: TopicsElement["items"]): void {
     items.forEach((item) => {
       visitContentSlot(item.content, visit);
@@ -99,7 +99,7 @@ export function discoverLivePlotAnimationTargets(
   const slide = presentation.slides.find((candidate) => candidate.id === desiredPageId);
   if (slide === undefined) return [];
   const targets: LivePlotAnimationTarget[] = [];
-  const visit = (element: PowerShowElement): void => {
+  const visit = (element: PresentationElement): void => {
     if (element.type !== "plot" || element.animation === undefined) return;
     const source = sourceExcerpt(element.source);
     targets.push({

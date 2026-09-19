@@ -1,5 +1,5 @@
-import type { BackgroundPattern } from "@powershow/document-schema";
-import { BackgroundPatternSchema } from "@powershow/document-schema";
+import type { BackgroundPattern } from "@web-slideshow/document-schema";
+import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 
 export type BackgroundPatternPresetId = "grid" | "fine-grid" | "dots" | "offset-dots" | "diagonal-lines";
 export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; pattern: BackgroundPattern }

@@ -1,7 +1,7 @@
 import {
   FontFaceResourceSchema,
   type FontFaceResource,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { isGoogleFontFileUrl } from "./google-font-import-url";
 import type {

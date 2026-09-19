@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { ContainerElement, PowerShowElement, TextElement } from "@powershow/document-schema";
+import type { ContainerElement, PresentationElement, TextElement } from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
@@ -50,8 +50,8 @@ function changeSelect(select: HTMLSelectElement, value: string): void {
 describe("Container canonical background pattern inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
-  let state: PowerShowElement;
-  let updates: PowerShowElement[];
+  let state: PresentationElement;
+  let updates: PresentationElement[];
 
   function renderInspector(): void {
     root.render(
@@ -82,7 +82,7 @@ describe("Container canonical background pattern inspector", () => {
     );
   }
 
-  function mount(element: PowerShowElement): void {
+  function mount(element: PresentationElement): void {
     state = element;
     updates = [];
     renderInspector();

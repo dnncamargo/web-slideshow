@@ -1,5 +1,5 @@
 import type { FirebaseError } from "firebase/app";
-export { PresentationTooLargeError } from "@powershow/firebase";
+export { PresentationTooLargeError } from "@web-slideshow/firebase";
 
 /**
  * Persistence-layer error model.

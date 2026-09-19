@@ -1,5 +1,5 @@
-import type { TextElement, TextVisualStyle } from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import type { TextElement, TextVisualStyle } from "@web-slideshow/document-schema";
+import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

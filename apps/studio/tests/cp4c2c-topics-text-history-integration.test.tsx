@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
   type TextRun,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { TopicsInspector } from "../src/features/editor/inspector/topics-inspector";
@@ -22,7 +22,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const TOPICS_ID = "cp4c2c-topics";
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return {
     type: "text",
     id,
@@ -32,7 +32,7 @@ function text(id: string, content: string): PowerShowElement {
   };
 }
 
-function richText(id: string, runs: TextRun[]): PowerShowElement {
+function richText(id: string, runs: TextRun[]): PresentationElement {
   return {
     type: "text",
     id,
@@ -42,7 +42,7 @@ function richText(id: string, runs: TextRun[]): PowerShowElement {
   };
 }
 
-function image(id: string): PowerShowElement {
+function image(id: string): PresentationElement {
   return {
     type: "image",
     id,
@@ -53,7 +53,7 @@ function image(id: string): PowerShowElement {
   };
 }
 
-function table(id: string): PowerShowElement {
+function table(id: string): PresentationElement {
   return {
     type: "table",
     id,
@@ -65,7 +65,7 @@ function table(id: string): PowerShowElement {
 
 function topicItem(
   id: string,
-  children: PowerShowElement[],
+  children: PresentationElement[],
   nested: TopicItem[] = [],
 ): TopicItem {
   return {

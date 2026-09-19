@@ -3,9 +3,9 @@ import {
   PresentationSchema,
   type GalleryElement,
   type ImageElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   attachImageToGallery,
@@ -14,7 +14,7 @@ import {
 } from "../src/features/editor/element-operations";
 import { findElementById } from "../src/features/editor/element-tree";
 
-function slide(elements: PowerShowElement[]): Slide {
+function slide(elements: PresentationElement[]): Slide {
   return { id: "slide-1", title: "Slide", summary: "", speakerNotes: "", elements };
 }
 

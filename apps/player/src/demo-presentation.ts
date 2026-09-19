@@ -4,7 +4,7 @@
 
 import {
   resolvePanelSize,
-} from "@powershow/theme/panel-size";
+} from "@web-slideshow/theme/panel-size";
 
 // ============================================================
 // END: PRESETS DE TAMANHO
@@ -12,7 +12,7 @@ import {
 
 import {
   PresentationSchema,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { displayName } from "@web-slideshow/instance-branding";
 
 
@@ -474,7 +474,7 @@ export const demoPresentation =
       // - caption
       //
       // Este slide deve usar principalmente os defaults
-      // definidos por @powershow/theme.
+      // definidos por @web-slideshow/theme.
       // ======================================================
 
       {
@@ -1036,7 +1036,7 @@ export const demoPresentation =
                           "command",
 
                         content:
-                          "pnpm --filter @powershow/player dev",
+                          "pnpm --filter @web-slideshow/player dev",
                       },
 
                       {
@@ -1087,7 +1087,7 @@ export const demoPresentation =
       // ]
       //
       // Valida o estilo estrutural definido em
-      // @powershow/theme.
+      // @web-slideshow/theme.
       // ======================================================
 
       {

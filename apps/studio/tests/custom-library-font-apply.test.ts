@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema, type FontFaceResource, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type FontFaceResource, type Presentation } from "@web-slideshow/document-schema";
 
 import { addCustomLibraryFontToPresentation } from "../src/features/custom-library/custom-library-font-apply";
 

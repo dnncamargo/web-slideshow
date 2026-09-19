@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "../i18n/studio-i18n";
 import { useStudioI18n } from "../i18n/studio-i18n-context";

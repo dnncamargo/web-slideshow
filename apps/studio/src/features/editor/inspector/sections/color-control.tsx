@@ -4,7 +4,7 @@ import {
   type ColorValue,
   isPaletteColorReference,
   resolveColorValue,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";

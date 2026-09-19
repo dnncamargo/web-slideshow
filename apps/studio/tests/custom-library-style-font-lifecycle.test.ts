@@ -4,9 +4,9 @@ import {
   PresentationSchema,
   type FontResource,
   type Presentation,
-  type PowerShowElement,
-} from "@powershow/document-schema";
-import { renderFontResources, renderPresentation } from "@powershow/renderer";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
+import { renderFontResources, renderPresentation } from "@web-slideshow/renderer";
 
 import {
   createCustomLibraryItemDraft,
@@ -31,7 +31,7 @@ const sourceFont: FontResource = {
 
 function presentation(
   id: string,
-  elements: PowerShowElement[] = [],
+  elements: PresentationElement[] = [],
   fonts?: FontResource[],
 ): Presentation {
   return PresentationSchema.parse({
@@ -43,7 +43,7 @@ function presentation(
   });
 }
 
-function sourceComposition(): PowerShowElement {
+function sourceComposition(): PresentationElement {
   return {
     type: "container",
     id: "source-container",
@@ -70,7 +70,7 @@ function recipeSelections(): ReadonlyMap<string, ReadonlySet<string>> {
   ]);
 }
 
-function appliedText(value: Presentation): Extract<PowerShowElement, { type: "text" }> {
+function appliedText(value: Presentation): Extract<PresentationElement, { type: "text" }> {
   const container = value.slides[0]?.elements[0];
   if (!container || container.type !== "container") {
     throw new Error("Expected the applied container.");

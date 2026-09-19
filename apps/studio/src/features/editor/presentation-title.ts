@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 /** Updates only the canonical Presentation title, preserving every slide. */
 export function updatePresentationTitle(

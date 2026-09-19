@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
-import type { BlocksElement } from "@powershow/document-schema";
+import type { BlocksElement } from "@web-slideshow/document-schema";
 import { BlocksInspector } from "../src/features/editor/inspector/blocks-inspector";
 import { BlocksContentSection } from "../src/features/editor/inspector/sections/blocks-content-section";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";

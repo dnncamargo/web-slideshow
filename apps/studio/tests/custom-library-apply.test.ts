@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  PowerShowElementSchema,
-  type PowerShowElement,
+  PresentationElementSchema,
+  type PresentationElement,
   type Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { collectAuthoringIds } from "../src/features/editor/element-hierarchy";
 import {
@@ -12,7 +12,7 @@ import {
 } from "../src/features/custom-library/custom-library-apply";
 import type { CustomLibraryElementRecipe } from "../src/features/custom-library/custom-library-recipe";
 
-const slide = (elements: PowerShowElement[] = []): Slide => ({
+const slide = (elements: PresentationElement[] = []): Slide => ({
   id: "slide-1",
   title: "",
   summary: "",
@@ -21,11 +21,11 @@ const slide = (elements: PowerShowElement[] = []): Slide => ({
 });
 const slides: Slide[] = [slide()];
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { id, type: "text", hidden: false, content, variant: "body" };
 }
 
-function authoringIds(element: PowerShowElement): Set<string> {
+function authoringIds(element: PresentationElement): Set<string> {
   const result = new Set<string>();
   collectAuthoringIds(element, result);
   return result;
@@ -39,7 +39,7 @@ function recipe(
   return children === undefined ? { type, properties } : { type, properties, children };
 }
 
-function ids(element: PowerShowElement): Set<string> {
+function ids(element: PresentationElement): Set<string> {
   return authoringIds(element);
 }
 
@@ -55,7 +55,7 @@ describe("Custom Library apply core", () => {
     expect(result.element.content).toBe("New text");
     expect(result.element.typography?.fontFamily).toBe("Roboto");
     expect(result.element.id).not.toBe("text-element-1");
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("materializes a complete atomic Text Stroke smoke-test recipe", () => {
@@ -75,7 +75,7 @@ describe("Custom Library apply core", () => {
       fontWeight: 900,
       textStroke: { width: 2, color: "#000000" },
     });
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("materializes an empty recipe with ordinary create defaults", () => {
@@ -117,7 +117,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("remaps intrinsic table authoring ids", () => {
-    const sourceTable: PowerShowElement = {
+    const sourceTable: PresentationElement = {
       id: "source-table",
       type: "table",
       mode: "structured",
@@ -156,7 +156,7 @@ describe("Custom Library apply core", () => {
     expect(result.element.items[0]?.content.id).not.toBe("topic-slot-source");
     expect(result.element.items[0]?.content.children[0]?.id).not.toBe("topic-text-source");
     expect(source).toEqual(before);
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("preserves opaque Blocks source when materializing a recipe", () => {
@@ -168,11 +168,11 @@ describe("Custom Library apply core", () => {
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "blocks") return;
     expect(result.element.source).toBe(source);
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("merges same-type properties while preserving identity and omitted values", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "title-1",
       type: "text",
       hidden: false,
@@ -194,7 +194,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("merges a complete atomic Text Stroke while preserving the target id", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "title-1",
       type: "text",
       hidden: false,
@@ -219,11 +219,11 @@ describe("Custom Library apply core", () => {
       fontWeight: 900,
       textStroke: { width: 2, color: "#000000" },
     });
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("appends recipe children without changing existing child ids", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "container-1",
       type: "container",
       hidden: false,
@@ -244,7 +244,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("merges table rows with fresh ids while preserving unselected columns", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "table-target",
       type: "table",
       mode: "structured",
@@ -268,7 +268,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("replaces atomic link values, preserves empty merges, and applies hidden", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "linked-image",
       type: "image",
       hidden: false,
@@ -321,7 +321,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("merges Plot elements when their type matches", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "plot-target",
       type: "plot",
       hidden: false,
@@ -334,11 +334,11 @@ describe("Custom Library apply core", () => {
     if (!result.ok || result.element.type !== "plot") return;
     expect(result.element.id).toBe("plot-target");
     expect(result.element.source).toBe("y = x^2");
-    expect(PowerShowElementSchema.safeParse(result.element).success).toBe(true);
+    expect(PresentationElementSchema.safeParse(result.element).success).toBe(true);
   });
 
   it("does not recursively match same-type container children", () => {
-    const target: PowerShowElement = {
+    const target: PresentationElement = {
       id: "parent",
       type: "container",
       hidden: false,
@@ -373,7 +373,7 @@ describe("Custom Library apply core", () => {
       expect(result).toEqual({ ok: false, reason: "invalid-recipe-application" });
     }
 
-    const containerTarget: PowerShowElement = {
+    const containerTarget: PresentationElement = {
       id: "container-target",
       type: "container",
       hidden: false,

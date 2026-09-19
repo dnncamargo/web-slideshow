@@ -10,6 +10,7 @@ import {
 } from "../src/features/live/live-state";
 import { PLAYER_PRESENCE_PATH } from "../src/features/control/player-presence";
 import { STUDIO_ROUTES } from "../src/features/app/studio-routes";
+import { displayName } from "@web-slideshow/instance-branding";
 
 const database = { name: "maintenance-db" };
 const mocks = vi.hoisted(() => ({
@@ -208,7 +209,7 @@ describe("Maintenance page", () => {
 
     const topbar = container.querySelector("main > header");
     expect(topbar).not.toBeNull();
-    expect(topbar?.textContent).toContain("PowerShow");
+    expect(topbar?.textContent).toContain(displayName);
     expect(topbar?.textContent).toContain("Control");
     expect(container.querySelector("main h1")?.textContent).toBe(
       "Maintenance & Diagnostics",

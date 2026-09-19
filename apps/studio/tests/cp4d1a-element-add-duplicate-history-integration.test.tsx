@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-  POWERSHOW_TOPICS_TEXT_STYLE_ID,
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TOPICS_TEXT_STYLE_ID,
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();
@@ -322,8 +322,8 @@ describe("CP4D1A element Add and Duplicate history", () => {
     expect(container.querySelector('[data-powershow-type="table"]')).not.toBeNull();
     const tableCommit = vi.mocked(historyState.commitHistory).mock.lastCall;
     expect(tableCommit?.[1].textStyles?.map((style) => style.id)).toEqual([
-      POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-      POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+      SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
     ]);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(container.querySelector('[data-powershow-type="table"]')).toBeNull();
@@ -335,7 +335,7 @@ describe("CP4D1A element Add and Duplicate history", () => {
     expect(container.querySelector('[data-powershow-type="topics"]')).not.toBeNull();
     const topicsCommit = vi.mocked(historyState.commitHistory).mock.lastCall;
     expect(topicsCommit?.[1].textStyles?.map((style) => style.id)).toEqual([
-      POWERSHOW_TOPICS_TEXT_STYLE_ID,
+      SYSTEM_TOPICS_TEXT_STYLE_ID,
     ]);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(container.querySelector('[data-powershow-type="topics"]')).toBeNull();
@@ -346,17 +346,17 @@ describe("CP4D1A element Add and Duplicate history", () => {
   it("does not duplicate pre-existing Table or Topics styles", async () => {
     const initial = emptyPresentation();
     const textStyles = [
-      { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Existing header", role: "body" as const },
-      { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Existing cell", role: "body" as const },
-      { id: POWERSHOW_TOPICS_TEXT_STYLE_ID, name: "Existing topics", role: "body" as const },
+      { id: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Existing header", role: "body" as const },
+      { id: SYSTEM_TABLE_CELL_TEXT_STYLE_ID, name: "Existing cell", role: "body" as const },
+      { id: SYSTEM_TOPICS_TEXT_STYLE_ID, name: "Existing topics", role: "body" as const },
     ];
     await mount({ ...initial, textStyles });
 
     await add("table");
     const tableCommit = vi.mocked(historyState.commitHistory).mock.lastCall;
     expect(tableCommit?.[1].textStyles).toEqual(textStyles);
-    expect(tableCommit?.[1].textStyles?.filter((style) => style.id === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
-    expect(tableCommit?.[1].textStyles?.filter((style) => style.id === POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(tableCommit?.[1].textStyles?.filter((style) => style.id === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(tableCommit?.[1].textStyles?.filter((style) => style.id === SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID)).toHaveLength(1);
 
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));

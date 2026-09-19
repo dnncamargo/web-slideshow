@@ -1,4 +1,4 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import {
   getElementPropertyEntries,
@@ -40,7 +40,7 @@ const normallyUnselectedRoots = new Set([
   "rows", "columns", "html", "css", "script", "title",
 ]);
 
-function getValueAtPath(element: PowerShowElement, path: string): unknown {
+function getValueAtPath(element: PresentationElement, path: string): unknown {
   let value: unknown = element;
   for (const segment of path.split(".")) {
     if (typeof value !== "object" || value === null || !(segment in value)) {
@@ -104,7 +104,7 @@ function getPropertyRoot(path: string): string {
 }
 
 function toSelectableProperty(
-  element: PowerShowElement,
+  element: PresentationElement,
   entry: ElementPropertyEntry,
   kind: ElementPropertySelectionKind,
 ): SelectableElementProperty {
@@ -120,7 +120,7 @@ function toSelectableProperty(
 }
 
 export function getSelectableElementProperties(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): SelectableElementProperty[] {
   const entries = getElementPropertyEntries(element);
   const selectable = entries.flatMap((entry) => {
@@ -155,7 +155,7 @@ export function getSelectableElementProperties(
 }
 
 export function getDefaultSelectedPropertyPaths(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): Set<string> {
   return new Set(
     getSelectableElementProperties(element)

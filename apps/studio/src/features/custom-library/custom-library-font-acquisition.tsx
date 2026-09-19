@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button } from "@powershow/ui";
+import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import { GoogleFontImportControl } from "../fonts/components/google-font-import-control";

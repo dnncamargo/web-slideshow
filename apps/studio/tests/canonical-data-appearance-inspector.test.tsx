@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CodeElement, Gradient, TerminalElement } from "@powershow/document-schema";
+import type { CodeElement, Gradient, TerminalElement } from "@web-slideshow/document-schema";
 import { CodeInspector } from "../src/features/editor/inspector/code-inspector";
 import { TerminalInspector } from "../src/features/editor/inspector/terminal-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

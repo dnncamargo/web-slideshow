@@ -6,7 +6,7 @@ import type {
 } from "./inspector-types";
 
 import type {
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
   TopicsElement,
   TopicMarkerStyle,
@@ -14,13 +14,13 @@ import type {
   LinkedTopicsStyle,
   LinkedStyle,
   Presentation,
-} from "@powershow/document-schema";
-import { resolveLinkedTopicsStyle } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { resolveLinkedTopicsStyle } from "@web-slideshow/document-schema";
 
 import {
   resolveEffectiveElementStyleDefaults,
   TOPICS_ITEM_GAP_DEFAULT_PX,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -105,7 +105,7 @@ interface TopicRowProps {
 
 function findDirectTextChild(
   item: TopicItem,
-): Extract<PowerShowElement, { type: "text" }> | null {
+): Extract<PresentationElement, { type: "text" }> | null {
   const textChild = item.content.children.find((child) => child.type === "text");
 
   return textChild?.type === "text" ? textChild : null;

@@ -1,5 +1,5 @@
-import type { Presentation, Slide } from "@powershow/document-schema";
-import { PresentationSchema, SlideSchema } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import { PresentationSchema, SlideSchema } from "@web-slideshow/document-schema";
 
 import { FirestorePresentationRepository } from "./firestore-presentation-repository";
 import type { PresentationRepository } from "./presentation-repository";

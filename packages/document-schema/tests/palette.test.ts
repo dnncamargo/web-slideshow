@@ -10,7 +10,7 @@ import {
   PresentationPaletteSchema,
   PresentationSchema,
   isPaletteColorReference,
-  mapPowerShowElementColorValues,
+  mapPresentationElementColorValues,
   resolveColorValue,
 } from "../src";
 
@@ -188,7 +188,7 @@ describe("palette color resolution", () => {
 describe("presentation palette reference integrity", () => {
   it("preserves simultaneous Blocks style transformations", () => {
     const reference = (colorId: string) => ({ kind: "palette" as const, colorId });
-    const mapped = mapPowerShowElementColorValues({
+    const mapped = mapPresentationElementColorValues({
       id: "blocks",
       type: "blocks",
       hidden: false,
@@ -223,7 +223,7 @@ describe("presentation palette reference integrity", () => {
   it("visits Blocks category colors, text color, and block border gradients", () => {
     const reference = { kind: "palette" as const, colorId: "accent" };
     const paths: string[] = [];
-    mapPowerShowElementColorValues({
+    mapPresentationElementColorValues({
       id: "blocks",
       type: "blocks",
       hidden: false,

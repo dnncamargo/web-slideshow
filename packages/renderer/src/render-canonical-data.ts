@@ -6,7 +6,7 @@ import type {
   Length,
   TableElement,
   TerminalElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";

@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QRCodeSVG } from "qrcode.react";
 
-import { isAbsoluteHttpHref } from "@powershow/document-schema";
-import type { ImageElement, Slide } from "@powershow/document-schema";
+import { isAbsoluteHttpHref } from "@web-slideshow/document-schema";
+import type { ImageElement, Slide } from "@web-slideshow/document-schema";
 
 import { createElement } from "./element-operations";
 

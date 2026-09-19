@@ -1,10 +1,10 @@
 import type {
   ContentSlot,
   PlotElement,
-  PowerShowElement,
+  PresentationElement,
   Slide,
   TopicItem,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderPlotFrame } from "./render-plot";
 
@@ -46,22 +46,22 @@ function animationConfigKey(config: PlotAnimationConfig): string {
 
 function visitContentSlot(
   slot: ContentSlot,
-  visit: (element: PowerShowElement) => void,
+  visit: (element: PresentationElement) => void,
 ): void {
   slot.children.forEach((element) => visitElement(element, visit));
 }
 
 function visitTopicItem(
   item: TopicItem,
-  visit: (element: PowerShowElement) => void,
+  visit: (element: PresentationElement) => void,
 ): void {
   visitContentSlot(item.content, visit);
   item.children.forEach((child) => visitTopicItem(child, visit));
 }
 
 function visitElement(
-  element: PowerShowElement,
-  visit: (element: PowerShowElement) => void,
+  element: PresentationElement,
+  visit: (element: PresentationElement) => void,
 ): void {
   visit(element);
 

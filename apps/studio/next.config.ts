@@ -17,10 +17,10 @@ const nextConfig: NextConfig = {
   // ----------------------------------------------------------
 
   transpilePackages: [
-    "@powershow/document-schema",
-    "@powershow/renderer",
-    "@powershow/theme",
-    "@powershow/ui",
+    "@web-slideshow/document-schema",
+    "@web-slideshow/renderer",
+    "@web-slideshow/theme",
+    "@web-slideshow/ui",
     "@web-slideshow/instance-branding",
   ],
   env: {

@@ -1,6 +1,6 @@
 import type {
   Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderElement, type RenderContext } from "./render-element";

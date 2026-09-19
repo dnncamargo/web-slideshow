@@ -1,5 +1,5 @@
-import type { ElementEffect, PowerShowElement, SurfaceVisualStyle } from "@powershow/document-schema";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+import type { ElementEffect, PresentationElement, SurfaceVisualStyle } from "@web-slideshow/document-schema";
+import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber } from "../inspector-helpers";
@@ -13,7 +13,7 @@ import { EffectiveLengthInput } from "./effective-length-input";
 interface Props {
   style: SurfaceVisualStyle | undefined;
   effect: ElementEffect | undefined;
-  element: Extract<PowerShowElement, { type: "gallery" | "embed" | "scripted" }>;
+  element: Extract<PresentationElement, { type: "gallery" | "embed" | "scripted" }>;
   onUpdateStyle: UpdateSurfaceStyle;
   onUpdateEffect: (update: (effect: ElementEffect | undefined) => ElementEffect) => void;
   controlPrefix: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlotElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, TextElement } from "@powershow/document-schema";
+import type { PlotElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, TextElement } from "@web-slideshow/document-schema";
 import {
   updateCanonicalElementForCanvasDrag,
   updateCanonicalTextForCanvasDrag,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FontResource, LinkedStyle, PowerShowElement, PresentationPalette, TextStyle } from "@powershow/document-schema";
+import type { FontResource, LinkedStyle, PresentationElement, PresentationPalette, TextStyle } from "@web-slideshow/document-schema";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
@@ -19,7 +19,7 @@ import {
 import { toElementPropertySelectionMap } from "./element-property-selection-state";
 
 interface ElementPropertiesPanelProps {
-  selectedElement: PowerShowElement | null;
+  selectedElement: PresentationElement | null;
   isStructuralTopicSelection: boolean;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
@@ -30,7 +30,7 @@ interface ElementPropertiesPanelProps {
 }
 
 function getElementIdentity(
-  element: PowerShowElement,
+  element: PresentationElement,
   t: StudioTranslate,
 ): string {
   return `${t(ELEMENT_TYPE_MESSAGE_KEYS[element.type])} · ${element.id}`;

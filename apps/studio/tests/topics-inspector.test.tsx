@@ -5,12 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
   TopicsElement,
   TextRun,
   Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { TopicsInspector } from "../src/features/editor/inspector/topics-inspector";
@@ -257,7 +257,7 @@ describe("TopicsInspector", () => {
     );
   }
 
-  function text(id: string, content = id): PowerShowElement {
+  function text(id: string, content = id): PresentationElement {
     return {
       type: "text",
       id,
@@ -270,7 +270,7 @@ describe("TopicsInspector", () => {
   function richText(
     id: string,
     runs: TextRun[],
-  ): PowerShowElement {
+  ): PresentationElement {
     return {
       type: "text",
       id,
@@ -283,7 +283,7 @@ describe("TopicsInspector", () => {
     };
   }
 
-  function image(id: string): PowerShowElement {
+  function image(id: string): PresentationElement {
     return {
       type: "image",
       id,
@@ -294,7 +294,7 @@ describe("TopicsInspector", () => {
     };
   }
 
-  function table(id: string): PowerShowElement {
+  function table(id: string): PresentationElement {
     return {
       type: "table",
       id,
@@ -306,8 +306,8 @@ describe("TopicsInspector", () => {
 
   function containerElement(
     id: string,
-    children: PowerShowElement[] = [],
-  ): PowerShowElement {
+    children: PresentationElement[] = [],
+  ): PresentationElement {
     return {
       type: "container",
       id,
@@ -318,7 +318,7 @@ describe("TopicsInspector", () => {
 
   function topicItem(
     id: string,
-    contentChildren: PowerShowElement[],
+    contentChildren: PresentationElement[],
     children: TopicItem[] = [],
   ): TopicItem {
     return {
@@ -1321,7 +1321,7 @@ describe("Topics inspector section hierarchy", () => {
   const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
   async function renderTopics(initial: TopicsElement) {
-    let element: PowerShowElement = initial;
+    let element: PresentationElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
         <ElementInspector

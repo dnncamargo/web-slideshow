@@ -13,14 +13,14 @@ import type {
   ElementLink,
   ContainerElement,
   ImageElement,
-  PowerShowElement,
+  PresentationElement,
   TextElement,
   PlotElement,
   InteractiveElement,
-} from "@powershow/document-schema";
-import type { Presentation } from "@powershow/document-schema";
-import { resolveTextStyle } from "@powershow/document-schema";
-import { FundamentalTextStyleIdSchema } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
+import { resolveTextStyle } from "@web-slideshow/document-schema";
+import { FundamentalTextStyleIdSchema } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
@@ -81,7 +81,7 @@ function renderLinkContent(
 }
 
 function buildAttributes(
-  element: PowerShowElement,
+  element: PresentationElement,
   classes: string[],
   context?: RenderContext,
   extraStyle?: string,
@@ -338,7 +338,7 @@ function assertNever(value: never): never {
 }
 
 export function renderElement(
-  element: PowerShowElement,
+  element: PresentationElement,
   context?: RenderContext,
 ): string {
   switch (element.type) {

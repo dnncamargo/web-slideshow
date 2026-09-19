@@ -1,7 +1,7 @@
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 // Ordered fixture used by the Scripted Player runtime-lifecycle tests.
 //

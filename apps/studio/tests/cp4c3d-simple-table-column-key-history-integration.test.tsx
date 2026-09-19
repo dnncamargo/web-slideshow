@@ -6,11 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type SimpleTableElement,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { AuthoringHistoryContext } from "../src/features/editor/authoring-history-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
@@ -351,7 +351,7 @@ describe("CP4C3D Simple Table column key history", () => {
   });
 
   it("preserves direct rename compatibility without a History provider", async () => {
-    let current: PowerShowElement = tableElement();
+    let current: PresentationElement = tableElement();
 
     const render = () => root.render(
       <StudioI18nProvider>

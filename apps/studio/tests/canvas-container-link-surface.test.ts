@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { renderElement } from "@powershow/renderer";
+import { renderElement } from "@web-slideshow/renderer";
 
 // Vitest runs with the Studio package directory as the working
 // directory. jsdom overrides import.meta.url to a non-file scheme,

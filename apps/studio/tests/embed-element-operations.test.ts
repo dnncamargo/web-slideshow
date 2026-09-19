@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { EmbedElement, Slide } from "@powershow/document-schema";
+import type { EmbedElement, Slide } from "@web-slideshow/document-schema";
 
 import {
   createElement,

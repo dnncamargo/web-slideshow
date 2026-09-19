@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -89,7 +89,7 @@ function keyRedo(): KeyboardEvent {
   });
 }
 
-function makePresentation(elements: PowerShowElement[]): Presentation {
+function makePresentation(elements: PresentationElement[]): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e2-canvas-resize",
@@ -98,7 +98,7 @@ function makePresentation(elements: PowerShowElement[]): Presentation {
   });
 }
 
-function imageElement(overrides: Partial<Extract<PowerShowElement, { type: "image" }>> = {}): PowerShowElement {
+function imageElement(overrides: Partial<Extract<PresentationElement, { type: "image" }>> = {}): PresentationElement {
   return {
     type: "image",
     id: "image-1",
@@ -114,7 +114,7 @@ function imageElement(overrides: Partial<Extract<PowerShowElement, { type: "imag
   };
 }
 
-function flowContainerElement(): PowerShowElement {
+function flowContainerElement(): PresentationElement {
   return {
     type: "container",
     id: "container-1",
@@ -126,7 +126,7 @@ function flowContainerElement(): PowerShowElement {
   };
 }
 
-function absoluteContainerElement(): PowerShowElement {
+function absoluteContainerElement(): PresentationElement {
   return {
     type: "container",
     id: "container-1",
@@ -148,7 +148,7 @@ function absoluteContainerElement(): PowerShowElement {
   };
 }
 
-function galleryElement(): PowerShowElement {
+function galleryElement(): PresentationElement {
   return {
     type: "gallery",
     id: "gallery-1",

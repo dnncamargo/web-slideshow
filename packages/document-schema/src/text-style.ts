@@ -15,11 +15,11 @@ export const FUNDAMENTAL_TEXT_STYLE_IDS = [
 ] as const;
 
 /** Reserved presentation-level styles used by Structured Table authoring. */
-export const POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID =
+export const SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID =
   "system:table-column-header" as const;
-export const POWERSHOW_TABLE_CELL_TEXT_STYLE_ID =
+export const SYSTEM_TABLE_CELL_TEXT_STYLE_ID =
   "system:table-cell" as const;
-export const POWERSHOW_TOPICS_TEXT_STYLE_ID = "system:topics" as const;
+export const SYSTEM_TOPICS_TEXT_STYLE_ID = "system:topics" as const;
 
 export const FundamentalTextStyleIdSchema = z.enum(
   FUNDAMENTAL_TEXT_STYLE_IDS,

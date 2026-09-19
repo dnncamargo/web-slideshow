@@ -1,4 +1,4 @@
-# @powershow/renderer
+# @web-slideshow/renderer
 
 Renderer do documento PowerShow.
 

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { normalizeColor, parseColor } from "@powershow/document-schema";
+import { normalizeColor, parseColor } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
 

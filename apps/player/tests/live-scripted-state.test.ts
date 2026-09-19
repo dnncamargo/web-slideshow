@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 
 const firebase = vi.hoisted(() => ({ ref: vi.fn(), set: vi.fn(), runTransaction: vi.fn() }));
 vi.mock("firebase/database", () => firebase);

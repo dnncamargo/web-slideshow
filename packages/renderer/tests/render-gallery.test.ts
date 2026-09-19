@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { GalleryElement } from "@powershow/document-schema";
+import type { GalleryElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderGallery } from "../src/render-gallery";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, type TopicItem, type TopicsElement } from "@powershow/document-schema";
+import { PresentationSchema, type TopicItem, type TopicsElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 

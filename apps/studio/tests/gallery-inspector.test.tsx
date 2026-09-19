@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ContainerElement,
   GalleryElement,
-  PowerShowElement,
-} from "@powershow/document-schema";
+  PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { GalleryInspector } from "../src/features/editor/inspector/gallery-inspector";
@@ -536,7 +536,7 @@ describe("ElementInspector dispatcher for Gallery", () => {
   });
 
   it("renders the GalleryInspector for a selected Gallery", async () => {
-    const element: PowerShowElement = galleryElement();
+    const element: PresentationElement = galleryElement();
     const parent: ContainerElement | null = null;
 
     await act(async () => {
@@ -566,7 +566,7 @@ describe("ElementInspector dispatcher for Gallery", () => {
   });
 
   it("selecting a Gallery does not use the unsupported fallback", async () => {
-    const element: PowerShowElement = galleryElement();
+    const element: PresentationElement = galleryElement();
     const parent: ContainerElement | null = null;
 
     await act(async () => {

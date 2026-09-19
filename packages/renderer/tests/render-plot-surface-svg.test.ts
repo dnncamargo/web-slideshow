@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MathSurfaceGeometryResult } from "@powershow/math-source";
+import type { MathSurfaceGeometryResult } from "@web-slideshow/math-source";
 import { renderMathSurfaceGeometrySvg } from "../src/render-plot-surface-svg";
 
 function geometry(rows: MathSurfaceGeometryResult["rows"]): MathSurfaceGeometryResult {

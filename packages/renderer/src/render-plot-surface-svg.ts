@@ -1,7 +1,7 @@
 import type {
   MathPoint3D,
   MathSurfaceGeometryResult,
-} from "@powershow/math-source";
+} from "@web-slideshow/math-source";
 
 import { escapeHtml } from "./escape-html";
 

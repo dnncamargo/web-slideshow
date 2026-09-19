@@ -1,11 +1,11 @@
 import type {
   DividerElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type {
   AuthoringLengthUnit,
-} from "@powershow/theme/element-style-defaults";
-import { resolveEffectiveElementStyleDefaults } from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
+import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

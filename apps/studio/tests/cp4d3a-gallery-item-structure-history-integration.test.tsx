@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type GalleryElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import {
@@ -21,7 +21,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const DEFAULT_ITEM = { src: "/powershow-demo.svg", alt: "" };
+const DEFAULT_ITEM = { src: "/instance-demo.svg", alt: "" };
 
 function galleryElement(items: GalleryElement["items"]): GalleryElement {
   return {

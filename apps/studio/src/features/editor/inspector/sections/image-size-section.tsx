@@ -1,11 +1,11 @@
-import type { ImageElement } from "@powershow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import {
   convertAuthoringLength,
   parseAuthoringLength,
   serializeAuthoringLength,
   type AuthoringLengthUnit,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -13,7 +13,7 @@ import styles from "../../editor-workspace.module.css";
 
 import { InspectorSection } from "../inspector-section";
 
-import type { ElementLayout } from "@powershow/document-schema";
+import type { ElementLayout } from "@web-slideshow/document-schema";
 
 import { EffectiveLengthInput } from "./effective-length-input";
 

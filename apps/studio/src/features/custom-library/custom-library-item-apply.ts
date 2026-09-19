@@ -6,7 +6,7 @@ import {
   type LinkedStyle,
   type Presentation,
   type CustomTextStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryItemDraft } from "./custom-library-item";
 import { addCustomLibraryFontToPresentation } from "./custom-library-font-apply";

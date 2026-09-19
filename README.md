@@ -247,7 +247,7 @@ No same-origin permission, Firebase/session exposure, parent DOM access, storage
 
 Plot V1 started in PR #142 and its continuation is complete through PRs #146–#148.
 
-The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@powershow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
+The canonical `plot` element stores restricted mathematical intent rather than generated geometry. `@web-slideshow/math-source` owns parsing, semantic validation, bounded evaluation, sampling and math-space geometry; the shared renderer owns projection and visual output.
 
 Current Plot capabilities include:
 
@@ -322,7 +322,7 @@ Canonical Topics remains recursively structural rather than introducing a second
 TopicsElement
 → TopicItem[]
    ├── content: ContentSlot
-   │   └── children: PowerShowElement[]
+   │   └── children: PresentationElement[]
    └── children: TopicItem[]
 ```
 

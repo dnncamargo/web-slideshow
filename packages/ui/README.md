@@ -1,4 +1,4 @@
-# @powershow/ui
+# @web-slideshow/ui
 
 Componentes visuais compartilhados do PowerShow.
 

@@ -18,7 +18,7 @@ import {
   resolveLogicalSlideSize,
   type PlotAnimationController,
   type FittedSlideGeometry,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 import {
   Button,
   HoverScrollText,
@@ -28,7 +28,7 @@ import {
   TopbarActions,
   TopbarLocale,
   TopbarTitle,
-} from "@powershow/ui";
+} from "@web-slideshow/ui";
 
 import {
   addPresentationPaletteColor as addPaletteEntry,
@@ -46,7 +46,7 @@ import {
   type LinkedTopicsStyle,
   type TextStroke,
   type TextStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryRepository } from "@/features/custom-library/custom-library-repository";
@@ -106,7 +106,7 @@ import {
   resolveCanvasPointerHit,
   resolveCanvasPointerSelection,
 } from "./canvas-pointer-selection-helpers";
-import { isAuthoredPowerShowLink } from "./canvas-link-interception";
+import { isAuthoredPresentationLink } from "./canvas-link-interception";
 import {
   isInsideContainerFitSurface,
   measureContainerFitSourceSize,
@@ -173,7 +173,7 @@ import { createTextStyleFromText, detachTextStyle } from "./text-typography-auth
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
-import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@powershow/document-schema";
+import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -291,10 +291,10 @@ import styles from "./editor-workspace.module.css";
 
 import type {
   GalleryElement,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
   Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 // ============================================================
 // END: TIPOS DO DOCUMENTO
@@ -322,7 +322,7 @@ interface SelectedElementInfo {
   /**
    * Transient insertion context: the canonical ContentSlot id of the
    * TopicItem whose content area was clicked on the canvas. Not a selection
-   * of TopicItem/ContentSlot as PowerShowElements.
+   * of TopicItem/ContentSlot as PresentationElements.
    */
   contentSlotId?: string | null;
 }
@@ -339,7 +339,7 @@ type ImageMediaAuthoringTarget =
   | { kind: "gallery-item"; galleryId: string; itemIndex: number };
 
 type GalleryItem = GalleryElement["items"][number];
-type ImageMediaValue = Extract<PowerShowElement, { type: "image" }> | GalleryItem;
+type ImageMediaValue = Extract<PresentationElement, { type: "image" }> | GalleryItem;
 
 function areImageMediaTargetsEqual(
   left: ImageMediaAuthoringTarget | null,
@@ -635,7 +635,7 @@ function areAuthoredContainerFitsEqual(
 
 interface PendingElementDeletion {
   elementId: string;
-  elementType: PowerShowElement["type"];
+  elementType: PresentationElement["type"];
   slideIndex: number;
 }
 
@@ -720,8 +720,8 @@ type CanvasResizeLayoutField =
 type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
 
 function hasCanvasResizeLayoutChange(
-  before: PowerShowElement,
-  after: PowerShowElement,
+  before: PresentationElement,
+  after: PresentationElement,
 ): boolean {
   const beforeLayout = before.layout as CanvasResizeLayout | undefined;
   const afterLayout = after.layout as CanvasResizeLayout | undefined;
@@ -771,7 +771,7 @@ interface CanvasCropDragState {
   operation: CropCanvasOperation;
   startClientX: number;
   startClientY: number;
-  initialCrop: NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]>;
+  initialCrop: NonNullable<Extract<PresentationElement, { type: "image" }>["crop"]>;
   previewBounds: CropCanvasBounds;
 }
 
@@ -798,7 +798,7 @@ const CANVAS_RESIZE_DIRECTIONS: readonly CanvasResizeDirection[] = [
 // - manter a Presentation em estado local;
 // - controlar slide selecionado;
 // - controlar elemento selecionado;
-// - renderizar o slide com @powershow/renderer;
+// - renderizar o slide com @web-slideshow/renderer;
 // - localizar/atualizar elementos na árvore;
 // - montar a estrutura visual do Editor.
 //
@@ -1107,7 +1107,7 @@ export function EditorWorkspace({
   const [canvasCropOverlay, setCanvasCropOverlay] =
     useState<CanvasCropOverlay | null>(null);
   const [canvasCropPreview, setCanvasCropPreview] = useState<
-    NonNullable<Extract<PowerShowElement, { type: "image" }>["crop"]> | null
+    NonNullable<Extract<PresentationElement, { type: "image" }>["crop"]> | null
   >(null);
   const [cropSourceMetrics, setCropSourceMetrics] = useState<{
     key: string;
@@ -1181,7 +1181,7 @@ export function EditorWorkspace({
   // Aqui encontramos o objeto real dentro do documento.
   // ==========================================================
 
-  const selectedDocumentElement = useMemo<PowerShowElement | null>(() => {
+  const selectedDocumentElement = useMemo<PresentationElement | null>(() => {
     if (!selectedSlide || !selectedElement) {
       return null;
     }
@@ -2559,7 +2559,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function handleCanvasLinkClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (isAuthoredPowerShowLink(event.target)) {
+    if (isAuthoredPresentationLink(event.target)) {
       event.preventDefault();
     }
   }
@@ -2824,7 +2824,7 @@ export function EditorWorkspace({
           slide.elements,
           resize.elementId,
           (element) => {
-            let nextElement: PowerShowElement = element;
+            let nextElement: PresentationElement = element;
 
             if (element.type === "container") {
               if (!resize.containerResizeGeometry) {
@@ -3020,7 +3020,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function updateSelectedElement(
-    update: (element: PowerShowElement) => PowerShowElement,
+    update: (element: PresentationElement) => PresentationElement,
   ) {
     if (!selectedElement) {
       return;
@@ -3805,7 +3805,7 @@ export function EditorWorkspace({
           selectedElement?.contentSlotId ?? null,
         );
 
-        let nextElements: PowerShowElement[];
+        let nextElements: PresentationElement[];
         switch (destination.kind) {
           case "slide-root":
             nextElements = [...preparedSlide.elements, newElement];
@@ -4595,7 +4595,7 @@ export function EditorWorkspace({
 
     const source = options.source;
     const target = options.target;
-    const resolveOperation = (elements: PowerShowElement[], slides: readonly Slide[]) => {
+    const resolveOperation = (elements: PresentationElement[], slides: readonly Slide[]) => {
       if (source.kind === "gallery-item") {
         if (target.kind === "gallery-item") {
           const gallery = findElementById(elements, source.galleryId);
@@ -4779,7 +4779,7 @@ export function EditorWorkspace({
   function findStructuredTableInPresentation(
     current: Presentation,
     tableId: string,
-  ): Extract<PowerShowElement, { type: "table"; mode: "structured" }> | null {
+  ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
     for (const slide of current.slides) {
       const element = findElementById(slide.elements, tableId);
       if (element?.type === "table" && element.mode === "structured") {

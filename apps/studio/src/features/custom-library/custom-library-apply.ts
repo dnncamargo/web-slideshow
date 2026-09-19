@@ -1,8 +1,8 @@
 import {
-  PowerShowElementSchema,
-  type PowerShowElement,
+  PresentationElementSchema,
+  type PresentationElement,
   type Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   createElement,
@@ -18,7 +18,7 @@ export type CustomLibraryApplyFailureReason =
   | "type-mismatch";
 
 export type CustomLibraryElementApplyResult =
-  | { ok: true; element: PowerShowElement }
+  | { ok: true; element: PresentationElement }
   | { ok: false; reason: CustomLibraryApplyFailureReason };
 
 const ELEMENT_CREATE_TYPE_FLAGS = {
@@ -43,7 +43,7 @@ const FORBIDDEN_PATH_SEGMENTS = new Set([
   "constructor",
 ]);
 
-function isElementCreateType(type: PowerShowElement["type"]): type is ElementCreateType {
+function isElementCreateType(type: PresentationElement["type"]): type is ElementCreateType {
   return Object.prototype.hasOwnProperty.call(ELEMENT_CREATE_TYPE_FLAGS, type);
 }
 
@@ -58,7 +58,7 @@ function cloneValue(
 }
 
 function applyProperty(
-  target: PowerShowElement,
+  target: PresentationElement,
   path: string,
   value: unknown,
 ): boolean {
@@ -115,7 +115,7 @@ function applyProperty(
 }
 
 function applyRecipeProperties(
-  candidate: PowerShowElement,
+  candidate: PresentationElement,
   recipe: CustomLibraryElementRecipe,
 ): boolean {
   return recipe.properties.every((property) =>
@@ -123,8 +123,8 @@ function applyRecipeProperties(
   );
 }
 
-function validateElement(element: PowerShowElement): PowerShowElement | null {
-  const parsed = PowerShowElementSchema.safeParse(element);
+function validateElement(element: PresentationElement): PresentationElement | null {
+  const parsed = PresentationElementSchema.safeParse(element);
   return parsed.success ? parsed.data : null;
 }
 
@@ -135,7 +135,7 @@ function isValidRecipe(recipe: CustomLibraryElementRecipe): boolean {
 function buildRawCreateCandidate(
   recipe: CustomLibraryElementRecipe,
   slides: readonly Slide[],
-): { ok: true; element: PowerShowElement } | { ok: false; reason: CustomLibraryApplyFailureReason } {
+): { ok: true; element: PresentationElement } | { ok: false; reason: CustomLibraryApplyFailureReason } {
   if (!isElementCreateType(recipe.type)) {
     return { ok: false, reason: "unsupported-create-type" };
   }
@@ -155,7 +155,7 @@ function buildRawCreateCandidate(
       return { ok: false, reason: "invalid-recipe-application" };
     }
 
-    const children: PowerShowElement[] = [];
+    const children: PresentationElement[] = [];
     for (const childRecipe of recipe.children) {
       const child = buildRawCreateCandidate(childRecipe, slides);
       if (!child.ok) {
@@ -197,7 +197,7 @@ export function materializeCustomLibraryElementRecipe(
 
 export function mergeCustomLibraryElementRecipe(
   recipe: CustomLibraryElementRecipe,
-  target: PowerShowElement,
+  target: PresentationElement,
   slides: readonly Slide[],
 ): CustomLibraryElementApplyResult {
   if (recipe.type !== target.type) {
@@ -222,7 +222,7 @@ export function mergeCustomLibraryElementRecipe(
       return { ok: false, reason: "invalid-recipe-application" };
     }
 
-    const children: PowerShowElement[] = [];
+    const children: PresentationElement[] = [];
     for (const childRecipe of recipe.children) {
       const child = buildRawCreateCandidate(childRecipe, slides);
       if (!child.ok) {
@@ -265,7 +265,7 @@ export function mergeCustomLibraryElementRecipe(
 }
 
 function readProperty(
-  target: PowerShowElement,
+  target: PresentationElement,
   path: string,
 ): { found: true; value: unknown } | { found: false } {
   const segments = path.split(".");

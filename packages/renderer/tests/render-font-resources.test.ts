@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   FontFaceResource,
   FontResource,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderFontResources } from "../src/render-font-resources";
 

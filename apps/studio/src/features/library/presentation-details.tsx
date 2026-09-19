@@ -1,6 +1,6 @@
 "use client";
 
-import { Status } from "@powershow/ui";
+import { Status } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { PresentationSummary } from "../persistence/presentation-persistence";

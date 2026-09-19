@@ -1,4 +1,4 @@
-import type { PlotElement } from "@powershow/document-schema";
+import type { PlotElement } from "@web-slideshow/document-schema";
 import {
   analyzeMathSource,
   generateExplicit3DSurfaceGeometry,
@@ -7,7 +7,7 @@ import {
   type MathBindings,
   type MathGeometryResult,
   type MathViewport2D,
-} from "@powershow/math-source";
+} from "@web-slideshow/math-source";
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";

@@ -2,7 +2,7 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@powershow/document-schema";
+import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@web-slideshow/document-schema";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

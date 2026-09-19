@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TextContent, TextRun } from "@powershow/document-schema";
+import type { TextContent, TextRun } from "@web-slideshow/document-schema";
 
 import {
   applyTextContentColor,

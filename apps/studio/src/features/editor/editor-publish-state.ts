@@ -1,4 +1,4 @@
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 /**
  * Local-only publish lifecycle UI state. Not persisted; reload resets it.

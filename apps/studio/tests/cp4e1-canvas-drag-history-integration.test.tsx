@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -89,7 +89,7 @@ function keyRedo(): KeyboardEvent {
   });
 }
 
-function makePresentation(element: PowerShowElement): Presentation {
+function makePresentation(element: PresentationElement): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e1-canvas-drag",
@@ -102,7 +102,7 @@ function makePresentation(element: PowerShowElement): Presentation {
   });
 }
 
-function containerElement(): PowerShowElement {
+function containerElement(): PresentationElement {
   return {
     type: "container",
     id: "container-1",
@@ -128,7 +128,7 @@ function containerElement(): PowerShowElement {
   };
 }
 
-function imageElement(): PowerShowElement {
+function imageElement(): PresentationElement {
   return {
     type: "image",
     id: "image-1",
@@ -151,7 +151,7 @@ function imageElement(): PowerShowElement {
   };
 }
 
-function dividerElement(): PowerShowElement {
+function dividerElement(): PresentationElement {
   return {
     type: "divider",
     id: "divider-1",

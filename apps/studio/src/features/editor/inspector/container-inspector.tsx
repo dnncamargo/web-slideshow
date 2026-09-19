@@ -1,9 +1,9 @@
 import type {
   ContainerElement,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
-} from "@powershow/document-schema";
-import { resolveLinkedContainerStyle } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { resolveLinkedContainerStyle } from "@web-slideshow/document-schema";
 import type { ContainerFitMode } from "../container-fit-authoring";
 
 import styles from "../editor-workspace.module.css";
@@ -27,7 +27,7 @@ import type { CreateQrCodeFromLink } from "./inspector-types";
 interface ContainerInspectorProps {
   element: ContainerElement;
 
-  onUpdate: (update: (element: PowerShowElement) => PowerShowElement) => void;
+  onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 

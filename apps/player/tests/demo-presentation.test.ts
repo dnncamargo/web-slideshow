@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { demoPresentation } from "../src/demo-presentation";
 import { displayName } from "@web-slideshow/instance-branding";
 
-function findElement(element: PowerShowElement, id: string): PowerShowElement | undefined {
+function findElement(element: PresentationElement, id: string): PresentationElement | undefined {
   if (element.id === id) return element;
   if (element.type !== "container") return undefined;
   for (const child of element.children) {

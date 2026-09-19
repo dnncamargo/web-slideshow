@@ -1,11 +1,11 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 export const MAX_DISPOSABLE_CLIPBOARD_ENTRIES = 15;
 export const MAX_PINNED_CLIPBOARD_ENTRIES = 5;
 
 export interface ClipboardEntry {
   id: string;
-  element: PowerShowElement;
+  element: PresentationElement;
   pinned: boolean;
 }
 
@@ -17,11 +17,11 @@ export interface ClipboardSessionState {
 export interface PendingClipboardCut {
   sourceElementId: string;
   sourceSlideId: string;
-  elementType: PowerShowElement["type"];
+  elementType: PresentationElement["type"];
 }
 
 export function createPendingClipboardCut(
-  element: PowerShowElement,
+  element: PresentationElement,
   sourceSlideId: string,
 ): PendingClipboardCut {
   return {
@@ -39,7 +39,7 @@ export const EMPTY_CLIPBOARD_SESSION: ClipboardSessionState = {
 let clipboardEntrySequence = 0;
 
 export function createClipboardEntry(
-  element: PowerShowElement,
+  element: PresentationElement,
 ): ClipboardEntry {
   clipboardEntrySequence += 1;
   return {

@@ -1,4 +1,4 @@
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 import { displayName } from "@web-slideshow/instance-branding";
 
 // ============================================================
@@ -250,7 +250,7 @@ export const editorDemoPresentation = PresentationSchema.parse({
                 {
                   type: "command",
 
-                  content: "pnpm --filter @powershow/studio dev",
+                  content: "pnpm --filter @web-slideshow/studio dev",
                 },
 
                 {

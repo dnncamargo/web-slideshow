@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
-import type { BlocksElement } from "@powershow/document-schema";
-import { parseBlocksSource } from "@powershow/renderer";
+import type { BlocksElement } from "@web-slideshow/document-schema";
+import { parseBlocksSource } from "@web-slideshow/renderer";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 

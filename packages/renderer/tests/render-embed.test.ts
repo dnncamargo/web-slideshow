@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   EmbedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import { renderEmbed } from "../src/render-embed";

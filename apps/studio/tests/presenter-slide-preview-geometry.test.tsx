@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   paletteColorCssVariableName,
   resolveLogicalSlideSize,
-} from "@powershow/renderer";
+} from "@web-slideshow/renderer";
 
 import { PresenterSlidePreview } from "../src/features/control/presenter/presenter-slide-preview";
 import {

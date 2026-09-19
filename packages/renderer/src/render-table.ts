@@ -1,10 +1,10 @@
 import type {
   ContentSlot,
   TableElement,
-  PowerShowElement,
+  PresentationElement,
   TextContent,
   StructuredTableVisualStyle,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
@@ -15,7 +15,7 @@ import { renderColorValue } from "./render-palette";
 import { renderBackground, renderGradientBorder } from "./render-visual";
 import { renderRichText, renderTextContent } from "./render-rich-text";
 
-type RenderChild = (element: PowerShowElement) => string;
+type RenderChild = (element: PresentationElement) => string;
 
 function renderCellValue(
   value:

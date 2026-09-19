@@ -1,4 +1,4 @@
-import type { BackgroundPattern } from "@powershow/document-schema";
+import type { BackgroundPattern } from "@web-slideshow/document-schema";
 
 export function renderBackgroundPattern(
   pattern: BackgroundPattern,

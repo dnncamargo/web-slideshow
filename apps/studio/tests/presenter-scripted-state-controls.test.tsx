@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema } from "@powershow/document-schema";
+import { PresentationSchema } from "@web-slideshow/document-schema";
 import { PresenterView } from "../src/features/control/presenter/presenter-view";
 import type { ControlScriptedStateGroup } from "../src/features/control/use-live-scripted-state-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

@@ -1,4 +1,4 @@
-import type { BlocksElement, Border, ColorValue } from "@powershow/document-schema";
+import type { BlocksElement, Border, ColorValue } from "@web-slideshow/document-schema";
 
 import { parseBlocksSource, type BlocksAstNode, type BlocksCategory, type BlocksInlineNode } from "./blocks-source";
 import { escapeHtml } from "./escape-html";

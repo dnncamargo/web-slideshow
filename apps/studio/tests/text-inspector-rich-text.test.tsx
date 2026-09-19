@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type {
   TextElement,
   TextRun,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";

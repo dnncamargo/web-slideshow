@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   paletteColorCssVariableName,

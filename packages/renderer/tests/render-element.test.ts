@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
 describe("renderElement", () => {
   it("renders body text", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "text-1",
       hidden: false,
@@ -25,7 +25,7 @@ describe("renderElement", () => {
   });
 
   it("renders title text as h1", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "title-1",
       hidden: false,
@@ -46,7 +46,7 @@ describe("renderElement", () => {
   ] as const)(
     "does not rewrite element content for %s text-transform",
     (_name, textTransform) => {
-      const element: PowerShowElement = {
+      const element: PresentationElement = {
         type: "text",
         id: "case-text",
         hidden: false,
@@ -65,7 +65,7 @@ describe("renderElement", () => {
   );
 
   it("escapes text content", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "dangerous-text",
       hidden: false,
@@ -81,7 +81,7 @@ describe("renderElement", () => {
   });
 
   it("renders nothing when an element is hidden", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "text",
       id: "hidden-text",
       hidden: true,
@@ -93,7 +93,7 @@ describe("renderElement", () => {
   });
 
   it("renders an image", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -152,7 +152,7 @@ describe("renderElement", () => {
   });
 
   it("escapes image attributes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "image",
       id: "image-1",
       hidden: false,
@@ -169,7 +169,7 @@ describe("renderElement", () => {
   });
 
   it("renders a row container", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "row-1",
       hidden: false,
@@ -205,7 +205,7 @@ describe("renderElement", () => {
   });
 
   it("renders a column container", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "column-1",
       hidden: false,
@@ -219,7 +219,7 @@ describe("renderElement", () => {
   });
 
   it("maps row alignment to flex axes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "row-aligned",
       hidden: false,
@@ -235,7 +235,7 @@ describe("renderElement", () => {
   });
 
   it("maps column alignment to flex axes", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "column-aligned",
       hidden: false,
@@ -251,7 +251,7 @@ describe("renderElement", () => {
   });
 
   it("renders nested containers recursively", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "root",
       hidden: false,
@@ -293,7 +293,7 @@ describe("renderElement", () => {
     ["header", "<header"],
     ["footer", "<footer"],
   ] as const)("renders %s containers using semantic HTML", (role, tag) => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: `${role}-1`,
       hidden: false,
@@ -310,7 +310,7 @@ describe("renderElement", () => {
   });
 
   it("supports mixed content inside containers", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "container",
       id: "mixed-content",
       hidden: false,
@@ -353,7 +353,7 @@ describe("renderElement", () => {
   });
 
   it("renders implemented-later elements as placeholders", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "plot",
       id: "plot-1",
       hidden: false,
@@ -368,7 +368,7 @@ describe("renderElement", () => {
   });
 
   it("renders code with line numbers", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "code",
       id: "code-1",
       hidden: false,
@@ -390,7 +390,7 @@ describe("renderElement", () => {
   });
 
   it("escapes code content", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "code",
       id: "code-danger",
       hidden: false,
@@ -407,7 +407,7 @@ describe("renderElement", () => {
     expect(html).toContain("&lt;script&gt;");
   });
   it("renders terminal lines", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "terminal",
       id: "terminal-1",
       hidden: false,
@@ -440,7 +440,7 @@ describe("renderElement", () => {
     expect(html).toContain("79 tests passed");
   });
   it("renders tables using declared column order", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "table-1",
       hidden: false,
@@ -479,7 +479,7 @@ describe("renderElement", () => {
     expect(html).toContain("<td>Bob</td><td>20</td>");
   });
   it("escapes table cell values", () => {
-    const element: PowerShowElement = {
+    const element: PresentationElement = {
       type: "table",
       id: "unsafe-table",
       hidden: false,

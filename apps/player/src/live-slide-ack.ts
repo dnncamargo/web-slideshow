@@ -6,7 +6,7 @@ import {
   type Database,
 } from "firebase/database";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
 
 const SLIDE_COMMAND_PATH = "live/slideCommand";

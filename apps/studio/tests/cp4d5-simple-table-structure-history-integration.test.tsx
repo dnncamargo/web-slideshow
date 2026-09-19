@@ -9,7 +9,7 @@ import {
   type Presentation,
   type SimpleTableElement,
   type TextContent,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   AuthoringHistoryContext,

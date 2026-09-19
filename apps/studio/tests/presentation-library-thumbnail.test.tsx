@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation, Slide } from "@powershow/document-schema";
+import type { Presentation, Slide } from "@web-slideshow/document-schema";
 
 import { PresentationThumbnail } from "../src/features/library/presentation-thumbnail";
 import { PresentationThumbnailPreview } from "../src/features/library/presentation-thumbnail-preview";

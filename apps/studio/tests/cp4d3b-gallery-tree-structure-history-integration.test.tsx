@@ -9,7 +9,7 @@ import {
   type GalleryElement,
   type ImageElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 const historyMetas = vi.hoisted(() => [] as Array<{
   kind: string;

@@ -2,11 +2,11 @@ import type {
   ContainerElement,
   ContainerLayout,
   Length,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import {
   normalizeAuthoringLengthValue,
   parseAuthoringLength,
-} from "@powershow/theme/element-style-defaults";
+} from "@web-slideshow/theme/element-style-defaults";
 
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 

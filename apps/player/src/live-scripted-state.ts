@@ -4,8 +4,8 @@ import {
   visitSlideElements,
   type Presentation,
   type ScriptedElement,
-} from "@powershow/document-schema";
-import type { ScriptedReportMessage } from "@powershow/renderer";
+} from "@web-slideshow/document-schema";
+import type { ScriptedReportMessage } from "@web-slideshow/renderer";
 
 export const SCRIPTED_RUNTIME_ROOT_PATH = "live/scriptedRuntime";
 export const SCRIPTED_REPORT_ROOT_PATH = "live/scriptedReport";

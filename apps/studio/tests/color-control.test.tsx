@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ColorValue } from "@powershow/document-schema";
+import type { ColorValue } from "@web-slideshow/document-schema";
 
 import { ColorControl } from "../src/features/editor/inspector/sections/color-control";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";

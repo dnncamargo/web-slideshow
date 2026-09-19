@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EmbedElementSchema,
-  PowerShowElementSchema,
+  PresentationElementSchema,
   ScriptedElementSchema,
   TextElementSchema,
 } from "../src/elements";
@@ -271,8 +271,8 @@ describe("Scripted element schema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts Scripted through PowerShowElementSchema", () => {
-    const result = PowerShowElementSchema.safeParse(scripted());
+  it("accepts Scripted through PresentationElementSchema", () => {
+    const result = PresentationElementSchema.safeParse(scripted());
 
     expect(result.success).toBe(true);
 
@@ -306,7 +306,7 @@ describe("Scripted element schema", () => {
   });
 
   it("accepts Scripted inside Container recursion", () => {
-    const result = PowerShowElementSchema.safeParse({
+    const result = PresentationElementSchema.safeParse({
       id: "outer-container",
 
       type: "container",

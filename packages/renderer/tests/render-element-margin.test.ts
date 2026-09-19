@@ -6,7 +6,7 @@ import type {
   GalleryElement,
   PlotElement,
   ScriptedElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 import {

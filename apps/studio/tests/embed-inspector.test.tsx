@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { EmbedElement, PowerShowElement } from "@powershow/document-schema";
+import type { EmbedElement, PresentationElement } from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { EmbedInspector } from "../src/features/editor/inspector/embed-inspector";
@@ -614,7 +614,7 @@ describe("ElementInspector dispatcher for Embed", () => {
   });
 
   it("renders the EmbedInspector for a selected Embed", async () => {
-    const element: PowerShowElement = embedElement();
+    const element: PresentationElement = embedElement();
 
     await act(async () => {
       root.render(

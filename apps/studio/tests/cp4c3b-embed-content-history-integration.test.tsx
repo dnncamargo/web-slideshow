@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type EmbedElement,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { AuthoringHistoryContext } from "../src/features/editor/authoring-history-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";

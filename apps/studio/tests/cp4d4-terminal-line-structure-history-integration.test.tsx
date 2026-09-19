@@ -8,7 +8,7 @@ import {
   PresentationSchema,
   type Presentation,
   type TerminalElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { AuthoringHistoryContext, type AuthoringHistoryContextValue } from "../src/features/editor/authoring-history-context";
 import type { HistoryActionMeta } from "../src/features/editor/editor-history-state";

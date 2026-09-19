@@ -3,8 +3,8 @@ import { z } from "zod";
 import {
   CustomTextStyleSchema,
   LinkedStyleSchema,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
 import type { CustomLibraryItemDraft } from "./custom-library-item";
@@ -27,11 +27,11 @@ const ELEMENT_TYPE_NAMES = {
   scripted: true,
   topics: true,
   container: true,
-} satisfies Record<PowerShowElement["type"], true>;
+} satisfies Record<PresentationElement["type"], true>;
 
 const elementTypeNames = Object.keys(ELEMENT_TYPE_NAMES) as [
-  PowerShowElement["type"],
-  ...PowerShowElement["type"][],
+  PresentationElement["type"],
+  ...PresentationElement["type"][],
 ];
 
 export const ElementRecipePropertySchema = z

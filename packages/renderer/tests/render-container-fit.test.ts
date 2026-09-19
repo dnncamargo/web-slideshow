@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
 
@@ -11,14 +11,14 @@ const text = {
   variant: "body" as const,
 };
 
-function container(overrides: Record<string, unknown> = {}): PowerShowElement {
+function container(overrides: Record<string, unknown> = {}): PresentationElement {
   return {
     id: "container",
     type: "container" as const,
     hidden: false,
     children: [text],
     ...overrides,
-  } as PowerShowElement;
+  } as PresentationElement;
 }
 
 describe("renderContainer children fit", () => {

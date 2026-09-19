@@ -1,10 +1,10 @@
 import type {
   ContainerElement,
   ElementLink,
-  PowerShowElement,
+  PresentationElement,
   Presentation,
-} from "@powershow/document-schema";
-import { resolveLinkedContainerStyle } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { resolveLinkedContainerStyle } from "@web-slideshow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
 import { escapeHtml } from "./escape-html";
@@ -13,7 +13,7 @@ import { renderLength } from "./render-length";
 import { renderBorder, renderGradient, renderGradientBorder, renderShadow } from "./render-visual";
 import { renderColorValue } from "./render-palette";
 
-type RenderChild = (element: PowerShowElement) => string;
+type RenderChild = (element: PresentationElement) => string;
 type Alignment = "start" | "center" | "end" | "stretch";
 
 const CONTAINER_LINK_SURFACE_Z_INDEX = 100;

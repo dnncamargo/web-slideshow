@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 
-import type { Color } from "@powershow/document-schema";
+import type { Color } from "@web-slideshow/document-schema";
 
 export interface PickedColorsControls {
   colors: readonly Color[];

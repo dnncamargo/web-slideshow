@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PowerShowElementSchema,
+  PresentationElementSchema,
   PresentationSchema,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { editorDemoPresentation } from "../src/features/editor/editor-demo-presentation";
 import { createElement } from "../src/features/editor/element-operations";
@@ -23,7 +23,7 @@ const presets: SlideLayoutPreset[] = [
   "title-two-columns",
 ];
 
-function containers(elements: readonly PowerShowElement[]): PowerShowElement[] {
+function containers(elements: readonly PresentationElement[]): PresentationElement[] {
   return elements.flatMap((element) =>
     element.type === "container"
       ? [element, ...containers(element.children)]
@@ -31,7 +31,7 @@ function containers(elements: readonly PowerShowElement[]): PowerShowElement[] {
   );
 }
 
-function expectCanonicalContainers(elements: readonly PowerShowElement[]) {
+function expectCanonicalContainers(elements: readonly PresentationElement[]) {
   for (const element of containers(elements)) {
     expect(element).not.toHaveProperty("direction");
     expect(element).not.toHaveProperty("gap");
@@ -53,7 +53,7 @@ describe("Studio canonical Container producers", () => {
   it("creates a schema-valid canonical Container", () => {
     const created = createElement("container", []);
 
-    PowerShowElementSchema.parse(created);
+    PresentationElementSchema.parse(created);
     expect(created).toMatchObject({
       type: "container",
       layout: {

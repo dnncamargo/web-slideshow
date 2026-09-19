@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContentSlot,
-  type PowerShowElement,
+  type PresentationElement,
   type Slide,
   type TextElement,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   MAX_TOPIC_STRUCTURAL_DEPTH,
@@ -24,14 +24,14 @@ import {
   updateTopicsTextColor,
   updateTopicItemTextContent,
 } from "../src/features/editor/element-operations";
-import { POWERSHOW_TOPICS_TEXT_STYLE_ID } from "@powershow/document-schema";
+import { SYSTEM_TOPICS_TEXT_STYLE_ID } from "@web-slideshow/document-schema";
 
 import {
   collectAuthoringIds,
   findTopicItemById,
 } from "../src/features/editor/element-hierarchy";
 
-function slide(elements: PowerShowElement[]): Slide {
+function slide(elements: PresentationElement[]): Slide {
   return {
     id: "slide",
     title: "",
@@ -53,7 +53,7 @@ function text(id: string, content = id): TextElement {
 
 function contentSlot(
   id: string,
-  children: PowerShowElement[] = [],
+  children: PresentationElement[] = [],
 ): ContentSlot {
   return {
     id,
@@ -83,7 +83,7 @@ function topics(id: string, items: TopicItem[]): TopicsElement {
   };
 }
 
-function collectIds(elements: readonly PowerShowElement[]): Set<string> {
+function collectIds(elements: readonly PresentationElement[]): Set<string> {
   const ids = new Set<string>();
   for (const element of elements) {
     collectAuthoringIds(element, ids);
@@ -356,7 +356,7 @@ describe("TopicItem sibling reorder", () => {
     const otherTopics = topics("other-topics", [
       topicItem("other", contentSlot("other-slot", [text("other-text")])),
     ]);
-    const elements: PowerShowElement[] = [topics("topics", items), otherTopics];
+    const elements: PresentationElement[] = [topics("topics", items), otherTopics];
 
     const forward = moveTopicItemToSiblingIndex(elements, "topics", "a", 2);
     const backward = moveTopicItemToSiblingIndex(forward, "topics", "a", 0);
@@ -386,7 +386,7 @@ describe("TopicItem sibling reorder", () => {
       contentSlot("parent-slot", [text("parent-text")]),
       [moved, topicItem("sibling", contentSlot("sibling-slot", [text("sibling-text")]))],
     );
-    const elements: PowerShowElement[] = [topics("topics", [parent])];
+    const elements: PresentationElement[] = [topics("topics", [parent])];
 
     const result = moveTopicItemToSiblingIndex(elements, "topics", "moved", 1);
     const updatedParent = (result[0] as TopicsElement).items[0]!;
@@ -410,7 +410,7 @@ describe("TopicItem sibling reorder", () => {
     const second = topics("second", [
       topicItem("other", contentSlot("slot-other", [text("text-other")])),
     ]);
-    const elements: PowerShowElement[] = [first, second];
+    const elements: PresentationElement[] = [first, second];
 
     for (const [topicsId, itemId, index] of [
       ["first", "missing", 0],
@@ -442,7 +442,7 @@ describe("TopicItem sibling reorder", () => {
       [topicItem("deep-sibling-child", contentSlot("deep-sibling-child-slot", [text("deep-sibling-child-text")]))],
     );
     deepParent.children.push(deepFirst, deepSibling);
-    const elements: PowerShowElement[] = [topics("topics", items)];
+    const elements: PresentationElement[] = [topics("topics", items)];
 
     const result = moveTopicItemToSiblingIndex(
       elements,
@@ -491,7 +491,7 @@ describe("TopicItem hierarchy operations", () => {
       topicItem("previous", contentSlot("previous-slot")),
       source,
     );
-    const elements: PowerShowElement[] = [topics("topics", items)];
+    const elements: PresentationElement[] = [topics("topics", items)];
 
     expect(getTopicItemHierarchyActionState(elements, "topics", "source")).toEqual({
       canIndent: false,
@@ -505,7 +505,7 @@ describe("TopicItem hierarchy operations", () => {
 
   it("allows outdent for imported TopicItems deeper than the authoring limit", () => {
     const items = structuralChain(7);
-    const elements: PowerShowElement[] = [topics("topics", items)];
+    const elements: PresentationElement[] = [topics("topics", items)];
 
     expect(getTopicItemHierarchyActionState(elements, "topics", "topic-level-7")).toEqual({
       canIndent: false,
@@ -517,7 +517,7 @@ describe("TopicItem hierarchy operations", () => {
     const a = topicItem("a", contentSlot("slot-a", [text("text-a")]));
     const b = topicItem("b", contentSlot("slot-b", [text("text-b")]));
     const c = topicItem("c", contentSlot("slot-c", [text("text-c")]));
-    const elements: PowerShowElement[] = [topics("topics", [a, b, c])];
+    const elements: PresentationElement[] = [topics("topics", [a, b, c])];
 
     const result = indentTopicItem(elements, "topics", "b");
     const updated = result[0] as TopicsElement;
@@ -535,7 +535,7 @@ describe("TopicItem hierarchy operations", () => {
     );
     const previous = topicItem("previous", contentSlot("previous-slot", [text("previous-text")]));
     const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [previous, moved]);
-    const elements: PowerShowElement[] = [topics("topics", [parent])];
+    const elements: PresentationElement[] = [topics("topics", [parent])];
 
     const result = indentTopicItem(elements, "topics", "moved");
     const updatedParent = (result[0] as TopicsElement).items[0]!;
@@ -554,7 +554,7 @@ describe("TopicItem hierarchy operations", () => {
     const second = topics("second", [
       topicItem("other", contentSlot("slot-other", [text("text-other")])),
     ]);
-    const elements: PowerShowElement[] = [first, second];
+    const elements: PresentationElement[] = [first, second];
 
     expect(indentTopicItem(elements, "first", "a")).toBe(elements);
     expect(indentTopicItem(elements, "first", "missing")).toBe(elements);
@@ -569,7 +569,7 @@ describe("TopicItem hierarchy operations", () => {
       topicItem("legal-previous", contentSlot("legal-previous-slot", [text("legal-previous-text")])),
       legalSource,
     );
-    const legalElements: PowerShowElement[] = [topics("topics", legalItems)];
+    const legalElements: PresentationElement[] = [topics("topics", legalItems)];
     const legalResult = indentTopicItem(legalElements, "topics", "legal-source");
     expect(findTopicItemStructuralDepthInItems((legalResult[0] as TopicsElement).items, "legal-source")).toBe(5);
 
@@ -579,7 +579,7 @@ describe("TopicItem hierarchy operations", () => {
       topicItem("root-previous", contentSlot("root-previous-slot", [text("root-previous-text")])),
       topicItem("root-overflow", contentSlot("root-slot", [text("root-text")])),
     );
-    const rootOverflow: PowerShowElement[] = [topics("topics", rootOverflowItems)];
+    const rootOverflow: PresentationElement[] = [topics("topics", rootOverflowItems)];
     expect(indentTopicItem(rootOverflow, "topics", "root-overflow")).toBe(rootOverflow);
 
     const descendantItems = structuralChain(3);
@@ -593,7 +593,7 @@ describe("TopicItem hierarchy operations", () => {
       topicItem("descendant-previous", contentSlot("descendant-previous-slot", [text("descendant-previous-text")])),
       descendantSource,
     );
-    const descendantOverflow: PowerShowElement[] = [topics("topics", descendantItems)];
+    const descendantOverflow: PresentationElement[] = [topics("topics", descendantItems)];
     expect(indentTopicItem(descendantOverflow, "topics", "descendant-overflow")).toBe(descendantOverflow);
   });
 
@@ -605,7 +605,7 @@ describe("TopicItem hierarchy operations", () => {
     );
     const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [source]);
     const after = topicItem("after", contentSlot("after-slot", [text("after-text")]));
-    const elements: PowerShowElement[] = [topics("topics", [parent, after])];
+    const elements: PresentationElement[] = [topics("topics", [parent, after])];
 
     const result = outdentTopicItem(elements, "topics", "source");
     const updated = (result[0] as TopicsElement).items;
@@ -623,7 +623,7 @@ describe("TopicItem hierarchy operations", () => {
     );
     const parent = topicItem("parent", contentSlot("parent-slot", [text("parent-text")]), [source]);
     const otherTopics = topics("other-topics", [topicItem("other", contentSlot("other-slot", [text("other-text")] ))]);
-    const elements: PowerShowElement[] = [topics("topics", [parent]), otherTopics];
+    const elements: PresentationElement[] = [topics("topics", [parent]), otherTopics];
 
     const result = outdentTopicItem(elements, "topics", "source");
     expect((result[0] as TopicsElement).items[1]).toBe(source);
@@ -638,7 +638,7 @@ describe("TopicItem hierarchy operations", () => {
       topicItem("b", contentSlot("slot-b", [text("text-b")])),
     ]);
     const second = topics("second", [topicItem("other", contentSlot("slot-other", [text("text-other")]))]);
-    const elements: PowerShowElement[] = [first, second];
+    const elements: PresentationElement[] = [first, second];
 
     expect(outdentTopicItem(elements, "first", "a")).toBe(elements);
     expect(outdentTopicItem(elements, "first", "missing")).toBe(elements);
@@ -648,7 +648,7 @@ describe("TopicItem hierarchy operations", () => {
   it("outdents imported structures deeper than the authoring limit without data loss", () => {
     const items = structuralChain(7);
     const source = findTopicItemDepthItem(items, "topic-level-7")!;
-    const elements: PowerShowElement[] = [topics("topics", items)];
+    const elements: PresentationElement[] = [topics("topics", items)];
 
     const result = outdentTopicItem(elements, "topics", source.id);
     const updated = (result[0] as TopicsElement).items;
@@ -671,7 +671,7 @@ describe("default topic item creation", () => {
     const textChild = item.content.children[0];
     expect(textChild?.type).toBe("text");
     if (textChild?.type === "text") {
-      expect(textChild.variant).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
+      expect(textChild.variant).toBe(SYSTEM_TOPICS_TEXT_STYLE_ID);
     }
   });
 
@@ -690,7 +690,7 @@ describe("default topic item creation", () => {
 
     const existing = topics("topics", [existingItem]);
 
-    const elements: PowerShowElement[] = [existing];
+    const elements: PresentationElement[] = [existing];
 
     const created = createDefaultTopicItem([slide(elements)]);
 
@@ -724,7 +724,7 @@ describe("default topic item creation", () => {
       ),
     ]);
 
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("outer-topics", [
         topicItem("outer-topic", contentSlot("outer-slot", [nested])),
       ]),
@@ -771,7 +771,7 @@ describe("default topic item creation", () => {
       ],
     );
 
-    const elements: PowerShowElement[] = [topics("topics", [parent, sibling])];
+    const elements: PresentationElement[] = [topics("topics", [parent, sibling])];
     const created = createDefaultTopicItem([slide(elements)]);
 
     const result = appendChildTopicItemToTopics(
@@ -808,7 +808,7 @@ describe("default topic item creation", () => {
       ],
     );
 
-    const elements: PowerShowElement[] = [topics("topics", [grandchildParent])];
+    const elements: PresentationElement[] = [topics("topics", [grandchildParent])];
     const created = createDefaultTopicItem([slide(elements)]);
 
     const result = appendChildTopicItemToTopics(
@@ -836,7 +836,7 @@ describe("default topic item creation", () => {
       ),
     ]);
 
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-parent", contentSlot("slot-parent", [nestedTopics])),
       ]),
@@ -868,7 +868,7 @@ describe("default topic item creation", () => {
   });
 
   it("returns the original hierarchy for an invalid Topics target", () => {
-    const elements: PowerShowElement[] = [text("not-topics")];
+    const elements: PresentationElement[] = [text("not-topics")];
 
     const created = createDefaultTopicItem([slide(elements)]);
 
@@ -882,7 +882,7 @@ describe("default topic item creation", () => {
   });
 
   it("returns the original hierarchy for an invalid TopicItem target", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", [
         topicItem("topic-a", contentSlot("slot-a", [text("topic-a-text")])),
       ]),
@@ -997,7 +997,7 @@ describe("default topic item creation", () => {
     if (textChild?.type === "text") {
       expect(textChild).not.toHaveProperty("style");
       expect(textChild.content).toBe("New topic");
-      expect(textChild.variant).toBe(POWERSHOW_TOPICS_TEXT_STYLE_ID);
+      expect(textChild.variant).toBe(SYSTEM_TOPICS_TEXT_STYLE_ID);
     }
   });
   it("does not append a child outside the owning TopicsElement", () => {
@@ -1008,7 +1008,7 @@ describe("default topic item creation", () => {
       ),
     ]);
 
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("outer-topics", [
         topicItem("outer-topic", contentSlot("outer-slot", [nestedTopics])),
       ]),
@@ -1098,7 +1098,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("creates a child at every legal structural depth from 1 to 4", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(4)),
     ];
 
@@ -1122,7 +1122,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("refuses child creation from a TopicItem already at depth 5", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(5)),
     ];
 
@@ -1139,7 +1139,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("refuses child creation on a pre-existing deeper-than-5 item", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(7)),
     ];
 
@@ -1156,7 +1156,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("leaves sibling creation unaffected after a depth refusal", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(5)),
     ];
 
@@ -1207,7 +1207,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("keeps the depth-5 subtree fully readable after authoring", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(5)),
     ];
 
@@ -1240,7 +1240,7 @@ describe("topics structural depth authoring limit", () => {
   });
 
   it("keeps the deeper-than-5 tree traversable by collectAuthoringIds", () => {
-    const elements: PowerShowElement[] = [
+    const elements: PresentationElement[] = [
       topics("topics", structuralChain(6)),
     ];
 
@@ -1273,7 +1273,7 @@ function findTopicItemDepthItem(
 }
 
 function findTopicItemDepthByElementId(
-  elements: readonly PowerShowElement[],
+  elements: readonly PresentationElement[],
   topicItemId: string,
 ): number | null {
   for (const element of elements) {

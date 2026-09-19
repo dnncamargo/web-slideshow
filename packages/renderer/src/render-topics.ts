@@ -1,11 +1,11 @@
 import type {
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
   TopicMarkerStyle,
   TopicsElement,
   Presentation,
-} from "@powershow/document-schema";
-import { resolveLinkedTopicsStyle } from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
+import { resolveLinkedTopicsStyle } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
@@ -13,7 +13,7 @@ import { renderLength } from "./render-length";
 import { renderContentSlotStyle } from "./render-content-slot";
 import { renderColorValue } from "./render-palette";
 
-type RenderChild = (element: PowerShowElement) => string;
+type RenderChild = (element: PresentationElement) => string;
 
 type TopicsListContext = {
   kind: NonNullable<TopicsElement["kind"]>;

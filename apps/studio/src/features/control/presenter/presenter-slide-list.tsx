@@ -1,8 +1,8 @@
 "use client";
 
-import type { Presentation } from "@powershow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
-import { HoverScrollText } from "@powershow/ui";
+import { HoverScrollText } from "@web-slideshow/ui";
 
 import styles from "./presenter-view.module.css";
 

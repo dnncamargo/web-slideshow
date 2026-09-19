@@ -5,21 +5,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
-  POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+  SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+  SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   PresentationSchema,
   type Presentation,
-  type PowerShowElement,
-} from "@powershow/document-schema";
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-type StructuredTable = Extract<PowerShowElement, { type: "table"; mode: "structured" }>;
+type StructuredTable = Extract<PresentationElement, { type: "table"; mode: "structured" }>;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { type: "text", id, hidden: false, variant: "body", content };
 }
 
@@ -202,8 +202,8 @@ describe("CP4D6 Structured Table structure history", () => {
     const addedCells = added.rows.map((row) => row.cells[3]);
     expect(added.columns).toHaveLength(4);
     expect(added.rows.every((row) => row.cells.length === added.columns.length)).toBe(true);
-    expect(addedHeader).toMatchObject({ type: "text", content: "Column", variant: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
-    expect(addedCells.every((cell) => cell?.children[0]?.type === "text" && cell.children[0].content === "Value" && cell.children[0].variant === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
+    expect(addedHeader).toMatchObject({ type: "text", content: "Column", variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
+    expect(addedCells.every((cell) => cell?.children[0]?.type === "text" && cell.children[0].content === "Value" && cell.children[0].variant === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
     const generatedIds = [
       addedColumn.id,
       addedColumn.header.id,
@@ -220,8 +220,8 @@ describe("CP4D6 Structured Table structure history", () => {
     await save();
     expect(getTable(latest)).toEqual(added);
     expect(latest.textStyles?.map((style) => style.id)).toEqual([
-      POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-      POWERSHOW_TABLE_CELL_TEXT_STYLE_ID,
+      SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
+      SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
     ]);
   });
 
@@ -251,15 +251,15 @@ describe("CP4D6 Structured Table structure history", () => {
   it("preserves authored canonical styles and does not duplicate them", async () => {
     const authored = presentation({
       textStyles: [
-        { id: POWERSHOW_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Authored header", role: "body", typography: { fontSize: "2rem" } },
-        { id: POWERSHOW_TABLE_CELL_TEXT_STYLE_ID, name: "Authored cell", role: "body", style: { color: "#123456" } },
+        { id: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Authored header", role: "body", typography: { fontSize: "2rem" } },
+        { id: SYSTEM_TABLE_CELL_TEXT_STYLE_ID, name: "Authored cell", role: "body", style: { color: "#123456" } },
       ],
     });
     await mount(authored);
     await act(async () => button("[data-powershow-table-add-column]").click());
     await save();
     expect(latest.textStyles).toEqual(authored.textStyles);
-    expect(latest.textStyles?.filter((style) => style.id === POWERSHOW_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
+    expect(latest.textStyles?.filter((style) => style.id === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toHaveLength(1);
   });
 
   it("removes columns and rows atomically, including last-item cases and exact subtree replay", async () => {

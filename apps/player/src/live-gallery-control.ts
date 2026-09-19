@@ -5,7 +5,7 @@ import {
   type GalleryElement,
   type Presentation,
   type Slide,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
 

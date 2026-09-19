@@ -1,5 +1,5 @@
-import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@powershow/document-schema";
-import { THEME_COLORS } from "@powershow/theme/element-style-defaults";
+import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@web-slideshow/document-schema";
+import { THEME_COLORS } from "@web-slideshow/theme/element-style-defaults";
 import { createDefaultGradient } from "./inspector/sections/element-gradient-control";
 import { BACKGROUND_PATTERN_PRESETS } from "./inspector/sections/element-background-pattern";
 import { createDefaultBorder } from "./inspector/sections/element-border-control";

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type Presentation,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 import {
   encodePresentationForFirestore,
   MAX_PRESENTATION_SAFE_BYTES,
   PresentationTooLargeError,
-} from "@powershow/firebase";
+} from "@web-slideshow/firebase";
 
 import {
   estimatePresentationBytes,

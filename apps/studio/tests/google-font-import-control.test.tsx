@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FontFaceResource } from "@powershow/document-schema";
+import type { FontFaceResource } from "@web-slideshow/document-schema";
 import { GoogleFontImportControl } from "../src/features/fonts/components/google-font-import-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 

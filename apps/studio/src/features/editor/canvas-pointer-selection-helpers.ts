@@ -1,11 +1,11 @@
-import type { PowerShowElement } from "@powershow/document-schema";
+import type { PresentationElement } from "@web-slideshow/document-schema";
 
 import { findElementById } from "./element-tree";
 
 export interface CanvasPointerSelection {
   id: string;
   type: string;
-  documentElement: PowerShowElement;
+  documentElement: PresentationElement;
 }
 
 export interface CanvasPointerTarget {
@@ -113,7 +113,7 @@ export function resolveCanvasPointerHit({
 
 export function resolveCanvasPointerSelection(
   target: CanvasPointerTarget | null,
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
 ): CanvasPointerSelection | null {
   if (!target?.id || !target.type) {
     return null;

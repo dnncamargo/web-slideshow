@@ -7,11 +7,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   type ContainerElement,
-  type PowerShowElement,
+  type PresentationElement,
   type Presentation,
   type TopicItem,
   type TopicsElement,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -51,11 +51,11 @@ const TOPICS_STYLE = {
   itemGap: 10,
 } as const;
 
-function text(id: string, content: string): PowerShowElement {
+function text(id: string, content: string): PresentationElement {
   return { id, type: "text", hidden: false, variant: "body", content };
 }
 
-function topicItem(id: string, children: PowerShowElement[], nested: TopicItem[] = []): TopicItem {
+function topicItem(id: string, children: PresentationElement[], nested: TopicItem[] = []): TopicItem {
   return { id, content: { id: `slot-${id}`, children }, children: nested };
 }
 
@@ -81,7 +81,7 @@ function containerElement(overrides: Partial<ContainerElement> = {}): ContainerE
 }
 
 function presentation(
-  elements: PowerShowElement[],
+  elements: PresentationElement[],
   linkedStyles: readonly object[] = [],
 ): Presentation {
   return PresentationSchema.parse({
@@ -117,7 +117,7 @@ function changeInput(input: HTMLInputElement, value: string): void {
 }
 
 function containerFrom(document: Presentation, id = CONTAINER_ID): ContainerElement {
-  const find = (elements: readonly PowerShowElement[]): ContainerElement | undefined => {
+  const find = (elements: readonly PresentationElement[]): ContainerElement | undefined => {
     for (const element of elements) {
       if (element.id === id && element.type === "container") {
         return element;

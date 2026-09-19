@@ -9,7 +9,7 @@ import {
 } from "./palette";
 import type {
   ContentSlot,
-  PowerShowElement,
+  PresentationElement,
   TopicItem,
 } from "./elements";
 import type {
@@ -119,7 +119,7 @@ export function visitPresentationColorValues(
     }
   };
 
-  function visitElement(element: PowerShowElement, path: PaletteColorPath): void {
+  function visitElement(element: PresentationElement, path: PaletteColorPath): void {
     switch (element.type) {
       case "text":
         visitStyle(element.style, [...path, "style"]);
@@ -223,10 +223,10 @@ export function mapPresentationColorValues(
   return mapped;
 }
 
-export function mapPowerShowElementColorValues(
-  element: PowerShowElement,
+export function mapPresentationElementColorValues(
+  element: PresentationElement,
   visitor: PresentationColorValueVisitor,
-): PowerShowElement {
+): PresentationElement {
   const mapped = structuredClone(element);
   visitPresentationColorValues({
     slides: [{ id: "palette-map", elements: [mapped] } as Slide],

@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   FontFaceResourceSchema,
   type FontFaceResource,
-} from "@powershow/document-schema";
+} from "@web-slideshow/document-schema";
 
 import {
   chooseRecommendedFontFace,
