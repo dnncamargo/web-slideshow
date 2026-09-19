@@ -2032,72 +2032,89 @@ export function EditorWorkspace({
     }
 
     clearCanvasDragPreview();
-    setPresentation((current) => ({
-      ...current,
-      slides: current.slides.map((slide, index) =>
-        index === selectedSlideIndex
-          ? {
-              ...slide,
-              elements: updateElementById(
-                slide.elements,
-                drag.elementId,
-                (element) => {
-                  if (element.type === "container") {
-                    if (!drag.containerGeometry) {
-                      return element;
-                    }
+    commitPresentationAction(
+      {
+        kind: "canvas.drag",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "canvas.drag" },
+      },
+      (current) => {
+        const slide = current.slides[selectedSlideIndex];
+        if (!slide) {
+          return current;
+        }
 
-                    return updateContainerForCanvasDrag(
-                      element,
-                      drag.deltaX,
-                      drag.deltaY,
-                      drag.containerGeometry,
-                    );
-                  }
+        const elements = updateElementById(
+          slide.elements,
+          drag.elementId,
+          (element) => {
+            if (element.type === "container") {
+              if (!drag.containerGeometry) {
+                return element;
+              }
 
-                  if (element.type === "text") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "image") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-
-                  if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
-                    return drag.canonicalTextGeometry
-                      ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                      : element;
-                  }
-                  if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") {
-                    return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
-                      parentWidthPx: drag.parentWidthPx,
-                      parentHeightPx: drag.parentHeightPx,
-                      initialLeftPx: 0,
-                      initialTopPx: 0,
-                      initialRightPx: 0,
-                      initialBottomPx: 0,
-                      initialWidthPx: 0,
-                      initialHeightPx: 0,
-                    });
-                  }
-
-                  return element;
-                },
-              ),
+              return updateContainerForCanvasDrag(
+                element,
+                drag.deltaX,
+                drag.deltaY,
+                drag.containerGeometry,
+              );
             }
-          : slide,
-      ),
-    }));
+
+            if (element.type === "text") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "image") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+
+            if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
+              return drag.canonicalTextGeometry
+                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+                : element;
+            }
+            if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") {
+              return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
+                parentWidthPx: drag.parentWidthPx,
+                parentHeightPx: drag.parentHeightPx,
+                initialLeftPx: 0,
+                initialTopPx: 0,
+                initialRightPx: 0,
+                initialBottomPx: 0,
+                initialWidthPx: 0,
+                initialHeightPx: 0,
+              });
+            }
+
+            return element;
+          },
+        );
+
+        if (elements === slide.elements) {
+          return current;
+        }
+
+        return {
+          ...current,
+          slides: current.slides.map((currentSlide, index) =>
+            index === selectedSlideIndex
+              ? { ...currentSlide, elements }
+              : currentSlide,
+          ),
+        };
+      },
+    );
   }
 
   function handleCanvasPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
