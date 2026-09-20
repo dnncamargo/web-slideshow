@@ -264,7 +264,7 @@ describe("Custom Library Editor integration", () => {
     });
   }
 
-  it("confirms element deletion through the shared dialog and preserves the container warning", async () => {
+  it("confirms compatible container deletion through the container choice dialog", async () => {
     const saved: Presentation[] = [];
     const confirmSpy = vi.spyOn(window, "confirm");
     await mount(makePresentation([container("container-a", [text("child-a", "Existing child")])]), saved);
@@ -280,8 +280,13 @@ describe("Custom Library Editor integration", () => {
     if (!deleteButton) throw new Error("Delete button not found");
     await act(async () => deleteButton.click());
 
-    const dialog = containerElement.querySelector('[data-studio-danger-confirm-dialog]');
-    expect(dialog?.textContent).toContain("Delete container \"container-a\" and all its children?");
+    const dialog = containerElement.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain(
+      'Delete container "container-a". Choose whether to delete or keep its children.',
+    );
+    expect(dialog?.textContent).toContain("Cancel");
+    expect(dialog?.textContent).toContain("Delete container and children");
+    expect(dialog?.textContent).toContain("Delete container, keep children");
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(containerElement.textContent).toContain("Container · container-a");
 
@@ -289,17 +294,17 @@ describe("Custom Library Editor integration", () => {
       .find((button) => button.textContent?.trim() === "Cancel");
     if (!cancelButton) throw new Error("Cancel button not found");
     await act(async () => cancelButton.click());
-    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    expect(containerElement.querySelector('[role="dialog"]')).toBeNull();
     expect(containerElement.textContent).toContain("Container · container-a");
 
     await act(async () => deleteButton.click());
     const confirmButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
-      .find((button) => button.textContent?.trim() === "Delete");
+      .find((button) => button.textContent?.trim() === "Delete container and children");
     if (!confirmButton) throw new Error("confirm button not found");
     await act(async () => confirmButton.click());
 
     expect(confirmSpy).not.toHaveBeenCalled();
-    expect(containerElement.querySelector('[data-studio-danger-confirm-dialog]')).toBeNull();
+    expect(containerElement.querySelector('[role="dialog"]')).toBeNull();
     expect(containerElement.textContent).not.toContain("Container · container-a");
     expect(deleteButton.disabled).toBe(true);
     confirmSpy.mockRestore();

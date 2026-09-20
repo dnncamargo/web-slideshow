@@ -21,6 +21,7 @@ const HISTORY_LABEL_KEYS = [
   "history.color.change",
   "history.element.add",
   "history.element.delete",
+  "history.element.deleteContainerPreserveChildren",
   "history.element.duplicate",
   "history.element.move",
   "history.element.paste",

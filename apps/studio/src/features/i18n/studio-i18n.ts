@@ -99,6 +99,7 @@ const englishMessages = {
   "history.slide.rename": "Rename slide",
   "history.element.add": "Add {elementType}",
   "history.element.delete": "Delete {elementType}",
+  "history.element.deleteContainerPreserveChildren": "Delete container, keep children",
   "history.element.duplicate": "Duplicate {elementType}",
   "history.element.move": "Move element",
   "history.element.paste": "Paste {elementType}",
@@ -325,6 +326,10 @@ const englishMessages = {
   "elementCrud.cancel": "Cancel",
   "elementCrud.deleteContainerConfirm":
     'Delete container "{id}" and all its children?',
+  "elementCrud.deleteContainerChoiceMessage":
+    'Delete container "{id}". Choose whether to delete or keep its children.',
+  "elementCrud.deleteContainerAndChildren": "Delete container and children",
+  "elementCrud.deleteContainerPreserveChildren": "Delete container, keep children",
   "elementCrud.deleteElementConfirm": 'Delete {type} "{id}"?',
 
   "inspector.general": "General",
@@ -1240,6 +1245,7 @@ const portugueseMessages = {
   "history.slide.rename": "Renomear slide",
   "history.element.add": "Adicionar {elementType}",
   "history.element.delete": "Excluir {elementType}",
+  "history.element.deleteContainerPreserveChildren": "Excluir contêiner, manter elementos filhos",
   "history.element.duplicate": "Duplicar {elementType}",
   "history.element.move": "Mover elemento",
   "history.element.paste": "Colar {elementType}",
@@ -1466,6 +1472,10 @@ const portugueseMessages = {
   "elementCrud.cancel": "Cancelar",
   "elementCrud.deleteContainerConfirm":
     'Excluir o contêiner "{id}" e todos os seus elementos filhos?',
+  "elementCrud.deleteContainerChoiceMessage":
+    'Excluir o contêiner "{id}". Escolha se deseja excluir ou manter seus elementos filhos.',
+  "elementCrud.deleteContainerAndChildren": "Excluir contêiner e elementos filhos",
+  "elementCrud.deleteContainerPreserveChildren": "Excluir contêiner, manter elementos filhos",
   "elementCrud.deleteElementConfirm": 'Excluir {type} "{id}"?',
 
   "inspector.general": "Geral",
