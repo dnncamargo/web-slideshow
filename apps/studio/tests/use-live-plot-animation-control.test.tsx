@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({ getRealtimeDatabaseOrNull: vi.fn(), writePlotA
 vi.mock("../src/features/control/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull }));
 vi.mock("../src/features/control/control-command-writer", () => ({ writePlotAnimationAction: mocks.writePlotAnimationAction }));
 
-import { PresentationSchema } from "@web-slideshow/document-schema";
+import { PresentationSchema, materializeSlide } from "@web-slideshow/document-schema";
 import {
   discoverLivePlotAnimationTargets,
   useLivePlotAnimationControl,
@@ -57,6 +57,14 @@ describe("useLivePlotAnimationControl", () => {
       { plotSlot: 4, elementId: "topic-plot", label: "Plot 5 · y = sin(x)" },
       { plotSlot: 5, elementId: "c", label: "Plot 6 · z = sin(x+t) * cos(y)" },
     ]);
+  });
+
+  it("discovers Master and local animated Plots from an actual referential Slide", () => {
+    const rootPresentation = PresentationSchema.parse({ ...presentation([]), rootDefinitions: [{ id: "master", name: "Master", root: { id: "root", type: "container", children: [plot("master-plot"), { id: "target", type: "container", children: [] }] }, localChildTargetIds: ["target"] }], defaultRootDefinitionId: "master", slides: [{ id: "page-a", elements: [], localRootChildren: [{ targetContainerId: "target", children: [plot("local-plot")] }] }] });
+    const canonicalSlide = rootPresentation.slides[0]!;
+    expect(canonicalSlide.elements).toEqual([]);
+    const targets = discoverLivePlotAnimationTargets(materializeSlide(rootPresentation, canonicalSlide).slide);
+    expect(targets.map(({ elementId, plotSlot }) => ({ elementId, plotSlot }))).toEqual([{ elementId: "master-plot", plotSlot: 0 }, { elementId: "local-plot", plotSlot: 1 }]);
   });
 
   it.each([

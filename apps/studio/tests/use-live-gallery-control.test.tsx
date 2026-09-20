@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type MaterializedSlide, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, materializeSlide, type MaterializedSlide, type Presentation } from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
@@ -82,6 +82,22 @@ describe("useLiveGalleryControl", () => {
     await render();
     expect(result?.galleries).toMatchObject([{ slot: 0, elementId: "gallery-a", itemCount: 3, targetIndex: 0, expanded: false }, { slot: 1, elementId: " gallery / #% ", itemCount: 2, targetIndex: 0, expanded: false }]);
     expect(mocks.writeGalleryControlState).not.toHaveBeenCalled();
+  });
+
+  it("discovers Master and local Galleries from an actual referential Slide", async () => {
+    const rootPresentation = PresentationSchema.parse({
+      ...presentation(),
+      rootDefinitions: [{ id: "master", name: "Master", root: { id: "root", type: "container", children: [gallery("master-gallery"), { id: "target", type: "container", children: [] }] }, localChildTargetIds: ["target"] }],
+      defaultRootDefinitionId: "master",
+      slides: [{ id: "page-a", title: "Page A", elements: [], localRootChildren: [{ targetContainerId: "target", children: [gallery("local-gallery")] }] }],
+    });
+    const canonicalSlide = rootPresentation.slides[0]!;
+    expect(canonicalSlide.elements).toEqual([]);
+    input.effectiveSlide = materializeSlide(rootPresentation, canonicalSlide).slide;
+    await render();
+    expect(result?.galleries.map(({ elementId, slot }) => ({ elementId, slot }))).toEqual([
+      { elementId: "master-gallery", slot: 0 }, { elementId: "local-gallery", slot: 1 },
+    ]);
   });
 
   it("hydrates only matching strict current-page Gallery records, including exact element ids", async () => {

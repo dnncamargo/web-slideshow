@@ -8,6 +8,7 @@ import {
   paletteColorCssVariableName,
   resolveLogicalSlideSize,
 } from "@web-slideshow/renderer";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { PresenterSlidePreview } from "../src/features/control/presenter/presenter-slide-preview";
 import {
@@ -45,6 +46,75 @@ describe("PresenterSlidePreview logical geometry", () => {
     getBoundingClientRect.mockRestore();
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+  });
+
+  function rootPresentation(rootDefinitionId?: string): Presentation {
+    return PresentationSchema.parse({
+      ...createBlankPresentation("root-presentation", "Root Presentation"),
+      defaultRootDefinitionId: "default-root",
+      rootDefinitions: [
+        {
+          id: "default-root",
+          name: "Default",
+          root: {
+            id: "default-container",
+            type: "container",
+            children: [
+              { id: "default-master", type: "text", content: "Default master" },
+              { id: "root-gallery", type: "gallery", items: [{ src: "/one.png" }, { src: "/two.png" }] },
+              { id: "local-target", type: "container", children: [] },
+            ],
+          },
+          localChildTargetIds: ["local-target"],
+        },
+        {
+          id: "explicit-root",
+          name: "Explicit",
+          root: {
+            id: "explicit-container",
+            type: "container",
+            children: [{ id: "explicit-master", type: "text", content: "Explicit master" }],
+          },
+        },
+      ],
+      slides: [{
+        id: "root-slide",
+        elements: [],
+        ...(rootDefinitionId === undefined ? {} : { rootDefinitionId }),
+        ...(rootDefinitionId === undefined ? {
+          localRootChildren: [{
+            targetContainerId: "local-target",
+            children: [{ id: "local-child", type: "text", content: "Local child" }],
+          }],
+        } : {}),
+      }],
+    });
+  }
+
+  it("materializes default and explicit Root Definitions in Preview, preserving IDs and Gallery projection", async () => {
+    const presentation = rootPresentation();
+    const slide = presentation.slides[0]!;
+    expect(slide.elements).toEqual([]);
+
+    await act(async () => {
+      root.render(<PresenterSlidePreview presentation={presentation} slide={slide} aspectRatio="16:9" variant="current" galleryTargets={[{ elementId: "root-gallery", targetIndex: 1 }]} />);
+    });
+
+    expect(container.textContent).toContain("Default master");
+    expect(container.textContent).toContain("Local child");
+    expect(container.querySelector('[data-presentation-id="default-master"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="root-gallery"] .presentation-gallery-item-active')?.getAttribute("data-presentation-gallery-index")).toBe("1");
+    expect(container.querySelector("[data-root-definition-id]")).toBeNull();
+
+    const explicitPresentation = rootPresentation("explicit-root");
+    await act(async () => {
+      root.render(<PresenterSlidePreview presentation={explicitPresentation} slide={explicitPresentation.slides[0]!} aspectRatio="16:9" variant="next" />);
+    });
+    expect(container.textContent).toContain("Explicit master");
+    expect(container.textContent).not.toContain("Default master");
+    expect(container.querySelector('[data-presentation-id="explicit-master"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="default-master"]')).toBeNull();
   });
 
   it("fits a current 16:9 preview into its physical host", async () => {

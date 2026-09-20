@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, materializeSlide, type Presentation } from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
@@ -60,6 +60,31 @@ describe("useLiveScriptedActionControl", () => {
     expect(result?.groups).toEqual([
       { scriptedSlot: 0, elementId: "first", title: "First", actions: [{ portIndex: 0, portId: "a", label: "A" }] },
       { scriptedSlot: 1, elementId: "second", title: "Second", actions: [{ portIndex: 1, portId: "b", label: "B" }] },
+    ]);
+  });
+
+  it("discovers Master and local Scripted actions from an actual referential Slide", async () => {
+    const rootPresentation = PresentationSchema.parse({ ...presentation(), rootDefinitions: [{ id: "master", name: "Master", root: { id: "root", type: "container", children: [scripted("master-script", "Master", [{ id: "master-action", label: "Master", kind: "action" }]), { id: "target", type: "container", children: [] }] }, localChildTargetIds: ["target"] }], defaultRootDefinitionId: "master", slides: [{ id: "page-a", elements: [], localRootChildren: [{ targetContainerId: "target", children: [scripted("local-script", "Local", [{ id: "local-action", label: "Local", kind: "action" }])] }] }] });
+    const canonicalSlide = rootPresentation.slides[0]!;
+    expect(canonicalSlide.elements).toEqual([]);
+    input.effectiveSlide = materializeSlide(rootPresentation, canonicalSlide).slide;
+    await render();
+    expect(result?.groups.map(({ elementId, scriptedSlot, actions }) => ({ elementId, scriptedSlot, portId: actions[0]?.portId }))).toEqual([{ elementId: "master-script", scriptedSlot: 0, portId: "master-action" }, { elementId: "local-script", scriptedSlot: 1, portId: "local-action" }]);
+  });
+
+  it("scopes the same Master element ID by pageId without synthetic IDs", async () => {
+    const shared = scripted("shared-master-script", "Shared", [{ id: "shared-action", label: "Run", kind: "action" }]);
+    const rootPresentation = PresentationSchema.parse({ ...presentation(), rootDefinitions: [{ id: "shared-root", name: "Shared", root: { id: "root", type: "container", children: [shared] } }], slides: [{ id: "page-a", elements: [], rootDefinitionId: "shared-root" }, { id: "page-b", elements: [], rootDefinitionId: "shared-root" }] });
+    expect(rootPresentation.slides.every((slide) => slide.elements.length === 0)).toBe(true);
+    input.effectiveSlide = materializeSlide(rootPresentation, rootPresentation.slides[0]!).slide;
+    await render();
+    await act(async () => { result?.triggerAction(0, 0); await Promise.resolve(); });
+    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", effectiveSlide: materializeSlide(rootPresentation, rootPresentation.slides[1]!) .slide };
+    await render();
+    await act(async () => { result?.triggerAction(0, 0); await Promise.resolve(); });
+    expect(mocks.writeScriptedAction.mock.calls.map((call) => call[1])).toEqual([
+      expect.objectContaining({ pageId: "page-a", elementId: "shared-master-script", portId: "shared-action" }),
+      expect.objectContaining({ pageId: "page-b", elementId: "shared-master-script", portId: "shared-action" }),
     ]);
   });
 
