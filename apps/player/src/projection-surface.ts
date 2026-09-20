@@ -258,10 +258,12 @@ export function mountProjectionSurface(
   }
 
   function galleryItems(galleryRoot: HTMLElement): HTMLElement[] {
-    return Array.from(galleryRoot.children).filter(
-      (child): child is HTMLElement =>
-        child instanceof HTMLElement &&
-        child.classList.contains("presentation-gallery-item"),
+    return Array.from(
+      galleryRoot.querySelectorAll<HTMLElement>(
+        ".presentation-gallery-item",
+      ),
+    ).filter((item) =>
+      item.closest<HTMLElement>('[data-presentation-type="gallery"]') === galleryRoot,
     );
   }
 
