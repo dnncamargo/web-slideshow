@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PlotElementSchema, InteractiveElementSchema } from "../src";
+import { InteractiveElementSchema, PlotElementSchema, PresentationSchema } from "../src";
 
 const plot = { id: "plot-1", type: "plot" as const, hidden: false, source: "" };
 const interactive = { id: "interactive-1", type: "interactive" as const, widget: "function-plot" as const, config: {} };
@@ -162,6 +162,64 @@ describe("Interactive canonical layout", () => {
         layout,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("Interactive config JSON contract", () => {
+  it.each([
+    {},
+    { title: "Function" },
+    { enabled: true, disabled: false },
+    { value: null },
+    { value: 0, negative: -3.5, large: Number.MAX_SAFE_INTEGER },
+    { nested: { label: "x", values: [1, false, null] } },
+  ])("accepts JSON-compatible config %j", (config) => {
+    expect(InteractiveElementSchema.safeParse({ ...interactive, config }).success).toBe(true);
+  });
+
+  it.each([
+    { value: undefined },
+    { value: () => "not-json" },
+    { value: 1n },
+    { value: Symbol("not-json") },
+    { value: Number.NaN },
+    { value: Number.POSITIVE_INFINITY },
+    { value: Number.NEGATIVE_INFINITY },
+    { value: new Date("2026-01-01T00:00:00.000Z") },
+    { value: new Map([["key", "value"]]) },
+    { value: new Set(["value"]) },
+  ])("rejects non-JSON config values", (config) => {
+    expect(InteractiveElementSchema.safeParse({ ...interactive, config }).success).toBe(false);
+  });
+
+  it("preserves Interactive config through canonical JSON round-trip", () => {
+    const input = {
+      schemaVersion: 1 as const,
+      id: "presentation-1",
+      title: "Presentation",
+      slides: [{
+        id: "slide-1",
+        elements: [{
+          ...interactive,
+          config: {
+            title: "Function",
+            enabled: true,
+            values: [null, 0, { nested: "value" }],
+          },
+        }],
+      }],
+    };
+    const parsed = PresentationSchema.parse(input);
+    const roundTripped = PresentationSchema.parse(JSON.parse(JSON.stringify(parsed)));
+
+    expect(roundTripped.slides[0]?.elements[0]).toMatchObject({
+      type: "interactive",
+      config: {
+        title: "Function",
+        enabled: true,
+        values: [null, 0, { nested: "value" }],
+      },
+    });
   });
 });
 

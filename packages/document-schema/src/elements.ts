@@ -317,7 +317,7 @@ export const InteractiveElementSchema =
 
     config: z.record(
       z.string(),
-      z.unknown(),
+      z.json(),
     ),
   }).strict();
 
