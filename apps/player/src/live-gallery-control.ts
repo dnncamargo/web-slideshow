@@ -99,7 +99,7 @@ export function subscribeLiveGalleryControl(
       return;
     }
 
-    const currentSlide = presentation.slides[controller.getCurrentIndex()];
+    const currentSlide = controller.getCurrentSlide();
     if (!currentSlide || currentSlide.id !== state.pageId) return;
 
     const gallery = galleriesOnSlide(currentSlide)[slot];

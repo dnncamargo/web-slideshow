@@ -1,4 +1,7 @@
-import type { Presentation } from "@web-slideshow/document-schema";
+import type {
+  MaterializedSlide,
+  Presentation,
+} from "@web-slideshow/document-schema";
 import type { ScriptedReportMessage } from "@web-slideshow/renderer";
 
 import {
@@ -108,7 +111,11 @@ export interface PlayerOptions {
 
   onScriptedReport?: (report: ScriptedReportMessage) => void;
 
-  onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
+  onScriptedMount?: (mount: {
+    pageId: string;
+    elementId: string;
+    slide: MaterializedSlide;
+  }) => void;
 
   // Mantemos esta opção como já existia.
   // Não vamos movê-la para "controls" nesta etapa,
@@ -127,6 +134,8 @@ export interface PlayerOptions {
 }
 
 export interface PlayerController {
+  getCurrentSlide(): MaterializedSlide | undefined;
+
   next(): void;
 
   previous(): void;
@@ -638,6 +647,10 @@ export function mountPlayer(
   // ----------------------------------------------------------
 
   return {
+    getCurrentSlide(): MaterializedSlide | undefined {
+      return projection.getCurrentSlide();
+    },
+
     next,
 
     previous,

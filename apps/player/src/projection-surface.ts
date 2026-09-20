@@ -1,4 +1,8 @@
-import type { Presentation } from "@web-slideshow/document-schema";
+import {
+  materializeSlide,
+  type MaterializedSlide,
+  type Presentation,
+} from "@web-slideshow/document-schema";
 import type { ScriptedReportMessage } from "@web-slideshow/renderer";
 
 import {
@@ -26,11 +30,16 @@ export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
   animatePlots?: boolean;
   onScriptedReport?: (report: ScriptedReportMessage) => void;
-  onScriptedMount?: (mount: { pageId: string; elementId: string }) => void;
+  onScriptedMount?: (mount: {
+    pageId: string;
+    elementId: string;
+    slide: MaterializedSlide;
+  }) => void;
 }
 
 export interface ProjectionSurface {
   stage: HTMLElement;
+  getCurrentSlide(): MaterializedSlide | undefined;
   goTo(index: number): void;
   setTransition(transition: PlayerTransition): void;
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
@@ -68,6 +77,7 @@ export function mountProjectionSurface(
   let currentIndex = 0;
   let expandedGalleryId: string | null = null;
   let expandedOverlay: HTMLElement | null = null;
+  let currentEffectiveSlide: MaterializedSlide | undefined;
   let destroyed = false;
 
   root.innerHTML = `
@@ -132,7 +142,7 @@ export function mountProjectionSurface(
   }
 
   function hydrateCurrentSlideRuntime(): void {
-    const slide = presentation.slides[currentIndex];
+    const slide = currentEffectiveSlide;
     if (
       slide !== undefined &&
       options.animatePlots !== false &&
@@ -185,19 +195,28 @@ export function mountProjectionSurface(
     const slide = presentation.slides[currentIndex];
 
     if (!slide) {
+      currentEffectiveSlide = undefined;
       slideSurface.innerHTML = `
         <div class="player-empty">No slides</div>
       `;
       return;
     }
 
-    slideSurface.innerHTML = renderSlide(slide, { presentation });
+    const effectiveSlide = materializeSlide(presentation, slide).slide;
+    currentEffectiveSlide = effectiveSlide;
+    slideSurface.innerHTML = renderSlide(effectiveSlide, { presentation });
     hydrateCurrentSlideRuntime();
     for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
       'iframe[data-presentation-type="scripted"][data-presentation-id]',
     )) {
       const elementId = frame.dataset.presentationId;
-      if (elementId !== undefined) options.onScriptedMount?.({ pageId: slide.id, elementId });
+      if (elementId !== undefined) {
+        options.onScriptedMount?.({
+          pageId: slide.id,
+          elementId,
+          slide: effectiveSlide,
+        });
+      }
     }
     animateSlide(direction);
   }
@@ -229,7 +248,7 @@ export function mountProjectionSurface(
   function handleScriptedMessage(event: MessageEvent<unknown>): void {
     const report = validateScriptedReport(
       event,
-      presentation.slides[currentIndex],
+      currentEffectiveSlide,
       slideSurface,
     );
 
@@ -433,6 +452,9 @@ export function mountProjectionSurface(
 
   return {
     stage,
+    getCurrentSlide(): MaterializedSlide | undefined {
+      return currentEffectiveSlide;
+    },
     goTo,
     setTransition(nextTransition: PlayerTransition): void {
       transition = nextTransition;
@@ -446,7 +468,7 @@ export function mountProjectionSurface(
     setGalleryExpanded,
     sendScriptedAction(elementId: string, portId: string): void {
       postScriptedAction(
-        presentation.slides[currentIndex],
+        currentEffectiveSlide,
         slideSurface,
         elementId,
         portId,
@@ -458,7 +480,7 @@ export function mountProjectionSurface(
       value: boolean | number,
     ): boolean {
       return postScriptedInput(
-        presentation.slides[currentIndex],
+        currentEffectiveSlide,
         slideSurface,
         elementId,
         portId,
@@ -494,6 +516,7 @@ export function mountProjectionSurface(
       slideSurface.removeEventListener("click", handleGalleryClick);
       clearExpandedGallery();
       disposeRendererRuntime(slideSurface);
+      currentEffectiveSlide = undefined;
       root.innerHTML = "";
     },
   };

@@ -1,7 +1,7 @@
 import {
   visitSlideElements,
+  type MaterializedSlide,
   type ScriptedElement,
-  type Slide,
 } from "@web-slideshow/document-schema";
 
 import {
@@ -12,7 +12,7 @@ import {
 } from "@web-slideshow/renderer";
 
 function findScriptedElement(
-  slide: Slide | undefined,
+  slide: MaterializedSlide | undefined,
   elementId: string,
 ): ScriptedElement | null {
   if (!slide) {
@@ -88,7 +88,7 @@ function plainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function postScriptedAction(
-  slide: Slide | undefined,
+  slide: MaterializedSlide | undefined,
   slideSurface: HTMLElement,
   elementId: string,
   portId: string,
@@ -109,7 +109,7 @@ export function postScriptedAction(
 }
 
 export function postScriptedInput(
-  slide: Slide | undefined,
+  slide: MaterializedSlide | undefined,
   slideSurface: HTMLElement,
   elementId: string,
   portId: string,
@@ -134,7 +134,7 @@ export function postScriptedInput(
 
 export function validateScriptedReport(
   event: MessageEvent<unknown>,
-  slide: Slide | undefined,
+  slide: MaterializedSlide | undefined,
   slideSurface: HTMLElement,
 ): ScriptedReportMessage | null {
   if (!plainRecord(event.data) || !exactKeys(event.data, ["type", "elementId", "portId", "value"])) {

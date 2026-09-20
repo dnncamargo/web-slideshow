@@ -95,6 +95,7 @@ describe("subscribeLiveFullscreenRequest", () => {
     controlPlotAnimation: vi.fn(),
     fullscreen: vi.fn().mockResolvedValue(undefined),
     getCurrentIndex: vi.fn(() => 0),
+    getCurrentSlide: vi.fn(() => undefined),
     destroy: vi.fn(),
   }) {
     const cleanup = subscribeLiveFullscreenRequest(
@@ -166,6 +167,7 @@ describe("subscribeLiveFullscreenRequest", () => {
         .mockRejectedValueOnce(new Error("denied"))
         .mockResolvedValueOnce(undefined),
       getCurrentIndex: vi.fn(() => 0),
+      getCurrentSlide: vi.fn(() => undefined),
       destroy: vi.fn(),
     };
     const { handler } = subscribe(controller);

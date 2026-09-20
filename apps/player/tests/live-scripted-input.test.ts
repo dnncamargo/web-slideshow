@@ -9,7 +9,7 @@ function setup(mountRevision = 2, dispatches = false) {
   let currentMountRevision = mountRevision;
   const sendScriptedInput = vi.fn(() => dispatches); const unsubscribe = vi.fn(); firebase.ref.mockReturnValue({}); firebase.onValue.mockImplementation((_ref, callback) => { firebase.callback = callback; return unsubscribe; });
   const onAppliedInput = vi.fn();
-  const cleanup = subscribeLiveScriptedInput({} as never, 7, "v", "boot", presentation, { getCurrentIndex: () => 0, sendScriptedInput } as never, () => ({ pageId: "page", elementId: "s", mountRevision: currentMountRevision }), createLiveScriptedInputTracker(), onAppliedInput);
+  const cleanup = subscribeLiveScriptedInput({} as never, 7, "v", "boot", presentation, { getCurrentIndex: () => 0, getCurrentSlide: () => presentation.slides[0], sendScriptedInput } as never, () => ({ pageId: "page", elementId: "s", mountRevision: currentMountRevision }), createLiveScriptedInputTracker(), onAppliedInput);
   return { sendScriptedInput, onAppliedInput, cleanup, unsubscribe, setMount: (value: number) => { currentMountRevision = value; } };
 }
 describe("live Scripted input subscriber", () => {

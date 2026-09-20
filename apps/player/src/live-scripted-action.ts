@@ -186,7 +186,7 @@ export function subscribeLiveScriptedAction(
           const delta = tracker.takeDelta(scriptedSlot, portIndex, record);
           if (delta === 0) continue;
 
-          const currentSlide = presentation.slides[controller.getCurrentIndex()];
+          const currentSlide = controller.getCurrentSlide();
           if (!currentSlide || currentSlide.id !== record.pageId) continue;
 
           const scripted = scriptedsOnSlide(currentSlide)[scriptedSlot];
