@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, materializeSlide, type Presentation } from "@web-slideshow/document-schema";
 
 const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
@@ -46,7 +46,7 @@ describe("useLiveScriptedActionControl", () => {
 
   beforeEach(async () => {
     container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); result = null;
-    input = { live: LIVE, livePresentation: presentation([scripted("script-a", "Scroller", [{ id: "up", label: "Scroll up", kind: "action" }, { id: "enabled", label: "Enabled", kind: "boolean", direction: "input" }, { id: "down", label: "Scroll down", kind: "action" }])]), desiredPageId: "page-a", actualPageId: "page-a", controlSynced: true, playerStatus: READY, controlsBlocked: false };
+    input = { live: LIVE, effectiveSlide: presentation([scripted("script-a", "Scroller", [{ id: "up", label: "Scroll up", kind: "action" }, { id: "enabled", label: "Enabled", kind: "boolean", direction: "input" }, { id: "down", label: "Scroll down", kind: "action" }])]).slides[0]!, desiredPageId: "page-a", actualPageId: "page-a", controlSynced: true, playerStatus: READY, controlsBlocked: false };
     mocks.getRealtimeDatabaseOrNull.mockReturnValue({ database: true });
     mocks.writeScriptedAction.mockResolvedValue({});
     await render();
@@ -55,7 +55,7 @@ describe("useLiveScriptedActionControl", () => {
   afterEach(async () => { await act(async () => root.unmount()); document.body.innerHTML = ""; vi.clearAllMocks(); });
 
   it("discovers only action ports in canonical Scripted traversal order and preserves real port indexes", async () => {
-    input.livePresentation = presentation([{ id: "container", type: "container", children: [{ id: "text", type: "text", content: "ignored" }, scripted("first", "First", [{ id: "a", label: "A", kind: "action" }]), { id: "nested", type: "container", children: [scripted("second", "Second", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }, { id: "b", label: "B", kind: "action" }])] }] }]);
+    input.effectiveSlide = presentation([{ id: "container", type: "container", children: [{ id: "text", type: "text", content: "ignored" }, scripted("first", "First", [{ id: "a", label: "A", kind: "action" }]), { id: "nested", type: "container", children: [scripted("second", "Second", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }, { id: "b", label: "B", kind: "action" }])] }] }]).slides[0]!;
     await render();
     expect(result?.groups).toEqual([
       { scriptedSlot: 0, elementId: "first", title: "First", actions: [{ portIndex: 0, portId: "a", label: "A" }] },
@@ -63,9 +63,34 @@ describe("useLiveScriptedActionControl", () => {
     ]);
   });
 
+  it("discovers Master and local Scripted actions from an actual referential Slide", async () => {
+    const rootPresentation = PresentationSchema.parse({ ...presentation(), rootDefinitions: [{ id: "master", name: "Master", root: { id: "root", type: "container", children: [scripted("master-script", "Master", [{ id: "master-action", label: "Master", kind: "action" }]), { id: "target", type: "container", children: [] }] }, localChildTargetIds: ["target"] }], defaultRootDefinitionId: "master", slides: [{ id: "page-a", elements: [], localRootChildren: [{ targetContainerId: "target", children: [scripted("local-script", "Local", [{ id: "local-action", label: "Local", kind: "action" }])] }] }] });
+    const canonicalSlide = rootPresentation.slides[0]!;
+    expect(canonicalSlide.elements).toEqual([]);
+    input.effectiveSlide = materializeSlide(rootPresentation, canonicalSlide).slide;
+    await render();
+    expect(result?.groups.map(({ elementId, scriptedSlot, actions }) => ({ elementId, scriptedSlot, portId: actions[0]?.portId }))).toEqual([{ elementId: "master-script", scriptedSlot: 0, portId: "master-action" }, { elementId: "local-script", scriptedSlot: 1, portId: "local-action" }]);
+  });
+
+  it("scopes the same Master element ID by pageId without synthetic IDs", async () => {
+    const shared = scripted("shared-master-script", "Shared", [{ id: "shared-action", label: "Run", kind: "action" }]);
+    const rootPresentation = PresentationSchema.parse({ ...presentation(), rootDefinitions: [{ id: "shared-root", name: "Shared", root: { id: "root", type: "container", children: [shared] } }], slides: [{ id: "page-a", elements: [], rootDefinitionId: "shared-root" }, { id: "page-b", elements: [], rootDefinitionId: "shared-root" }] });
+    expect(rootPresentation.slides.every((slide) => slide.elements.length === 0)).toBe(true);
+    input.effectiveSlide = materializeSlide(rootPresentation, rootPresentation.slides[0]!).slide;
+    await render();
+    await act(async () => { result?.triggerAction(0, 0); await Promise.resolve(); });
+    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", effectiveSlide: materializeSlide(rootPresentation, rootPresentation.slides[1]!) .slide };
+    await render();
+    await act(async () => { result?.triggerAction(0, 0); await Promise.resolve(); });
+    expect(mocks.writeScriptedAction.mock.calls.map((call) => call[1])).toEqual([
+      expect.objectContaining({ pageId: "page-a", elementId: "shared-master-script", portId: "shared-action" }),
+      expect.objectContaining({ pageId: "page-b", elementId: "shared-master-script", portId: "shared-action" }),
+    ]);
+  });
+
   it("has no groups without the canonical desired slide or action ports", async () => {
-    input.livePresentation = null; await render(); expect(result?.groups).toEqual([]);
-    input.livePresentation = presentation([scripted("script-a", "Script", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }])]); await render(); expect(result?.groups).toEqual([]);
+    input.effectiveSlide = null; await render(); expect(result?.groups).toEqual([]);
+    input.effectiveSlide = presentation([scripted("script-a", "Script", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }])]).slides[0]!; await render(); expect(result?.groups).toEqual([]);
   });
 
   it("writes the exact canonical action identity with the current ready Player boot id", async () => {
@@ -117,7 +142,7 @@ describe("useLiveScriptedActionControl", () => {
     let rejectOld: ((reason?: unknown) => void) | undefined;
     mocks.writeScriptedAction.mockImplementationOnce(() => new Promise((_, reject) => { rejectOld = reject; }));
     await act(async () => { result?.triggerAction(0, 0); });
-    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", livePresentation: presentation([], [scripted("script-b", "Circuit", [{ id: "reset", label: "Reset", kind: "action" }])]), playerStatus: { ...READY, presence: { ...READY.presence, bootId: "boot-2" } } };
+    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", effectiveSlide: presentation([], [scripted("script-b", "Circuit", [{ id: "reset", label: "Reset", kind: "action" }])]).slides[1]!, playerStatus: { ...READY, presence: { ...READY.presence, bootId: "boot-2" } } };
     await render();
     await act(async () => { rejectOld?.(new Error("offline")); await Promise.resolve(); });
     expect(result?.sendFailed).toBe(false);

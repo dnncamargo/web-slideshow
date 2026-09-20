@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ContentSlot,
+  MaterializedSlide,
   PresentationElement,
-  Presentation,
   TopicsElement,
 } from "@web-slideshow/document-schema";
 
@@ -29,7 +29,7 @@ export interface UseLivePlotAnimationControlOptions {
   controlSynced: boolean;
   controlsBlocked: boolean;
   live: LiveCurrent | null;
-  livePresentation: Presentation | null;
+  effectiveSlide: MaterializedSlide | null;
   playerStatus: PlayerOperationalStatus | null;
 }
 
@@ -92,12 +92,9 @@ function visitTopicItems(element: TopicsElement, visit: (element: PresentationEl
 }
 
 export function discoverLivePlotAnimationTargets(
-  presentation: Presentation | null,
-  desiredPageId: string | null,
+  effectiveSlide: MaterializedSlide | null,
 ): LivePlotAnimationTarget[] {
-  if (presentation === null || desiredPageId === null) return [];
-  const slide = presentation.slides.find((candidate) => candidate.id === desiredPageId);
-  if (slide === undefined) return [];
+  if (effectiveSlide === null) return [];
   const targets: LivePlotAnimationTarget[] = [];
   const visit = (element: PresentationElement): void => {
     if (element.type !== "plot" || element.animation === undefined) return;
@@ -109,7 +106,7 @@ export function discoverLivePlotAnimationTargets(
       ...(source === undefined ? {} : { sourceExcerpt: source }),
     });
   };
-  slide.elements.forEach((element) => visitElement(element, visit));
+  effectiveSlide.elements.forEach((element) => visitElement(element, visit));
   return targets;
 }
 
@@ -146,8 +143,8 @@ export function useLivePlotAnimationControl(
   options: UseLivePlotAnimationControlOptions,
 ): UseLivePlotAnimationControlResult {
   const plotTargets = useMemo(
-    () => discoverLivePlotAnimationTargets(options.livePresentation, options.desiredPageId),
-    [options.livePresentation, options.desiredPageId],
+    () => discoverLivePlotAnimationTargets(options.effectiveSlide),
+    [options.effectiveSlide],
   );
   const [pending, setPending] = useState<Map<number, CommandContext>>(() => new Map());
   const pendingRef = useRef<Map<number, CommandContext>>(new Map());
