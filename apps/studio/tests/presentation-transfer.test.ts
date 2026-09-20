@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
+  listRootDefinitionStructuralIds,
   type Presentation,
 } from "@web-slideshow/document-schema";
 
@@ -205,6 +206,103 @@ function normalizationPresentation(): Presentation {
   });
 }
 
+function rootDefinitionPresentation(): Presentation {
+  const source = normalizationPresentation();
+
+  return PresentationSchema.parse({
+    ...source,
+    title: "Root Definition normalization",
+    rootDefinitions: [{
+      id: "foreign-master",
+      name: "Foreign master",
+      root: {
+        id: "master-root-copy",
+        type: "container",
+        linkedStyleId: "linked-style-copy-copy",
+        children: [{
+          id: "master-text-copy",
+          type: "text",
+          variant: "heading-copy-copy",
+          content: "Master",
+        }, {
+          id: "master-table-copy",
+          type: "table",
+          mode: "structured",
+          columns: [{
+            id: "master-column-copy",
+            header: {
+              id: "master-header-copy",
+              children: [{
+                id: "master-header-text-copy",
+                type: "text",
+                variant: "heading-copy-copy",
+                content: "Header",
+              }],
+            },
+          }],
+          rows: [{
+            id: "master-row-copy",
+            cells: [{
+              id: "master-cell-copy",
+              children: [{
+                id: "master-cell-text-copy",
+                type: "text",
+                variant: "heading-copy-copy",
+                content: "Cell",
+              }],
+            }],
+          }],
+        }, {
+          id: "master-topics-copy",
+          type: "topics",
+          linkedStyleId: "topics-style-copy",
+          kind: "unordered",
+          items: [{
+            id: "master-topic-copy",
+            content: {
+              id: "master-topic-slot-copy",
+              children: [{
+                id: "master-topic-text-copy",
+                type: "text",
+                variant: "heading-copy-copy",
+                content: "Topic",
+              }],
+            },
+            children: [{
+              id: "master-nested-topic-copy",
+              content: {
+                id: "master-nested-topic-slot-copy",
+                children: [],
+              },
+              children: [],
+            }],
+          }],
+        }, {
+          id: "master-target-copy",
+          type: "container",
+          children: [],
+        }],
+      },
+      localChildTargetIds: ["master-target-copy"],
+    }],
+    defaultRootDefinitionId: "foreign-master",
+    slides: [{
+      id: "foreign-slide",
+      rootDefinitionId: "foreign-master",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "master-target-copy",
+        children: [{
+          id: "local-text-copy",
+          type: "text",
+          variant: "heading-copy-copy",
+          content: "Local",
+        }],
+      }],
+    }],
+  });
+}
+
 describe("canonical presentation transfer", () => {
   it("serializes raw canonical JSON without an envelope and round-trips through the schema", () => {
     const source = presentation();
@@ -236,6 +334,78 @@ describe("canonical presentation transfer", () => {
       },
       children: [{ id: "container-nested", children: [{ id: "text-1" }, { id: "image-1" }, { id: "script-1" }] }],
     });
+  });
+
+  it("exports Root Definitions referentially without materializing slide.elements", () => {
+    const source = rootDefinitionPresentation();
+    const exported = exportedPresentation(source);
+
+    expect(PresentationSchema.parse(exported)).toEqual(source);
+    expect(exported).toMatchObject({
+      defaultRootDefinitionId: "foreign-master",
+      rootDefinitions: [{ id: "foreign-master" }],
+      slides: [{
+        rootDefinitionId: "foreign-master",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "master-target-copy" }],
+      }],
+    });
+  });
+
+  it("regenerates Root Definition identities and remaps typed master targets during import", () => {
+    const source = rootDefinitionPresentation();
+    const imported = prepareImportedPresentation(source, "presentation-new");
+    const sourceDefinition = source.rootDefinitions?.[0];
+    const importedDefinition = imported.rootDefinitions?.[0];
+    const sourceSlide = source.slides[0];
+    const importedSlide = imported.slides[0];
+
+    if (!sourceDefinition || !importedDefinition || !sourceSlide || !importedSlide) {
+      throw new Error("Expected Root Definition fixture.");
+    }
+
+    const sourceStructuralIds = listRootDefinitionStructuralIds(sourceDefinition.root);
+    const importedStructuralIds = listRootDefinitionStructuralIds(importedDefinition.root);
+    const structuralIdMap = new Map(
+      sourceStructuralIds.map((id, index) => [id, importedStructuralIds[index]]),
+    );
+
+    expect(importedDefinition.id).toBe("root-definition-1");
+    expect(imported.defaultRootDefinitionId).toBe(importedDefinition.id);
+    expect(importedSlide.rootDefinitionId).toBe(importedDefinition.id);
+    expect(importedStructuralIds).toHaveLength(sourceStructuralIds.length);
+    sourceStructuralIds.forEach((id) => {
+      expect(importedStructuralIds).not.toContain(id);
+      expect(structuralIdMap.get(id)).toBeDefined();
+    });
+
+    const newTargetId = structuralIdMap.get("master-target-copy");
+    expect(newTargetId).toBeDefined();
+    expect(importedDefinition.localChildTargetIds).toEqual([newTargetId]);
+    expect(importedSlide.localRootChildren?.[0]?.targetContainerId).toBe(newTargetId);
+    expect(importedSlide.elements).toEqual([]);
+
+    const importedRoot = importedDefinition.root;
+    expect(importedRoot.type).toBe("container");
+    if (importedRoot.type === "container") {
+      expect(importedRoot.linkedStyleId).toBe("linked-style-1");
+      expect(importedRoot.children[0]).toMatchObject({
+        type: "text",
+        variant: "text-style-1",
+      });
+      expect(importedRoot.children[2]).toMatchObject({
+        type: "topics",
+        linkedStyleId: "linked-style-2",
+      });
+    }
+
+    const localText = importedSlide.localRootChildren?.[0]?.children[0];
+    expect(localText).toMatchObject({
+      type: "text",
+      id: "text-5",
+      variant: "text-style-1",
+    });
+    expect(PresentationSchema.safeParse(imported).success).toBe(true);
   });
 
   it("normalizes imported IDs without mutating the source", () => {
@@ -330,6 +500,14 @@ describe("canonical presentation transfer", () => {
     expect(imported.id).toBe("presentation-generated-by-import");
     expect(imported.id).not.toBe(source.id);
     expect(imported.slides[0]?.id).toBe("slide-1");
+  });
+
+  it("does not create Root Definitions for legacy ordinary slides", () => {
+    const imported = prepareImportedPresentation(presentation(), "presentation-new");
+
+    expect(imported.rootDefinitions).toBeUndefined();
+    expect(imported.defaultRootDefinitionId).toBeUndefined();
+    expect(imported.slides[0]?.elements.length).toBeGreaterThan(0);
   });
 
   it("returns a new normalized value", () => {

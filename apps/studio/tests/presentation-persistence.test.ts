@@ -38,6 +38,37 @@ function basePresentation(): Presentation {
   });
 }
 
+function rootDefinitionPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...basePresentation(),
+    id: "pres-root-definition",
+    rootDefinitions: [{
+      id: "master-foreign",
+      name: "Shared master",
+      root: {
+        id: "master-root",
+        type: "container",
+        children: [{
+          id: "master-content",
+          type: "container",
+          children: [{ id: "master-text", type: "text", content: "Shared" }],
+        }],
+      },
+      localChildTargetIds: ["master-content"],
+    }],
+    defaultRootDefinitionId: "master-foreign",
+    slides: [{
+      id: "slide-root",
+      rootDefinitionId: "master-foreign",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "master-content",
+        children: [{ id: "local-text", type: "text", content: "Local" }],
+      }],
+    }],
+  });
+}
+
 function buildLargePresentation(byteTarget: number): Presentation {
   const chunk = "x".repeat(1024);
   const presentation = basePresentation();
@@ -64,6 +95,20 @@ function buildLargePresentation(byteTarget: number): Presentation {
 }
 
 describe("presentation persistence helpers", () => {
+  it("preserves referential Root Definitions through the draft persistence boundary", () => {
+    const source = rootDefinitionPresentation();
+    const persisted = makeFirestoreSafePresentation(source);
+    const recovered = parsePersistedPresentation({
+      presentationJson: JSON.stringify(persisted),
+    });
+
+    expect(recovered).toEqual(source);
+    expect(persisted).toHaveProperty("rootDefinitions", source.rootDefinitions);
+    expect(persisted).toHaveProperty("defaultRootDefinitionId", "master-foreign");
+    expect(persisted).toHaveProperty("slides.0.localRootChildren");
+    expect(persisted).not.toHaveProperty("master");
+  });
+
   it("preserves a complete presentation through safe serialization", () => {
     const source = PresentationSchema.parse({
       schemaVersion: 1,

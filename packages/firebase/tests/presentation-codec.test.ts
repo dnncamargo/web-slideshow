@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema } from "@web-slideshow/document-schema";
+import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import {
   decodePresentationFromFirestore,
@@ -152,6 +152,73 @@ function nullableTablePresentation() {
   });
 }
 
+function rootDefinitionPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    id: "pres-root-definition",
+    rootDefinitions: [{
+      id: "master-foreign",
+      name: "Shared master",
+      root: {
+        id: "master-root",
+        type: "container",
+        children: [{
+          id: "master-content",
+          type: "container",
+          children: [{ id: "master-text", type: "text", content: "Shared" }],
+        }],
+      },
+      localChildTargetIds: ["master-content"],
+    }],
+    defaultRootDefinitionId: "master-foreign",
+    slides: [{
+      id: "slide-root",
+      rootDefinitionId: "master-foreign",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "master-content",
+        children: [{ id: "local-text", type: "text", content: "Local" }],
+      }],
+    }],
+  });
+}
+
+function payloadFormPresentation(form: "duplicated" | "referential"): Presentation {
+  const slideCount = 6;
+  const sharedRoot = {
+    id: "shared-root",
+    type: "container" as const,
+    children: [{ id: "shared-text", type: "text" as const, content: "Repeated structural content" }],
+  };
+
+  return PresentationSchema.parse({
+    ...presentation(),
+    id: `pres-${form}`,
+    rootDefinitions: form === "referential" ? [{
+      id: "shared-master",
+      name: "Shared master",
+      root: sharedRoot,
+    }] : undefined,
+    defaultRootDefinitionId: form === "referential" ? "shared-master" : undefined,
+    slides: Array.from({ length: slideCount }, (_, index) => ({
+      id: `slide-${form}-${index + 1}`,
+      ...(form === "referential"
+        ? { rootDefinitionId: "shared-master", elements: [] }
+        : {
+            elements: [{
+              ...sharedRoot,
+              id: `shared-root-${index + 1}`,
+              children: [{
+                id: `shared-text-${index + 1}`,
+                type: "text" as const,
+                content: "Repeated structural content",
+              }],
+            }],
+          }),
+    })),
+  });
+}
+
 describe("Firestore Presentation codec", () => {
   it("round-trips the canonical document without changing schemaVersion or palette refs", () => {
     const source = presentation();
@@ -222,6 +289,49 @@ describe("Firestore Presentation codec", () => {
     expect(decoded).toEqual(source);
     expect(record).not.toHaveProperty("presentation");
     expect(record.presentationJson).toContain('"kind":"palette"');
+  });
+
+  it("round-trips a referential Root Definition through the generic presentationJson codec", () => {
+    const source = rootDefinitionPresentation();
+    const record = encodePresentationForFirestore(source);
+    const withoutRootDefinitions = PresentationSchema.parse({
+      ...source,
+      rootDefinitions: undefined,
+      defaultRootDefinitionId: undefined,
+      slides: [{ id: "slide-root", elements: [] }],
+    });
+
+    expect(Object.keys(record)).toEqual(["presentationJson"]);
+    expect(decodePresentationFromFirestore(record)).toEqual(source);
+    expect(JSON.parse(record.presentationJson)).toMatchObject({
+      rootDefinitions: source.rootDefinitions,
+      defaultRootDefinitionId: "master-foreign",
+      slides: [{
+        rootDefinitionId: "master-foreign",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "master-content" }],
+      }],
+    });
+    expect(new TextEncoder().encode(record.presentationJson).byteLength).toBeGreaterThan(0);
+    expect(new TextEncoder().encode(record.presentationJson).byteLength).toBeGreaterThan(
+      new TextEncoder().encode(
+        encodePresentationForFirestore(withoutRootDefinitions).presentationJson,
+      ).byteLength,
+    );
+  });
+
+  it("shows referential Root Definition payload reduction without enforcing a savings threshold", () => {
+    const duplicated = encodePresentationForFirestore(
+      payloadFormPresentation("duplicated"),
+    );
+    const referential = encodePresentationForFirestore(
+      payloadFormPresentation("referential"),
+    );
+
+    const duplicatedBytes = new TextEncoder().encode(duplicated.presentationJson).byteLength;
+    const referentialBytes = new TextEncoder().encode(referential.presentationJson).byteLength;
+
+    expect(referentialBytes).toBeLessThan(duplicatedBytes);
   });
 
   it("preserves nullable Table cells, positions, and omitted optional values", () => {
