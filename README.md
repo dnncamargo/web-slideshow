@@ -147,25 +147,28 @@ Import performs:
 
 ```text
 JSON.parse
-→ PresentationSchema
+→ PresentationSchema.parse
 → allocate a new root Presentation id
+→ normalize imported internal IDs
+→ remap typed references
+→ PresentationSchema.parse
 → persist as a new private draft
 ```
 
-Slides, nested elements, Palette references, FontResources, Text Styles, Linked Styles and authored content remain canonical and editable. There is no transfer envelope, hidden compatibility schema or automatic migration layer.
+Imported structural IDs are regenerated with short, type-aware diagnostic prefixes, so copy genealogy does not carry forward. Typed Text Style and Linked Style references are remapped; reserved/system identities and authored Scripted port IDs remain stable. Arbitrary authored strings are never searched or replaced. Normalization changes technical identity, not authored content or semantic structure. There is no transfer envelope, hidden compatibility schema or automatic migration layer.
 
 ## Instance branding and deployment
 
 For local development, configure the instance with:
 
 ```text
-pnpm instantiate --name "Batata Chip"
+pnpm instantiate --name "<instance display name>"
 ```
 
 For production builds, set the build environment variable:
 
 ```text
-WEB_SLIDESHOW_DISPLAY_NAME=Batata Chip
+WEB_SLIDESHOW_DISPLAY_NAME="<instance display name>"
 ```
 
 Studio and Player Vercel projects for the same instance should receive the same value.
@@ -493,7 +496,11 @@ Current milestone state:
 
 ```text
 Editor History / Undo-Redo                         ✅
-Next work area: TBD — pending product decision
+Published archived Presentation deletion (#170)    ✅
+Container preserve-children deletion (#171)       ✅
+Historical identity cleanup (#172)                ✅
+Import-time ID normalization (#173)                ✅
+Next work area: Structural deduplication / Presentation-local structural masters — audit first
 ```
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes delete-and-preserve-children semantics, delete-published workflow, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes structural deduplication / Presentation-local structural masters, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
