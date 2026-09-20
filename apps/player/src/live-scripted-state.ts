@@ -2,6 +2,7 @@ import { ref, runTransaction, set, type Database } from "firebase/database";
 
 import {
   visitSlideElements,
+  type MaterializedSlide,
   type Presentation,
   type ScriptedElement,
 } from "@web-slideshow/document-schema";
@@ -34,6 +35,7 @@ export interface LiveScriptedReportRecord {
 
 interface MountContext extends LiveScriptedRuntimeRecord {
   scriptedSlot: number;
+  scripted: ScriptedElement;
   runtimeWrite: Promise<void>;
   appliedInputs: Map<number, number>;
 }
@@ -77,6 +79,14 @@ function exactRecord(value: unknown, keys: readonly string[]): value is Record<s
     keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
 }
 
+function scriptedsOnSlide(slide: MaterializedSlide): ScriptedElement[] {
+  const scripteds: ScriptedElement[] = [];
+  visitSlideElements(slide, (element) => {
+    if (element.type === "scripted") scripteds.push(element);
+  });
+  return scripteds;
+}
+
 export function parseLiveScriptedRuntimeRecord(value: unknown): LiveScriptedRuntimeRecord | null {
   const keys = ["activationRevision", "currentVersionId", "mountRevision", "pageId", "elementId", "bootId"] as const;
   if (!exactRecord(value, keys) || !nonNegativeInteger(value.activationRevision) ||
@@ -96,14 +106,6 @@ export function parseLiveScriptedReportRecord(value: unknown): LiveScriptedRepor
   return { activationRevision: value.activationRevision, currentVersionId: value.currentVersionId.trim(), revision: value.revision, pageId: value.pageId.trim(), elementId: value.elementId, portId: value.portId, sourceBootId: value.sourceBootId.trim(), mountRevision: value.mountRevision, appliedInputRevision: value.appliedInputRevision, value: value.value };
 }
 
-function scriptedsOnPage(presentation: Presentation, pageId: string): ScriptedElement[] | null {
-  const page = presentation.slides.find((slide) => slide.id === pageId);
-  if (!page) return null;
-  const scripteds: ScriptedElement[] = [];
-  visitSlideElements(page, (element) => { if (element.type === "scripted") scripteds.push(element); });
-  return scripteds;
-}
-
 function validOutputValue(port: ScriptedElement["ports"][number], value: boolean | number): boolean {
   if (port.kind === "boolean") return (port.direction === "output" || port.direction === "input-output") && typeof value === "boolean";
   return port.kind === "number" && (port.direction === "output" || port.direction === "input-output") && typeof value === "number" && Number.isFinite(value) && (port.min === undefined || value >= port.min) && (port.max === undefined || value <= port.max);
@@ -111,23 +113,33 @@ function validOutputValue(port: ScriptedElement["ports"][number], value: boolean
 
 /** Publishes only the Player-owned identity and validated Scripted output state. */
 export function createLiveScriptedStatePublisher(options: LiveScriptedStatePublisherOptions): {
-  onScriptedMount(event: { pageId: string; elementId: string }): void;
+  onScriptedMount(event: {
+    pageId: string;
+    elementId: string;
+    slide: MaterializedSlide;
+  }): void;
   onScriptedReport(report: ScriptedReportMessage): void;
   getCurrentMount(scriptedSlot: number): { pageId: string; elementId: string; mountRevision: number } | null;
   markAppliedInput(input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }): void;
 } {
   const contexts = new Map<string, MountContext>();
 
-  function onScriptedMount(event: { pageId: string; elementId: string }): void {
+  function onScriptedMount(event: {
+    pageId: string;
+    elementId: string;
+    slide: MaterializedSlide;
+  }): void {
     if (!options.isCurrent()) return;
-    const scripteds = scriptedsOnPage(options.presentation, event.pageId);
+    const scripteds = scriptedsOnSlide(event.slide);
     const scriptedSlot = scripteds?.findIndex((element) => element.id === event.elementId) ?? -1;
     if (scriptedSlot < 0) return;
+    const scripted = scripteds?.[scriptedSlot];
+    if (!scripted) return;
     const mountRevision = options.allocateMountRevision();
     const context: MountContext = {
       activationRevision: options.activationRevision, currentVersionId: options.currentVersionId,
       mountRevision, pageId: event.pageId, elementId: event.elementId, bootId: options.bootId,
-      scriptedSlot, runtimeWrite: Promise.resolve(), appliedInputs: new Map(),
+      scriptedSlot, scripted, runtimeWrite: Promise.resolve(), appliedInputs: new Map(),
     };
     context.runtimeWrite = set(ref(options.database, `${SCRIPTED_RUNTIME_ROOT_PATH}/${scriptedSlot}`), {
       activationRevision: context.activationRevision, currentVersionId: context.currentVersionId,
@@ -139,8 +151,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
   function onScriptedReport(report: ScriptedReportMessage): void {
     const context = contexts.get(report.elementId);
     if (!context || !options.isCurrent() || options.getCurrentPageId() !== context.pageId) return;
-    const scripteds = scriptedsOnPage(options.presentation, context.pageId);
-    const scripted = scripteds?.[context.scriptedSlot];
+    const scripted = context.scripted;
     const portIndex = scripted?.ports.findIndex((port) => port.id === report.portId) ?? -1;
     const port = portIndex >= 0 ? scripted?.ports[portIndex] : undefined;
     if (!scripted || scripted.id !== context.elementId || !port || !validOutputValue(port, report.value)) return;
@@ -160,14 +171,19 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
     if (!Number.isInteger(scriptedSlot) || scriptedSlot < 0 || !options.isCurrent()) return null;
     const pageId = options.getCurrentPageId();
     if (pageId === null) return null;
-    const scripted = scriptedsOnPage(options.presentation, pageId)?.[scriptedSlot];
-    const context = scripted && contexts.get(scripted.id);
-    if (!scripted || !context || context.pageId !== pageId || context.scriptedSlot !== scriptedSlot || context.elementId !== scripted.id) return null;
+    const context = Array.from(contexts.values()).find((candidate) =>
+      candidate.pageId === pageId && candidate.scriptedSlot === scriptedSlot &&
+      contexts.get(candidate.elementId) === candidate,
+    );
+    if (!context) return null;
     return { pageId: context.pageId, elementId: context.elementId, mountRevision: context.mountRevision };
   }
   function markAppliedInput(input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }): void {
     if (!positiveInteger(input.revision) || !options.isCurrent() || options.getCurrentPageId() !== input.pageId) return;
-    const scripted = scriptedsOnPage(options.presentation, input.pageId)?.[input.scriptedSlot]; const context = scripted && contexts.get(scripted.id); const port = scripted?.ports[input.portIndex];
+    const context = Array.from(contexts.values()).find((candidate) =>
+      candidate.pageId === input.pageId && candidate.scriptedSlot === input.scriptedSlot &&
+      contexts.get(candidate.elementId) === candidate,
+    ); const scripted = context?.scripted; const port = scripted?.ports[input.portIndex];
     if (!scripted || !context || context.scriptedSlot !== input.scriptedSlot || context.elementId !== input.elementId || context.mountRevision !== input.mountRevision || !port || port.id !== input.portId || (port.kind !== "boolean" && port.kind !== "number") || port.direction !== "input-output") return;
     const previous = context.appliedInputs.get(input.portIndex) ?? 0; if (input.revision > previous) context.appliedInputs.set(input.portIndex, input.revision);
   }

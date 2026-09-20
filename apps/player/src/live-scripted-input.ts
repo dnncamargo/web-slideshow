@@ -1,5 +1,5 @@
 import { onValue, ref, type Database } from "firebase/database";
-import { visitSlideElements, type Presentation, type ScriptedElement } from "@web-slideshow/document-schema";
+import { visitSlideElements, type MaterializedSlide, type Presentation, type ScriptedElement } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
 
 export const SCRIPTED_INPUT_ROOT_PATH = "live/scriptedInput";
@@ -28,14 +28,14 @@ export function createLiveScriptedInputTracker() {
 }
 function entries(value: unknown): Array<[string, unknown]> { return value !== null && typeof value === "object" ? Object.entries(value) : []; }
 function index(key: string): number | null { return /^(0|[1-9]\d*)$/.test(key) && nonNegative(Number(key)) ? Number(key) : null; }
-function scripteds(presentation: Presentation, pageId: string): ScriptedElement[] | null { const page = presentation.slides.find((slide) => slide.id === pageId); if (!page) return null; const found: ScriptedElement[] = []; visitSlideElements(page, (element) => { if (element.type === "scripted") found.push(element); }); return found; }
+function scripteds(slide: MaterializedSlide): ScriptedElement[] { const found: ScriptedElement[] = []; visitSlideElements(slide, (element) => { if (element.type === "scripted") found.push(element); }); return found; }
 export function subscribeLiveScriptedInput(database: Database, activationRevision: number, currentVersionId: string, bootId: string, presentation: Presentation, controller: PlayerController, getCurrentMount: (slot: number) => { pageId: string; elementId: string; mountRevision: number } | null, tracker: ReturnType<typeof createLiveScriptedInputTracker>, onAppliedInput?: (input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void): () => void {
   const unsubscribe = onValue(ref(database, SCRIPTED_INPUT_ROOT_PATH), (snapshot) => {
     for (const [slotKey, ports] of entries(snapshot.val())) for (const [portKey, candidate] of entries(ports)) {
       const slot = index(slotKey); const portIndex = index(portKey); const record = parseLiveScriptedInputRecord(candidate);
       if (slot === null || portIndex === null || !record || record.activationRevision !== activationRevision || record.currentVersionId !== currentVersionId || record.targetBootId !== bootId) continue;
-      const page = presentation.slides[controller.getCurrentIndex()];
-      const currentScripteds = page ? scripteds(presentation, page.id) : null;
+      const page = controller.getCurrentSlide();
+      const currentScripteds = page ? scripteds(page) : null;
       const scripted = currentScripteds?.[slot]; const port = scripted?.ports[portIndex]; const mount = getCurrentMount(slot);
       const applicable = page?.id === record.pageId && scripted?.id === record.elementId && port?.id === record.portId && (port?.kind === "boolean" || port?.kind === "number") && (port.direction === "input" || port.direction === "input-output") && (port.kind === "boolean" ? typeof record.value === "boolean" : typeof record.value === "number" && Number.isFinite(record.value) && (port.min === undefined || record.value >= port.min) && (port.max === undefined || record.value <= port.max)) && mount?.pageId === record.pageId && mount.elementId === record.elementId && mount.mountRevision === record.targetMountRevision;
       const newer = tracker.take(slot, portIndex, record);

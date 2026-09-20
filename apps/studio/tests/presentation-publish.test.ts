@@ -436,6 +436,52 @@ describe("transactional presentation publishing", () => {
     );
   });
 
+  it("publishes referential Root Definitions unchanged in the immutable version", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      rootDefinitions: [{
+        id: "master-foreign",
+        name: "Shared master",
+        root: {
+          id: "master-root",
+          type: "container",
+          children: [{
+            id: "master-content",
+            type: "container",
+            children: [{ id: "master-text", type: "text", content: "Shared" }],
+          }],
+        },
+        localChildTargetIds: ["master-content"],
+      }],
+      defaultRootDefinitionId: "master-foreign",
+      slides: [{
+        id: "slide-root",
+        rootDefinitionId: "master-foreign",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "master-content",
+          children: [{ id: "local-text", type: "text", content: "Local" }],
+        }],
+      }],
+    });
+    const transaction = setupTransaction(draftData({ presentation }));
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-root" })
+      .mockReturnValueOnce({ id: "version-root" })
+      .mockReturnValueOnce({ id: "pointer-root" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentationJson: string;
+    };
+    expect(JSON.parse(versionPayload.presentationJson)).toEqual(presentation);
+    expect(JSON.parse(versionPayload.presentationJson)).toMatchObject({
+      slides: [{ elements: [], localRootChildren: [{ targetContainerId: "master-content" }] }],
+    });
+  });
+
   it("rejects publication when the draft canonical id differs from its path", async () => {
     const transaction = setupTransaction(
       draftData({ presentation: createBlankPresentation("other-presentation") }),

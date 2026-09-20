@@ -40,3 +40,5 @@ export * from "./slide";
 export * from "./visual";
 export * from "./element-properties";
 export * from "./element-traversal";
+export * from "./root-definition";
+export * from "./materialize-slide";

@@ -69,6 +69,7 @@ function controller(initialIndex: number) {
     sendScriptedInput: vi.fn(),
     controlPlotAnimation: vi.fn(),
     getCurrentIndex: vi.fn(() => index),
+    getCurrentSlide: vi.fn(() => undefined),
   };
 }
 

@@ -69,6 +69,7 @@ function subscribe(index = 0, tracker = createLiveScriptedActionTracker()) {
   const sendScriptedAction = vi.fn();
   const controller = {
     getCurrentIndex: () => index,
+    getCurrentSlide: () => presentation.slides[index],
     sendScriptedAction,
   };
   const unsubscribe = vi.fn();
@@ -142,7 +143,7 @@ describe("live Scripted action subscriber", () => {
       return vi.fn();
     });
     subscribeLiveScriptedAction({} as never, 7, "version-a", "boot-b", presentation, {
-      getCurrentIndex: () => 0, sendScriptedAction,
+      getCurrentIndex: () => 0, getCurrentSlide: () => presentation.slides[0], sendScriptedAction,
     } as never, tracker);
     emit({ 0: { 0: record({ targetBootId: "boot-a", revision: 4 }) } });
     emit({ 0: { 0: record({ targetBootId: "boot-b", revision: 1 }) } });
@@ -162,7 +163,7 @@ describe("live Scripted action subscriber", () => {
       return vi.fn();
     });
     subscribeLiveScriptedAction({} as never, 7, "version-a", "boot-a", presentation, {
-      getCurrentIndex: () => currentIndex,
+      getCurrentIndex: () => currentIndex, getCurrentSlide: () => presentation.slides[currentIndex],
       sendScriptedAction,
     } as never, tracker);
 

@@ -92,4 +92,26 @@ export function validatePresentationLinkedStyleReferences(
       );
     });
   });
+
+  presentation.rootDefinitions?.forEach((definition, definitionIndex) => {
+    validateElement(
+      presentation,
+      definition.root,
+      ["rootDefinitions", definitionIndex, "root"],
+      (path, message) => context.addIssue({ code: "custom", path, message }),
+    );
+  });
+
+  presentation.slides.forEach((slide, slideIndex) => {
+    slide.localRootChildren?.forEach((record, recordIndex) => {
+      record.children.forEach((element, elementIndex) => {
+        validateElement(
+          presentation,
+          element,
+          ["slides", slideIndex, "localRootChildren", recordIndex, "children", elementIndex],
+          (path, message) => context.addIssue({ code: "custom", path, message }),
+        );
+      });
+    });
+  });
 }

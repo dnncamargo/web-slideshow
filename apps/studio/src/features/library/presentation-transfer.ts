@@ -7,6 +7,7 @@ import {
   type ContentSlot,
   type PresentationElement,
   type TopicItem,
+  type RootDefinition,
   type Presentation,
 } from "@web-slideshow/document-schema";
 
@@ -26,7 +27,10 @@ type IdCounters = {
   "table-cell": number;
   "text-style": number;
   "linked-style": number;
+  "root-definition": number;
 } & Record<PresentationElement["type"], number>;
+
+type StructuralIdMap = Map<string, string>;
 
 function nextId<Family extends keyof IdCounters>(
   counters: IdCounters,
@@ -60,6 +64,7 @@ function createIdCounters(): IdCounters {
     scripted: 0,
     topics: 0,
     container: 0,
+    "root-definition": 0,
   };
 }
 
@@ -76,12 +81,16 @@ function normalizeContentSlot(
   textStyleIds: ReadonlyMap<string, string>,
   linkedStyleIds: ReadonlyMap<string, string>,
   family: "content-slot" | "table-cell" = "content-slot",
+  structuralIds?: StructuralIdMap,
 ): ContentSlot {
+  const normalizedId = nextId(counters, family);
+  structuralIds?.set(slot.id, normalizedId);
+
   return {
     ...slot,
-    id: nextId(counters, family),
+    id: normalizedId,
     children: slot.children.map((child) =>
-      normalizeElement(child, counters, textStyleIds, linkedStyleIds),
+      normalizeElement(child, counters, textStyleIds, linkedStyleIds, structuralIds),
     ),
   };
 }
@@ -91,24 +100,46 @@ function normalizeTopicItem(
   counters: IdCounters,
   textStyleIds: ReadonlyMap<string, string>,
   linkedStyleIds: ReadonlyMap<string, string>,
+  structuralIds?: StructuralIdMap,
 ): TopicItem {
+  const normalizedId = nextId(counters, "topic-item");
+  structuralIds?.set(item.id, normalizedId);
+
   return {
     ...item,
-    id: nextId(counters, "topic-item"),
-    content: normalizeContentSlot(item.content, counters, textStyleIds, linkedStyleIds),
+    id: normalizedId,
+    content: normalizeContentSlot(item.content, counters, textStyleIds, linkedStyleIds, "content-slot", structuralIds),
     children: item.children.map((child) =>
-      normalizeTopicItem(child, counters, textStyleIds, linkedStyleIds),
+      normalizeTopicItem(child, counters, textStyleIds, linkedStyleIds, structuralIds),
     ),
   };
 }
+
+function normalizeElement(
+  element: RootDefinition["root"],
+  counters: IdCounters,
+  textStyleIds: ReadonlyMap<string, string>,
+  linkedStyleIds: ReadonlyMap<string, string>,
+  structuralIds: StructuralIdMap,
+): RootDefinition["root"];
 
 function normalizeElement(
   element: PresentationElement,
   counters: IdCounters,
   textStyleIds: ReadonlyMap<string, string>,
   linkedStyleIds: ReadonlyMap<string, string>,
+  structuralIds?: StructuralIdMap,
+): PresentationElement;
+
+function normalizeElement(
+  element: PresentationElement,
+  counters: IdCounters,
+  textStyleIds: ReadonlyMap<string, string>,
+  linkedStyleIds: ReadonlyMap<string, string>,
+  structuralIds?: StructuralIdMap,
 ): PresentationElement {
   const normalizedId = nextId(counters, element.type);
+  structuralIds?.set(element.id, normalizedId);
 
   switch (element.type) {
     case "text":
@@ -125,7 +156,7 @@ function normalizeElement(
           ? undefined
           : linkedStyleIds.get(element.linkedStyleId) ?? element.linkedStyleId,
         children: element.children.map((child) =>
-          normalizeElement(child, counters, textStyleIds, linkedStyleIds),
+          normalizeElement(child, counters, textStyleIds, linkedStyleIds, structuralIds),
         ),
       };
     case "topics":
@@ -136,7 +167,7 @@ function normalizeElement(
           ? undefined
           : linkedStyleIds.get(element.linkedStyleId) ?? element.linkedStyleId,
         items: element.items.map((item) =>
-          normalizeTopicItem(item, counters, textStyleIds, linkedStyleIds),
+          normalizeTopicItem(item, counters, textStyleIds, linkedStyleIds, structuralIds),
         ),
       };
     case "table":
@@ -147,29 +178,40 @@ function normalizeElement(
       return {
         ...element,
         id: normalizedId,
-        columns: element.columns.map((column) => ({
-          ...column,
-          id: nextId(counters, "table-column"),
-          header: normalizeContentSlot(
-            column.header,
-            counters,
-            textStyleIds,
-            linkedStyleIds,
-          ),
-        })),
-        rows: element.rows.map((row) => ({
-          ...row,
-          id: nextId(counters, "table-row"),
-          cells: row.cells.map((cell) =>
-            normalizeContentSlot(
-              cell,
+        columns: element.columns.map((column) => {
+          const normalizedColumnId = nextId(counters, "table-column");
+          structuralIds?.set(column.id, normalizedColumnId);
+          return {
+            ...column,
+            id: normalizedColumnId,
+            header: normalizeContentSlot(
+              column.header,
               counters,
               textStyleIds,
               linkedStyleIds,
-              "table-cell",
+              "content-slot",
+              structuralIds,
             ),
-          ),
-        })),
+          };
+        }),
+        rows: element.rows.map((row) => {
+          const normalizedRowId = nextId(counters, "table-row");
+          structuralIds?.set(row.id, normalizedRowId);
+          return {
+            ...row,
+            id: normalizedRowId,
+            cells: row.cells.map((cell) =>
+              normalizeContentSlot(
+                cell,
+                counters,
+                textStyleIds,
+                linkedStyleIds,
+                "table-cell",
+                structuralIds,
+              ),
+            ),
+          };
+        }),
       };
     default:
       return { ...element, id: normalizedId };
@@ -200,17 +242,88 @@ export function normalizeImportedPresentation(
     return { ...style, id };
   });
 
+  const rootDefinitionIds = new Map<string, string>();
+  const rootDefinitionStructuralIds = new Map<string, StructuralIdMap>();
+  const rootDefinitions = source.rootDefinitions?.map((definition: RootDefinition) => {
+    const normalizedId = nextId(counters, "root-definition");
+    const structuralIds = new Map<string, string>();
+    rootDefinitionIds.set(definition.id, normalizedId);
+    rootDefinitionStructuralIds.set(definition.id, structuralIds);
+
+    const root = normalizeElement(
+      definition.root,
+      counters,
+      textStyleIds,
+      linkedStyleIds,
+      structuralIds,
+    );
+
+    return {
+      ...definition,
+      id: normalizedId,
+      root,
+      ...(definition.localChildTargetIds === undefined
+        ? {}
+        : {
+            localChildTargetIds: definition.localChildTargetIds.map(
+              (targetId) => structuralIds.get(targetId) ?? targetId,
+            ),
+          }),
+    };
+  });
+
   return {
     ...source,
     textStyles,
     linkedStyles,
-    slides: source.slides.map((slide) => ({
-      ...slide,
-      id: nextId(counters, "slide"),
-      elements: slide.elements.map((element) =>
-        normalizeElement(element, counters, textStyleIds, linkedStyleIds),
-      ),
-    })),
+    ...(rootDefinitions === undefined ? {} : { rootDefinitions }),
+    ...(source.defaultRootDefinitionId === undefined
+      ? {}
+      : {
+          defaultRootDefinitionId:
+            rootDefinitionIds.get(source.defaultRootDefinitionId) ??
+            source.defaultRootDefinitionId,
+        }),
+    slides: source.slides.map((slide) => {
+      const effectiveRootDefinitionId =
+        slide.rootDefinitionId ?? source.defaultRootDefinitionId;
+      const structuralIds = effectiveRootDefinitionId === undefined
+        ? undefined
+        : rootDefinitionStructuralIds.get(effectiveRootDefinitionId);
+
+      return {
+        ...slide,
+        id: nextId(counters, "slide"),
+        ...(slide.rootDefinitionId === undefined
+          ? {}
+          : {
+              rootDefinitionId:
+                rootDefinitionIds.get(slide.rootDefinitionId) ??
+                slide.rootDefinitionId,
+            }),
+        ...(slide.localRootChildren === undefined
+          ? {}
+          : {
+              localRootChildren: slide.localRootChildren.map((record) => ({
+                ...record,
+                targetContainerId:
+                  structuralIds?.get(record.targetContainerId) ??
+                  record.targetContainerId,
+                children: record.children.map((element) =>
+                  normalizeElement(
+                    element,
+                    counters,
+                    textStyleIds,
+                    linkedStyleIds,
+                  ),
+                ),
+              })),
+            }),
+        elements: slide.elements.map((element) =>
+          normalizeElement(element, counters, textStyleIds, linkedStyleIds),
+        ),
+      };
+    }),
   };
 }
 

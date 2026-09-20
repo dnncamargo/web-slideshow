@@ -317,7 +317,7 @@ export const InteractiveElementSchema =
 
     config: z.record(
       z.string(),
-      z.unknown(),
+      z.json(),
     ),
   }).strict();
 
@@ -783,6 +783,28 @@ export type PresentationElement =
   | TopicsElement
   | ContainerElement;
 
+export const ContainerElementSchema: z.ZodType<ContainerElement> =
+  z.object({
+    id: ElementIdSchema,
+    type: z.literal("container"),
+    role: z.enum([
+      "main",
+      "header",
+      "footer",
+      "row",
+      "column",
+      "content",
+    ]).optional(),
+    hidden: z.boolean().default(false),
+    layout: ContainerLayoutSchema.optional(),
+    style: ElementVisualStyleSchema.optional(),
+    typography: ElementTypographySchema.optional(),
+    effect: ElementEffectSchema.optional(),
+    linkedStyleId: z.string().trim().min(1).optional(),
+    link: ElementLinkSchema.optional(),
+    children: z.array(z.lazy(() => PresentationElementSchema)),
+  }).strict();
+
 export const PresentationElementSchema:
   z.ZodType<PresentationElement> =
   z.lazy(() =>
@@ -801,38 +823,6 @@ export const PresentationElementSchema:
       ScriptedElementSchema,
       TopicsElementSchema,
 
-      z.object({
-        id: ElementIdSchema,
-        type: z.literal("container"),
-
-        role: z
-          .enum([
-            "main",
-            "header",
-            "footer",
-            "row",
-            "column",
-            "content",
-          ])
-          .optional(),
-
-        hidden: z.boolean().default(false),
-
-        layout: ContainerLayoutSchema.optional(),
-
-        style: ElementVisualStyleSchema.optional(),
-
-        typography: ElementTypographySchema.optional(),
-
-        effect: ElementEffectSchema.optional(),
-
-        linkedStyleId: z.string().trim().min(1).optional(),
-
-        link: ElementLinkSchema.optional(),
-
-        children: z.array(
-          PresentationElementSchema,
-        ),
-      }).strict(),
+      ContainerElementSchema,
     ]),
   );

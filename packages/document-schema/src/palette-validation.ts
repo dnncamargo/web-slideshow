@@ -42,6 +42,7 @@ type ColorSlot = {
 export function visitPresentationColorValues(
   presentation: {
     slides: Slide[];
+    rootDefinitions?: { root: PresentationElement }[] | undefined;
     textStyles?: TextStyle[] | undefined;
     linkedStyles?: LinkedStyle[] | undefined;
   },
@@ -190,6 +191,15 @@ export function visitPresentationColorValues(
   presentation.slides.forEach((slide, slideIndex) => {
     visitSlideBackground(slide.background, ["slides", slideIndex, "background"]);
     slide.elements.forEach((element, elementIndex) => visitElement(element, ["slides", slideIndex, "elements", elementIndex]));
+    slide.localRootChildren?.forEach((record, recordIndex) => {
+      record.children.forEach((element, elementIndex) =>
+        visitElement(element, ["slides", slideIndex, "localRootChildren", recordIndex, "children", elementIndex]),
+      );
+    });
+  });
+
+  presentation.rootDefinitions?.forEach((definition, definitionIndex) => {
+    visitElement(definition.root, ["rootDefinitions", definitionIndex, "root"]);
   });
 
   presentation.textStyles?.forEach((textStyle, index) => {

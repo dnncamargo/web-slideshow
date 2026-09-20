@@ -13,6 +13,7 @@ import {
 import {
   GradientSchema,
 } from "./visual";
+import { SlideLocalRootChildrenSchema } from "./root-definition";
 
 export const SlideBackgroundPatternTypeSchema =
   z.enum([
@@ -100,6 +101,12 @@ export const SlideSchema = z.object({
 
   layoutPreset: z
     .string()
+    .optional(),
+
+  rootDefinitionId: ElementIdSchema.optional(),
+
+  localRootChildren: z
+    .array(SlideLocalRootChildrenSchema)
     .optional(),
 
   elements: z
