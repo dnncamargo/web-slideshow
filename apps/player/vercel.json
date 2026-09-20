@@ -8,13 +8,6 @@
       ]
     },
     {
-      "source": "/__powershow/clear-cache",
-      "headers": [
-        { "key": "Clear-Site-Data", "value": "\"cache\"" },
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
-    },
-    {
       "source": "/",
       "headers": [
         {
@@ -137,10 +130,6 @@
   "rewrites": [
     {
       "source": "/__player/clear-cache",
-      "destination": "/__player/clear-cache.html"
-    },
-    {
-      "source": "/__powershow/clear-cache",
       "destination": "/__player/clear-cache.html"
     },
     {

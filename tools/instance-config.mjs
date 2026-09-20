@@ -9,6 +9,11 @@ export const instanceConfigPath = process.env.WEB_SLIDESHOW_INSTANCE_CONFIG
   : path.join(repositoryRoot, ".instance", "instance.json");
 
 export function readInstanceDisplayName() {
+  const environmentDisplayName = process.env.WEB_SLIDESHOW_DISPLAY_NAME?.trim();
+  if (environmentDisplayName) {
+    return environmentDisplayName;
+  }
+
   try {
     const parsed = JSON.parse(fs.readFileSync(instanceConfigPath, "utf8"));
     return typeof parsed.displayName === "string" && parsed.displayName.trim()

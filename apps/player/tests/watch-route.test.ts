@@ -73,15 +73,6 @@ describe("public Watch runtime route", () => {
       { key: "Clear-Site-Data", value: '"cache"' },
       { key: "Cache-Control", value: "no-store" },
     ]);
-    expect(config.headers?.filter((rule) => !["/__player/clear-cache", "/__powershow/clear-cache"].includes(rule.source ?? "")).flatMap((rule) => rule.headers ?? []).some((header) => header.key === "Clear-Site-Data")).toBe(false);
-    expect(config.rewrites).toContainEqual({
-      source: "/__powershow/clear-cache",
-      destination: "/__player/clear-cache.html",
-    });
-    expect(config.headers?.find((rule) => rule.source === "/__powershow/clear-cache")?.headers).toEqual([
-      { key: "Clear-Site-Data", value: '"cache"' },
-      { key: "Cache-Control", value: "no-store" },
-    ]);
   });
 
   it("keeps the technical return page same-origin and safely bounded", async () => {

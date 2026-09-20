@@ -3,7 +3,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const STORAGE_KEY = "web-slideshow:player-diagnostics:v1";
-const LEGACY_STORAGE_KEY = "powershow:player-diagnostics:v1";
 
 const PANEL_ELEMENT_ID = "player-diagnostics";
 
@@ -216,16 +215,4 @@ describe("player diagnostics (observability-only)", () => {
     expect(afterReload[1]?.sessionId).not.toBe(firstSessionId);
   });
 
-  it("reads historical diagnostics from the legacy key and writes the canonical key", async () => {
-    const storage = makeStorage() as ReturnType<typeof makeStorage>;
-    storage.map.set(LEGACY_STORAGE_KEY, JSON.stringify([{ sequence: 1, timestamp: new Date().toISOString(), sessionId: "old", code: "BOOT" }]));
-    vi.stubGlobal("localStorage", storage);
-
-    const diagnostics = await import("../src/player-diagnostics");
-    diagnostics.configurePlayerDiagnostics(true);
-    diagnostics.recordPlayerDiagnostic("LIVE_EVENT_ACTIVE");
-
-    expect(storage.map.has(STORAGE_KEY)).toBe(true);
-    expect(JSON.parse(storage.map.get(STORAGE_KEY) ?? "[]")).toHaveLength(2);
-  });
 });

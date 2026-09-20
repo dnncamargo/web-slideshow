@@ -44,8 +44,8 @@ describe("presentation typography style authoring", () => {
     expect(base()).not.toHaveProperty("textStyles");
     expect(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID).toBe("system:table-column-header");
     expect(SYSTEM_TABLE_CELL_TEXT_STYLE_ID).toBe("system:table-cell");
-    expect(createTextStyleId("powershow:table-column-header", [])).not.toBe(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
-    expect(createTextStyleId("powershow:table-cell", [])).not.toBe(SYSTEM_TABLE_CELL_TEXT_STYLE_ID);
+    expect(createTextStyleId("arbitrary:table-column-header", [])).not.toBe(SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID);
+    expect(createTextStyleId("arbitrary:table-cell", [])).not.toBe(SYSTEM_TABLE_CELL_TEXT_STYLE_ID);
   });
 
   it("ensures canonical Table styles by ID and preserves same-name and renamed styles", () => {

@@ -106,12 +106,6 @@ describe("Control latency snapshot", () => {
     expect(() => writeControlLatencySnapshot(snapshot())).not.toThrow();
   });
 
-  it("reads a historical session snapshot as a fallback", () => {
-    const storage = sessionStorage as unknown as ReturnType<typeof createStorage>;
-    storage.values.set("powershow:studio-control-latency:v1", JSON.stringify(snapshot()));
-
-    expect(readControlLatencySnapshot(identity)).toEqual(snapshot());
-  });
 
   it("writes only synced numeric measurements and preserves the last measurement otherwise", () => {
     const storage = sessionStorage as Storage & {
