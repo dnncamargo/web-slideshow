@@ -312,6 +312,43 @@ export const docsGroups: readonly DocsGroup[] = [
         ],
       },
       {
+        id: "delete-lifecycle",
+        title: "Exclusão e ciclo de vida",
+        summary:
+          "Elementos e apresentações têm exclusões diferentes, com confirmação, History e autorização coerentes com seu owner.",
+        sections: [
+          {
+            title: "Excluir elementos",
+            paragraphs: [
+              "A exclusão normal remove o elemento selecionado e seus descendentes como uma ação discreta de History. Para um Container compatível, não vazio e que não esteja em uma das posições incompatíveis abaixo, a confirmação oferece Cancelar, Delete container and children e Delete container, keep children.",
+              "Manter os filhos remove somente o wrapper, promove os filhos diretos na posição dos irmãos do Container, preserva a ordem, os IDs e os dados dos filhos e registra uma ação única. Undo restaura o Container e a subárvore exatos; Redo reaplica o unwrap.",
+            ],
+          },
+          {
+            title: "Limites de preservar filhos",
+            bullets: [
+              "Containers vazios permanecem destructive-only.",
+              "Containers diretamente pertencentes a ContentSlots de Structured Table permanecem destructive-only.",
+              "Containers em ContentSlots de TopicItem cujos filhos diretos incluem Topics permanecem destructive-only.",
+              "Nesses casos, a exclusão destrutiva existente continua disponível; não há flattening hierárquico genérico.",
+            ],
+          },
+          {
+            title: "Excluir apresentações da Library",
+            paragraphs: [
+              "Uma apresentação precisa estar arquivada para a exclusão permanente. O ciclo normal é Archive → Delete para drafts não publicados e Publish → Archive → Delete para apresentações publicadas. Uma apresentação Live precisa passar por Live → Stop antes de ser arquivada e excluída.",
+              "Ao excluir uma apresentação publicada, a implementação remove as versões históricas em lotes limitados e, no lote final, remove a versão corrente, o pointer da publicação, as notas privadas e o draft privado. Falhas interrompem o ciclo sem fingir que a limpeza terminou.",
+            ],
+          },
+          {
+            title: "Autorização de publicação",
+            paragraphs: [
+              "A propriedade imutável publishedPresentations/{publicationId}.ownerUid é a vinculação de ownership usada pelas Rules e pelo código de publicação/exclusão. presentationId ou metadata pública copiada não provam ownership. Pointers legados sem ownerUid não podem ser reivindicados por um cliente normal; eventual backfill é tooling confiável/Admin e deve ocorrer somente depois da implantação do código owner-bound e das Firestore Rules correspondentes.",
+            ],
+          },
+        ],
+      },
+      {
         id: "editor-history",
         title: "Histórico do Editor",
         summary:

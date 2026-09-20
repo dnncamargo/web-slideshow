@@ -606,6 +606,19 @@ The unavailable Android interactive display remains an explicit release gate, no
 
 ---
 
+# Recent completed refinement ✅
+
+The following current-state work is complete and merged:
+
+- **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
+- **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
+- **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
+- **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy generation remains a separate, unchanged source of future `-copy` genealogy.
+
+These completions do not change `schemaVersion`, the Presentation schema, persistence format, publication model, or Player/Studio boundaries.
+
+---
+
 # Future / deferred
 
 ## P14 — Maintenance & Diagnostics 🟡
@@ -620,8 +633,7 @@ Watch already follows Player-applied state. Viewer presence/count/nickname and r
 
 Deferred candidates include:
 
-- **Delete and preserve children** — define deliberate hierarchy semantics before implementing destructive element deletion that retains descendants;
-- **Delete published** — define the lifecycle/authorization semantics for removing published material;
+- **Structural deduplication / Presentation-local structural masters** — audit repeated canonical trees, ownership, references and editor/runtime consequences before making a product decision; the architecture and names are not frozen;
 - **complete audit** — cross-cutting integrity audit, including canonical/global ID uniqueness and other issues intentionally kept out of feature-specific checkpoints;
 - **AI Converter** — convert external/source content into the existing canonical Presentation rather than introducing a second document model;
 - **Player hardening with local history/continuity** — stronger local recovery/history behavior without replacing immutable publication and Live ownership;
@@ -672,7 +684,7 @@ P12   UX / Properties refinement                            ✅
        Editor History / Undo-Redo                            ✅
 
 NEXT:
-  Next work area: TBD — pending product decision
+  Next work area: Structural deduplication / Presentation-local structural masters — audit first
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -680,8 +692,7 @@ RELEASE GATE STILL PENDING:
 FUTURE / DEFERRED:
   P14 bounded Diagnostics expansion
   P15 Audience / Watch expansion
-  Delete and preserve children
-  Delete published
+  Structural deduplication / Presentation-local structural masters — audit first
   complete audit
   AI Converter
   Player hardening with local history/continuity
