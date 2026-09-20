@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getDatabase: vi.fn(), onValue: vi.fn(), ref: vi.fn(), set: vi.fn() }));
 vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref, set: mocks.set }));
 vi.mock("../src/features/control/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getDatabase }));
-import { parseLiveSlideTransition, useLiveSlideTransitionControl, type UseLiveSlideTransitionControlResult } from "../src/features/control/use-live-slide-transition-control";
+import { parseLiveSlideTransition, SLIDE_TRANSITION_STORAGE_KEY, useLiveSlideTransitionControl, type UseLiveSlideTransitionControlResult } from "../src/features/control/use-live-slide-transition-control";
 
 const LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 7 };
 const NEXT_LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 8 };
@@ -33,12 +33,14 @@ describe("useLiveSlideTransitionControl", () => {
     mocks.ref.mockImplementation((_db: unknown, path: string) => ({ path }));
     mocks.onValue.mockImplementation(() => vi.fn());
     mocks.set.mockResolvedValue(undefined);
+    window.localStorage.clear();
     act(() => root.render(<Harness />));
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.replaceChildren();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -59,6 +61,23 @@ describe("useLiveSlideTransitionControl", () => {
     expect(result?.transition).toBe("fade");
   });
 
+  it("restores a saved transition on an activation without a current record", async () => {
+    window.localStorage.setItem(SLIDE_TRANSITION_STORAGE_KEY, JSON.stringify("slide"));
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "slide" });
+    expect(result?.transition).toBe("slide");
+  });
+
+  it("does not restore over a valid current activation record", () => {
+    window.localStorage.setItem(SLIDE_TRANSITION_STORAGE_KEY, JSON.stringify("slide"));
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    act(() => callback({ val: () => ({ activationRevision: 7, transition: "none" }) }));
+    expect(result?.transition).toBe("none");
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(SLIDE_TRANSITION_STORAGE_KEY)).toBe(JSON.stringify("none"));
+  });
+
   it("writes fade as an exact two-field record", async () => {
     await act(async () => { result?.setTransition("fade"); await Promise.resolve(); });
     expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "fade" });
@@ -72,6 +91,35 @@ describe("useLiveSlideTransitionControl", () => {
   it("writes none as an exact two-field record", async () => {
     await act(async () => { result?.setTransition("none"); await Promise.resolve(); });
     expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "none" });
+  });
+
+  it("persists a successful user transition", async () => {
+    await act(async () => { result?.setTransition("slide"); await Promise.resolve(); });
+    expect(window.localStorage.getItem(SLIDE_TRANSITION_STORAGE_KEY)).toBe(JSON.stringify("slide"));
+  });
+
+  it("does not replace the saved transition after a failed write", async () => {
+    window.localStorage.setItem(SLIDE_TRANSITION_STORAGE_KEY, JSON.stringify("fade"));
+    mocks.set.mockRejectedValueOnce(new Error("denied"));
+    await act(async () => { result?.setTransition("slide"); await Promise.resolve(); await Promise.resolve(); });
+    expect(window.localStorage.getItem(SLIDE_TRANSITION_STORAGE_KEY)).toBe(JSON.stringify("fade"));
+  });
+
+  it("ignores malformed saved transitions", async () => {
+    window.localStorage.setItem(SLIDE_TRANSITION_STORAGE_KEY, "not-json");
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(result?.transition).toBe("fade");
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
+  it("restores the saved transition on the next activation", async () => {
+    await act(async () => { result?.setTransition("slide"); await Promise.resolve(); });
+    liveValue = NEXT_LIVE;
+    act(() => root.render(<Harness />));
+    const callback = mocks.onValue.mock.calls.at(-1)?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/slideTransition" }, { activationRevision: 8, transition: "slide" });
   });
 
   it("writes no currentVersionId or revision fields", async () => {

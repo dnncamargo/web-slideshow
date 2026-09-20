@@ -11,6 +11,7 @@ vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref, se
 vi.mock("../src/features/control/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getDatabase }));
 import {
   parseLivePlayerControls,
+  PLAYER_CONTROLS_STORAGE_KEY,
   useLivePlayerControlsControl,
   LIVE_PLAYER_CONTROLS_BASELINE,
   type UseLivePlayerControlsControlResult,
@@ -46,12 +47,14 @@ describe("useLivePlayerControlsControl", () => {
     mocks.ref.mockImplementation((_db: unknown, path: string) => ({ path }));
     mocks.onValue.mockImplementation(() => vi.fn());
     mocks.set.mockResolvedValue(undefined);
+    window.localStorage.clear();
     act(() => root.render(<Harness />));
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.replaceChildren();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -74,6 +77,25 @@ describe("useLivePlayerControlsControl", () => {
     });
   });
 
+  it("restores saved complete controls on an activation without a current record", async () => {
+    const saved = { position: "top-left", style: "minimal", showCounter: false, animation: "slide" } as const;
+    window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(saved));
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/playerControls" }, { activationRevision: 7, ...saved });
+    expect(result?.controls).toEqual(saved);
+  });
+
+  it("does not restore over a valid current activation record", () => {
+    const saved = { position: "top-left", style: "minimal", showCounter: false, animation: "slide" } as const;
+    window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(saved));
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    act(() => callback({ val: () => HYDRATED }));
+    expect(result?.controls).toEqual({ position: "top-left", style: "minimal", showCounter: false, animation: "slide" });
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(PLAYER_CONTROLS_STORAGE_KEY)).toBe(JSON.stringify({ position: "top-left", style: "minimal", showCounter: false, animation: "slide" }));
+  });
+
   it("returns the baseline for stale or malformed records", () => {
     const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
     act(() => callback({ val: () => ({ ...HYDRATED, activationRevision: 6 }) }));
@@ -92,6 +114,40 @@ describe("useLivePlayerControlsControl", () => {
       showCounter: true,
       animation: "fade",
     });
+  });
+
+  it("persists the complete resulting controls state after a successful partial update", async () => {
+    await act(async () => { result?.setControlsOptions({ position: "top-left" }); await Promise.resolve(); });
+    expect(window.localStorage.getItem(PLAYER_CONTROLS_STORAGE_KEY)).toBe(JSON.stringify({
+      position: "top-left", style: "compact", showCounter: true, animation: "fade",
+    }));
+  });
+
+  it("does not replace saved controls after a failed write", async () => {
+    const saved = { position: "bottom-left", style: "floating", showCounter: false, animation: "none" } as const;
+    window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(saved));
+    mocks.set.mockRejectedValueOnce(new Error("denied"));
+    await act(async () => { result?.setControlsOptions({ position: "top-left" }); await Promise.resolve(); await Promise.resolve(); });
+    expect(window.localStorage.getItem(PLAYER_CONTROLS_STORAGE_KEY)).toBe(JSON.stringify(saved));
+  });
+
+  it("ignores malformed saved controls", async () => {
+    window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify({ position: "top-left" }));
+    const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(result?.controls).toEqual(LIVE_PLAYER_CONTROLS_BASELINE);
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+
+  it("restores all saved controls fields on the next activation", async () => {
+    const saved = { position: "top-left", style: "minimal", showCounter: false, animation: "slide" } as const;
+    window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(saved));
+    liveValue = NEXT_LIVE;
+    act(() => root.render(<Harness />));
+    const callback = mocks.onValue.mock.calls.at(-1)?.[1] as ((snapshot: { val(): unknown }) => void);
+    await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
+    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/playerControls" }, { activationRevision: 8, ...saved });
+    expect(result?.controls).toEqual(saved);
   });
 
   it("always writes a full exact five-field record", async () => {

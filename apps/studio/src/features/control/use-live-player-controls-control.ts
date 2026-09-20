@@ -28,6 +28,7 @@ export interface LivePlayerControls {
 export type LivePlayerControlsPatch = Partial<LivePlayerControls>;
 
 export const PLAYER_CONTROLS_PATH = "live/playerControls";
+export const PLAYER_CONTROLS_STORAGE_KEY = "web-slideshow:control-player-controls:v1";
 
 /** Baseline do Live Player: posição inferior-direita, compacto, contador visível, fade. */
 export const LIVE_PLAYER_CONTROLS_BASELINE: LivePlayerControls = {
@@ -62,6 +63,19 @@ const LIVE_PLAYER_CONTROLS_ANIMATIONS: readonly LivePlayerControlsAnimation[] = 
   "none",
 ];
 
+interface LocalStorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+function getLocalStorage(): LocalStorageLike | null {
+  try {
+    return (globalThis as { localStorage?: LocalStorageLike }).localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0;
 }
@@ -83,16 +97,40 @@ export function parseLivePlayerControls(value: unknown): LivePlayerControlsRecor
   };
 }
 
-function resolve(value: unknown, live: LiveCurrent | null): LivePlayerControls {
-  const record = parseLivePlayerControls(value);
-  return record !== null && record.activationRevision === live?.revision
-    ? {
-        position: record.position,
-        style: record.style,
-        showCounter: record.showCounter,
-        animation: record.animation,
-      }
-    : LIVE_PLAYER_CONTROLS_BASELINE;
+function parseStoredControls(value: unknown): LivePlayerControls | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).length !== 4) return null;
+  if (!LIVE_PLAYER_CONTROLS_POSITIONS.includes(record.position as LivePlayerControlsPosition)) return null;
+  if (!LIVE_PLAYER_CONTROLS_STYLES.includes(record.style as LivePlayerControlsStyle)) return null;
+  if (typeof record.showCounter !== "boolean") return null;
+  if (!LIVE_PLAYER_CONTROLS_ANIMATIONS.includes(record.animation as LivePlayerControlsAnimation)) return null;
+  return {
+    position: record.position as LivePlayerControlsPosition,
+    style: record.style as LivePlayerControlsStyle,
+    showCounter: record.showCounter,
+    animation: record.animation as LivePlayerControlsAnimation,
+  };
+}
+
+function readStoredControls(): LivePlayerControls | null {
+  const storage = getLocalStorage();
+  if (storage === null) return null;
+  try {
+    return parseStoredControls(JSON.parse(storage.getItem(PLAYER_CONTROLS_STORAGE_KEY) ?? "null") as unknown);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredControls(controls: LivePlayerControls): void {
+  const storage = getLocalStorage();
+  if (storage === null) return;
+  try {
+    storage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(controls));
+  } catch {
+    // Browser storage is optional and must never interrupt Live delivery.
+  }
 }
 
 export interface UseLivePlayerControlsControlResult {
@@ -114,17 +152,62 @@ export function useLivePlayerControlsControl(
   const controlsRef = useRef<LivePlayerControls>(controls);
   controlsRef.current = controls;
   const writeInFlightRef = useRef(false);
+  const restoreAttemptedRef = useRef(false);
 
   useEffect(() => {
     setControls(LIVE_PLAYER_CONTROLS_BASELINE);
     writeInFlightRef.current = false;
     setWriteInFlight(false);
     setSendFailed(false);
+    restoreAttemptedRef.current = false;
     if (live === null) return;
     const database = getRealtimeDatabaseOrNull();
     if (database === null) return;
     return onValue(ref(database, PLAYER_CONTROLS_PATH), (snapshot) => {
-      setControls(resolve(snapshot.val(), live));
+      const record = parseLivePlayerControls(snapshot.val());
+      if (record !== null && record.activationRevision === live.revision) {
+        restoreAttemptedRef.current = true;
+        const hydrated = {
+          position: record.position,
+          style: record.style,
+          showCounter: record.showCounter,
+          animation: record.animation,
+        };
+        setControls(hydrated);
+        writeStoredControls(hydrated);
+        return;
+      }
+      if (restoreAttemptedRef.current || writeInFlightRef.current) return;
+      restoreAttemptedRef.current = true;
+      const storedControls = readStoredControls();
+      if (storedControls === null) {
+        setControls(LIVE_PLAYER_CONTROLS_BASELINE);
+        return;
+      }
+      const activationRevision = live.revision;
+      writeInFlightRef.current = true;
+      setWriteInFlight(true);
+      setSendFailed(false);
+      void set(ref(database, PLAYER_CONTROLS_PATH), {
+        activationRevision,
+        position: storedControls.position,
+        style: storedControls.style,
+        showCounter: storedControls.showCounter,
+        animation: storedControls.animation,
+      }).then(() => {
+        if (latestRef.current?.revision !== activationRevision) return;
+        writeInFlightRef.current = false;
+        setWriteInFlight(false);
+        setControls(storedControls);
+        setSendFailed(false);
+      }).catch((error: unknown) => {
+        if (latestRef.current?.revision !== activationRevision) return;
+        console.error("Control: could not restore Player controls", error);
+        writeInFlightRef.current = false;
+        setWriteInFlight(false);
+        setControls(LIVE_PLAYER_CONTROLS_BASELINE);
+        setSendFailed(true);
+      });
     });
   }, [live?.revision]);
 
@@ -156,6 +239,7 @@ export function useLivePlayerControlsControl(
       writeInFlightRef.current = false;
       setWriteInFlight(false);
       setControls(next);
+      writeStoredControls(next);
       setSendFailed(false);
     }).catch((error: unknown) => {
       if (latestRef.current?.revision !== activationRevision) return;
