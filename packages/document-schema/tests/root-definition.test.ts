@@ -53,6 +53,54 @@ describe("Root Definition canonical storage", () => {
     })).success).toBe(true);
   });
 
+  it("accepts local content through Presentation default inheritance", () => {
+    expect(PresentationSchema.safeParse(presentation({
+      rootDefinitions: [definition()],
+      defaultRootDefinitionId: "master-1",
+      slides: [{
+        id: "slide-1",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "master-content",
+          children: [text("default-local")],
+        }],
+      }],
+    })).success).toBe(true);
+  });
+
+  it("rejects a populated legacy slide when a Presentation default makes it Master-backed", () => {
+    expect(PresentationSchema.safeParse(presentation({
+      rootDefinitions: [definition()],
+      defaultRootDefinitionId: "master-1",
+      slides: [{ id: "slide-1", elements: [text("legacy-content")] }],
+    })).success).toBe(false);
+  });
+
+  it("uses an explicit Slide reference instead of the Presentation default", () => {
+    const alternate = definition({
+      id: "master-2",
+      name: "Alternate",
+      root: container("alternate-root", [container("alternate-content", [text("alternate-text")])]),
+      localChildTargetIds: ["alternate-content"],
+    });
+    const accepted = presentation({
+      rootDefinitions: [definition(), alternate],
+      defaultRootDefinitionId: "master-1",
+      slides: [{
+        id: "slide-1",
+        rootDefinitionId: "master-2",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "alternate-content", children: [text("explicit-local")] }],
+      }],
+    });
+    expect(PresentationSchema.safeParse(accepted).success).toBe(true);
+
+    const wrongTarget = structuredClone(accepted);
+    const slide = wrongTarget.slides[0] as unknown as { localRootChildren: Array<{ targetContainerId: string; children: unknown[] }> };
+    slide.localRootChildren[0]!.targetContainerId = "master-content";
+    expect(PresentationSchema.safeParse(wrongTarget).success).toBe(false);
+  });
+
   it.each([
     ["dangling default", { rootDefinitions: [definition()], defaultRootDefinitionId: "missing" }],
     ["dangling explicit reference", { rootDefinitions: [definition()], slides: [{ id: "slide-1", rootDefinitionId: "missing", elements: [] }] }],
