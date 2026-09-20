@@ -537,7 +537,7 @@ describe("presentation library workspace controls", () => {
     );
   });
 
-  it("imports a new root id while preserving canonical internal ids and navigates to the Editor", async () => {
+  it("imports normalized internal ids, persists them, and navigates to the Editor", async () => {
     const source = presentation();
     const { repository } = repositoryFor([]);
     act(() => root.render(renderLibrary(repository)));
@@ -551,8 +551,8 @@ describe("presentation library workspace controls", () => {
     const imported = (repository.createPresentation as ReturnType<typeof vi.fn>)
       .mock.calls[0]?.[0] as Presentation;
     expect(imported.id).not.toBe(source.id);
-    expect(imported.slides[0]?.id).toBe("slide-source");
-    expect(imported.slides[0]?.elements[0]?.id).toBe("text-source");
+    expect(imported.slides[0]?.id).toBe("slide-1");
+    expect(imported.slides[0]?.elements[0]?.id).toBe("text-1");
     expect(testDependencies.push).toHaveBeenCalledWith(
       `/studio/editor?id=${encodeURIComponent(imported.id)}`,
     );
