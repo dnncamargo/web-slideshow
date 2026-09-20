@@ -9,10 +9,12 @@ function galleryPresentation({
   items = ["first", "second", "third"],
   galleries = 1,
   slides = 1,
+  gradient = false,
 }: {
   items?: string[];
   galleries?: number;
   slides?: number;
+  gradient?: boolean;
 } = {}) {
   return PresentationSchema.parse({
     schemaVersion: 1,
@@ -30,6 +32,20 @@ function galleryPresentation({
           src: `/${galleryIndex}-${name}.png`,
           alt: name,
         })),
+        ...(gradient ? {
+          style: {
+            border: {
+              width: 2,
+              gradient: {
+                type: "linear" as const,
+                stops: [
+                  { color: "#000000", position: 0 },
+                  { color: "#ffffff", position: 100 },
+                ],
+              },
+            },
+          },
+        } : {}),
       })),
     })),
   });
@@ -42,10 +58,10 @@ function galleryItems(root: HTMLElement, galleryIndex = 0): HTMLElement[] {
     throw new Error("Gallery was not rendered.");
   }
 
-  return Array.from(gallery.children).filter(
-    (child): child is HTMLElement =>
-      child instanceof HTMLElement &&
-      child.classList.contains("presentation-gallery-item"),
+  return Array.from(gallery.querySelectorAll<HTMLElement>(
+    ".presentation-gallery-item",
+  )).filter((item) =>
+    item.closest<HTMLElement>('[data-presentation-type="gallery"]') === gallery,
   );
 }
 
@@ -117,7 +133,7 @@ describe("Projection surface Gallery interaction", () => {
   });
 
   it("advances each Gallery independently", () => {
-    const projection = mountProjectionSurface(root, galleryPresentation({ galleries: 2 }), { transition: "none" });
+    const projection = mountProjectionSurface(root, galleryPresentation({ galleries: 2, gradient: true }), { transition: "none" });
     const first = galleryItems(root, 0);
     const second = galleryItems(root, 1);
 
@@ -128,6 +144,25 @@ describe("Projection surface Gallery interaction", () => {
     expect(activeIndex(first)).toBe(1);
     expect(activeIndex(second)).toBe(1);
 
+    projection.destroy();
+  });
+
+  it("controls items inside a gradient Gallery surface", () => {
+    const projection = mountProjectionSurface(root, galleryPresentation({ gradient: true }), { transition: "none" });
+    const items = galleryItems(root);
+
+    projection.setGalleryActiveIndex("gallery-0-0", 1);
+    expect(activeIndex(items)).toBe(1);
+
+    projection.setGalleryExpanded("gallery-0-0", true);
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/0-second.png");
+
+    projection.setGalleryActiveIndex("gallery-0-0", 2);
+    expect(activeIndex(items)).toBe(2);
+    expect(expandedImage(root)?.getAttribute("src")).toBe("/0-third.png");
+
+    projection.setGalleryExpanded("gallery-0-0", false);
+    expect(expandedOverlay(root)).toBeNull();
     projection.destroy();
   });
 
