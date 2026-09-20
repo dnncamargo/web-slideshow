@@ -152,6 +152,7 @@ describe("EditorWorkspace element deletion", () => {
     const deleteAll = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
       .find((button) => button.textContent?.trim() === "Delete container and children");
     expect(deleteAll).toBeDefined();
+    expect(document.activeElement).toBe(deleteAll);
     await act(async () => deleteAll!.click());
     expect(container.querySelector('[data-presentation-id="container-1"]')).toBeNull();
     expect(container.querySelector('[data-presentation-id="child-1"]')).toBeNull();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { Button } from "@web-slideshow/ui";
 
@@ -25,18 +25,12 @@ export function ContainerDeletionDialog({
   onDeleteAll: () => void;
   onPreserveChildren: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const messageId = useId();
-
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
 
   return (
     <div className={styles.backdrop}>
       <div
-        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
@@ -54,7 +48,7 @@ export function ContainerDeletionDialog({
         <p id={messageId} className={styles.message}>{message}</p>
         <div className={styles.actions}>
           <Button size="compact" onClick={onCancel}>{cancelLabel}</Button>
-          <Button variant="danger" size="compact" onClick={onDeleteAll}>{deleteAllLabel}</Button>
+          <Button variant="danger" size="compact" autoFocus onClick={onDeleteAll}>{deleteAllLabel}</Button>
           <Button size="compact" onClick={onPreserveChildren}>{preserveChildrenLabel}</Button>
         </div>
       </div>
