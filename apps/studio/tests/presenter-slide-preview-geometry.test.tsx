@@ -102,6 +102,7 @@ describe("PresenterSlidePreview logical geometry", () => {
 
     expect(container.textContent).toContain("Default master");
     expect(container.textContent).toContain("Local child");
+    expect(container.textContent!.indexOf("Default master")).toBeLessThan(container.textContent!.indexOf("Local child"));
     expect(container.querySelector('[data-presentation-id="default-master"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-gallery"] .presentation-gallery-item-active')?.getAttribute("data-presentation-gallery-index")).toBe("1");

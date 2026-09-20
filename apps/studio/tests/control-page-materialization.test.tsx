@@ -64,7 +64,7 @@ describe("ControlPage Root Definition projection boundary", () => {
     node = document.createElement("div"); document.body.appendChild(node); root = createRoot(node);
     const livePresentation = rootPresentation("live-master");
     const stagedPresentation = rootPresentation("staged-master");
-    mocks.presentationState = { kind: "ready", livePresentation, previewPresentation: stagedPresentation, pendingVersion: null };
+    mocks.presentationState = { kind: "ready", presentation: stagedPresentation, livePresentation, displayIndex: 0, pendingVersion: null };
     mocks.gallery.mockClear(); mocks.plot.mockClear(); mocks.action.mockClear(); mocks.state.mockClear(); mocks.presenter.mockClear();
     act(() => root.render(<ControlPage />));
   });
@@ -85,7 +85,10 @@ describe("ControlPage Root Definition projection boundary", () => {
     expect(ids).toContain("live-master-gallery");
     expect(ids).not.toContain("staged-master-gallery");
     expect(gallery.desiredPageId).toBe("page-a");
-    expect((mocks.presenter.mock.calls[0]?.[0] as { presentationState: { previewPresentation: Presentation } }).presentationState.previewPresentation.id).toBe("presentation-staged-master");
+    const presenterState = (mocks.presenter.mock.calls[0]?.[0] as { presentationState: { presentation: Presentation; livePresentation: Presentation } }).presentationState;
+    expect(presenterState.presentation).toBe((mocks.presentationState as { presentation: Presentation }).presentation);
+    expect(presenterState.presentation.id).toBe("presentation-staged-master");
+    expect(presenterState.livePresentation).toBe((mocks.presentationState as { livePresentation: Presentation }).livePresentation);
   });
 
   it("uses materializeSlide on the same referential live Slide", () => {
