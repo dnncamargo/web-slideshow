@@ -9,7 +9,6 @@ export type StudioLocale = "en" | "pt-BR";
 export const DEFAULT_STUDIO_LOCALE: StudioLocale = "en";
 
 export const STUDIO_LOCALE_STORAGE_KEY = "web-slideshow:studio-locale";
-export const LEGACY_STUDIO_LOCALE_STORAGE_KEY = "powershow-studio-locale";
 
 export const STUDIO_LOCALES: readonly StudioLocale[] = ["en", "pt-BR"];
 

@@ -55,8 +55,8 @@ describe("LocaleSelector ChromeOS compatibility", () => {
     expect(container.querySelectorAll("button")).toHaveLength(0);
   });
 
-  it("restores the historical locale key and writes future changes canonically", async () => {
-    window.localStorage.setItem("powershow-studio-locale", "pt-BR");
+  it("restores the canonical locale key and writes future changes canonically", async () => {
+    window.localStorage.setItem(STUDIO_LOCALE_STORAGE_KEY, "pt-BR");
     await act(async () => {
       root.render(<StudioI18nProvider><LocaleSelector /></StudioI18nProvider>);
     });

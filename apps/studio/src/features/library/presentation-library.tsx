@@ -19,6 +19,7 @@ import {
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { StudioTranslate } from "../i18n/studio-i18n";
+import { displayName } from "@web-slideshow/instance-branding";
 import { LocaleSelector } from "../i18n/locale-selector";
 import { STUDIO_ROUTES, buildStudioEditorHref } from "../app/studio-routes";
 import { ProductSurfaceBrand } from "../app/product-surface-brand";
@@ -747,7 +748,7 @@ export function PresentationLibrary({
       try {
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = buildPresentationExportFilename(presentation.title);
+        anchor.download = buildPresentationExportFilename(presentation.title, displayName);
         anchor.click();
       } finally {
         URL.revokeObjectURL(url);
@@ -1230,7 +1231,7 @@ export function PresentationLibrary({
         <input
           ref={importInputRef}
           type="file"
-          accept=".json,.powershow.json,.presentation.json,application/json"
+          accept=".json,application/json"
           hidden
           onChange={(event) => void handleImportFile(event)}
           aria-label={t("library.import")}

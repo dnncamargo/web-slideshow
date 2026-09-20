@@ -692,13 +692,11 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(srcdoc).toContain("onAction: onAction");
     expect(srcdoc).toContain("onInput: onInput");
     expect(srcdoc).toContain("report: report");
-    expect(srcdoc).not.toContain("PowerShow");
   });
 
   it.each([
-    ["historical source", "PowerShow.ports.report('current', 17.25);", false],
-    ["manually migrated source", "ScriptedRuntime.ports.report('current', 17.25);", true],
-  ])("preserves and executes %s without source migration", (_label, script, works) => {
+    ["current source", "ScriptedRuntime.ports.report('current', 17.25);", true],
+  ])("preserves and executes %s", (_label, script, works) => {
     const element = scripted({ ports, script: `// café\r\n  ${script}\r\n` });
     const original = JSON.stringify(element);
     const srcdoc = extractSrcdoc(renderScripted(element));
@@ -731,7 +729,6 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
 
     expect(recoverPayload(srcdoc, "script")).toBe(element.script);
     expect(JSON.stringify(element)).toBe(original);
-    expect(runInContext("typeof window.PowerShow", context)).toBe("undefined");
     expect(runInContext("typeof ScriptedRuntime.ports.report", context)).toBe("function");
     expect(errors).toHaveLength(works ? 0 : 1);
     if (!works) expect(errors[0]).toMatchObject({ name: "ReferenceError" });
@@ -746,7 +743,6 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(srcdoc).toContain("scripted:action");
     expect(srcdoc).toContain("scripted:input");
     expect(srcdoc).toContain("scripted:report");
-    expect(srcdoc).not.toMatch(/powershow/i);
     expect(srcdoc).toContain('id="scripted-runtime-root"');
     expect(srcdoc).toContain('id="scripted-runtime-payload"');
     expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
@@ -860,8 +856,6 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     let actionCount = 0;
     const inputs: Array<boolean | number> = [];
 
-    expect(runInNewContext("typeof window.PowerShow", { window: sandboxWindow })).toBe("undefined");
-    expect(Object.getOwnPropertyDescriptor(sandboxWindow, "PowerShow")).toBeUndefined();
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime)).toBe(true);
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime.ports)).toBe(true);
 
@@ -911,12 +905,12 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(actionCount).toBe(1);
     expect(inputs).toEqual([true]);
 
-    // Historical envelopes are fixtures for rejection, never a supported API.
+    // Unrecognized envelopes are rejected, never a supported API.
     listener!({ source: parent, data: {
-      type: "powershow:scripted:action", elementId: "scripted-1", portId: "scroll-up",
+      type: "unrecognized:scripted:action", elementId: "scripted-1", portId: "scroll-up",
     } });
     listener!({ source: parent, data: {
-      type: "powershow:scripted:input", elementId: "scripted-1", portId: "closed", value: false,
+      type: "unrecognized:scripted:input", elementId: "scripted-1", portId: "closed", value: false,
     } });
     listener!({ source: {}, data: {
       type: "scripted:action", elementId: "scripted-1", portId: "scroll-up",

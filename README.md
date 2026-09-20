@@ -137,10 +137,10 @@ Linked Styles are Presentation-scoped, self-contained and Container-only in the 
 
 ## Import / Export
 
-The application exports the canonical Presentation directly as readable JSON:
+The application exports the canonical Presentation directly as readable JSON, using the configured instance display name as a filesystem-safe token:
 
 ```text
-*.powershow.json
+<presentation>.<instance-token>.json
 ```
 
 Import performs:
@@ -153,6 +153,22 @@ JSON.parse
 ```
 
 Slides, nested elements, Palette references, FontResources, Text Styles, Linked Styles and authored content remain canonical and editable. There is no transfer envelope, hidden compatibility schema or automatic migration layer.
+
+## Instance branding and deployment
+
+For local development, configure the instance with:
+
+```text
+pnpm instantiate --name "Batata Chip"
+```
+
+For production builds, set the build environment variable:
+
+```text
+WEB_SLIDESHOW_DISPLAY_NAME=Batata Chip
+```
+
+Studio and Player Vercel projects for the same instance should receive the same value.
 
 ## Persistence and publishing
 
@@ -221,7 +237,7 @@ Blocks is intentionally not an executable programming environment.
 
 Scripted controlled interaction is complete through PR #133, with HTTPS image loading refined in PR #149.
 
-The authored API is `ScriptedRuntime.ports`, independent of the instance display name and repository name. Historical scripts require [manual API migration](SCRIPTED-MIGRATION.md); source is never rewritten automatically. That guide also records the corrected CP8 Scripted legacy inventory and manual smoke procedure.
+The authored API is `ScriptedRuntime.ports`, independent of the instance display name and repository name. Source is never rewritten automatically.
 
 Canonical authored state remains self-contained in the Presentation and includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
 

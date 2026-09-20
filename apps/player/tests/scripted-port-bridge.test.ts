@@ -157,11 +157,11 @@ describe("Scripted ProjectionSurface port bridge", () => {
     const currentFrame = frame("scripted-a");
     const otherFrame = frame("scripted-b");
 
-    // Historical protocol fixture: even a valid source and port cannot use it.
+    // Unrecognized protocol fixtures are rejected.
     window.dispatchEvent(new MessageEvent("message", {
       source: currentFrame.contentWindow,
       data: {
-        type: "powershow:scripted:report",
+        type: "unrecognized:scripted:report",
         elementId: "scripted-a",
         portId: "current",
         value: 7,
