@@ -12,6 +12,8 @@ import { TextStylesSchema } from "./text-style";
 import { validatePresentationTextStyleReferences } from "./text-style-validation";
 import { LinkedContainerStylesSchema } from "./linked-style";
 import { validatePresentationLinkedStyleReferences } from "./linked-style-validation";
+import { RootDefinitionSchema } from "./root-definition";
+import { validatePresentationRootDefinitionReferences } from "./root-definition-validation";
 
 export {
   PresentationPaletteSchema,
@@ -43,6 +45,10 @@ export const PresentationSchema =
 
     linkedStyles: LinkedContainerStylesSchema.optional(),
 
+    rootDefinitions: z.array(RootDefinitionSchema).optional(),
+
+    defaultRootDefinitionId: z.string().trim().min(1).optional(),
+
     slides: z.array(
       SlideSchema,
     ),
@@ -52,6 +58,7 @@ export const PresentationSchema =
     validatePresentationPaletteReferences(presentation, context);
     validatePresentationTextStyleReferences(presentation, context);
     validatePresentationLinkedStyleReferences(presentation, context);
+    validatePresentationRootDefinitionReferences(presentation, context);
   });
 
 export type Presentation =
