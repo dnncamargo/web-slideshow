@@ -46,7 +46,7 @@ describe("useLiveScriptedActionControl", () => {
 
   beforeEach(async () => {
     container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); result = null;
-    input = { live: LIVE, livePresentation: presentation([scripted("script-a", "Scroller", [{ id: "up", label: "Scroll up", kind: "action" }, { id: "enabled", label: "Enabled", kind: "boolean", direction: "input" }, { id: "down", label: "Scroll down", kind: "action" }])]), desiredPageId: "page-a", actualPageId: "page-a", controlSynced: true, playerStatus: READY, controlsBlocked: false };
+    input = { live: LIVE, effectiveSlide: presentation([scripted("script-a", "Scroller", [{ id: "up", label: "Scroll up", kind: "action" }, { id: "enabled", label: "Enabled", kind: "boolean", direction: "input" }, { id: "down", label: "Scroll down", kind: "action" }])]).slides[0]!, desiredPageId: "page-a", actualPageId: "page-a", controlSynced: true, playerStatus: READY, controlsBlocked: false };
     mocks.getRealtimeDatabaseOrNull.mockReturnValue({ database: true });
     mocks.writeScriptedAction.mockResolvedValue({});
     await render();
@@ -55,7 +55,7 @@ describe("useLiveScriptedActionControl", () => {
   afterEach(async () => { await act(async () => root.unmount()); document.body.innerHTML = ""; vi.clearAllMocks(); });
 
   it("discovers only action ports in canonical Scripted traversal order and preserves real port indexes", async () => {
-    input.livePresentation = presentation([{ id: "container", type: "container", children: [{ id: "text", type: "text", content: "ignored" }, scripted("first", "First", [{ id: "a", label: "A", kind: "action" }]), { id: "nested", type: "container", children: [scripted("second", "Second", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }, { id: "b", label: "B", kind: "action" }])] }] }]);
+    input.effectiveSlide = presentation([{ id: "container", type: "container", children: [{ id: "text", type: "text", content: "ignored" }, scripted("first", "First", [{ id: "a", label: "A", kind: "action" }]), { id: "nested", type: "container", children: [scripted("second", "Second", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }, { id: "b", label: "B", kind: "action" }])] }] }]).slides[0]!;
     await render();
     expect(result?.groups).toEqual([
       { scriptedSlot: 0, elementId: "first", title: "First", actions: [{ portIndex: 0, portId: "a", label: "A" }] },
@@ -64,8 +64,8 @@ describe("useLiveScriptedActionControl", () => {
   });
 
   it("has no groups without the canonical desired slide or action ports", async () => {
-    input.livePresentation = null; await render(); expect(result?.groups).toEqual([]);
-    input.livePresentation = presentation([scripted("script-a", "Script", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }])]); await render(); expect(result?.groups).toEqual([]);
+    input.effectiveSlide = null; await render(); expect(result?.groups).toEqual([]);
+    input.effectiveSlide = presentation([scripted("script-a", "Script", [{ id: "flag", label: "Flag", kind: "boolean", direction: "input" }])]).slides[0]!; await render(); expect(result?.groups).toEqual([]);
   });
 
   it("writes the exact canonical action identity with the current ready Player boot id", async () => {
@@ -117,7 +117,7 @@ describe("useLiveScriptedActionControl", () => {
     let rejectOld: ((reason?: unknown) => void) | undefined;
     mocks.writeScriptedAction.mockImplementationOnce(() => new Promise((_, reject) => { rejectOld = reject; }));
     await act(async () => { result?.triggerAction(0, 0); });
-    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", livePresentation: presentation([], [scripted("script-b", "Circuit", [{ id: "reset", label: "Reset", kind: "action" }])]), playerStatus: { ...READY, presence: { ...READY.presence, bootId: "boot-2" } } };
+    input = { ...input, desiredPageId: "page-b", actualPageId: "page-b", effectiveSlide: presentation([], [scripted("script-b", "Circuit", [{ id: "reset", label: "Reset", kind: "action" }])]).slides[1]!, playerStatus: { ...READY, presence: { ...READY.presence, bootId: "boot-2" } } };
     await render();
     await act(async () => { rejectOld?.(new Error("offline")); await Promise.resolve(); });
     expect(result?.sendFailed).toBe(false);

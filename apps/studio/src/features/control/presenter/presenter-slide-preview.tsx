@@ -10,7 +10,7 @@ import {
   renderSlide,
   resolveLogicalSlideSize,
 } from "@web-slideshow/renderer";
-import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import { materializeSlide, type Presentation, type Slide } from "@web-slideshow/document-schema";
 
 import styles from "./presenter-view.module.css";
 
@@ -95,10 +95,11 @@ export function PresenterSlidePreview({
   variant,
   galleryTargets = [],
 }: PresenterSlidePreviewProps) {
-  const markup = useMemo(
-    () => renderSlide(slide, { presentation }),
+  const effectiveSlide = useMemo(
+    () => materializeSlide(presentation, slide).slide,
     [presentation, slide],
   );
+  const markup = useMemo(() => renderSlide(effectiveSlide, { presentation }), [effectiveSlide, presentation]);
   const renderedMarkup = useMemo(
     () => ({ __html: markup }),
     [markup],

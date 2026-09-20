@@ -2,7 +2,7 @@
 
 import { onValue, ref } from "firebase/database";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type Presentation, visitSlideElements } from "@web-slideshow/document-schema";
+import { type MaterializedSlide, visitSlideElements } from "@web-slideshow/document-schema";
 import { writeScriptedInput } from "./control-command-writer";
 import type { LiveCurrent } from "./live-current";
 import type { PlayerOperationalStatus } from "./player-presence";
@@ -15,7 +15,7 @@ type Direction = "input" | "output" | "input-output";
 export type ControlScriptedPortStatus = "unavailable" | "awaiting-report" | "ready" | "pending" | "divergent";
 export interface ControlScriptedStatePort { portIndex: number; portId: string; label: string; kind: StatefulKind; direction: Direction; min?: number; max?: number; step?: number; runtimeKey: string | null; runtimeAvailable: boolean; desiredValue: boolean | number | null; desiredRevision: number | null; reportedValue: boolean | number | null; reportRevision: number | null; appliedInputRevision: number | null; status: ControlScriptedPortStatus; writable: boolean; }
 export interface ControlScriptedStateGroup { scriptedSlot: number; elementId: string; title: string; ports: readonly ControlScriptedStatePort[]; }
-export interface UseLiveScriptedStateControlOptions { live: LiveCurrent | null; livePresentation: Presentation | null; desiredPageId: string | null; actualPageId: string | null; controlSynced: boolean; playerStatus: PlayerOperationalStatus | null; controlsBlocked: boolean; }
+export interface UseLiveScriptedStateControlOptions { live: LiveCurrent | null; effectiveSlide: MaterializedSlide | null; desiredPageId: string | null; actualPageId: string | null; controlSynced: boolean; playerStatus: PlayerOperationalStatus | null; controlsBlocked: boolean; }
 export interface UseLiveScriptedStateControlResult { groups: readonly ControlScriptedStateGroup[]; controlsEnabled: boolean; sendFailed: boolean; setPortValue(scriptedSlot: number, portIndex: number, value: boolean | number): void; }
 interface DescriptorPort { portIndex: number; portId: string; label: string; kind: StatefulKind; direction: Direction; min?: number; max?: number; step?: number; }
 interface DescriptorGroup { scriptedSlot: number; elementId: string; title: string; ports: readonly DescriptorPort[]; }
@@ -25,10 +25,10 @@ interface StatefulCommandContext { activationRevision: number; currentVersionId:
 
 function entries(value: unknown): Array<[string, unknown]> { return value !== null && typeof value === "object" ? Object.entries(value) : []; }
 function at(root: unknown, slot: number, port?: number): unknown { const slotValue = entries(root).find(([key]) => key === String(slot))?.[1]; return port === undefined ? slotValue : entries(slotValue).find(([key]) => key === String(port))?.[1]; }
-function discover(presentation: Presentation | null, pageId: string | null): DescriptorGroup[] {
-  const slide = presentation?.slides.find((candidate) => candidate.id === pageId); if (!slide) return [];
+function discover(effectiveSlide: MaterializedSlide | null): DescriptorGroup[] {
+  if (!effectiveSlide) return [];
   const groups: DescriptorGroup[] = []; let slot = 0;
-  visitSlideElements(slide, (element) => { if (element.type !== "scripted") return; const ports = element.ports.flatMap((port, portIndex) => port.kind === "boolean" || port.kind === "number" ? [{ portIndex, portId: port.id, label: port.label, kind: port.kind, direction: port.direction, ...(port.kind === "number" && port.min !== undefined ? { min: port.min } : {}), ...(port.kind === "number" && port.max !== undefined ? { max: port.max } : {}), ...(port.kind === "number" && port.step !== undefined ? { step: port.step } : {}) }] : []); if (ports.length) groups.push({ scriptedSlot: slot, elementId: element.id, title: element.title, ports }); slot += 1; });
+  visitSlideElements(effectiveSlide, (element) => { if (element.type !== "scripted") return; const ports = element.ports.flatMap((port, portIndex) => port.kind === "boolean" || port.kind === "number" ? [{ portIndex, portId: port.id, label: port.label, kind: port.kind, direction: port.direction, ...(port.kind === "number" && port.min !== undefined ? { min: port.min } : {}), ...(port.kind === "number" && port.max !== undefined ? { max: port.max } : {}), ...(port.kind === "number" && port.step !== undefined ? { step: port.step } : {}) }] : []); if (ports.length) groups.push({ scriptedSlot: slot, elementId: element.id, title: element.title, ports }); slot += 1; });
   return groups;
 }
 function safe(current: Latest): boolean { return current.live !== null && current.desiredPageId !== null && current.actualPageId === current.desiredPageId && current.controlSynced && !current.controlsBlocked && current.playerStatus?.kind === "ready"; }
@@ -51,7 +51,7 @@ function commandMatchesCurrentContext(command: StatefulCommandContext, current: 
 
 /** Hydrates canonical stateful Scripted ports for the current Control live context. */
 export function useLiveScriptedStateControl(options: UseLiveScriptedStateControlOptions): UseLiveScriptedStateControlResult {
-  const descriptors = useMemo(() => discover(options.livePresentation, options.desiredPageId), [options.livePresentation, options.desiredPageId]);
+  const descriptors = useMemo(() => discover(options.effectiveSlide), [options.effectiveSlide]);
   const [hydrated, setHydrated] = useState<Hydrated>({ runtime: null, input: null, report: null }); const [failedCommand, setFailedCommand] = useState<StatefulCommandContext | null>(null);
   useEffect(() => { const database = getRealtimeDatabaseOrNull(); if (!database || !options.live) { setHydrated({ runtime: null, input: null, report: null }); return; } const runtime = onValue(ref(database, "live/scriptedRuntime"), (snapshot) => setHydrated((old) => ({ ...old, runtime: snapshot.val() }))); const input = onValue(ref(database, "live/scriptedInput"), (snapshot) => setHydrated((old) => ({ ...old, input: snapshot.val() }))); const report = onValue(ref(database, "live/scriptedReport"), (snapshot) => setHydrated((old) => ({ ...old, report: snapshot.val() }))); return () => { runtime(); input(); report(); }; }, [options.live?.revision, options.live?.currentVersionId]);
   useEffect(() => { setFailedCommand(null); }, [options.live?.revision, options.live?.currentVersionId, options.desiredPageId]);

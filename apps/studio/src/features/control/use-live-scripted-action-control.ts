@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  type Presentation,
+  type MaterializedSlide,
   visitSlideElements,
 } from "@web-slideshow/document-schema";
 
@@ -27,7 +27,7 @@ export interface ControlScriptedActionGroup {
 
 export interface UseLiveScriptedActionControlOptions {
   live: LiveCurrent | null;
-  livePresentation: Presentation | null;
+  effectiveSlide: MaterializedSlide | null;
   desiredPageId: string | null;
   actualPageId: string | null;
   controlSynced: boolean;
@@ -57,18 +57,11 @@ interface ActionCommandContext {
   targetBootId: string;
 }
 
-function discoverScriptedActionGroups(
-  presentation: Presentation | null,
-  desiredPageId: string | null,
-): ControlScriptedActionGroup[] {
-  if (presentation === null || desiredPageId === null) return [];
-
-  const slide = presentation.slides.find((candidate) => candidate.id === desiredPageId);
-  if (slide === undefined) return [];
-
+function discoverScriptedActionGroups(effectiveSlide: MaterializedSlide | null): ControlScriptedActionGroup[] {
+  if (effectiveSlide === null) return [];
   const groups: ControlScriptedActionGroup[] = [];
   let scriptedSlot = 0;
-  visitSlideElements(slide, (element) => {
+  visitSlideElements(effectiveSlide, (element) => {
     if (element.type !== "scripted") return;
 
     const actions = element.ports.flatMap((port, portIndex) =>
@@ -126,8 +119,8 @@ export function useLiveScriptedActionControl(
   options: UseLiveScriptedActionControlOptions,
 ): UseLiveScriptedActionControlResult {
   const groups = useMemo(
-    () => discoverScriptedActionGroups(options.livePresentation, options.desiredPageId),
-    [options.livePresentation, options.desiredPageId],
+    () => discoverScriptedActionGroups(options.effectiveSlide),
+    [options.effectiveSlide],
   );
   const [sendFailed, setSendFailed] = useState(false);
   const latestRef = useRef<LatestState>({ ...options, groups });

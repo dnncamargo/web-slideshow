@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onValue, ref } from "firebase/database";
 
 import {
-  type Presentation,
+  type MaterializedSlide,
   visitSlideElements,
 } from "@web-slideshow/document-schema";
 
@@ -28,7 +28,7 @@ export interface ControlGalleryView {
 
 export interface UseLiveGalleryControlOptions {
   live: LiveCurrent | null;
-  livePresentation: Presentation | null;
+  effectiveSlide: MaterializedSlide | null;
   desiredPageId: string | null;
 }
 
@@ -63,17 +63,10 @@ function galleryKey(slot: number, elementId: string): string {
   return `${slot}:${elementId}`;
 }
 
-function discoverGalleries(
-  presentation: Presentation | null,
-  desiredPageId: string | null,
-): GalleryDescriptor[] {
-  if (presentation === null || desiredPageId === null) return [];
-
-  const slide = presentation.slides.find((candidate) => candidate.id === desiredPageId);
-  if (slide === undefined) return [];
-
+function discoverGalleries(effectiveSlide: MaterializedSlide | null): GalleryDescriptor[] {
+  if (effectiveSlide === null) return [];
   const galleries: GalleryDescriptor[] = [];
-  visitSlideElements(slide, (element) => {
+  visitSlideElements(effectiveSlide, (element) => {
     if (element.type === "gallery") {
       galleries.push({
         slot: galleries.length,
@@ -124,7 +117,7 @@ function recordMatchesCurrentGallery(
 /** Owns the Control-side desired Gallery intent for the active immutable version. */
 export function useLiveGalleryControl({
   live,
-  livePresentation,
+  effectiveSlide,
   desiredPageId,
 }: UseLiveGalleryControlOptions): UseLiveGalleryControlResult {
   const [rootSnapshot, setRootSnapshot] = useState<unknown>(null);
@@ -137,8 +130,8 @@ export function useLiveGalleryControl({
   const [sendFailed, setSendFailed] = useState(false);
 
   const descriptors = useMemo(
-    () => discoverGalleries(livePresentation, desiredPageId),
-    [livePresentation, desiredPageId],
+    () => discoverGalleries(effectiveSlide),
+    [effectiveSlide],
   );
   const hydrated = useMemo(
     () => recordsForCurrentGalleries(rootSnapshot, live, desiredPageId, descriptors),

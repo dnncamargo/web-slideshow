@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { materializeSlide } from "@web-slideshow/document-schema";
 
 import { Button } from "@web-slideshow/ui";
 
@@ -81,21 +83,25 @@ export function ControlPage() {
     liveState,
     view?.enabled === true ? view.desiredPageId : null,
   );
+  const livePresentation =
+    presentationState.kind === "ready"
+      ? presentationState.livePresentation
+      : null;
+  const desiredPageId = view?.enabled === true ? view.desiredPageId : null;
+  const effectiveLiveSlide = useMemo(() => {
+    if (livePresentation === null || desiredPageId === null) return null;
+    const canonicalSlide = livePresentation.slides.find((slide) => slide.id === desiredPageId);
+    return canonicalSlide === undefined ? null : materializeSlide(livePresentation, canonicalSlide).slide;
+  }, [livePresentation, desiredPageId]);
   const galleryControl = useLiveGalleryControl({
     live: liveState.kind === "active" ? liveState.live : null,
-    livePresentation:
-      presentationState.kind === "ready"
-        ? presentationState.livePresentation
-        : null,
-    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
   });
   const scriptedActionControl = useLiveScriptedActionControl({
     live: liveState.kind === "active" ? liveState.live : null,
-    livePresentation:
-      presentationState.kind === "ready"
-        ? presentationState.livePresentation
-        : null,
-    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
     actualPageId: view?.actualPageId ?? null,
     controlSynced: view?.status.kind === "synced",
     playerStatus,
@@ -104,8 +110,8 @@ export function ControlPage() {
   });
   const plotAnimationControl = useLivePlotAnimationControl({
     live: liveState.kind === "active" ? liveState.live : null,
-    livePresentation: presentationState.kind === "ready" ? presentationState.livePresentation : null,
-    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
     actualPageId: view?.actualPageId ?? null,
     controlSynced: view?.status.kind === "synced",
     playerStatus,
@@ -113,8 +119,8 @@ export function ControlPage() {
   });
   const scriptedStateControl = useLiveScriptedStateControl({
     live: liveState.kind === "active" ? liveState.live : null,
-    livePresentation: presentationState.kind === "ready" ? presentationState.livePresentation : null,
-    desiredPageId: view?.enabled === true ? view.desiredPageId : null,
+    effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
     actualPageId: view?.actualPageId ?? null,
     controlSynced: view?.status.kind === "synced",
     playerStatus,
