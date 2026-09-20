@@ -6,6 +6,7 @@ import {
 
 import {
   buildPresentationExportFilename,
+  normalizeImportedPresentation,
   parsePresentationImport,
   prepareImportedPresentation,
   serializePresentationForExport,
@@ -102,6 +103,108 @@ function exportedPresentation(source: Presentation): Record<string, unknown> {
   return JSON.parse(serializePresentationForExport(source)) as Record<string, unknown>;
 }
 
+function normalizationPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "presentation-source",
+    title: "Normalization demo",
+    textStyles: [
+      {
+        id: "heading-copy-copy",
+        name: "Heading",
+        role: "title",
+        typography: { fontSize: "32px" },
+      },
+      { id: "body", style: { color: "#ffffff" } },
+      {
+        id: "system:topics",
+        name: "Topics",
+        role: "body",
+        style: { color: "#ffffff" },
+      },
+    ],
+    linkedStyles: [{
+      id: "linked-style-copy-copy",
+      name: "Column",
+      style: { background: { color: "#123456" } },
+    }, {
+      target: "topics",
+      id: "topics-style-copy",
+      name: "Topics",
+      kind: "unordered",
+    }],
+    resources: {
+      fonts: [{
+        id: "font-copy-copy",
+        family: "Inter",
+        source: { type: "url", url: "https://example.test/font.woff2", format: "woff2" },
+      }],
+    },
+    palette: { colors: [{ id: "brand-copy", name: "Brand", value: "#123456" }] },
+    slides: [{
+      id: "slide-copy-copy",
+      elements: [{
+        id: "container-element-copy-copy",
+        type: "container",
+        linkedStyleId: "linked-style-copy-copy",
+        children: [{
+          id: "text-element-copy-copy",
+          type: "text",
+          variant: "heading-copy-copy",
+          content: "container-element-copy-copy must remain authored text",
+        }, {
+          id: "image-element-copy-copy",
+          type: "image",
+          src: "https://example.test/image.png",
+          alt: "Image",
+        }, {
+          id: "scripted-element-copy-copy",
+          type: "scripted",
+          script: "onAction('start'); // container-element-copy-copy",
+          ports: [{ id: "start", label: "Start", kind: "action" }],
+        }, {
+          id: "table-element-copy-copy",
+          type: "table",
+          mode: "structured",
+          columns: [{
+            id: "table-column-copy",
+            header: {
+              id: "header-slot-copy",
+              children: [{ id: "header-text-copy", type: "text", content: "Header" }],
+            },
+          }],
+          rows: [{
+            id: "table-row-copy",
+            cells: [{
+              id: "cell-slot-copy",
+              children: [{ id: "cell-text-copy", type: "text", content: "Cell" }],
+            }],
+          }],
+        }, {
+          id: "topics-element-copy-copy",
+          type: "topics",
+          linkedStyleId: "topics-style-copy",
+          items: [{
+            id: "topic-item-copy",
+            content: {
+              id: "topic-slot-copy",
+              children: [{ id: "topic-text-copy", type: "text", content: "Topic" }],
+            },
+            children: [],
+          }],
+        }],
+      }],
+    }, {
+      id: "slide-copy-copy",
+      elements: [{
+        id: "container-element-copy-copy",
+        type: "container",
+        children: [{ id: "text-element-copy-copy", type: "text", content: "Second slide" }],
+      }],
+    }],
+  });
+}
+
 describe("canonical presentation transfer", () => {
   it("serializes raw canonical JSON without an envelope and round-trips through the schema", () => {
     const source = presentation();
@@ -135,13 +238,108 @@ describe("canonical presentation transfer", () => {
     });
   });
 
-  it("changes only the root id without mutating the source", () => {
-    const source = presentation();
+  it("normalizes imported IDs without mutating the source", () => {
+    const source = normalizationPresentation();
     const before = structuredClone(source);
     const imported = prepareImportedPresentation(source, "presentation-new");
+    const firstRoot = imported.slides[0]?.elements[0];
+    const secondRoot = imported.slides[1]?.elements[0];
 
-    expect(imported).toEqual({ ...source, id: "presentation-new" });
-    expect(imported.slides).toBe(source.slides);
+    expect(imported.id).toBe("presentation-new");
+    expect(imported.slides.map((slide) => slide.id)).toEqual(["slide-1", "slide-2"]);
+    expect(firstRoot?.type === "container" && firstRoot.children.map((element) => element.id)).toEqual([
+      "text-1",
+      "image-1",
+      "scripted-1",
+      "table-1",
+      "topics-1",
+    ]);
+    expect(firstRoot?.id).toBe("container-1");
+    expect(secondRoot?.type === "container" && secondRoot.children.map((element) => element.id)).toEqual([
+      "text-5",
+    ]);
+    expect(secondRoot?.id).toBe("container-2");
+    expect(source).toEqual(before);
+  });
+
+  it("keeps normalization deterministic and remaps typed style references", () => {
+    const source = normalizationPresentation();
+    const first = normalizeImportedPresentation(source);
+    const second = normalizeImportedPresentation(source);
+
+    expect(first).toEqual(second);
+    expect(first.textStyles?.map((style) => style.id)).toEqual([
+      "text-style-1",
+      "body",
+      "system:topics",
+    ]);
+    expect(first.linkedStyles?.map((style) => style.id)).toEqual([
+      "linked-style-1",
+      "linked-style-2",
+    ]);
+    const container = first.slides[0]?.elements[0];
+    const text = container?.type === "container" ? container.children[0] : undefined;
+    expect(container?.type === "container" && container.linkedStyleId).toBe("linked-style-1");
+    expect(text?.type === "text" && text.variant).toBe("text-style-1");
+    const topics = container?.type === "container" ? container.children[4] : undefined;
+    expect(topics?.type === "topics" && topics.linkedStyleId).toBe("linked-style-2");
+  });
+
+  it("preserves authored and explicitly stable identities", () => {
+    const source = normalizationPresentation();
+    const imported = normalizeImportedPresentation(source);
+    const root = imported.slides[0]?.elements[0];
+    const elements = root?.type === "container" ? root.children : undefined;
+    const scripted = elements?.find((element) => element.type === "scripted");
+    const table = elements?.find((element) => element.type === "table");
+
+    expect(scripted?.type === "scripted" && scripted.ports[0]?.id).toBe("start");
+    expect(scripted?.type === "scripted" && scripted.script).toBe("onAction('start'); // container-element-copy-copy");
+    expect(imported.resources?.fonts?.[0]?.id).toBe("font-copy-copy");
+    expect(imported.palette?.colors[0]?.id).toBe("brand-copy");
+    expect(table?.type === "table" && table.mode).toBe("structured");
+    expect(imported.textStyles?.find((style) => style.id === "body")?.id).toBe("body");
+    expect(imported.textStyles?.find((style) => style.id === "system:topics")?.id).toBe("system:topics");
+    expect(root?.type === "container" && root.children[0]).toMatchObject({
+      type: "text",
+      content: "container-element-copy-copy must remain authored text",
+    });
+  });
+
+  it("assigns distinct IDs when imported structural IDs are duplicated", () => {
+    const source = normalizationPresentation();
+    const imported = normalizeImportedPresentation(source);
+
+    expect(imported.slides.map((slide) => slide.id)).toEqual(["slide-1", "slide-2"]);
+    expect(imported.slides[1]?.elements[0]?.id).toBe("container-2");
+    const firstRoot = imported.slides[0]?.elements[0];
+    const table = firstRoot?.type === "container"
+      ? firstRoot.children.find((element) => element.type === "table")
+      : undefined;
+    if (table?.type !== "table" || table.mode !== "structured") throw new Error("Expected structured table.");
+    expect(table.columns[0]?.id).toBe("table-column-1");
+    expect(table.rows[0]?.id).toBe("table-row-1");
+    expect(table.rows[0]?.cells[0]?.id).toBe("table-cell-1");
+    expect(table.columns[0]?.header.id).toBe("content-slot-1");
+  });
+
+  it("keeps the existing root ID allocation separate from nested normalization", () => {
+    const source = normalizationPresentation();
+    const imported = prepareImportedPresentation(source, "presentation-generated-by-import");
+
+    expect(imported.id).toBe("presentation-generated-by-import");
+    expect(imported.id).not.toBe(source.id);
+    expect(imported.slides[0]?.id).toBe("slide-1");
+  });
+
+  it("returns a new normalized value", () => {
+    const source = normalizationPresentation();
+    const before = structuredClone(source);
+    const imported = normalizeImportedPresentation(source);
+
+    expect(imported).not.toBe(source);
+    expect(imported.slides).not.toBe(source.slides);
+    expect(imported.slides[0]?.elements).not.toBe(source.slides[0]?.elements);
     expect(source).toEqual(before);
   });
 
