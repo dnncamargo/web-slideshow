@@ -4,6 +4,7 @@ import type {
   TextStyle,
   TextStyleTypographyProperties,
   TextStyleVisualProperties,
+  TextStyleLayoutProperties,
   TextStyleRole,
 } from "@web-slideshow/document-schema";
 import {
@@ -38,6 +39,15 @@ export function normalizeTextStyleVisualProperties(
   return Object.fromEntries(Object.entries(style).filter(([, value]) => value !== undefined)) as TextStyleVisualProperties;
 }
 
+export function normalizeTextStyleLayoutProperties(
+  layout: TextStyleLayoutProperties | undefined,
+): TextStyleLayoutProperties {
+  if (!layout) return {};
+  return Object.fromEntries(
+    Object.entries(layout).filter(([, value]) => value !== undefined),
+  ) as TextStyleLayoutProperties;
+}
+
 export interface TextStyleListItem {
   id: FundamentalTextStyleId | string;
   style: TextStyle | undefined;
@@ -56,7 +66,7 @@ export function listPresentationTextStyles(
 export function upsertFundamentalTextStyleOverride(
   presentation: Presentation,
   id: FundamentalTextStyleId,
-  patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties } | TextStyleTypographyProperties | undefined,
+  patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties } | TextStyleTypographyProperties | undefined,
 ): Presentation {
   const existing = presentation.textStyles ?? [];
   const current = existing.find((style) => style.id === id);
@@ -64,6 +74,8 @@ export function upsertFundamentalTextStyleOverride(
   let typographyPatch: TextStyleTypographyProperties | undefined;
   let hasStylePatch = false;
   let hasTypographyPatch = false;
+  let layoutPatch: TextStyleLayoutProperties | undefined;
+  let hasLayoutPatch = false;
   if (patch !== undefined && "style" in patch) {
     hasStylePatch = true;
     stylePatch = patch.style;
@@ -72,7 +84,11 @@ export function upsertFundamentalTextStyleOverride(
     hasTypographyPatch = true;
     typographyPatch = patch.typography;
   }
-  if (patch !== undefined && !hasStylePatch && !hasTypographyPatch) {
+  if (patch !== undefined && "layout" in patch) {
+    hasLayoutPatch = true;
+    layoutPatch = patch.layout;
+  }
+  if (patch !== undefined && !hasStylePatch && !hasTypographyPatch && !hasLayoutPatch) {
     hasTypographyPatch = true;
     typographyPatch = patch as TextStyleTypographyProperties;
   }
@@ -82,9 +98,12 @@ export function upsertFundamentalTextStyleOverride(
   const normalizedStyle = hasStylePatch
     ? normalizeTextStyleVisualProperties(stylePatch)
     : current && "style" in current && current.style !== undefined ? current.style : {};
+  const normalizedLayout = hasLayoutPatch
+    ? normalizeTextStyleLayoutProperties(layoutPatch)
+    : current && current.layout !== undefined ? current.layout : {};
   const remaining = existing.filter((style) => style.id !== id);
-  const nextStyles = Object.keys(normalizedTypography).length > 0 || Object.keys(normalizedStyle).length > 0
-    ? [...remaining, { id, ...(Object.keys(normalizedStyle).length > 0 ? { style: normalizedStyle } : {}), ...(Object.keys(normalizedTypography).length > 0 ? { typography: normalizedTypography } : {}) }]
+  const nextStyles = Object.keys(normalizedTypography).length > 0 || Object.keys(normalizedStyle).length > 0 || Object.keys(normalizedLayout).length > 0
+    ? [...remaining, { id, ...(Object.keys(normalizedStyle).length > 0 ? { style: normalizedStyle } : {}), ...(Object.keys(normalizedTypography).length > 0 ? { typography: normalizedTypography } : {}), ...(Object.keys(normalizedLayout).length > 0 ? { layout: normalizedLayout } : {}) }]
     : remaining;
   return withTextStyles(presentation, nextStyles);
 }
@@ -170,7 +189,7 @@ export function ensureTopicsTextStyle(presentation: Presentation): Presentation 
 export function updateCustomTextStyle(
   presentation: Presentation,
   id: string,
-  patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties },
+  patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties },
 ): Presentation {
   return withTextStyles(presentation, (presentation.textStyles ?? []).map((style) => {
     if (style.id !== id || !("name" in style)) return style;
@@ -189,6 +208,11 @@ export function updateCustomTextStyle(
       const typography = normalizeTextStyleTypographyProperties(patch.typography);
       if (Object.keys(typography).length > 0) next.typography = typography;
       else delete next.typography;
+    }
+    if (patch.layout !== undefined) {
+      const layout = normalizeTextStyleLayoutProperties(patch.layout);
+      if (Object.keys(layout).length > 0) next.layout = layout;
+      else delete next.layout;
     }
     return next;
   }));

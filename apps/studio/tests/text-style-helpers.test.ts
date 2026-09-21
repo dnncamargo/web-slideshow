@@ -30,6 +30,15 @@ describe("presentation typography style authoring", () => {
     expect(upsertFundamentalTextStyleOverride(base(), "body", { fontFamily: undefined })).not.toHaveProperty("textStyles");
   });
 
+  it("persists and sparsely clears layout-only fundamental overrides", () => {
+    const withLayout = upsertFundamentalTextStyleOverride(base(), "body", { layout: { marginTop: 10 } });
+    expect(withLayout.textStyles).toEqual([{ id: "body", layout: { marginTop: 10 } }]);
+    const withOtherBags = upsertFundamentalTextStyleOverride(withLayout, "body", { typography: { fontWeight: 500 }, style: { color: "#123456" } });
+    const clearedLayout = upsertFundamentalTextStyleOverride(withOtherBags, "body", { layout: { marginTop: undefined } });
+    expect(clearedLayout.textStyles).toEqual([{ id: "body", style: { color: "#123456" }, typography: { fontWeight: 500 } }]);
+    expect(upsertFundamentalTextStyleOverride(clearedLayout, "body", { typography: { fontWeight: undefined }, style: { color: undefined } })).not.toHaveProperty("textStyles");
+  });
+
   it("allocates quote, quote-2, and quote-3 while reserving fundamental IDs", () => {
     let presentation = base();
     for (const expectedId of ["quote", "quote-2", "quote-3"]) {
@@ -95,6 +104,16 @@ describe("presentation typography style authoring", () => {
     expect(cleared.textStyles?.[0]).toEqual({ id: "quote", name: "Block Quote", role: "body" });
     expect(cleared.textStyles?.[0]).not.toHaveProperty("typography");
     expect(PresentationSchema.safeParse(cleared).success).toBe(true);
+  });
+
+  it("updates custom layout without reconstructing identity or unrelated bags", () => {
+    const created = addCustomTextStyle(base(), "Quote", "body");
+    const styled = updateCustomTextStyle(created, "quote", { style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginTop: 10, marginBottom: 20 } });
+    expect(styled.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginTop: 10, marginBottom: 20 } });
+    const cleared = updateCustomTextStyle(styled, "quote", { layout: { marginTop: undefined, marginBottom: 20 } });
+    expect(cleared.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginBottom: 20 } });
+    const lastCleared = updateCustomTextStyle(cleared, "quote", { layout: { marginBottom: undefined } });
+    expect(lastCleared.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 } });
   });
 
   it.each(nestedUsageCases)("detects a used style in a nested %s", (_label, nestedElement) => {

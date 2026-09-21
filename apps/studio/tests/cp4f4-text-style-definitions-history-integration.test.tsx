@@ -153,6 +153,20 @@ describe("CP4F4 Text Style definition history", () => {
     expect(row("body").querySelector("#text-style-body-font-size")).toBeNull();
   });
 
+  it("authors and removes margin definitions as discrete history actions", async () => {
+    await renderWorkspace(basePresentation());
+    let body = await openRow("body");
+    await addProperty(body, "Margin top");
+    expect(row("body").querySelector<HTMLInputElement>("#text-style-body-marginTop")?.value).toBe("0");
+    await undo();
+    expect(row("body").querySelector("#text-style-body-marginTop")).toBeNull();
+    await redo();
+    body = row("body");
+    await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Margin top']")?.click());
+    expect(row("body").querySelector("#text-style-body-marginTop")).toBeNull();
+    expect(row("body").textContent).toContain("Built-in");
+  });
+
   it("keeps reset confirmation local and replays only the fundamental override", async () => {
     const initial = basePresentation({
       textStyles: [{ id: "body", typography: { fontSize: 20 } }],

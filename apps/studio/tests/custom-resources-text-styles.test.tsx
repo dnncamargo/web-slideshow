@@ -187,7 +187,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(updated).toMatchObject({ id: "selected-text", type: "text", content: "Hello", variant: "saved-title" });
     expect(updated).not.toHaveProperty("styleDetached");
     expect(updated).not.toHaveProperty("style");
-    expect(updated).not.toHaveProperty("typography");
+    expect(updated).toMatchObject({ typography: { fontWeight: 700 } });
     expect(row("saved-title").textContent).toContain("Used by 1 element");
   });
 
@@ -568,7 +568,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(Array.from(row("quote").querySelectorAll<HTMLElement>("[data-text-style-property-group='appearance'] [data-text-style-property]")) .map((property) => property.dataset.textStyleProperty)).toEqual(["color", "textStroke"]);
   });
 
-  it("renders a flat add-property menu in canonical order", async () => {
+  it("renders grouped add-property options in canonical order", async () => {
     await render(addCustomTextStyle(base(), "Quote", "body"));
     await act(async () => disclosure("quote").click());
     const addPropertyButton = rowButton("quote", "+ Add property");
@@ -578,12 +578,52 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     if (!chooser) throw new Error("Missing Text Style property chooser");
     const options = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button")).filter((candidate) => candidate !== addPropertyButton);
 
-    expect(chooser.textContent).not.toContain("Appearance");
-    expect(chooser.querySelector("[role='heading']")).toBeNull();
+    expect(chooser.textContent).toContain("Spacing");
+    expect(chooser.textContent).toContain("Appearance");
     expect(options.map((candidate) => candidate.textContent?.trim())).toEqual([
       "Font family", "Font size", "Font weight", "Font style", "Alignment", "Line height", "Letter spacing", "Case",
-      "White space", "Wrap style", "Long words", "Decoration", "Decoration color", "Text color", "Text stroke",
+      "White space", "Wrap style", "Long words", "Decoration", "Margin", "Margin top", "Margin right", "Margin bottom", "Margin left", "Decoration color", "Text color", "Text stroke",
     ]);
+  });
+
+  it("authors and removes fundamental margins sparsely", async () => {
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(undefined, presentationRef);
+    await act(async () => disclosure("body").click());
+    await act(async () => rowButton("body", "+ Add property").click());
+    await act(async () => Array.from(row("body").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Margin top")?.click());
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", layout: { marginTop: 0 } }]);
+
+    const input = requiredElement<HTMLInputElement>("#text-style-body-marginTop");
+    await act(async () => setInputValue(input, "12"));
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "body", layout: { marginTop: 12 } }]);
+    await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Margin top']")?.click());
+    expect(presentationRef.current).not.toHaveProperty("textStyles");
+  });
+
+  it("authors custom margins independently and keeps preview on the existing renderer path", async () => {
+    const initial = addCustomTextStyle(base(), "Quote", "body");
+    const presentationRef: { current: Presentation | undefined } = { current: undefined };
+    await render(initial, presentationRef);
+    await act(async () => disclosure("quote").click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Margin top")?.click());
+    await act(async () => rowButton("quote", "+ Add property").click());
+    await act(async () => Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Margin bottom")?.click());
+    expect(presentationRef.current?.textStyles).toEqual([{ id: "quote", name: "Quote", role: "body", layout: { marginTop: 0, marginBottom: 0 } }]);
+
+    await act(async () => setInputValue(requiredElement<HTMLInputElement>("#text-style-quote-marginTop"), "12"));
+    await act(async () => setInputValue(requiredElement<HTMLInputElement>("#text-style-quote-marginBottom"), "20"));
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ layout: { marginTop: 12, marginBottom: 20 } });
+    expect(row("quote").querySelector("[data-text-style-property-group='spacing']")).not.toBeNull();
+    expect(row("quote").querySelector("[data-text-style-property-group='typography']" )).toBeNull();
+
+    await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Margin top']")?.click());
+    expect(presentationRef.current?.textStyles?.[0]).toMatchObject({ layout: { marginBottom: 20 } });
+    await act(async () => row("quote").querySelector<HTMLButtonElement>("[aria-label='Remove Margin bottom']")?.click());
+    expect(presentationRef.current?.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body" });
+    expect(presentationRef.current?.textStyles?.[0]).not.toHaveProperty("layout");
+    expect(row("quote").querySelector("[data-text-style-property='position']")).toBeNull();
   });
 
   it("keeps Decoration and Decoration color adjacent for imported styles", async () => {
@@ -711,7 +751,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
 
   it("resolves a presentation-aware custom preview through the canonical style and palette", async () => {
     const palette = [{ id: "primary", name: "Primary", value: "#336699" }, { id: "outline", name: "Outline", value: "#111111" }] as const;
-    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), palette: { colors: [...palette] }, textStyles: [{ id: "quote", name: "Quote", role: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { fontSize: 20, textDecorationLine: "underline", textDecorationColor: { kind: "palette", colorId: "outline" }, textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } } } }] });
+    const initial = PresentationSchema.parse({ ...addCustomTextStyle(base(), "Quote", "body"), palette: { colors: [...palette] }, textStyles: [{ id: "quote", name: "Quote", role: "body", layout: { marginTop: 12 }, style: { color: { kind: "palette", colorId: "primary" } }, typography: { fontSize: 20, textDecorationLine: "underline", textDecorationColor: { kind: "palette", colorId: "outline" }, textStroke: { width: 2, color: { kind: "palette", colorId: "outline" } } } }] });
     await render(initial, undefined, palette);
     await act(async () => disclosure("quote").click());
 
@@ -721,6 +761,7 @@ async function render(initial?: Presentation, presentationRef?: { current: Prese
     expect(previewText.getAttribute("style")).toContain("color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("text-decoration-color:var(--ps-palette-");
     expect(previewText.getAttribute("style")).toContain("-webkit-text-stroke:2px var(--ps-palette-");
+    expect(previewText.getAttribute("style")).toContain("margin-top:12px");
     expect(preview.getAttribute("style")).toContain(`${paletteColorCssVariableName("primary")}: #336699`);
     expect(preview.getAttribute("style")).toContain(`${paletteColorCssVariableName("outline")}: #111111`);
   });

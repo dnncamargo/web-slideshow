@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement } from "@web-slideshow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
 import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -34,7 +34,7 @@ import { ContainerBackgroundPatternControl } from "../inspector/sections/contain
 import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { AuthoringHistoryContext, useAuthoringHistory, type AuthoringHistoryContextValue } from "../authoring-history-context";
-import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
+import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleLayoutProperties, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
 import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canUpdateLinkedStyle } from "../linked-style-authoring";
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { findContainersLinkedToStyle, findElementsLinkedToStyle, findMatchingContainersForLinkedStyle, type LinkedStyleContainerLocation } from "../linked-style-bulk-authoring";
@@ -86,6 +86,7 @@ interface CustomResourcesWorkspaceProps {
 type TextStylePatch = {
   style?: TextStyleVisualProperties;
   typography?: TextStyleTypographyProperties;
+  layout?: TextStyleLayoutProperties;
 };
 
 export type CustomLibraryFontAddKind = "added" | "merged" | "unchanged" | "conflict";
@@ -716,11 +717,13 @@ function LinkedStyleNameField({ style, onRename }: { style: Pick<LinkedContainer
   return <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); event.currentTarget.blur(); } }} /></label>;
 }
 
-function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean }) {
+function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false, historyScope = "linkedStyle" }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean; historyScope?: "linkedStyle" | "textStyle" }) {
   const authoringHistory = useAuthoringHistory();
   const numberHistoryKey = `number:${id}`;
   const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
-  const definitionMeta = { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
+  const definitionMeta = historyScope === "textStyle"
+    ? { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } } as const
+    : { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
   const parsed = value === undefined ? undefined : parseAuthoringLength(value);
   const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
   useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
@@ -737,7 +740,7 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false 
           } else onChange(undefined);
           return;
         }
-        const next = event.target.valueAsNumber;
+        const next = Number(event.target.value);
         if (Number.isFinite(next)) {
           const update = () => onChange(serializeAuthoringLength(next, unit));
           if (authoringHistory) {
@@ -854,15 +857,17 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
   const role = fundamental ? id as TextStyleRole : (style && "role" in style ? style.role : "body");
   const typography = style?.typography;
   const visual = style?.style;
+  const layout = style?.layout;
   const previewText: TextElement = presentation
-    ? { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: id, content: "Aa" }
+    ? { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: id, content: "Aa", layout: {} }
     : { id: `text-style-preview-${id}`, type: "text", hidden: false, variant: role, content: "Aa", typography: { ...TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role], ...typography } };
   const editorId = `text-style-${id}-editor`;
   const visibleProperties = TEXT_STYLE_DISPLAY_ORDER.filter((item) => {
     if (item.kind === "typography") return typography?.[item.property] !== undefined || (item.property === "fontFamily" && pendingFontFamily);
     if (item.property === "color") return visual?.color !== undefined || pendingColor;
     if (item.property === "textDecorationColor") return typography?.textDecorationColor !== undefined || pendingDecorationColor;
-    return typography?.textStroke !== undefined || pendingStroke !== undefined;
+    if (item.kind === "appearance") return typography?.textStroke !== undefined || pendingStroke !== undefined;
+    return layout?.[item.property] !== undefined;
   });
   const propertyGroups = [
     {
@@ -875,6 +880,11 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       label: "inspector.appearance" as const,
       items: visibleProperties.filter((item) => item.property === "color" || item.property === "textStroke"),
     },
+    {
+      id: "spacing",
+      label: "inspector.spacing" as const,
+      items: visibleProperties.filter((item) => item.kind === "layout"),
+    },
   ] as const;
   const authoredTypographyProperties = visibleProperties.filter((item) => item.kind === "typography" && typography?.[item.property] !== undefined).map((item) => item.property);
   const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredTypographyProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
@@ -883,6 +893,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     ...(typography?.textDecorationColor === undefined && !pendingDecorationColor ? ["textDecorationColor" as const] : []),
     ...(typography?.textStroke === undefined && pendingStroke === undefined ? ["textStroke" as const] : []),
   ];
+  const availableLayout = TEXT_STYLE_LAYOUT_PROPERTY_NAMES.filter((property) => layout?.[property] === undefined);
   const addProperty = (property: CoreTypographyProperty): void => {
     if (property === "fontFamily") {
       setPendingFontFamily(true);
@@ -894,12 +905,18 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     const nextTypography = { ...(typography ?? {}), [property]: value };
     runDirectDefinition(() => onUpdate?.({ typography: normalizeTextStyleTypographyProperties(nextTypography) }));
   };
+  const addLayoutProperty = (property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]): void => {
+    runDirectDefinition(() => onUpdate?.({ layout: normalizeTextStyleLayoutProperties({ ...(layout ?? {}), [property]: 0 }) }));
+  };
   const updateTypography = (update: (current: TextStyleTypographyProperties | undefined) => TextStyleTypographyProperties): void => {
     const nextTypography = normalizeTextStyleTypographyProperties(update(typography));
     onUpdate?.({ typography: nextTypography });
   };
   const updateStyle = (update: (current: TextStyleVisualProperties | undefined) => TextStyleVisualProperties): void => {
     onUpdate?.({ style: normalizeTextStyleVisualProperties(update(visual)) });
+  };
+  const updateLayout = (update: (current: TextStyleLayoutProperties | undefined) => TextStyleLayoutProperties): void => {
+    onUpdate?.({ layout: normalizeTextStyleLayoutProperties(update(layout)) });
   };
   const removeAppearance = (property: "color" | "textDecorationColor" | "textStroke"): void => {
     if (property === "color") { if (pendingColor && visual?.color === undefined) setPendingColor(false); else runDirectDefinition(() => updateStyle((current) => ({ ...(current ?? {}), color: undefined }))); }
@@ -928,6 +945,9 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
       return;
     }
     runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), [property]: undefined })));
+  };
+  const removeLayoutProperty = (property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]): void => {
+    runDirectDefinition(() => updateLayout((current) => ({ ...(current ?? {}), [property]: undefined })));
   };
 
   return <div className={styles.typographyStyleRow} data-text-style-id={id}>
@@ -962,19 +982,20 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
           <h4 className={styles.resourcePropertyGroupTitle}>{t(group.label)}</h4>
           {group.items.map((item) => <div className={styles.resourcePropertyCard} data-text-style-property={item.property} data-compact-field-label={item.kind === "typography" ? "true" : undefined} key={item.property}>
             <div className={styles.resourcePropertyHeader}>
-              <span className={styles.resourcePropertyLabel}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</span>
-              <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : removeAppearance(item.property)}>×</button>
+              <span className={styles.resourcePropertyLabel}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : item.kind === "appearance" ? appearanceLabelKey[item.property] : layoutLabelKey[item.property])}</span>
+              <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removeProperty", { property: t(item.kind === "typography" ? propertyLabelKey[item.property] : item.kind === "appearance" ? appearanceLabelKey[item.property] : layoutLabelKey[item.property]) })} onClick={() => item.kind === "typography" ? removeProperty(item.property) : item.kind === "appearance" ? removeAppearance(item.property) : removeLayoutProperty(item.property)}>×</button>
             </div>
             <div className={styles.resourcePropertyControl} data-text-style-property-control>
               {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
               {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
               {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
               {item.property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
+              {item.kind === "layout" ? <LinkedStyleLengthField historyScope="textStyle" id={`text-style-${id}-${item.property}`} label={t(layoutLabelKey[item.property])} value={layout?.[item.property]} onChange={(value) => updateLayout((current) => ({ ...(current ?? {}), [item.property]: value }))} /> : null}
             </div>
           </div>)}
         </section>)}
       </div>
-      {availableProperties.length > 0 || availableAppearance.length > 0 ? <PropertyChooser properties={availableProperties} appearanceProperties={availableAppearance} onAdd={addProperty} onAddAppearance={addAppearance} /> : null}
+      {availableProperties.length > 0 || availableAppearance.length > 0 || availableLayout.length > 0 ? <PropertyChooser properties={availableProperties} layoutProperties={availableLayout} appearanceProperties={availableAppearance} onAdd={addProperty} onAddLayout={addLayoutProperty} onAddAppearance={addAppearance} /> : null}
       <div className={styles.linkedStyleSection} data-text-style-usage><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.usage")}</h3><ResourceUsageLocations locations={locations} onSelect={onSelectElement} onRequestDetach={onRequestDetachElement} styleName={label} /></div>
       {fundamental && style && onReset ? <div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
@@ -1003,6 +1024,14 @@ const appearanceLabelKey = {
   textStroke: "inspector.textStroke",
 } as const;
 
+const layoutLabelKey: Record<(typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number], Parameters<ReturnType<typeof useStudioI18n>["t"]>[0]> = {
+  margin: "inspector.margin",
+  marginTop: "inspector.marginTop",
+  marginRight: "inspector.marginRight",
+  marginBottom: "inspector.marginBottom",
+  marginLeft: "inspector.marginLeft",
+};
+
 const TEXT_STYLE_DISPLAY_ORDER = [
   { kind: "typography" as const, property: "fontFamily" as const },
   { kind: "typography" as const, property: "fontSize" as const },
@@ -1019,17 +1048,25 @@ const TEXT_STYLE_DISPLAY_ORDER = [
   { kind: "appearance" as const, property: "textDecorationColor" as const },
   { kind: "appearance" as const, property: "color" as const },
   { kind: "appearance" as const, property: "textStroke" as const },
+  { kind: "layout" as const, property: "margin" as const },
+  { kind: "layout" as const, property: "marginTop" as const },
+  { kind: "layout" as const, property: "marginRight" as const },
+  { kind: "layout" as const, property: "marginBottom" as const },
+  { kind: "layout" as const, property: "marginLeft" as const },
 ] as const;
 
-function PropertyChooser({ properties, appearanceProperties, onAdd, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
+function PropertyChooser({ properties, layoutProperties, appearanceProperties, onAdd, onAddLayout, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; layoutProperties: readonly (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number][]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddLayout: (property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(false);
-  const availableProperties = new Set<string>([...properties, ...appearanceProperties]);
+  const availableProperties = new Set<string>([...properties, ...layoutProperties, ...appearanceProperties]);
   const options = TEXT_STYLE_DISPLAY_ORDER.filter(({ property }) => availableProperties.has(property));
   return <div className={styles.resourcePropertyChooser}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.resourceChooser}>
-      {options.map((item) => <button key={item.property} type="button" className={styles.resourceChooserOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
+      {(["typography", "layout", "appearance"] as const).map((kind) => <div key={kind}>
+        {options.some((item) => item.kind === kind) ? <h4 className={styles.resourcePropertyGroupTitle}>{t(kind === "typography" ? "inspector.typography" : kind === "layout" ? "inspector.spacing" : "inspector.appearance")}</h4> : null}
+        {options.filter((item) => item.kind === kind).map((item) => <button key={item.property} type="button" className={styles.resourceChooserOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else if (item.kind === "layout") onAddLayout(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : item.kind === "layout" ? layoutLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
+      </div>)}
     </div> : null}
   </div>;
 }

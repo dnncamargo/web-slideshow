@@ -173,7 +173,7 @@ import { createTextStyleFromText, detachTextStyle } from "./text-typography-auth
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
-import type { TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
+import type { TextStyleLayoutProperties, TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -3490,7 +3490,7 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+  function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties }): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
       (current) => {
@@ -3541,7 +3541,7 @@ export function EditorWorkspace({
       },
     );
   }
-  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties }): void {
+  function updateTextStyle(id: string, patch: { name?: string; role?: TextStyleRole; style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties }): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
       (current) => {
