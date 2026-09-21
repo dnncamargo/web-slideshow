@@ -436,4 +436,113 @@ describe("CP4F6A Container Linked Style definition history", () => {
     await redo();
     expect(await save(saved)).toEqual(removed);
   });
+
+  it("clears local overrides throughout one continuous master transaction", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "container-a", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 }, marginBottom: 30 }, children: [] },
+        { id: "container-b", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 40 } }, children: [] },
+      ] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("continuous gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "10"); setInputValue(gap, "12"); setInputValue(gap, "16"); gap.blur(); });
+    const changed = await save(saved);
+    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(16);
+    expect(changed.slides[0]?.elements[0]).toMatchObject({ layout: { marginBottom: 30 } });
+    expect(changed.slides[0]?.elements[0]).not.toHaveProperty("layout.children.gap");
+    expect(changed.slides[0]?.elements[1]).not.toHaveProperty("layout.children.gap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
+  });
+
+  it("propagates structured border edit and remove without materializing old values", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{
+        id: "container-1", type: "container", hidden: false, linkedStyleId: "style-1",
+        layout: { padding: 8 }, style: { border: { width: 3, style: "dashed", color: "#ff0000" }, background: { color: "#00ff00" }, borderRadius: 12 },
+        effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } }, children: [{ id: "child", type: "text", hidden: false, content: "Keep me" }],
+      }] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } }, style: { border: { width: 1, style: "solid", color: "#000000" } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const borderWidth = host.querySelector<HTMLInputElement>("#linked-style-style-1-border-width");
+    if (!borderWidth) throw new Error("master border width input was not rendered");
+    await act(async () => { borderWidth.focus(); setInputValue(borderWidth, "2"); borderWidth.blur(); });
+    const edited = await save(saved);
+    const editedElement = edited.slides[0]?.elements[0];
+    expect(edited.linkedStyles?.find((style) => style.id === "style-1")?.style?.border?.width).toBe(2);
+    expect(editedElement).not.toHaveProperty("style.border");
+    expect(editedElement).toMatchObject({ layout: { padding: 8 }, style: { background: { color: "#00ff00" }, borderRadius: 12 }, effect: { opacity: 0.5 }, children: [{ content: "Keep me" }] });
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+
+    const remove = row("style-1").querySelector<HTMLButtonElement>("[data-linked-style-property='border'] [data-resource-action='remove']");
+    if (!remove) throw new Error("border remove action was not rendered");
+    await act(async () => remove.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "style-1")?.style?.border).toBeUndefined();
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("style.border");
+    expect(removed.slides[0]?.elements[0]).toMatchObject({ style: { background: { color: "#00ff00" }, borderRadius: 12 }, children: [{ content: "Keep me" }] });
+    await undo();
+    expect(await save(saved)).toEqual(edited);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+  });
+
+  it("propagates through nested Containers while preserving children and content", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "root", type: "container", hidden: false, children: [{ id: "nested", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 }, marginBottom: 30 }, children: [{ id: "child", type: "text", hidden: false, content: "Keep me" }] }] }] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("nested gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "16"); gap.blur(); });
+    const changed = await save(saved);
+    const nested = changed.slides[0]?.elements[0];
+    expect(nested).toMatchObject({ id: "root", children: [{ id: "nested", linkedStyleId: "style-1", layout: { marginBottom: 30 }, children: [{ id: "child", content: "Keep me" }] }] });
+    expect(nested).not.toHaveProperty("children.0.layout.children.gap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
+  });
+
+  it("keeps local overrides for rename-only and canonical no-op edits", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "container-1", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 } }, children: [] }] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const name = row("style-1").querySelector<HTMLInputElement>("input");
+    if (!name) throw new Error("style name input was not rendered");
+    await act(async () => { name.focus(); setInputValue(name, "Renamed"); name.blur(); });
+    const renamed = await save(saved);
+    expect(renamed.linkedStyles?.find((style) => style.id === "style-1")?.name).toBe("Renamed");
+    expect(renamed.slides[0]?.elements[0]).toHaveProperty("layout.children.gap", 20);
+    const gap = row("style-1").querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("no-op gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "8"); gap.blur(); });
+    const noOp = await save(saved);
+    expect(noOp).toEqual(renamed);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(renamed);
+  });
 });
