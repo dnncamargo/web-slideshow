@@ -643,9 +643,36 @@ describe("Text Inspector typography style attachment", () => {
     const color = host.querySelector<HTMLInputElement>("#text-color-value");
     const meta = color?.closest("label");
     expect(meta?.textContent).toContain("Local override");
+    expect(meta?.textContent).not.toContain("Use theme default");
     const reset = meta?.querySelector("button");
     await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current.style).toEqual({ background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" });
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.value).toBe("#00ff00");
+    expect(host.querySelector("#text-color-value")?.closest("label")?.textContent).toContain("Linked");
+  });
+
+  it("uses the property Reset for a local color when the master omits color", async () => {
+    await mount(text({ style: { color: "#ff0000" } }), presentation([{ id: "body", typography: { fontSize: 20 } }]));
+    const meta = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
+    expect(meta?.textContent).toContain("Local override");
+    expect(meta?.textContent).not.toContain("Use theme default");
+    const reset = Array.from(meta?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Reset");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current).not.toHaveProperty("style.color");
+    expect(current.variant).toBe("body");
+    expect(host.querySelector("#text-color-value")?.closest("label")?.textContent).not.toContain("Linked");
+  });
+
+  it("keeps Use theme default for detached Text color", async () => {
+    await mount(text({ styleDetached: true, style: { color: "#ff0000" } }), presentation([
+      { id: "body", style: { color: "#00ff00" } },
+    ]));
+    const meta = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
+    expect(meta?.textContent).toContain("Use theme default");
+    const action = Array.from(meta?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Use theme default");
+    await act(async () => action?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.style?.color).toBeUndefined();
+    expect(current).toHaveProperty("styleDetached", true);
   });
 
   it("keeps margin properties independent when resetting one side", async () => {

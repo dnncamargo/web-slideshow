@@ -78,10 +78,10 @@ export function CanonicalTextAppearanceSection({
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }
-            secondaryAction={{
+            secondaryAction={textColorSource === undefined ? {
               label: t("inspector.useThemeDefault"),
               onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
-            }}
+            } : undefined}
           />
           <TextStylePropertyMeta
             source={textColorSource?.source}
