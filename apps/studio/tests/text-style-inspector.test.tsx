@@ -316,6 +316,58 @@ describe("Text Inspector typography style attachment", () => {
     expect(source.textStyles?.[0]).toMatchObject({ typography: { textStroke: { width: 3, color: "#0000ff" } } });
   });
 
+  it("authors local None while preserving an inherited stroke color", async () => {
+    const source = presentation([{ id: "body", typography: { textStroke: { width: 3, color: "#0000ff" } } }]);
+    await mount(text(), source);
+    const mode = host.querySelector<HTMLSelectElement>("#text-text-stroke-mode");
+    if (!mode) throw new Error("text stroke mode control was not rendered");
+    await act(async () => {
+      mode.value = "none";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(current.typography?.textStroke).toEqual({ width: 0, color: "#0000ff" });
+    expect(current.variant).toBe("body");
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { textStroke: { width: 3, color: "#0000ff" } } });
+  });
+
+  it("displays None for a local zero-width stroke", async () => {
+    await mount(text({ typography: { textStroke: { width: 0, color: "#0000ff" } } }), presentation([
+      { id: "body", typography: { textStroke: { width: 3, color: "#0000ff" } } },
+    ]));
+    expect(host.querySelector<HTMLSelectElement>("#text-text-stroke-mode")?.value).toBe("none");
+  });
+
+  it("restores the linked width when switching local None back to Stroke", async () => {
+    const source = presentation([{ id: "body", typography: { textStroke: { width: 3, color: "#0000ff" } } }]);
+    await mount(text({ typography: { textStroke: { width: 0, color: "#0000ff" } } }), source);
+    const mode = host.querySelector<HTMLSelectElement>("#text-text-stroke-mode");
+    if (!mode) throw new Error("text stroke mode control was not rendered");
+    await act(async () => {
+      mode.value = "stroke";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(current.typography?.textStroke).toEqual({ width: 3, color: "#0000ff" });
+    expect(current.variant).toBe("body");
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { textStroke: { width: 3, color: "#0000ff" } } });
+  });
+
+  it("shows None after manually authoring stroke width zero", async () => {
+    await mount(text({ typography: { textStroke: { width: 1, color: "#ff0000" } } }));
+    const width = host.querySelector<HTMLInputElement>("#text-text-stroke-width");
+    if (!width) throw new Error("text stroke width control was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(width, "0");
+      width.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(current.typography?.textStroke).toEqual({ width: 0, color: "#ff0000" });
+    expect(host.querySelector<HTMLSelectElement>("#text-text-stroke-mode")?.value).toBe("none");
+  });
+
   it("edits both omitted and owned attached fields locally", async () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text(), source);

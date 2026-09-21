@@ -126,6 +126,9 @@ export function TextInspector({
     caption: t("inspector.caption"),
   };
   const selectedStyle = styleOptions.find(({ id }) => id === element.variant)?.style;
+  const linkedTextStrokeFallback = element.styleDetached === true
+    ? undefined
+    : selectedStyle?.typography?.textStroke;
   const resolvedTextStyle = presentation
     ? resolveEffectiveTextStyleForAuthoring(presentation, element)
     : undefined;
@@ -242,7 +245,7 @@ export function TextInspector({
       <CanonicalTextEffectsSection
         effect={element.effect}
         typography={element.typography}
-        textStrokeFallback={effectiveTypography?.textStroke}
+        textStrokeFallback={linkedTextStrokeFallback}
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}

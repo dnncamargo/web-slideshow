@@ -49,7 +49,7 @@ export function CanonicalTextEffectsSection({
   const authoringHistory = useAuthoringHistory();
   const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : effect.shadow.inset ? "inset" : "outer";
   const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
-  const strokeMode = effectiveTextStroke === undefined ? "none" : "stroke";
+  const strokeMode = effectiveTextStroke === undefined || readAbsoluteNumber(effectiveTextStroke.width) === 0 ? "none" : "stroke";
   const shadow = effect?.shadow;
 
   function runDiscrete(callback: () => void): void {
@@ -118,12 +118,35 @@ export function CanonicalTextEffectsSection({
           onChange={(event) => {
             const mode = event.target.value === "stroke" ? "stroke" : "none";
             if (mode === strokeMode) return;
-            runTextStrokeDiscrete(() => onUpdateTypography((current) => ({
-              ...current,
-              textStroke: mode === "stroke"
-                ? current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)
-                : undefined,
-            })));
+            runTextStrokeDiscrete(() => onUpdateTypography((current) => {
+              const localStroke = current?.textStroke;
+              const inheritedStroke = textStrokeFallback;
+              const baseStroke = localStroke ?? inheritedStroke ?? defaultTextStroke(textColor);
+              if (mode === "none") {
+                return {
+                  ...current,
+                  textStroke: {
+                    ...baseStroke,
+                    width: 0,
+                  },
+                };
+              }
+
+              const inheritedWidth = inheritedStroke === undefined ? "" : readAbsoluteNumber(inheritedStroke.width);
+              const fallbackWidth = typeof inheritedWidth === "number" && inheritedWidth > 0
+                ? inheritedWidth
+                : 1;
+              const width = localStroke !== undefined && readAbsoluteNumber(localStroke.width) === 0
+                ? fallbackWidth
+                : readAbsoluteNumber(baseStroke.width) || 1;
+              return {
+                ...current,
+                textStroke: {
+                  ...baseStroke,
+                  width,
+                },
+              };
+            }));
           }}
         >
           <option value="none">{t("inspector.textStroke.none")}</option>
