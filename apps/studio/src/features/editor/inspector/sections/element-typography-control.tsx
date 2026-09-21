@@ -22,6 +22,8 @@ import { useAuthoringHistory } from "../../authoring-history-context";
 
 import { EffectiveNumberInput } from "./effective-number-input";
 import { EffectiveLengthInput } from "./effective-length-input";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
+import type { TextStylePropertyInfo } from "../text-style-property";
 
 export type CoreTypographyProperty = (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES)[number];
 
@@ -39,6 +41,8 @@ interface ElementTypographyControlProps {
 
   visibleProperties?: readonly CoreTypographyProperty[];
   disabledProperties?: readonly CoreTypographyProperty[];
+  textStyleSources?: Partial<Record<CoreTypographyProperty, TextStylePropertyInfo>>;
+  onResetTextStyleProperty?: (property: CoreTypographyProperty) => void;
 }
 
 function readFontWeightSelection(
@@ -252,6 +256,8 @@ export function ElementTypographyFields({
   visibleProperties,
   disabledProperties = [],
   effectiveTypography,
+  textStyleSources,
+  onResetTextStyleProperty,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -260,6 +266,7 @@ export function ElementTypographyFields({
   const isVisible = (property: CoreTypographyProperty): boolean =>
     visibleProperties === undefined || visibleProperties.includes(property);
   const isDisabled = (property: CoreTypographyProperty): boolean => disabledProperties.includes(property);
+  const propertyInfo = (property: CoreTypographyProperty) => textStyleSources?.[property];
   const displayValue = <K extends keyof ElementTypography>(property: K): ElementTypography[K] | undefined =>
     isDisabled(property as CoreTypographyProperty) ? effectiveTypography?.[property] : currentTypography?.[property];
 
@@ -331,6 +338,11 @@ export function ElementTypographyFields({
             }}
           />
         </label>
+        <TextStylePropertyMeta
+          source={propertyInfo("fontFamily")?.source}
+          linkedValue={propertyInfo("fontFamily")?.linkedValue}
+          onReset={() => onResetTextStyleProperty?.("fontFamily")}
+        />
 
       </div> : null}
 
@@ -350,6 +362,8 @@ export function ElementTypographyFields({
             units={["px", "rem"]}
             stepByUnit={{ px: "1", rem: "0.1" }}
             disabled={isDisabled("fontSize")}
+            textStyleSource={propertyInfo("fontSize")?.source}
+            textStyleLinkedValue={propertyInfo("fontSize")?.linkedValue}
             onChange={(fontSize) => {
 
               onUpdateStyle("fontSize", (currentStyle) => ({
@@ -365,6 +379,7 @@ export function ElementTypographyFields({
                 fontSize: undefined,
               }));
             }}
+            textStyleFormatValue={(value) => String(value)}
           />
         </div> : null}
 
@@ -404,6 +419,7 @@ export function ElementTypographyFields({
 
             <option value="700">{t("inspector.fontWeight.bold")}</option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("fontWeight")?.source} linkedValue={propertyInfo("fontWeight")?.linkedValue} onReset={() => onResetTextStyleProperty?.("fontWeight")} />
         </label> : null}
 
         {isVisible("fontStyle") ? <label className={styles.field}>
@@ -430,6 +446,7 @@ export function ElementTypographyFields({
 
             <option value="italic">{t("inspector.fontStyle.italic")}</option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("fontStyle")?.source} linkedValue={propertyInfo("fontStyle")?.linkedValue} onReset={() => onResetTextStyleProperty?.("fontStyle")} />
         </label> : null}
 
         {isVisible("textAlign") ? <label className={styles.field}>
@@ -461,6 +478,7 @@ export function ElementTypographyFields({
 
             <option value="justify">{t("inspector.textAlign.justify")}</option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("textAlign")?.source} linkedValue={propertyInfo("textAlign")?.linkedValue} onReset={() => onResetTextStyleProperty?.("textAlign")} />
         </label> : null}
 
         {isVisible("lineHeight") ? <div className={styles.field}>
@@ -479,6 +497,8 @@ export function ElementTypographyFields({
             inherited={lineHeightValue.inherited}
             unit="×"
             disabled={isDisabled("lineHeight")}
+            textStyleSource={propertyInfo("lineHeight")?.source}
+            textStyleLinkedValue={propertyInfo("lineHeight")?.linkedValue}
             onChange={(value) => {
               const lineHeight = parseOptionalPositiveNumber(value);
 
@@ -495,6 +515,7 @@ export function ElementTypographyFields({
                 lineHeight: undefined,
               }));
             }}
+            textStyleFormatValue={(value) => String(value)}
           />
         </div> : null}
 
@@ -516,6 +537,8 @@ export function ElementTypographyFields({
             relativeFontSizePx={effectiveFontSizePx}
             stepByUnit={{ px: "0.1", em: "0.01", rem: "0.01" }}
             disabled={isDisabled("letterSpacing")}
+            textStyleSource={propertyInfo("letterSpacing")?.source}
+            textStyleLinkedValue={propertyInfo("letterSpacing")?.linkedValue}
             onChange={(letterSpacing) => {
 
               onUpdateStyle("letterSpacing", (currentStyle) => ({
@@ -531,6 +554,7 @@ export function ElementTypographyFields({
                 letterSpacing: undefined,
               }));
             }}
+            textStyleFormatValue={(value) => String(value)}
           />
         </div> : null}
 
@@ -568,6 +592,7 @@ export function ElementTypographyFields({
               {t("inspector.textCase.capitalize")}
             </option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("textTransform")?.source} linkedValue={propertyInfo("textTransform")?.linkedValue} onReset={() => onResetTextStyleProperty?.("textTransform")} />
         </label> : null}
 
         {isVisible("whiteSpace") ? <label className={styles.field}>
@@ -600,6 +625,7 @@ export function ElementTypographyFields({
               {t("inspector.whiteSpace.preWrap")}
             </option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("whiteSpace")?.source} linkedValue={propertyInfo("whiteSpace")?.linkedValue} onReset={() => onResetTextStyleProperty?.("whiteSpace")} />
         </label> : null}
 
         {isVisible("textWrapStyle") ? <label className={styles.field}>
@@ -628,6 +654,7 @@ export function ElementTypographyFields({
 
             <option value="pretty">{t("inspector.textWrap.pretty")}</option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("textWrapStyle")?.source} linkedValue={propertyInfo("textWrapStyle")?.linkedValue} onReset={() => onResetTextStyleProperty?.("textWrapStyle")} />
         </label> : null}
 
         {isVisible("overflowWrap") ? <label className={styles.field}>
@@ -662,6 +689,7 @@ export function ElementTypographyFields({
               {t("inspector.overflowWrap.anywhere")}
             </option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("overflowWrap")?.source} linkedValue={propertyInfo("overflowWrap")?.linkedValue} onReset={() => onResetTextStyleProperty?.("overflowWrap")} />
         </label> : null}
 
         {isVisible("textDecorationLine") ? <label className={styles.field}>
@@ -700,6 +728,7 @@ export function ElementTypographyFields({
               {t("inspector.textDecorationLine.lineThrough")}
             </option>
           </select>
+          <TextStylePropertyMeta source={propertyInfo("textDecorationLine")?.source} linkedValue={propertyInfo("textDecorationLine")?.linkedValue} onReset={() => onResetTextStyleProperty?.("textDecorationLine")} />
         </label> : null}
       </div>
     </>

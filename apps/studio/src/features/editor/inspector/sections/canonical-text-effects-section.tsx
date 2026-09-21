@@ -7,6 +7,8 @@ import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../insp
 import type { UpdateElementEffect, UpdateElementTypography } from "../inspector-types";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
+import type { TextStylePropertyInfo } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface CanonicalTextEffectsSectionProps {
   effect: ElementEffect | undefined;
@@ -17,6 +19,11 @@ interface CanonicalTextEffectsSectionProps {
   controlPrefix: string;
   textStrokeDisabled?: boolean;
   textStrokeFallback?: TextStroke;
+  textStrokeSource?: TextStylePropertyInfo;
+  onResetTextStroke?: () => void;
+  textDecorationColorFallback?: ElementTypography["textDecorationColor"];
+  textDecorationColorSource?: TextStylePropertyInfo;
+  onResetTextDecorationColor?: () => void;
 }
 
 type ShadowMode = "none" | "outer" | "inset";
@@ -44,6 +51,11 @@ export function CanonicalTextEffectsSection({
   controlPrefix,
   textStrokeDisabled = false,
   textStrokeFallback,
+  textStrokeSource,
+  onResetTextStroke,
+  textDecorationColorFallback,
+  textDecorationColorSource,
+  onResetTextDecorationColor,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -152,6 +164,11 @@ export function CanonicalTextEffectsSection({
           <option value="none">{t("inspector.textStroke.none")}</option>
           <option value="stroke">{t("inspector.textStroke.stroke")}</option>
         </select>
+        <TextStylePropertyMeta
+          source={textStrokeSource?.source}
+          linkedValue={textStrokeSource?.linkedValue}
+          onReset={onResetTextStroke}
+        />
       </label>
       {effectiveTextStroke && (
         <>
@@ -203,6 +220,21 @@ export function CanonicalTextEffectsSection({
           </label>
         </>
       )}
+      <label className={styles.field}>
+        <span>{t("inspector.textDecorationColor")}</span>
+        <ColorControl
+          id={`${controlPrefix}-text-decoration-color`}
+          name={getControlName(controlPrefix, "TextDecorationColor")}
+          value={typography?.textDecorationColor}
+          effectiveValue={textDecorationColorFallback}
+          onChange={(color) => onUpdateTypography((current) => ({ ...current, textDecorationColor: color }))}
+        />
+        <TextStylePropertyMeta
+          source={textDecorationColorSource?.source}
+          linkedValue={textDecorationColorSource?.linkedValue}
+          onReset={onResetTextDecorationColor}
+        />
+      </label>
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>
         <select

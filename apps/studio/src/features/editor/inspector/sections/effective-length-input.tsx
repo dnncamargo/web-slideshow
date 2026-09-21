@@ -11,6 +11,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
+import type { TextStyleInspectorSource } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface EffectiveLengthInputProps {
   id: string;
@@ -28,6 +30,9 @@ interface EffectiveLengthInputProps {
   onChange: (value: Length | undefined) => void;
   onReset: () => void;
   disabled?: boolean;
+  textStyleSource?: TextStyleInspectorSource;
+  textStyleLinkedValue?: unknown;
+  textStyleFormatValue?: (value: unknown) => string;
 }
 
 function getInitialUnit(
@@ -56,6 +61,9 @@ export function EffectiveLengthInput({
   onChange,
   onReset,
   disabled = false,
+  textStyleSource,
+  textStyleLinkedValue,
+  textStyleFormatValue,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -185,7 +193,14 @@ export function EffectiveLengthInput({
         </select>
       </div>
 
-      {inherited ? (
+      {textStyleSource === "local" || textStyleSource === "linked" ? (
+        <TextStylePropertyMeta
+          source={textStyleSource}
+          linkedValue={textStyleLinkedValue}
+          formatValue={textStyleFormatValue}
+          onReset={inherited ? undefined : onReset}
+        />
+      ) : inherited ? (
         <span className={styles.inheritedValueLabel}>
           {inheritedSource === "linked" ? t("inspector.linkedValue") : t("inspector.default")}
         </span>

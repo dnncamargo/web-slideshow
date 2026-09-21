@@ -601,6 +601,93 @@ describe("Text Inspector typography style attachment", () => {
     expect(color?.closest("label")?.parentElement?.className).not.toContain("fieldGrid");
   });
 
+  it("shows linked and local provenance for typography and resets only the selected property", async () => {
+    await mount(text({ typography: { fontSize: 30, textAlign: "right" } }), presentation([
+      { id: "body", typography: { fontSize: 20, textAlign: "center" } },
+    ]));
+
+    const fontSize = host.querySelector<HTMLInputElement>("#text-font-size");
+    const textAlign = host.querySelector<HTMLSelectElement>("#text-text-align");
+    expect(fontSize?.parentElement?.parentElement?.textContent).toContain("Local override");
+    expect(fontSize?.parentElement?.parentElement?.textContent).toContain("Linked:");
+    expect(textAlign?.parentElement?.textContent).toContain("Local override");
+    expect(textAlign?.parentElement?.textContent).toContain("Linked:");
+
+    const reset = fontSize?.parentElement?.parentElement?.querySelector("button");
+    expect(reset?.textContent).toBe("Reset");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.typography).toEqual({ textAlign: "right" });
+    expect(current.variant).toBe("body");
+    expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.25");
+    expect(host.querySelector<HTMLInputElement>("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
+  });
+
+  it("marks equal authored values as local and resets an omitted master property to theme", async () => {
+    await mount(text({ typography: { fontWeight: 500, fontSize: 30 } }), presentation([
+      { id: "body", typography: { fontWeight: 500 } },
+    ]));
+
+    expect(host.querySelector("#text-font-weight")?.parentElement?.textContent).toContain("Local override");
+    const reset = host.querySelector("#text-font-weight")?.parentElement?.querySelector("button");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.typography).toEqual({ fontSize: 30 });
+    expect(host.querySelector("#text-font-weight")?.parentElement?.textContent).not.toContain("Local override");
+  });
+
+  it("resets color without changing unrelated visual fields", async () => {
+    await mount(text({
+      style: { color: "#ff0000", background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" },
+    }), presentation([{ id: "body", style: { color: "#00ff00" } }]));
+
+    const color = host.querySelector<HTMLInputElement>("#text-color-value");
+    const meta = color?.closest("label");
+    expect(meta?.textContent).toContain("Local override");
+    const reset = meta?.querySelector("button");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.style).toEqual({ background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" });
+  });
+
+  it("keeps margin properties independent when resetting one side", async () => {
+    await mount(text({ layout: { margin: 10, marginTop: 30, marginRight: 20, marginBottom: 40, marginLeft: 50 } }), presentation([
+      { id: "body", layout: { marginTop: 15, marginBottom: 25 } },
+    ]));
+    const top = host.querySelector<HTMLInputElement>("#text-margin-top");
+    const reset = top?.closest("label")?.querySelector("button");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.layout).toEqual({ margin: 10, marginRight: 20, marginBottom: 40, marginLeft: 50 });
+  });
+
+  it("resets the whole local text stroke including width-zero None", async () => {
+    await mount(text({ typography: { textStroke: { width: 0, color: "#0000ff" }, fontSize: 22 } }), presentation([
+      { id: "body", typography: { textStroke: { width: 3, color: "#ff0000" } } },
+    ]));
+    expect(host.textContent).toContain("Local override");
+    const strokeMode = host.querySelector("#text-text-stroke-mode");
+    const reset = strokeMode?.closest("label")?.querySelector("button");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.typography).toEqual({ fontSize: 22 });
+  });
+
+  it("shows decoration color provenance and resets only decoration color", async () => {
+    await mount(text({ typography: { textDecorationColor: "#111111", fontWeight: 600 } }), presentation([
+      { id: "body", typography: { textDecorationColor: "#222222" } },
+    ]));
+    const decoration = host.querySelector<HTMLInputElement>("#text-text-decoration-color-value");
+    const meta = decoration?.closest("label");
+    expect(meta?.textContent).toContain("Local override");
+    const reset = meta?.querySelector("button");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current.typography).toEqual({ fontWeight: 600 });
+  });
+
+  it("does not show property provenance controls while detached", async () => {
+    await mount(text({ styleDetached: true, typography: { fontSize: 22, textStroke: { width: 1, color: "#fff" } } }), presentation([
+      { id: "body", typography: { fontSize: 20, textStroke: { width: 3, color: "#000" } } },
+    ]));
+    expect(host.querySelectorAll(".inheritedValueLabel")).toHaveLength(0);
+    expect(host.textContent).not.toContain("Reset linked override");
+  });
+
   it("threads the active Presentation through ElementInspector to TextInspector", async () => {
     const customPresentation = presentation([{ id: "quote", name: "Quote", role: "body" }]);
     current = text();

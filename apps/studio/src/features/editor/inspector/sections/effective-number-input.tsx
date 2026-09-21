@@ -2,6 +2,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
+import type { TextStyleInspectorSource } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface EffectiveNumberInputProps {
   id: string;
@@ -15,6 +17,9 @@ interface EffectiveNumberInputProps {
   onChange: (value: string) => void;
   onReset: () => void;
   disabled?: boolean;
+  textStyleSource?: TextStyleInspectorSource;
+  textStyleLinkedValue?: unknown;
+  textStyleFormatValue?: (value: unknown) => string;
 }
 
 export function EffectiveNumberInput({
@@ -29,6 +34,9 @@ export function EffectiveNumberInput({
   onChange,
   onReset,
   disabled = false,
+  textStyleSource,
+  textStyleLinkedValue,
+  textStyleFormatValue,
 }: EffectiveNumberInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -75,7 +83,14 @@ export function EffectiveNumberInput({
         <span>{unit}</span>
       </div>
 
-      {inherited ? (
+      {textStyleSource === "local" || textStyleSource === "linked" ? (
+        <TextStylePropertyMeta
+          source={textStyleSource}
+          linkedValue={textStyleLinkedValue}
+          formatValue={textStyleFormatValue}
+          onReset={inherited ? undefined : onReset}
+        />
+      ) : inherited ? (
         <span className={styles.inheritedValueLabel}>
           {t("inspector.default")}
         </span>
