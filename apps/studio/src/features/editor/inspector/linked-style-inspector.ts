@@ -1,4 +1,4 @@
-import type { ContainerElement, LinkedContainerStyle, Presentation } from "@web-slideshow/document-schema";
+import type { ContainerElement, LinkedContainerStyle, LinkedTopicsStyle, Presentation, TopicsElement } from "@web-slideshow/document-schema";
 
 export type LinkedSource = "local" | "linked" | "theme";
 export type ContainerShareableProperty =
@@ -10,6 +10,11 @@ export type ContainerShareableProperty =
   | "layout.children.distribution" | "layout.children.horizontalAlign" | "layout.children.verticalAlign" | "layout.children.fit" | "layout.overflow"
   | "style.color" | "style.background.color" | "style.background.gradient" | "style.background.pattern" | "style.border" | "style.borderRadius"
   | "effect.opacity" | "effect.shadow";
+
+export type TopicsShareableProperty =
+  | "kind" | "layout.margin" | "layout.marginTop" | "layout.marginRight"
+  | "layout.marginBottom" | "layout.marginLeft" | "layout.itemGap"
+  | "rootMarkerStyle" | "markerColor";
 
 export function linkedStyleForContainer(presentation: Pick<Presentation, "linkedStyles"> | undefined, element: ContainerElement) {
   return element.linkedStyleId === undefined ? undefined : presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
@@ -68,4 +73,37 @@ export function getContainerShareablePropertySource(
   const localValue = read(element, "local");
   const linkedValue = linked === undefined ? undefined : read(linked, "linked");
   return { localValue, linkedValue, source: localValue !== undefined ? "local" : linkedValue !== undefined ? "linked" : "theme" };
+}
+
+export function linkedStyleForTopics(
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
+  element: TopicsElement,
+): LinkedTopicsStyle | undefined {
+  if (element.linkedStyleId === undefined) return undefined;
+  const linked = presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+  return linked !== undefined && "target" in linked && linked.target === "topics" ? linked : undefined;
+}
+
+export function getTopicsShareablePropertySource(
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
+  element: TopicsElement,
+  property: TopicsShareableProperty,
+): { localValue: unknown; linkedValue: unknown; source: LinkedSource } {
+  const linked = linkedStyleForTopics(presentation, element);
+  const localValue = property === "kind" ? element.kind
+    : property === "rootMarkerStyle" ? element.rootMarkerStyle
+      : property === "markerColor" ? element.markerColor
+        : property === "layout.itemGap" ? element.itemGap
+          : element.layout?.[property.slice("layout.".length) as keyof NonNullable<TopicsElement["layout"]>];
+  const linkedValue = linked === undefined ? undefined
+    : property === "kind" ? linked.kind
+      : property === "rootMarkerStyle" ? linked.rootMarkerStyle
+        : property === "markerColor" ? linked.markerColor
+          : property === "layout.itemGap" ? linked.itemGap
+            : linked.layout?.[property.slice("layout.".length) as keyof NonNullable<LinkedTopicsStyle["layout"]>];
+  return {
+    localValue,
+    linkedValue,
+    source: localValue !== undefined ? "local" : linkedValue !== undefined ? "linked" : "theme",
+  };
 }

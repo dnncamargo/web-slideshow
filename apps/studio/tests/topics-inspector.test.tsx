@@ -905,6 +905,42 @@ describe("TopicsInspector", () => {
     });
   });
 
+  it("shows linked Topics values, local overrides, and property resets without touching content", async () => {
+    const initial = topicsElement({ linkedStyleId: "topics-style", itemGap: 30, layout: { marginTop: 7 }, markerColor: "#ff0000", items: topicsElement().items });
+    mount(initial);
+    presentation = {
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 18, layout: { marginTop: 12 }, markerColor: { kind: "palette", colorId: "accent" } }],
+    };
+    await act(async () => renderInspector());
+    expect(topicSpacingInput().value).toBe("30");
+    expect(container.textContent).toContain("Local override");
+    expect(container.textContent).not.toContain("[object Object]");
+    const reset = topicSpacingInput().parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    if (!reset) throw new Error("Topics itemGap reset was not rendered");
+    await act(async () => reset.click());
+    expect(elementState.itemGap).toBeUndefined();
+    expect(elementState.linkedStyleId).toBe("topics-style");
+    expect(elementState.items).toEqual(initial.items);
+    expect(topicSpacingInput().value).toBe("18");
+    expect(container.textContent).toContain("Linked");
+  });
+
+  it("keeps margin side ownership independent and suppresses provenance for Topics text color", async () => {
+    const initial = topicsElement({ linkedStyleId: "topics-style", layout: { margin: 4, marginTop: 20, marginRight: 8 }, style: { color: "#ff0000" } });
+    mount(initial);
+    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", layout: { margin: 4, marginTop: 12 }, markerColor: "#00ff00", itemGap: 18 }] };
+    await act(async () => renderInspector());
+    const marginTop = container.querySelector<HTMLInputElement>("#topics-margin-top");
+    if (!marginTop) throw new Error("Topics marginTop input was not rendered");
+    expect(marginTop.value).toBe("20");
+    const marginReset = marginTop.closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!marginReset) throw new Error("Topics margin reset was not rendered");
+    await act(async () => marginReset.click());
+    expect(elementState.layout).toEqual({ margin: 4, marginRight: 8 });
+    expect(elementState.style?.color).toBe("#ff0000");
+    expect(container.querySelector("#topics-text-color")?.parentElement?.parentElement?.textContent).not.toContain("Linked");
+  });
+
   it("Add Topic invokes the structural callback with the selected Topics id", async () => {
     await act(async () => {
       mount(topicsElement());

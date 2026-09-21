@@ -294,17 +294,60 @@ export function attachLinkedStyle(
 
 type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
 
+export type LinkedTopicsStyleProperty =
+  | "kind" | "position" | "top" | "right" | "bottom" | "left" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"
+  | "itemGap" | "rootMarkerStyle" | "markerColor";
+
+const LINKED_TOPICS_LAYOUT_PROPERTIES = [
+  "position", "top", "right", "bottom", "left", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+] as const;
+
+/** Clears exactly one authored Topics property and prunes only its empty bag. */
+export function clearLinkedTopicsStyleProperty(
+  topics: TopicsElement,
+  property: LinkedTopicsStyleProperty,
+): TopicsElement {
+  const next = { ...topics };
+  if (property === "kind") delete next.kind;
+  else if (property === "rootMarkerStyle") delete next.rootMarkerStyle;
+  else if (property === "markerColor") delete next.markerColor;
+  else if (property === "itemGap") delete next.itemGap;
+  else if (next.layout !== undefined) {
+    const layout = { ...next.layout } as PropertyBag;
+    delete layout[property];
+    if (Object.keys(layout).length === 0) delete next.layout;
+    else next.layout = layout as TopicsElement["layout"];
+  }
+  return next;
+}
+
 function removeLinkedTopicsProperties(topics: TopicsElement, linked: LinkedTopicsStyle): TopicsElement {
-  const { kind: _kind, layout: localLayout, rootMarkerStyle, markerColor, itemGap, ...structural } = topics;
-  const layout = removeLinkedLayoutProperties(localLayout, linked.layout);
-  return {
-    ...structural,
-    ...(layout === undefined ? {} : { layout }),
-    ...(linked.rootMarkerStyle === undefined && rootMarkerStyle !== undefined ? { rootMarkerStyle } : {}),
-    ...(linked.markerColor === undefined && markerColor !== undefined ? { markerColor } : {}),
-    ...(linked.itemGap === undefined && itemGap !== undefined ? { itemGap } : {}),
-    linkedStyleId: linked.id,
-  };
+  let next: TopicsElement = { ...topics, linkedStyleId: linked.id };
+  for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+    if (linked.layout?.[property] !== undefined) next = clearLinkedTopicsStyleProperty(next, property);
+  }
+  if (linked.kind !== undefined) next = clearLinkedTopicsStyleProperty(next, "kind");
+  if (linked.rootMarkerStyle !== undefined) next = clearLinkedTopicsStyleProperty(next, "rootMarkerStyle");
+  if (linked.markerColor !== undefined) next = clearLinkedTopicsStyleProperty(next, "markerColor");
+  if (linked.itemGap !== undefined) next = clearLinkedTopicsStyleProperty(next, "itemGap");
+  return next;
+}
+
+function switchLinkedTopicsStyleProperties(topics: TopicsElement, source: LinkedTopicsStyle | undefined, destination: LinkedTopicsStyle): TopicsElement {
+  let next = removeLinkedTopicsProperties(topics, destination);
+  if (destination.kind === undefined && topics.kind === undefined && source?.kind !== undefined) next.kind = source.kind;
+  if (destination.rootMarkerStyle === undefined && topics.rootMarkerStyle === undefined && source?.rootMarkerStyle !== undefined) next.rootMarkerStyle = source.rootMarkerStyle;
+  if (destination.markerColor === undefined && topics.markerColor === undefined && source?.markerColor !== undefined) next.markerColor = source.markerColor;
+  if (destination.itemGap === undefined && topics.itemGap === undefined && source?.itemGap !== undefined) next.itemGap = source.itemGap;
+  const sourceLayout = source?.layout;
+  if (sourceLayout !== undefined) {
+    const layout = { ...(next.layout ?? {}) } as PropertyBag;
+    for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+      if (destination.layout?.[property] === undefined && topics.layout?.[property] === undefined && sourceLayout[property] !== undefined) layout[property] = sourceLayout[property];
+    }
+    next = Object.keys(layout).length === 0 ? (() => { const { layout: _layout, ...withoutLayout } = next; return withoutLayout; })() : { ...next, layout: layout as TopicsElement["layout"] };
+  }
+  return next;
 }
 
 function replaceTopicsInSlide(
@@ -372,7 +415,10 @@ export function attachLinkedTopicsStyle(
 ): Presentation {
   const linked = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
   if (linked === undefined) return presentation;
-  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => removeLinkedTopicsProperties(topics, linked));
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => {
+    const source = topics.linkedStyleId === undefined ? undefined : presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === topics.linkedStyleId);
+    return switchLinkedTopicsStyleProperties(topics, source, linked);
+  });
 }
 
 export function detachLinkedTopicsStyle(

@@ -294,4 +294,47 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     await redo();
     expect(await save(saved)).toEqual(relationshipEdited);
   });
+
+  it("propagates a clean itemGap master edit and remove across linked Topics with exact Undo/Redo", async () => {
+    const items = [{ id: "item", content: { id: "slot", children: [{ id: "text", type: "text" as const, hidden: false, content: "Keep me" }] }, children: [{ id: "nested", content: { id: "nested-slot", children: [] }, children: [] }] }];
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, items },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 40, items: structuredClone(items) },
+        { id: "topics-other", type: "topics", hidden: false, linkedStyleId: "other-style", itemGap: 99, items: [] },
+        { id: "topics-free", type: "topics", hidden: false, itemGap: 77, items: [] },
+      ] }],
+      linkedStyles: [
+        { target: "topics", id: "topics-style", name: "Topics", itemGap: 8, markerColor: "#ff0000" },
+        { target: "topics", id: "other-style", name: "Other", itemGap: 4 },
+      ],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
+    if (!itemGap) throw new Error("Topics itemGap control was not rendered");
+    await act(async () => { itemGap.focus(); setInputValue(itemGap, "12"); itemGap.blur(); });
+    const edited = await save(saved);
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(edited.slides[0]?.elements[1]).not.toHaveProperty("itemGap");
+    expect(edited.slides[0]?.elements[2]).toHaveProperty("itemGap", 99);
+    expect(edited.slides[0]?.elements[3]).toHaveProperty("itemGap", 77);
+    expect(edited.slides[0]?.elements[0]).toHaveProperty("items", initial.slides[0]?.elements[0]?.type === "topics" ? initial.slides[0].elements[0].items : undefined);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-linked-topics-property='itemGap'] [data-resource-action='remove']")?.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[1]).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[0]).toHaveProperty("items", initial.slides[0]?.elements[0]?.type === "topics" ? initial.slides[0].elements[0].items : undefined);
+    await undo();
+    expect(await save(saved)).toEqual(edited);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+  });
 });

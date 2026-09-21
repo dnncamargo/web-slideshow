@@ -543,6 +543,7 @@ function TopicsLinkedStyleEditor({ style, authoringHistory, onUpdate }: { style:
     { id: "spacing", label: "inspector.spacing" as const, properties: configuredLayout.length > 0 || style.itemGap !== undefined ? [...configuredLayout, ...(style.itemGap === undefined ? [] : ["itemGap" as const])] : [] },
     { id: "appearance", label: "inspector.appearance" as const, properties: configuredAppearance },
   ] as const;
+  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
   return <div className={styles.resourcePropertyEditor} data-linked-topics-style-editor>
     <div className={styles.resourcePropertyStack}>
       {groups.map((group) => group.properties.length === 0 ? null : <section className={styles.resourcePropertyGroup} data-linked-topics-property-group={group.id} key={group.id}>
@@ -550,7 +551,18 @@ function TopicsLinkedStyleEditor({ style, authoringHistory, onUpdate }: { style:
         {group.properties.map((property) => <TopicsLinkedStylePropertyCard key={property} style={style} property={property} authoringHistory={authoringHistory} onUpdateLayoutProperty={updateLayoutProperty} onUpdate={onUpdate} onDiscrete={runDefinitionDiscrete} onContinuous={runContinuous} />)}
       </section>)}
     </div>
-    {availableProperties.length > 0 ? <TopicsLinkedStylePropertyChooser properties={availableProperties} onAdd={addProperty} /> : null}
+    {availableProperties.length > 0 ? <CategorizedPropertyChooser groups={[
+      {
+        id: "spacing",
+        label: t("inspector.spacing"),
+        items: availableProperties.filter((property) => isTopicsLinkedStyleLayoutProperty(property) || property === "itemGap").map((property) => ({ id: property, label: t(labels[property]) })),
+      },
+      {
+        id: "appearance",
+        label: t("inspector.appearance"),
+        items: availableProperties.filter((property) => !isTopicsLinkedStyleLayoutProperty(property) && property !== "itemGap").map((property) => ({ id: property, label: t(labels[property]) })),
+      },
+    ]} dataAttribute="topics-linked-style" onSelect={(property) => addProperty(property as TopicsLinkedStyleProperty)} /> : null}
   </div>;
 }
 
@@ -605,16 +617,6 @@ function topicsLinkedStyleAuthoredPropertyCount(style: LinkedTopicsStyle): numbe
     + (style.rootMarkerStyle === undefined ? 0 : 1)
     + (style.markerColor === undefined ? 0 : 1)
     + (style.itemGap === undefined ? 0 : 1);
-}
-
-function TopicsLinkedStylePropertyChooser({ properties, onAdd }: { properties: readonly TopicsLinkedStyleProperty[]; onAdd: (property: TopicsLinkedStyleProperty) => void }) {
-  const { t } = useStudioI18n();
-  const [open, setOpen] = useState(false);
-  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
-  return <div className={styles.resourcePropertyChooser} data-topics-linked-style-property-chooser>
-    <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
-    {open ? <div className={styles.resourceChooser}>{properties.map((property) => <button key={property} type="button" className={styles.resourceChooserOption} onClick={() => { onAdd(property); setOpen(false); }}>{t(labels[property])}</button>)}</div> : null}
-  </div>;
 }
 
 function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], property: LinkedStyleProperty): string {
@@ -1055,10 +1057,10 @@ const TEXT_STYLE_DISPLAY_ORDER = [
   { kind: "layout" as const, property: "marginLeft" as const },
 ] as const;
 
-type CategorizedPropertyChooserGroup = { id: string; label: string; items: readonly { id: string; label: string }[] };
+export type CategorizedPropertyChooserGroup = { id: string; label: string; items: readonly { id: string; label: string }[] };
 
-function CategorizedPropertyChooserPanel({ groups, onSelect, dataAttribute }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style" }) {
-  return <div className={styles.resourceChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : {})}>
+export function CategorizedPropertyChooserPanel({ groups, onSelect, dataAttribute }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style" | "topics-linked-style" }) {
+  return <div className={styles.resourceChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : dataAttribute === "topics-linked-style" ? { "data-topics-linked-style-property-chooser": true } : {})}>
     {groups.map((group) => group.items.length === 0 ? null : <div key={group.id}>
       <h4 className={styles.resourcePropertyGroupTitle}>{group.label}</h4>
       {group.items.map((item) => <button key={item.id} type="button" className={styles.resourceChooserOption} onClick={() => onSelect(item.id)}>{item.label}</button>)}
@@ -1066,10 +1068,10 @@ function CategorizedPropertyChooserPanel({ groups, onSelect, dataAttribute }: { 
   </div>;
 }
 
-function CategorizedPropertyChooser({ groups, onSelect, dataAttribute, openInitially = false }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style"; openInitially?: boolean }) {
+export function CategorizedPropertyChooser({ groups, onSelect, dataAttribute, openInitially = false }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style" | "topics-linked-style"; openInitially?: boolean }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(openInitially);
-  return <div className={styles.resourcePropertyChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : {})}>
+  return <div className={styles.resourcePropertyChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : dataAttribute === "topics-linked-style" ? { "data-topics-linked-style-property-chooser": true } : {})}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <CategorizedPropertyChooserPanel groups={groups} onSelect={(id) => { onSelect(id); setOpen(false); }} /> : null}
   </div>;

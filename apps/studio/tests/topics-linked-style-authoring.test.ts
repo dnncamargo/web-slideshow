@@ -169,4 +169,24 @@ describe("Topics Linked Style authoring", () => {
     expect(removeUnusedLinkedStyle(initial, "nested")).toBeUndefined();
     expect(removeUnusedLinkedStyle(initial, "unused")?.linkedStyles).toHaveLength(2);
   });
+
+  it("preserves destination-omitted local Topics properties and materializes omitted source properties on switch", () => {
+    const initial = presentation(topics({ linkedStyleId: "source", kind: "unordered" }), [
+      { target: "topics", id: "source", name: "Source", kind: "ordered", itemGap: 20, layout: { marginTop: 12 } },
+      { target: "topics", id: "destination", name: "Destination" , markerColor: "#112233" },
+    ]);
+    const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
+    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", kind: "unordered", itemGap: 20, layout: { marginTop: 12 } });
+    expect(selected(switched)).not.toHaveProperty("markerColor");
+  });
+
+  it("keeps explicit local kind when the destination omits kind", () => {
+    const initial = presentation(topics({ linkedStyleId: "source", kind: "unordered" }), [
+      { target: "topics", id: "source", name: "Source", kind: "ordered" },
+      { target: "topics", id: "destination", name: "Destination", itemGap: 8 },
+    ]);
+    const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
+    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", kind: "unordered" });
+    expect(selected(switched)).not.toHaveProperty("itemGap");
+  });
 });

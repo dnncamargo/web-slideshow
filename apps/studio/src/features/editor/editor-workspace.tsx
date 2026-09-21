@@ -190,8 +190,10 @@ import {
   renameLinkedStyle,
   removeUnusedLinkedStyle,
   clearLinkedContainerStyleProperty,
+  clearLinkedTopicsStyleProperty,
+  type LinkedTopicsStyleProperty,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, findElementsLinkedToStyle, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
 import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
 
 // ============================================================
@@ -633,6 +635,57 @@ function areLinkedTopicsStyleDefinitionsEqual(
     && left.rootMarkerStyle === right.rootMarkerStyle
     && areLinkedTopicsStyleColorsEqual(left.markerColor, right.markerColor)
     && left.itemGap === right.itemGap;
+}
+
+const LINKED_TOPICS_MASTER_PROPERTY_ORDER = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft", "itemGap", "kind", "rootMarkerStyle", "markerColor"] as const satisfies readonly LinkedTopicsStyleProperty[];
+
+function getLinkedTopicsStylePropertyValue(style: LinkedTopicsStyle | undefined, property: (typeof LINKED_TOPICS_MASTER_PROPERTY_ORDER)[number]): unknown {
+  if (style === undefined) return undefined;
+  if (property === "kind" || property === "rootMarkerStyle" || property === "markerColor" || property === "itemGap") return style[property];
+  return style.layout?.[property];
+}
+
+function areLinkedTopicsStylePropertyValuesEqual(
+  property: (typeof LINKED_TOPICS_MASTER_PROPERTY_ORDER)[number],
+  left: unknown,
+  right: unknown,
+): boolean {
+  if (property === "markerColor") return areLinkedTopicsStyleColorsEqual(left as ColorValue | undefined, right as ColorValue | undefined);
+  return Object.is(left, right);
+}
+
+function changedLinkedTopicsStyleProperties(
+  before: LinkedTopicsStyle | undefined,
+  after: LinkedTopicsStyle | undefined,
+): (typeof LINKED_TOPICS_MASTER_PROPERTY_ORDER)[number][] {
+  return LINKED_TOPICS_MASTER_PROPERTY_ORDER.filter((property) => !areLinkedTopicsStylePropertyValuesEqual(
+    property,
+    getLinkedTopicsStylePropertyValue(before, property),
+    getLinkedTopicsStylePropertyValue(after, property),
+  ));
+}
+
+function propagateLinkedTopicsStyleDefinitionChanges(
+  presentation: ReturnType<typeof PresentationSchema.parse>,
+  linkedStyleId: string,
+  before: LinkedTopicsStyle | undefined,
+  after: LinkedTopicsStyle | undefined,
+): ReturnType<typeof PresentationSchema.parse> {
+  const changedProperties = changedLinkedTopicsStyleProperties(before, after);
+  if (changedProperties.length === 0) return presentation;
+  let next = presentation;
+  for (const { slideIndex, elementId } of findElementsLinkedToStyle(presentation, linkedStyleId)) {
+    const slide = next.slides[slideIndex];
+    if (slide === undefined) continue;
+    const elements = updateElementById(slide.elements, elementId, (element) => {
+      if (element.type !== "topics" || element.linkedStyleId !== linkedStyleId) return element;
+      return changedProperties.reduce((current, property) => clearLinkedTopicsStyleProperty(current, property), element);
+    });
+    if (elements !== slide.elements) {
+      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
+    }
+  }
+  return next;
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
@@ -3633,8 +3686,8 @@ export function EditorWorkspace({
         if (before === undefined || !("target" in before) || before.target !== "topics") return current;
         const candidate = updateLinkedTopicsStyle(current, id, patch);
         const after = candidate.linkedStyles?.find((style) => style.id === id);
-        if (after === undefined || !("target" in after) || after.target !== "topics" || areLinkedTopicsStyleDefinitionsEqual(before, after) === true) return current;
-        return candidate;
+        if (after === undefined || !("target" in after) || after.target !== "topics") return current;
+        return propagateLinkedTopicsStyleDefinitionChanges(candidate, id, before, after);
       },
     );
   }
