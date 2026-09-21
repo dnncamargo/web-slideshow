@@ -16,6 +16,7 @@ interface CanonicalTextEffectsSectionProps {
   onUpdateTypography: UpdateElementTypography;
   controlPrefix: string;
   textStrokeDisabled?: boolean;
+  textStrokeFallback?: TextStroke;
 }
 
 type ShadowMode = "none" | "outer" | "inset";
@@ -42,11 +43,13 @@ export function CanonicalTextEffectsSection({
   onUpdateTypography,
   controlPrefix,
   textStrokeDisabled = false,
+  textStrokeFallback,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : effect.shadow.inset ? "inset" : "outer";
-  const strokeMode = typography?.textStroke === undefined ? "none" : "stroke";
+  const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
+  const strokeMode = effectiveTextStroke === undefined ? "none" : "stroke";
   const shadow = effect?.shadow;
 
   function runDiscrete(callback: () => void): void {
@@ -117,7 +120,9 @@ export function CanonicalTextEffectsSection({
             if (mode === strokeMode) return;
             runTextStrokeDiscrete(() => onUpdateTypography((current) => ({
               ...current,
-              textStroke: mode === "stroke" ? current?.textStroke ?? defaultTextStroke(textColor) : undefined,
+              textStroke: mode === "stroke"
+                ? current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)
+                : undefined,
             })));
           }}
         >
@@ -125,7 +130,7 @@ export function CanonicalTextEffectsSection({
           <option value="stroke">{t("inspector.textStroke.stroke")}</option>
         </select>
       </label>
-      {typography?.textStroke && (
+      {effectiveTextStroke && (
         <>
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
@@ -136,16 +141,16 @@ export function CanonicalTextEffectsSection({
                   name={getControlName(controlPrefix, "TextStrokeWidth")}
                   type="number"
                   min="0"
-                  value={readAbsoluteNumber(typography.textStroke.width)}
+                  value={readAbsoluteNumber(effectiveTextStroke.width)}
                   disabled={textStrokeDisabled}
                   onFocus={() => beginNumberEditing("text-stroke-width", textStrokeDisabled)}
                   onBlur={() => { if (!textStrokeDisabled) authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`); }}
                   onChange={(event) => {
                     const width = Math.max(0, parseOptionalNumber(event.target.value) ?? 1);
-                    updateNumber("text-stroke-width", typography.textStroke?.width, width, () => onUpdateTypography((current) => ({
+                    updateNumber("text-stroke-width", effectiveTextStroke.width, width, () => onUpdateTypography((current) => ({
                       ...current,
                       textStroke: {
-                        ...(current?.textStroke ?? defaultTextStroke(textColor)),
+                        ...(current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)),
                         width,
                       },
                     })), textStrokeDisabled);
@@ -160,13 +165,13 @@ export function CanonicalTextEffectsSection({
             <ColorControl
               id={`${controlPrefix}-text-stroke-color`}
               name={getControlName(controlPrefix, "TextStrokeColor")}
-              value={typography.textStroke.color}
+              value={effectiveTextStroke.color}
               disabled={textStrokeDisabled}
               onChange={(color) =>
                 onUpdateTypography((current) => ({
                   ...current,
                   textStroke: {
-                    ...(current?.textStroke ?? defaultTextStroke(textColor)),
+                    ...(current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)),
                     color,
                   },
                 }))

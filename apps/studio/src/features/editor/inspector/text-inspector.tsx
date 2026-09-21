@@ -241,7 +241,8 @@ export function TextInspector({
 
       <CanonicalTextEffectsSection
         effect={element.effect}
-        typography={effectiveTypography}
+        typography={element.typography}
+        textStrokeFallback={effectiveTypography?.textStroke}
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}

@@ -279,6 +279,43 @@ describe("Text Inspector typography style attachment", () => {
     expect(current.typography?.textStroke).toMatchObject({ width: 9, color: "#ff0000" });
   });
 
+  it("preserves inherited stroke color when locally editing inherited width", async () => {
+    const source = presentation([{ id: "body", typography: { textStroke: { width: 3, color: "#0000ff" } } }]);
+    await mount(text(), source);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("3");
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-color-value")?.value).toBe("#0000ff");
+
+    const width = host.querySelector<HTMLInputElement>("#text-text-stroke-width");
+    if (!width) throw new Error("text stroke width control was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(width, "9");
+      width.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(current.typography?.textStroke).toEqual({ width: 9, color: "#0000ff" });
+    expect(current.variant).toBe("body");
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { textStroke: { width: 3, color: "#0000ff" } } });
+  });
+
+  it("preserves inherited stroke width when locally editing inherited color", async () => {
+    const source = presentation([{ id: "body", typography: { textStroke: { width: 3, color: "#0000ff" } } }]);
+    await mount(text(), source);
+    const color = host.querySelector<HTMLInputElement>("#text-text-stroke-color-value");
+    if (!color) throw new Error("text stroke color control was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(color, "#ff0000");
+      color.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(current.typography?.textStroke).toEqual({ width: 3, color: "#ff0000" });
+    expect(current.variant).toBe("body");
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { textStroke: { width: 3, color: "#0000ff" } } });
+  });
+
   it("edits both omitted and owned attached fields locally", async () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text(), source);
