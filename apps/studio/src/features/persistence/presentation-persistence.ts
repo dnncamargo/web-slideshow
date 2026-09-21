@@ -1,5 +1,5 @@
-import type { Presentation, Slide } from "@web-slideshow/document-schema";
-import { PresentationSchema } from "@web-slideshow/document-schema";
+import type { MaterializedSlide, Presentation } from "@web-slideshow/document-schema";
+import { materializeSlide, PresentationSchema } from "@web-slideshow/document-schema";
 import {
   decodePresentationFromFirestore,
   encodePresentationForFirestore,
@@ -61,7 +61,7 @@ export interface PresentationSummary {
  */
 export interface PresentationThumbnailPreview {
   aspectRatio: "16:9" | "4:3";
-  firstSlide: Slide;
+  firstSlide: MaterializedSlide;
   presentation: Presentation;
 }
 
@@ -274,15 +274,6 @@ export function deriveThumbnailPreview(
     return undefined;
   }
 
-  const elementsValue = (firstSlideCandidate as Record<string, unknown>)
-    .elements;
-
-  // Blank-slide rule: preserve the decorative fallback even when the slide has
-  // a configured background.
-  if (!Array.isArray(elementsValue) || elementsValue.length === 0) {
-    return undefined;
-  }
-
   const parsed = PresentationSchema.safeParse({
     ...pres,
     slides: [firstSlideCandidate],
@@ -292,9 +283,23 @@ export function deriveThumbnailPreview(
     return undefined;
   }
 
-  const firstSlide = parsed.data.slides[0];
+  const canonicalFirstSlide = parsed.data.slides[0];
 
-  if (!firstSlide) {
+  if (!canonicalFirstSlide) {
+    return undefined;
+  }
+
+  let firstSlide: MaterializedSlide;
+  try {
+    firstSlide = materializeSlide(parsed.data, canonicalFirstSlide).slide;
+  } catch {
+    return undefined;
+  }
+
+  // Blank-slide rule: preserve the decorative fallback even when the slide has
+  // a configured background. Root-backed slides are checked after
+  // materialization so inherited content can produce a real thumbnail.
+  if (firstSlide.elements.length === 0) {
     return undefined;
   }
 

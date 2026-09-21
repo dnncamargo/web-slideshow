@@ -25,6 +25,27 @@ function makePresentation(options: {
   };
 }
 
+function makeRootDefinition(
+  id: string,
+  content: string,
+  options: { targetId?: string; localChildTargetIds?: string[] } = {},
+): unknown {
+  const targetId = options.targetId ?? `${id}-target`;
+  return {
+    id,
+    name: id,
+    root: {
+      id: `${id}-root`,
+      type: "container",
+      children: [
+        { id: `${id}-master-text`, type: "text", content },
+        { id: targetId, type: "container", children: [] },
+      ],
+    },
+    localChildTargetIds: options.localChildTargetIds ?? [],
+  };
+}
+
 const textElement = {
   id: "text-1",
   type: "text",
@@ -82,6 +103,65 @@ describe("deriveThumbnailPreview", () => {
     expect(preview?.presentation.slides).toHaveLength(1);
   });
 
+  it("materializes effective content from the default Root Definition", () => {
+    const raw = makePresentation({ slides: [makeSlide("slide-1", [])] }) as Record<string, unknown>;
+    raw.rootDefinitions = [makeRootDefinition("default", "Default master")];
+    raw.defaultRootDefinitionId = "default";
+
+    const preview = deriveThumbnailPreview(raw);
+
+    expect(preview).toBeDefined();
+    expect(preview?.firstSlide.elements).toHaveLength(1);
+    expect(preview?.firstSlide.elements[0]).toMatchObject({ id: "default-root", type: "container" });
+    expect((preview?.firstSlide.elements[0] as { children: Array<{ id: string; content?: string }> }).children[0])
+      .toMatchObject({ id: "default-master-text", content: "Default master" });
+    expect((raw.slides as Array<Record<string, unknown>>)[0]?.elements).toEqual([]);
+  });
+
+  it("materializes the explicitly selected Root Definition instead of the default", () => {
+    const raw = makePresentation({
+      slides: [{ id: "slide-1", elements: [], rootDefinitionId: "explicit" }],
+    }) as Record<string, unknown>;
+    raw.rootDefinitions = [
+      makeRootDefinition("default", "Default master"),
+      makeRootDefinition("explicit", "Explicit master"),
+    ];
+    raw.defaultRootDefinitionId = "default";
+
+    const preview = deriveThumbnailPreview(raw);
+
+    const children = (preview?.firstSlide.elements[0] as { children: Array<{ content?: string }> }).children;
+    expect(children[0]).toMatchObject({ content: "Explicit master" });
+    expect(children[0]).not.toMatchObject({ content: "Default master" });
+  });
+
+  it("materializes authorized local children after Master children and preserves IDs", () => {
+    const raw = makePresentation({
+      slides: [{
+        id: "slide-1",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "default-target",
+          children: [{ id: "local-text", type: "text", content: "Local child" }],
+        }],
+      }],
+    }) as Record<string, unknown>;
+    raw.rootDefinitions = [makeRootDefinition("default", "Master child", {
+      targetId: "default-target",
+      localChildTargetIds: ["default-target"],
+    })];
+    raw.defaultRootDefinitionId = "default";
+
+    const preview = deriveThumbnailPreview(raw);
+    const root = preview?.firstSlide.elements[0] as { children: Array<{ id: string; children?: Array<{ id: string }> }> } | undefined;
+
+    expect(root?.children.map((child) => child.id)).toEqual([
+      "default-master-text",
+      "default-target",
+    ]);
+    expect(root?.children[1]?.children?.map((child) => child.id)).toEqual(["local-text"]);
+  });
+
   it("retains linked style owner context for a linked first-slide Container", () => {
     const source = makePresentation({
       slides: [makeSlide("slide-1", [{
@@ -114,6 +194,15 @@ describe("deriveThumbnailPreview", () => {
     );
 
     expect(preview).toBeUndefined();
+  });
+
+  it("returns undefined for an invalid Root Definition projection without throwing", () => {
+    expect(() => deriveThumbnailPreview(makePresentation({
+      slides: [{ id: "slide-1", elements: [], rootDefinitionId: "missing" }],
+    }))).not.toThrow();
+    expect(deriveThumbnailPreview(makePresentation({
+      slides: [{ id: "slide-1", elements: [], rootDefinitionId: "missing" }],
+    }))).toBeUndefined();
   });
 
   it("preserves the blank-slide fallback even when a background is configured", () => {

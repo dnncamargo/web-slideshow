@@ -11,6 +11,7 @@ import { PresentationThumbnail } from "../src/features/library/presentation-thum
 import { PresentationThumbnailPreview } from "../src/features/library/presentation-thumbnail-preview";
 import { PresentationList } from "../src/features/library/presentation-list";
 import { PresentationLibrary } from "../src/features/library/presentation-library";
+import { deriveThumbnailPreview } from "../src/features/persistence/presentation-persistence";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import type {
   PresentationSummary,
@@ -109,6 +110,41 @@ function previewData(
   return { aspectRatio, firstSlide, presentation };
 }
 
+function rootBackedPreview(): PresentationThumbnailPreviewData {
+  const preview = deriveThumbnailPreview({
+    schemaVersion: 1,
+    id: "root-backed-presentation",
+    title: "Root-backed presentation",
+    slides: [{
+      id: "slide-1",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "target",
+        children: [{ id: "local-text", type: "text", content: "Local content" }],
+      }],
+    }],
+    rootDefinitions: [{
+      id: "master",
+      name: "Master",
+      root: {
+        id: "master-root",
+        type: "container",
+        children: [
+          { id: "master-text", type: "text", content: "Master content" },
+          { id: "target", type: "container", children: [] },
+        ],
+      },
+      localChildTargetIds: ["target"],
+    }],
+    defaultRootDefinitionId: "master",
+  });
+
+  if (!preview) {
+    throw new Error("Expected root-backed thumbnail preview fixture to parse.");
+  }
+  return preview;
+}
+
 function summary(
   id: string,
   thumbnailPreview?: PresentationThumbnailPreviewData,
@@ -194,6 +230,25 @@ describe("presentation thumbnail preview", () => {
 
     expect(container.querySelector('[data-presentation-id="card"]')).not.toBeNull();
     expect(container.innerHTML).toContain("background:#123456");
+  });
+
+  it("renders a materialized Root Definition thumbnail with local content and IDs", () => {
+    renderNode(
+      <PresentationThumbnail
+        summary={summary("root-backed", rootBackedPreview())}
+      />,
+    );
+
+    expect(container.querySelector(".presentation-slide")).not.toBeNull();
+    const master = container.querySelector('[data-presentation-id="master-text"]');
+    const local = container.querySelector('[data-presentation-id="local-text"]');
+
+    expect(master).not.toBeNull();
+    expect(local).not.toBeNull();
+    expect(container.textContent?.indexOf("Master content")).toBeLessThan(
+      container.textContent?.indexOf("Local content") ?? -1,
+    );
+    expect(container.querySelector("[data-root-definition]")).toBeNull();
   });
 
   it("uses the decorative fallback when thumbnailPreview is absent", () => {
