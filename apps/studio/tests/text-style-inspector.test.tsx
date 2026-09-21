@@ -301,6 +301,27 @@ describe("Text Inspector typography style attachment", () => {
     expect(current).not.toHaveProperty("layout.marginTop");
   });
 
+  it("Attach removes layout when all local margins are owned by the target Style", async () => {
+    await mount(text({
+      styleDetached: true,
+      layout: { marginTop: 20, marginBottom: 30 },
+    }), presentation([{
+      id: "quote",
+      name: "Quote",
+      role: "body",
+      layout: { marginTop: 10, marginBottom: 15 },
+    }]));
+
+    const select = host.querySelector<HTMLSelectElement>("#text-variant");
+    if (!select) throw new Error("Text Style selector was not rendered");
+    await act(async () => {
+      select.value = "quote";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(current).not.toHaveProperty("layout");
+  });
+
   it("preserves Effects controls and custom role baseline semantics", async () => {
     await mount(text({ variant: "quote", typography: { fontSize: 24, textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#f00" } }), presentation([
       { id: "body", typography: { fontFamily: "Inter", fontWeight: 600 } },

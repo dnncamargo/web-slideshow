@@ -135,7 +135,7 @@ export function TextInspector({
       onUpdate((current) => {
         if (current.type !== "text") return current;
         const targetStyle = presentation?.textStyles?.find((style) => style.id === variant) as TextStyle | undefined;
-        const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
+        const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, layout: _ownedLayout, ...attached } = current;
         const local = stripLocalTextStyleProperties(current.typography, current.style, current.layout, targetStyle ?? {});
         return {
           ...attached,

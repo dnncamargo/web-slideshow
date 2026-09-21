@@ -65,7 +65,7 @@ export function createTextStyleFromText(
     ...(Object.keys(typography).length > 0 ? { typography } : {}),
     ...(Object.keys(layout).length > 0 ? { layout } : {}),
   };
-  const { styleDetached: _styleDetached, typography: _typography, style: _style, ...attached } = text;
+  const { styleDetached: _styleDetached, typography: _typography, style: _style, layout: _layout, ...attached } = text;
   const local = stripLocalTextStyleProperties(text.typography, text.style, text.layout, nextStyle);
   const nextText = {
     ...attached,

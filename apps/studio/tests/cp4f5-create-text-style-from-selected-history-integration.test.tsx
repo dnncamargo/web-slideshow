@@ -257,7 +257,6 @@ describe("CP4F5 create Text Style from selected Text history", () => {
       variant: "detached-capture",
       content: "Selected text",
       style: { background: { color: "#eeeeee" }, className: "detached" },
-      layout: { marginTop: 14, marginBottom: 16 },
     });
     await undo();
     expect(await save()).toEqual(initial);
