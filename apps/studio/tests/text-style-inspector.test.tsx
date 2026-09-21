@@ -105,8 +105,7 @@ describe("Text Inspector typography style attachment", () => {
     await mount(text(), source);
 
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.25");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
     expect(updates).toHaveLength(0);
     expect(source.textStyles?.[0]).toMatchObject({ id: "body", typography: { fontSize: 20 } });
@@ -116,14 +115,12 @@ describe("Text Inspector typography style attachment", () => {
     const first = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text({ typography: { fontSize: 22 } }), first);
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
 
     await mount(current, presentation([{ id: "body", typography: { fontFamily: "Roboto", fontWeight: 700 } }]));
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Roboto");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Roboto");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("700");
     expect(current).toMatchObject({ variant: "body", typography: { fontSize: 22 } });
     expect(current).not.toHaveProperty("styleDetached");
@@ -143,6 +140,44 @@ describe("Text Inspector typography style attachment", () => {
       alignment.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(current.typography?.textAlign).toBe("left");
+    expect(updates).toHaveLength(0);
+  });
+
+  it("displays and protects an owned effective font family", async () => {
+    await mount(text({ typography: { fontFamily: "Arial" } }), presentation([
+      { id: "body", typography: { fontFamily: "Inter" } },
+    ]));
+    const input = host.querySelector<HTMLInputElement>("#text-font-family");
+    if (!input) throw new Error("font family control was not rendered");
+    expect(input.value).toBe("Inter");
+    expect(input.disabled).toBe(true);
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(input, "Arial Black");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("blur", { bubbles: true }));
+    });
+    expect(current.typography?.fontFamily).toBe("Arial");
+    expect(updates).toHaveLength(0);
+  });
+
+  it("blocks synthetic edits to an owned effective length", async () => {
+    await mount(text({ typography: { fontSize: 12 } }), presentation([
+      { id: "body", typography: { fontSize: 20 } },
+    ]));
+    const input = host.querySelector<HTMLInputElement>("#text-font-size");
+    if (!input) throw new Error("font size control was not rendered");
+    expect(input.disabled).toBe(true);
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      input.focus();
+      setter.call(input, "30");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.blur();
+    });
+    expect(current.typography?.fontSize).toBe(12);
     expect(updates).toHaveLength(0);
   });
 
@@ -212,9 +247,28 @@ describe("Text Inspector typography style attachment", () => {
     expect(host.querySelector<HTMLInputElement>("#text-text-stroke-color-value")?.disabled).toBe(true);
     expect(host.querySelector<HTMLSelectElement>("#text-shadow-mode")?.disabled).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("3");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      const color = host.querySelector<HTMLInputElement>("#text-color-value");
+      if (!color) throw new Error("text color control was not rendered");
+      setter.call(color, "#123456");
+      color.dispatchEvent(new Event("input", { bubbles: true }));
+      const mode = host.querySelector<HTMLSelectElement>("#text-text-stroke-mode");
+      if (!mode) throw new Error("text stroke mode control was not rendered");
+      mode.value = "none";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+      const width = host.querySelector<HTMLInputElement>("#text-text-stroke-width");
+      if (!width) throw new Error("text stroke width control was not rendered");
+      setter.call(width, "9");
+      width.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(current.style?.color).toBe("#ff0000");
+    expect(current.typography?.textStroke).toEqual({ width: 1, color: "#ff0000" });
+    expect(updates).toHaveLength(0);
   });
 
-  it("edits one attached field without materializing effective typography", async () => {
+  it("edits an omitted attached field while rejecting an owned field", async () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text(), source);
     await act(async () => {
@@ -223,9 +277,21 @@ describe("Text Inspector typography style attachment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    expect(current).toMatchObject({ variant: "body", typography: { fontWeight: 700 } });
+    expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
+    expect(current).toMatchObject({ variant: "body" });
     expect(current).not.toHaveProperty("styleDetached");
-    expect(current.typography).not.toHaveProperty("fontFamily");
+    expect(current.typography?.fontFamily).toBeUndefined();
+    expect(current.typography?.fontWeight).toBeUndefined();
+    const fontSize = host.querySelector<HTMLInputElement>("#text-font-size");
+    if (!fontSize) throw new Error("font size control was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(fontSize, "22");
+      fontSize.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(current).toMatchObject({ typography: { fontSize: "22rem" } });
+    expect(current.typography?.fontWeight).toBeUndefined();
     expect(source.textStyles?.[0]).toMatchObject({ typography: { fontWeight: 500 } });
   });
 

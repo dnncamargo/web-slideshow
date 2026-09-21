@@ -89,10 +89,12 @@ export function EffectiveLengthInput({
   const inputStep = stepByUnit?.[unit] ?? step;
 
   function beginEditing() {
+    if (disabled) return;
     authoringHistory?.begin(historyKey, historyMeta);
   }
 
   function updateValue(nextValue: Length | undefined) {
+    if (disabled) return;
     if (!authoringHistory) {
       onChange(nextValue);
       return;
@@ -115,8 +117,9 @@ export function EffectiveLengthInput({
           value={numericValue}
           disabled={disabled}
           onFocus={beginEditing}
-          onBlur={() => authoringHistory?.finish(historyKey)}
+          onBlur={() => { if (!disabled) authoringHistory?.finish(historyKey); }}
           onChange={(event) => {
+            if (disabled) return;
             const nextValue = event.target.value.trim();
 
             if (nextValue === "") {
@@ -140,6 +143,7 @@ export function EffectiveLengthInput({
           value={unit}
           disabled={disabled}
           onChange={(event) => {
+            if (disabled) return;
             const nextUnit = event.target.value as AuthoringLengthUnit;
 
             if (!units.includes(nextUnit)) {

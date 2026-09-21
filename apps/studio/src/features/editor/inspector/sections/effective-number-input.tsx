@@ -36,10 +36,12 @@ export function EffectiveNumberInput({
   const historyMeta = { kind: "number.change", labelKey: "history.number.change" };
 
   function beginEditing() {
+    if (disabled) return;
     authoringHistory?.begin(historyKey, historyMeta);
   }
 
   function updateValue(nextValue: string) {
+    if (disabled) return;
     if (!authoringHistory) {
       onChange(nextValue);
       return;
@@ -63,8 +65,9 @@ export function EffectiveNumberInput({
           value={value}
           disabled={disabled}
           onFocus={beginEditing}
-          onBlur={() => authoringHistory?.finish(historyKey)}
+          onBlur={() => { if (!disabled) authoringHistory?.finish(historyKey); }}
           onChange={(event) => {
+            if (disabled) return;
             updateValue(event.target.value);
           }}
         />

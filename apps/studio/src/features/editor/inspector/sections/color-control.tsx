@@ -74,6 +74,7 @@ export function ColorControl({
     ? undefined
     : detachColorValue(value, { colors: [...paletteColors] });
   const emitLiteralColor = (color: Color, source: ColorChangeSource = "text") => {
+    if (disabled) return;
     if (!authoringHistory) {
       onChange(color, source);
       return;
@@ -87,6 +88,7 @@ export function ColorControl({
     }
   };
   const emitDiscreteColor = (color: ColorValue, source: ColorChangeSource) => {
+    if (disabled) return;
     if (!authoringHistory) {
       onChange(color, source);
       return;
@@ -104,10 +106,11 @@ export function ColorControl({
         value={literalValue}
         disabled={disabled}
         onCommit={(color) => {
+          if (disabled) return;
           authoringHistory?.finish(historyKey);
           picked?.onPickColor(color);
         }}
-        onBlur={() => authoringHistory?.finish(historyKey)}
+        onBlur={() => { if (!disabled) authoringHistory?.finish(historyKey); }}
         onChange={(color, source) => {
           setLiteralValue(color);
           setIsPaletteChooserOpen(false);

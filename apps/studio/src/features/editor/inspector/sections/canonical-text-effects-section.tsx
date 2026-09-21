@@ -64,6 +64,7 @@ export function CanonicalTextEffectsSection({
   }
 
   function runTextStrokeDiscrete(callback: () => void): void {
+    if (textStrokeDisabled) return;
     const meta = {
       kind: "element.setting",
       labelKey: "history.element.setting",
@@ -84,7 +85,8 @@ export function CanonicalTextEffectsSection({
     }));
   }
 
-  function updateNumber(key: string, currentValue: string | number | undefined, value: number | undefined, update: () => void): void {
+  function updateNumber(key: string, currentValue: string | number | undefined, value: number | undefined, update: () => void, disabled = false): void {
+    if (disabled) return;
     const unchanged = value === undefined ? currentValue === undefined : readAbsoluteNumber(currentValue) === value;
     if (unchanged) return;
     const historyKey = `number:${controlPrefix}-${key}`;
@@ -96,7 +98,8 @@ export function CanonicalTextEffectsSection({
     authoringHistory.update(historyKey, update);
   }
 
-  function beginNumberEditing(key: string): void {
+  function beginNumberEditing(key: string, disabled = false): void {
+    if (disabled) return;
     authoringHistory?.begin(`number:${controlPrefix}-${key}`, numberHistoryMeta);
   }
 
@@ -135,8 +138,8 @@ export function CanonicalTextEffectsSection({
                   min="0"
                   value={readAbsoluteNumber(typography.textStroke.width)}
                   disabled={textStrokeDisabled}
-                  onFocus={() => beginNumberEditing("text-stroke-width")}
-                  onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`)}
+                  onFocus={() => beginNumberEditing("text-stroke-width", textStrokeDisabled)}
+                  onBlur={() => { if (!textStrokeDisabled) authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`); }}
                   onChange={(event) => {
                     const width = Math.max(0, parseOptionalNumber(event.target.value) ?? 1);
                     updateNumber("text-stroke-width", typography.textStroke?.width, width, () => onUpdateTypography((current) => ({
@@ -145,7 +148,7 @@ export function CanonicalTextEffectsSection({
                         ...(current?.textStroke ?? defaultTextStroke(textColor)),
                         width,
                       },
-                    })));
+                    })), textStrokeDisabled);
                   }}
                 />
                 <span>px</span>

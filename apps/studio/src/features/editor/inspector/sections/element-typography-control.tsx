@@ -264,15 +264,19 @@ export function ElementTypographyFields({
     isDisabled(property as CoreTypographyProperty) ? effectiveTypography?.[property] : currentTypography?.[property];
 
   function onUpdateStyle(
+    property: CoreTypographyProperty,
     update: (current: ElementTypography | undefined) => ElementTypography,
   ): void {
+    if (isDisabled(property)) return;
     onUpdateTypography?.(update);
   }
 
   function onUpdateDiscreteStyle(
+    property: CoreTypographyProperty,
     setting: string,
     update: (current: ElementTypography | undefined) => ElementTypography,
   ): void {
+    if (isDisabled(property)) return;
     const callback = () => onUpdateTypography?.(update);
     const meta = {
       kind: "element.setting",
@@ -314,12 +318,12 @@ export function ElementTypographyFields({
 
           <FontFamilyField
             controlPrefix={controlPrefix}
-            currentValue={currentFontFamily}
-            effectiveValue={effectiveDefaults.fontFamily}
+            currentValue={isDisabled("fontFamily") ? effectiveTypography?.fontFamily : currentFontFamily}
+            effectiveValue={isDisabled("fontFamily") ? effectiveTypography?.fontFamily : effectiveDefaults.fontFamily}
             fontResources={fontResources}
             disabled={isDisabled("fontFamily")}
             onCommit={(fontFamily) => {
-              onUpdateDiscreteStyle("typography.fontFamily", (currentTypography) => ({
+              onUpdateDiscreteStyle("fontFamily", "typography.fontFamily", (currentTypography) => ({
                 ...currentTypography,
 
                 fontFamily,
@@ -348,14 +352,14 @@ export function ElementTypographyFields({
             disabled={isDisabled("fontSize")}
             onChange={(fontSize) => {
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("fontSize", (currentStyle) => ({
                 ...currentStyle,
 
                 fontSize,
               }));
             }}
             onReset={() => {
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("fontSize", (currentStyle) => ({
                 ...currentStyle,
 
                 fontSize: undefined,
@@ -375,7 +379,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const fontWeight = parseFontWeightSelection(event.target.value);
 
-              onUpdateDiscreteStyle("typography.fontWeight", (currentStyle) => ({
+              onUpdateDiscreteStyle("fontWeight", "typography.fontWeight", (currentStyle) => ({
                 ...currentStyle,
 
                 fontWeight,
@@ -413,7 +417,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
-              onUpdateDiscreteStyle("typography.fontStyle", (currentStyle) => ({
+              onUpdateDiscreteStyle("fontStyle", "typography.fontStyle", (currentStyle) => ({
                 ...currentStyle,
 
                 fontStyle,
@@ -440,7 +444,7 @@ export function ElementTypographyFields({
               if (isDisabled("textAlign")) return;
               const textAlign = parseTextAlignSelection(event.target.value);
 
-              onUpdateDiscreteStyle("typography.textAlign", (currentStyle) => ({
+              onUpdateDiscreteStyle("textAlign", "typography.textAlign", (currentStyle) => ({
                 ...currentStyle,
 
                 textAlign,
@@ -478,14 +482,14 @@ export function ElementTypographyFields({
             onChange={(value) => {
               const lineHeight = parseOptionalPositiveNumber(value);
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("lineHeight", (currentStyle) => ({
                 ...currentStyle,
 
                 lineHeight,
               }));
             }}
             onReset={() => {
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("lineHeight", (currentStyle) => ({
                 ...currentStyle,
 
                 lineHeight: undefined,
@@ -514,14 +518,14 @@ export function ElementTypographyFields({
             disabled={isDisabled("letterSpacing")}
             onChange={(letterSpacing) => {
 
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("letterSpacing", (currentStyle) => ({
                 ...currentStyle,
 
                 letterSpacing,
               }));
             }}
             onReset={() => {
-              onUpdateStyle((currentStyle) => ({
+              onUpdateStyle("letterSpacing", (currentStyle) => ({
                 ...currentStyle,
 
                 letterSpacing: undefined,
@@ -543,7 +547,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateDiscreteStyle("typography.textTransform", (currentStyle) => ({
+              onUpdateDiscreteStyle("textTransform", "typography.textTransform", (currentStyle) => ({
                 ...currentStyle,
 
                 textTransform,
@@ -577,7 +581,7 @@ export function ElementTypographyFields({
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
-              onUpdateDiscreteStyle("typography.whiteSpace", (currentStyle) => ({
+              onUpdateDiscreteStyle("whiteSpace", "typography.whiteSpace", (currentStyle) => ({
                 ...currentStyle,
 
                 whiteSpace,
@@ -611,7 +615,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateDiscreteStyle("typography.textWrapStyle", (currentStyle) => ({
+              onUpdateDiscreteStyle("textWrapStyle", "typography.textWrapStyle", (currentStyle) => ({
                 ...currentStyle,
 
                 textWrapStyle,
@@ -639,7 +643,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateDiscreteStyle("typography.overflowWrap", (currentStyle) => ({
+              onUpdateDiscreteStyle("overflowWrap", "typography.overflowWrap", (currentStyle) => ({
                 ...currentStyle,
 
                 overflowWrap,
@@ -673,7 +677,7 @@ export function ElementTypographyFields({
                 event.target.value,
               );
 
-              onUpdateDiscreteStyle("typography.textDecorationLine", (currentStyle) => ({
+              onUpdateDiscreteStyle("textDecorationLine", "typography.textDecorationLine", (currentStyle) => ({
                 ...currentStyle,
 
                 textDecorationLine,

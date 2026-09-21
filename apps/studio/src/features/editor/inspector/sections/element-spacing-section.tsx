@@ -136,8 +136,8 @@ export function ElementSpacingSection({
             min="0"
             value={readAbsoluteNumber(displayedLayout.margin)}
             disabled={isDisabled("margin")}
-            onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta)}
-            onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-margin`)}
+            onFocus={() => { if (!isDisabled("margin")) authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta); }}
+            onBlur={() => { if (!isDisabled("margin")) authoringHistory?.finish(`number:${controlPrefix}-margin`); }}
             onChange={(event) => {
               updateField("margin", parseOptionalNumber(event.target.value));
             }}
@@ -168,8 +168,8 @@ export function ElementSpacingSection({
                     min="0"
                     value={readAbsoluteNumber(displayedLayout[field])}
                     disabled={isDisabled(field)}
-                    onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta)}
-                    onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`)}
+                    onFocus={() => { if (!isDisabled(field)) authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta); }}
+                    onBlur={() => { if (!isDisabled(field)) authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`); }}
                     onChange={(event) => {
                       updateField(
                         field,
