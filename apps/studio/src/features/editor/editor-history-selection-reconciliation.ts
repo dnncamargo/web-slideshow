@@ -1,5 +1,9 @@
 import type { Presentation } from "@web-slideshow/document-schema";
 
+import {
+  resolveAuthoringElements,
+  type AuthoringTarget,
+} from "./authoring-target";
 import { findElementById } from "./element-tree";
 
 export interface ReplaySelectedElement {
@@ -11,11 +15,14 @@ export interface ReplaySelectedElement {
 export function reconcileSelectedElementAfterReplay(
   selected: ReplaySelectedElement | null,
   presentation: Presentation,
-  slideIndex: number,
+  targetOrSlideIndex: AuthoringTarget | number,
 ): ReplaySelectedElement | null {
   if (!selected) return null;
-  const slide = presentation.slides[slideIndex];
-  return slide && findElementById(slide.elements, selected.id)
+  const target: AuthoringTarget = typeof targetOrSlideIndex === "number"
+    ? { kind: "slide", slideIndex: targetOrSlideIndex }
+    : targetOrSlideIndex;
+  const elements = resolveAuthoringElements(presentation, target);
+  return elements && findElementById(elements, selected.id)
     ? { ...selected, contentSlotId: null }
     : null;
 }
