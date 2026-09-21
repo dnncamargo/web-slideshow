@@ -156,12 +156,12 @@ describe("CP4F5 create Text Style from selected Text history", () => {
       variant: "body",
       typography: { fontWeight: 600, textDecorationLine: "underline", textDecorationColor: "#ff0000", textStroke: { width: 2, color: "#111111" } },
       style: { color: { kind: "palette", colorId: "primary" }, background: { color: "#eeeeee" }, className: "local-text" },
-      layout: { position: "absolute", left: 11, top: 12 },
+      layout: { position: "absolute", left: 11, top: 12, marginTop: 24, marginBottom: 20 },
       effect: { opacity: 0.7 },
       link: { kind: "url", href: "https://example.com", target: "_blank" },
     })], {
       palette: { colors: [{ id: "primary", name: "Primary", value: "#336699" }] },
-      textStyles: [{ id: "body", typography: { fontSize: 20 } }],
+      textStyles: [{ id: "body", typography: { fontSize: 20 }, layout: { marginTop: 8 } }],
     });
     await mount(initial);
     await selectText("selected");
@@ -174,12 +174,13 @@ describe("CP4F5 create Text Style from selected Text history", () => {
 
     const created = await save();
     expect(created.textStyles).toEqual([
-      { id: "body", typography: { fontSize: 20 } },
+      { id: "body", typography: { fontSize: 20 }, layout: { marginTop: 8 } },
       {
         id: "captured-style",
         name: "Captured style",
         role: "body",
         style: { color: { kind: "palette", colorId: "primary" } },
+        layout: { marginTop: 8, marginBottom: 20 },
         typography: { fontSize: 20, fontWeight: 600, textDecorationLine: "underline", textDecorationColor: "#ff0000", textStroke: { width: 2, color: "#111111" } },
       },
     ]);
@@ -233,6 +234,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
       styleDetached: true,
       typography: { fontSize: 30, fontWeight: 500, textDecorationLine: "underline" },
       style: { color: "#123456", background: { color: "#eeeeee" }, className: "detached" },
+      layout: { marginTop: 14, marginBottom: 16 },
     })]);
     await mount(initial);
     await selectText("selected");
@@ -245,6 +247,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
       name: "Detached capture",
       role: "body",
       style: { color: "#123456" },
+      layout: { marginTop: 14, marginBottom: 16 },
       typography: { fontSize: 30, fontWeight: 500, textDecorationLine: "underline" },
     });
     expect(findText(created, "selected")).toEqual({
@@ -254,6 +257,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
       variant: "detached-capture",
       content: "Selected text",
       style: { background: { color: "#eeeeee" }, className: "detached" },
+      layout: { marginTop: 14, marginBottom: 16 },
     });
     await undo();
     expect(await save()).toEqual(initial);

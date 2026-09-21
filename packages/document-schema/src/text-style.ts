@@ -158,16 +158,31 @@ export const TEXT_STYLE_LAYOUT_PROPERTY_NAMES = [
 export function stripLocalTextStyleProperties(
   style: ElementTypography | undefined,
   visualStyle: TextVisualStyle | undefined,
-): { typography: ElementTypography | undefined; style: TextVisualStyle | undefined } {
+  layout: TextStyleLayoutProperties | undefined = undefined,
+  owner: Pick<TextStyle, "typography" | "style" | "layout"> | undefined = undefined,
+): { typography: ElementTypography | undefined; style: TextVisualStyle | undefined; layout: TextStyleLayoutProperties | undefined } {
+  const ownedTypography = owner === undefined
+    ? TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2
+    : TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.filter((property) => owner.typography?.[property] !== undefined);
+  const ownedVisual = owner === undefined
+    ? TEXT_STYLE_VISUAL_PROPERTY_NAMES
+    : TEXT_STYLE_VISUAL_PROPERTY_NAMES.filter((property) => owner.style?.[property] !== undefined);
+  const ownedLayout = owner === undefined
+    ? TEXT_STYLE_LAYOUT_PROPERTY_NAMES
+    : TEXT_STYLE_LAYOUT_PROPERTY_NAMES.filter((property) => owner.layout?.[property] !== undefined);
   const typography = style === undefined ? undefined : Object.fromEntries(
-    Object.entries(style).filter(([property, value]) => !TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.includes(property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]) && value !== undefined),
+    Object.entries(style).filter(([property, value]) => !ownedTypography.includes(property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]) && value !== undefined),
   ) as ElementTypography;
   const remainingStyle = visualStyle === undefined ? undefined : Object.fromEntries(
-    Object.entries(visualStyle).filter(([property, value]) => property !== "color" && value !== undefined),
+    Object.entries(visualStyle).filter(([property, value]) => !ownedVisual.includes(property as (typeof TEXT_STYLE_VISUAL_PROPERTY_NAMES)[number]) && value !== undefined),
   );
+  const remainingLayout = layout === undefined ? undefined : Object.fromEntries(
+    Object.entries(layout).filter(([property, value]) => !ownedLayout.includes(property as (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]) && value !== undefined),
+  ) as TextStyleLayoutProperties;
   return {
     typography: typography && Object.keys(typography).length > 0 ? typography : undefined,
     style: remainingStyle && Object.keys(remainingStyle).length > 0 ? remainingStyle as TextVisualStyle : undefined,
+    layout: remainingLayout && Object.keys(remainingLayout).length > 0 ? remainingLayout : undefined,
   };
 }
 

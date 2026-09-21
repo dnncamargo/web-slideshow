@@ -2,6 +2,7 @@ import type {
   ElementTypography,
   Presentation,
   TextElement,
+  TextStyleLayoutProperties,
   TextStyleRole,
 } from "@web-slideshow/document-schema";
 import {
@@ -18,6 +19,7 @@ export interface EffectiveTextStyleForAuthoring {
   role: TextStyleRole;
   style: TextElement["style"];
   typography: ElementTypography;
+  layout: TextStyleLayoutProperties;
 }
 
 export interface CreatedTextStyleFromText {
@@ -48,6 +50,9 @@ export function createTextStyleFromText(
     }),
   );
   const style = resolved.style?.color === undefined ? undefined : { color: resolved.style.color };
+  const layout = Object.fromEntries(
+    Object.entries(resolved.layout).filter(([, value]) => value !== undefined),
+  ) as TextStyleLayoutProperties;
   const textStyleId = createTextStyleId(
     trimmedName,
     (presentation.textStyles ?? []).map((candidate) => candidate.id),
@@ -58,14 +63,16 @@ export function createTextStyleFromText(
     role: resolved.role,
     ...(Object.keys(style ?? {}).length > 0 ? { style } : {}),
     ...(Object.keys(typography).length > 0 ? { typography } : {}),
+    ...(Object.keys(layout).length > 0 ? { layout } : {}),
   };
   const { styleDetached: _styleDetached, typography: _typography, style: _style, ...attached } = text;
-  const local = stripLocalTextStyleProperties(text.typography, text.style);
+  const local = stripLocalTextStyleProperties(text.typography, text.style, text.layout, nextStyle);
   const nextText = {
     ...attached,
     variant: textStyleId,
     ...(local.style === undefined ? {} : { style: local.style }),
     ...(local.typography === undefined ? {} : { typography: local.typography }),
+    ...(local.layout === undefined ? {} : { layout: local.layout }),
   };
 
   return {
@@ -92,6 +99,7 @@ export function resolveEffectiveTextStyleForAuthoring(
       ...baseline,
       ...resolved.typography,
     },
+    layout: resolved.layout,
   };
 }
 
@@ -110,10 +118,14 @@ export function detachTextStyle(
       return value === undefined ? [] : [[property, value]];
     }),
   ) as ElementTypography;
-  const local = stripLocalTextStyleProperties(text.typography, text.style);
+  const local = stripLocalTextStyleProperties(text.typography, text.style, text.layout);
   const materializedStyle = {
     ...(local.style ?? {}),
     ...(resolved.style?.color === undefined ? {} : { color: resolved.style.color }),
+  };
+  const materializedLayout = {
+    ...(local.layout ?? {}),
+    ...resolved.layout,
   };
 
   return {
@@ -121,6 +133,7 @@ export function detachTextStyle(
     variant: resolved.role,
     styleDetached: true,
     ...(Object.keys(materializedStyle).length > 0 ? { style: materializedStyle } : {}),
+    ...(Object.keys(materializedLayout).length > 0 ? { layout: materializedLayout } : {}),
     typography: {
       ...materializedTypography,
       ...(local.typography ?? {}),

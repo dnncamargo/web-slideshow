@@ -5,6 +5,7 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
+  type TextStyle,
   stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
@@ -133,13 +134,15 @@ export function TextInspector({
     runStyleRelationship(() => {
       onUpdate((current) => {
         if (current.type !== "text") return current;
+        const targetStyle = presentation?.textStyles?.find((style) => style.id === variant) as TextStyle | undefined;
         const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
-        const local = stripLocalTextStyleProperties(current.typography, current.style);
+        const local = stripLocalTextStyleProperties(current.typography, current.style, current.layout, targetStyle ?? {});
         return {
           ...attached,
           variant,
           ...(local.style === undefined ? {} : { style: local.style }),
           ...(local.typography === undefined ? {} : { typography: local.typography }),
+          ...(local.layout === undefined ? {} : { layout: local.layout }),
         };
       });
     });

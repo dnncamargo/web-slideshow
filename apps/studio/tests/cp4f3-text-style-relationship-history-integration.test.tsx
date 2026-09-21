@@ -224,7 +224,7 @@ describe("CP4F3 Text Style relationship history", () => {
     await act(async () => changeSelect(inspectorStyleSelect(), QUOTE_STYLE_ID));
     const switchedToQuote = await save();
     expect(findCurrentText(switchedToQuote, TEXT_A_ID)).toMatchObject({ variant: QUOTE_STYLE_ID, style: { className: "keep-local-style" } });
-    expect(findCurrentText(switchedToQuote, TEXT_A_ID)).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(switchedToQuote, TEXT_A_ID)).toHaveProperty("typography.fontSize", 22);
     expect(findCurrentText(switchedToQuote, TEXT_A_ID)).toMatchObject({ content: "Keep content", layout: { position: "absolute", left: 11 }, effect: { opacity: 0.7 } });
 
     await act(async () => changeSelect(inspectorStyleSelect(), "title"));
@@ -297,7 +297,7 @@ describe("CP4F3 Text Style relationship history", () => {
     const attached = await save();
     expect(findCurrentText(attached, TEXT_A_ID)).toMatchObject({ variant: "body" });
     expect(findCurrentText(attached, TEXT_A_ID)).not.toHaveProperty("styleDetached");
-    expect(findCurrentText(attached, TEXT_A_ID)).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(attached, TEXT_A_ID)).toHaveProperty("typography.fontSize", 1.5);
 
     await undo();
     expect(await save()).toEqual(afterTypography);

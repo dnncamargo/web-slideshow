@@ -216,9 +216,8 @@ describe("Text Inspector typography style attachment", () => {
     });
 
     expect(current).toMatchObject({ variant: "quote" });
-    expect(current).not.toHaveProperty("typography");
-    expect(current).not.toHaveProperty("typography.fontSize");
-    expect(current).not.toHaveProperty("typography.fontWeight");
+    expect(current).toMatchObject({ typography: { fontSize: 22, fontWeight: 700, textDecorationColor: "#ff0000" } });
+    expect(current).not.toHaveProperty("typography.fontStyle");
     expect(current).not.toHaveProperty("styleDetached");
 
     await act(async () => {
@@ -227,7 +226,7 @@ describe("Text Inspector typography style attachment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(current).toMatchObject({ variant: "title" });
-    expect(current).not.toHaveProperty("typography");
+    expect(current).toMatchObject({ typography: { fontSize: 22, fontWeight: 700, textDecorationColor: "#ff0000" } });
     expect(current).not.toHaveProperty("styleDetached");
   });
 
@@ -241,11 +240,11 @@ describe("Text Inspector typography style attachment", () => {
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current).toMatchObject({ variant: "body" });
     expect(current).not.toHaveProperty("styleDetached");
-    expect(current).not.toHaveProperty("typography");
+    expect(current).toMatchObject({ typography: { fontSize: 22 } });
     expect(host.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
   });
 
-  it("Attach strips detached overrides while preserving element-only typography", async () => {
+  it("Attach preserves local properties when the target Style owns none", async () => {
     await mount(text({
       styleDetached: true,
       typography: {
@@ -259,9 +258,47 @@ describe("Text Inspector typography style attachment", () => {
     await act(async () => attach?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
     expect(current).toMatchObject({ variant: "body" });
-    expect(current).not.toHaveProperty("typography");
-    expect(current).not.toHaveProperty("typography.fontSize");
+    expect(current).toMatchObject({ typography: { fontSize: 22, textDecorationColor: "#ff0000" } });
+    expect(current).toHaveProperty("typography.textStroke");
     expect(current).not.toHaveProperty("styleDetached");
+  });
+
+  it("Attach strips only properties explicitly owned by the target Style", async () => {
+    await mount(text({
+      styleDetached: true,
+      typography: { textAlign: "left", fontSize: 26, fontWeight: 400 },
+      style: { color: "#ff0000", background: { color: "#eeeeee" }, className: "local-text" },
+      layout: { marginTop: 20, marginBottom: 30, position: "absolute", top: 5 },
+      effect: { opacity: 0.7 },
+      link: { kind: "url", href: "https://example.com", target: "_blank" },
+    }), presentation([{
+      id: "quote",
+      name: "Quote",
+      role: "body",
+      typography: { textAlign: "center", fontWeight: 700 },
+      style: { color: "#00ff00" },
+      layout: { marginTop: 10 },
+    }]));
+
+    const select = host.querySelector<HTMLSelectElement>("#text-variant");
+    if (!select) throw new Error("Text Style selector was not rendered");
+    await act(async () => {
+      select.value = "quote";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(current).toMatchObject({
+      variant: "quote",
+      typography: { fontSize: 26 },
+      style: { background: { color: "#eeeeee" }, className: "local-text" },
+      layout: { marginBottom: 30, position: "absolute", top: 5 },
+      effect: { opacity: 0.7 },
+      link: { href: "https://example.com" },
+    });
+    expect(current).not.toHaveProperty("typography.textAlign");
+    expect(current).not.toHaveProperty("typography.fontWeight");
+    expect(current).not.toHaveProperty("style.color");
+    expect(current).not.toHaveProperty("layout.marginTop");
   });
 
   it("preserves Effects controls and custom role baseline semantics", async () => {

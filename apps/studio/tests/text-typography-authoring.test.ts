@@ -37,7 +37,7 @@ describe("effective text typography for authoring", () => {
     const original = text({
       variant: "body",
       content: "Keep me",
-      layout: { position: "absolute", top: "10px" },
+      layout: { position: "absolute", top: "10px", marginTop: 12, marginBottom: 20 },
       typography: { fontSize: "22px" },
     });
     const created = createTextStyleFromText(presentation(), original, "Saved");
@@ -47,6 +47,7 @@ describe("effective text typography for authoring", () => {
       id: "saved",
       name: "Saved",
       role: "body",
+      layout: { marginTop: 12, marginBottom: 20 },
       typography: { fontSize: "22px" },
     });
     expect(created?.text).toMatchObject({
@@ -94,7 +95,7 @@ describe("effective text typography for authoring", () => {
     });
   });
 
-  it("merges attached local overrides over the Presentation fundamental Style", () => {
+  it("lets explicitly owned Presentation properties override local values", () => {
     const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontSize: "1.25rem", fontWeight: 500 } },
@@ -106,14 +107,14 @@ describe("effective text typography for authoring", () => {
       role: "body",
       typography: {
         fontFamily: "Inter",
-        fontSize: "1.375rem",
+        fontSize: "1.25rem",
         fontWeight: 500,
         lineHeight: 1.6,
       },
     });
   });
 
-  it("propagates Presentation fundamental Style changes while preserving attached local overrides", () => {
+  it("propagates Presentation fundamental Style changes while preserving omitted local values", () => {
     const localText = text({ variant: "body", typography: { fontSize: 22 } });
     const presentationA = presentation([
       { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400 } },
@@ -124,12 +125,12 @@ describe("effective text typography for authoring", () => {
 
     expect(resolveEffectiveTextStyleForAuthoring(presentationA, localText).typography).toMatchObject({
       fontFamily: "Inter",
-      fontSize: 22,
+      fontSize: 18,
       fontWeight: 400,
     });
     expect(resolveEffectiveTextStyleForAuthoring(presentationB, localText).typography).toMatchObject({
       fontFamily: "Roboto",
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: 500,
     });
   });
@@ -240,6 +241,18 @@ describe("detach text typography style", () => {
       styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500, lineHeight: 1.6 },
     });
+  });
+
+  it("materializes effective margin while preserving local positioning", () => {
+    const source = presentation([{ id: "body", layout: { marginTop: 10 } }]);
+    const original = text({
+      variant: "body",
+      layout: { marginBottom: 30, position: "absolute", top: 5 },
+    });
+    const detached = detachTextStyle(source, original);
+
+    expect(detached.layout).toEqual({ marginTop: 10, marginBottom: 30, position: "absolute", top: 5 });
+    expect(source.textStyles).toEqual([{ id: "body", layout: { marginTop: 10 } }]);
   });
 
   it("materializes the Theme baseline without inventing a font family", () => {
