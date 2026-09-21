@@ -166,6 +166,46 @@ describe("CP4F4 Text Style definition history", () => {
     expect(row("body").querySelector("#text-style-body-font-size")).toBeNull();
   });
 
+  it("master Add clears pre-existing local overrides and restores them as one history action", async () => {
+    await renderWorkspace(basePresentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "add-a", type: "text", hidden: false, variant: "body", content: "A", typography: { fontSize: 30 } },
+        { id: "add-b", type: "text", hidden: false, variant: "body", content: "B", typography: { fontSize: 40 } },
+        { id: "add-c", type: "text", hidden: false, variant: "body", content: "C" },
+      ] }],
+    }));
+    const body = await openRow("body");
+    await addProperty(body, "Font size");
+    const addedInput = row("body").querySelector<HTMLInputElement>("#text-style-body-font-size");
+    if (!addedInput) throw new Error("added font size input was not rendered");
+    const addDefault = Number(addedInput.value);
+    const added = await save();
+    expect(added.textStyles).toEqual([{ id: "body", typography: { fontSize: addDefault } }]);
+    expect(added.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(added.slides[0]!.elements[1]).not.toHaveProperty("typography.fontSize");
+    expect(added.slides[0]!.elements[2]).not.toHaveProperty("typography.fontSize");
+
+    const undoEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => window.dispatchEvent(undoEvent));
+    expect(undoEvent.defaultPrevented).toBe(true);
+    const undone = await save();
+    expect(undone.textStyles ?? []).toEqual([]);
+    expect(undone.slides[0]!.elements[0]).toMatchObject({ typography: { fontSize: 30 } });
+    expect(undone.slides[0]!.elements[1]).toMatchObject({ typography: { fontSize: 40 } });
+    expect(undone.slides[0]!.elements[2]).not.toHaveProperty("typography.fontSize");
+
+    const secondUndoEvent = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => window.dispatchEvent(secondUndoEvent));
+    expect(secondUndoEvent.defaultPrevented).toBe(false);
+
+    await redo();
+    const redone = await save();
+    expect(redone.textStyles).toEqual([{ id: "body", typography: { fontSize: addDefault } }]);
+    expect(redone.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(redone.slides[0]!.elements[1]).not.toHaveProperty("typography.fontSize");
+    expect(redone.slides[0]!.elements[2]).not.toHaveProperty("typography.fontSize");
+  });
+
   it("propagates a continuous master edit once and restores exact local snapshots", async () => {
     const richContent = { type: "rich-text" as const, runs: [{ text: "Keep", marks: { bold: true } }] };
     await renderWorkspace(basePresentation({
@@ -273,10 +313,35 @@ describe("CP4F4 Text Style definition history", () => {
     expect(row("body").textContent).toContain("Built-in");
   });
 
-  it("keeps reset confirmation local and replays only the fundamental override", async () => {
+  it("resets every removed fundamental property across mixed linked Texts in one exact action", async () => {
+    const richContent = { type: "rich-text" as const, runs: [{ text: "Keep", marks: { bold: true, italic: true } }] };
     const initial = basePresentation({
-      textStyles: [{ id: "body", typography: { fontSize: 20 } }],
-      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "text-1", type: "text", hidden: false, variant: "body", content: "Text", typography: { fontSize: 30, textAlign: "right" } }] }],
+      textStyles: [
+        { id: "body", typography: { fontSize: 20 }, style: { color: "#0000ff" }, layout: { marginTop: 8 } },
+        { id: "quote", name: "Quote", role: "body" },
+      ],
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        {
+          id: "reset-a",
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: richContent,
+          typography: { fontSize: 30, textAlign: "right" },
+          style: { color: "#ff0000", background: { color: "#00ff00" }, border: { width: 1, style: "solid", color: "#000000" }, borderRadius: 4, className: "keep-local" },
+          layout: { position: "absolute", top: 12, marginTop: 12 },
+        },
+        {
+          id: "reset-b",
+          type: "text",
+          hidden: false,
+          variant: "body",
+          content: "B",
+          style: { color: "#00ff00" },
+        },
+        { id: "reset-detached", type: "text", hidden: false, variant: "body", styleDetached: true, content: "Detached", typography: { fontSize: 60 }, style: { color: "#ff00ff" }, layout: { marginTop: 99 } },
+        { id: "reset-other", type: "text", hidden: false, variant: "quote", content: "Other", typography: { fontSize: 70 } },
+      ] }],
     });
     await renderWorkspace(initial);
     const body = await openRow("body");
@@ -297,18 +362,28 @@ describe("CP4F4 Text Style definition history", () => {
     await act(async () => confirm.click());
     expect(row("body").querySelector("#text-style-body-font-size")).toBeNull();
     const resetSnapshot = await save();
-    expect(resetSnapshot.textStyles ?? []).toEqual([]);
-    expect(resetSnapshot.slides[0]?.elements[0]).toMatchObject({ variant: "body", content: "Text", typography: { textAlign: "right" } });
-    expect(resetSnapshot.slides[0]?.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(resetSnapshot.textStyles).toEqual([{ id: "quote", name: "Quote", role: "body" }]);
+    expect(resetSnapshot.slides[0]?.elements[0]).toEqual({
+      id: "reset-a",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: richContent,
+      typography: { textAlign: "right" },
+      style: { background: { color: "#00ff00" }, border: { width: 1, style: "solid", color: "#000000" }, borderRadius: 4, className: "keep-local" },
+      layout: { position: "absolute", top: 12 },
+    });
+    expect(resetSnapshot.slides[0]?.elements[1]).toEqual({ id: "reset-b", type: "text", hidden: false, variant: "body", content: "B" });
+    expect(resetSnapshot.slides[0]?.elements[2]).toEqual(initial.slides[0]?.elements[2]);
+    expect(resetSnapshot.slides[0]?.elements[3]).toEqual(initial.slides[0]?.elements[3]);
     await undo();
     expect(row("body").querySelector("#text-style-body-font-size")).not.toBeNull();
     const resetUndone = await save();
-    expect(resetUndone.textStyles).toEqual([{ id: "body", typography: { fontSize: 20 } }]);
-    expect(resetUndone.slides[0]?.elements[0]).toMatchObject({ typography: { fontSize: 30, textAlign: "right" } });
+    expect(resetUndone).toEqual(initial);
     await redo();
     expect(row("body").querySelector("#text-style-body-font-size")).toBeNull();
     const resetRedone = await save();
-    expect(resetRedone.slides[0]?.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(resetRedone).toEqual(resetSnapshot);
   });
 
   it("creates a custom style with a stable replayed id and separates name and role actions", async () => {
