@@ -10,6 +10,7 @@ import {
   FundamentalTextStyleIdSchema,
   TEXT_STYLE_LAYOUT_PROPERTY_NAMES,
   TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
+  TEXT_STYLE_VISUAL_PROPERTY_NAMES,
 } from "./text-style";
 
 export type ResolvedTextStyle = {
@@ -60,7 +61,11 @@ export function resolveTextStyle(
     const inherited = text.styleDetached ? undefined : style;
     return {
       role: fundamentalVariant.data,
-      style: resolveOwnedProperties(text.style, inherited?.style, ["color"]),
+      style: resolveOwnedProperties(
+        selectProperties(text.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
+        selectProperties(inherited?.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
+        TEXT_STYLE_VISUAL_PROPERTY_NAMES,
+      ),
       typography: resolveOwnedProperties(text.typography, inherited?.typography, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2),
       layout: resolveOwnedProperties(
         selectProperties(text.layout, TEXT_STYLE_LAYOUT_PROPERTY_NAMES),
@@ -76,7 +81,11 @@ export function resolveTextStyle(
 
   return {
     role: style.role,
-    style: resolveOwnedProperties(text.style, style.style, ["color"]),
+    style: resolveOwnedProperties(
+      selectProperties(text.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
+      selectProperties(style.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
+      TEXT_STYLE_VISUAL_PROPERTY_NAMES,
+    ),
     typography: resolveOwnedProperties(text.typography, style.typography, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2),
     layout: resolveOwnedProperties(
       selectProperties(text.layout, TEXT_STYLE_LAYOUT_PROPERTY_NAMES),

@@ -260,27 +260,30 @@ describe("Text Styles canonical definitions", () => {
     expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 
-  it("resolves Text Style visual ownership with local precedence and preserves palette refs", () => {
+  it("resolves only owned Text Style visual properties and preserves palette refs", () => {
     const palette = { colors: [{ id: "primary", name: "Primary", value: "#ff0000" }] };
     const styles = [{ id: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { textDecorationColor: { kind: "palette", colorId: "primary" } } }];
-    const linked = PresentationSchema.parse({ ...presentation(text({ style: { color: "#00ff00" }, typography: { textStroke: { width: 2, color: { kind: "palette", colorId: "primary" } } } }), styles), palette });
+    const source = text({ style: { color: "#00ff00", background: { color: "#eeeeee" }, className: "local-text" }, typography: { textStroke: { width: 2, color: { kind: "palette", colorId: "primary" } } } });
+    const linked = PresentationSchema.parse({ ...presentation(source, styles), palette });
+    const before = structuredClone(linked.slides[0]!.elements[0]);
     const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
-    expect(resolved.style.color).toEqual({ kind: "palette", colorId: "primary" });
+    expect(resolved.style).toEqual({ color: { kind: "palette", colorId: "primary" } });
     expect(resolved.typography.textDecorationColor).toEqual({ kind: "palette", colorId: "primary" });
     expect(resolved.typography.textStroke?.color).toEqual({ kind: "palette", colorId: "primary" });
+    expect(linked.slides[0]!.elements[0]).toEqual(before);
   });
 
   it("keeps local properties when the linked Style omits them", () => {
     const linked = PresentationSchema.parse(presentation(text({
       variant: "body",
-      style: { color: "#00ff00" },
+      style: { color: "#00ff00", background: { color: "#eeeeee" }, className: "local-text" },
       typography: { textAlign: "left", fontSize: 22 },
       layout: { marginTop: 20, marginBottom: 30, position: "absolute", top: 4 },
     }), [{ id: "body", typography: { fontWeight: 500 }, layout: { marginTop: 10 } }]));
     const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
 
     expect(resolved.typography).toMatchObject({ textAlign: "left", fontSize: 22, fontWeight: 500 });
-    expect(resolved.style.color).toBe("#00ff00");
+    expect(resolved.style).toEqual({ color: "#00ff00" });
     expect(resolved.layout).toEqual({ marginTop: 10, marginBottom: 30 });
     expect(linked.slides[0]!.elements[0]).toMatchObject({ layout: { position: "absolute", top: 4 } });
   });
