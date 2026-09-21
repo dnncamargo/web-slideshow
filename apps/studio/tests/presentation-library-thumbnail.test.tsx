@@ -233,8 +233,13 @@ describe("presentation thumbnail preview", () => {
   });
 
   it("renders a materialized Root Definition thumbnail with local content and IDs", () => {
-    renderNode(<PresentationThumbnailPreview preview={rootBackedPreview()} />);
+    renderNode(
+      <PresentationThumbnail
+        summary={summary("root-backed", rootBackedPreview())}
+      />,
+    );
 
+    expect(container.querySelector(".presentation-slide")).not.toBeNull();
     const master = container.querySelector('[data-presentation-id="master-text"]');
     const local = container.querySelector('[data-presentation-id="local-text"]');
 
