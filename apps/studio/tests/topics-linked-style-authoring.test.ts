@@ -158,6 +158,16 @@ describe("Topics Linked Style authoring", () => {
     expect(selected(result).items).toEqual(selected(initial).items);
   });
 
+  it("preserves explicit local unordered kind and local itemGap while materializing only missing linked values on detach", () => {
+    const initial = presentation(topics({ linkedStyleId: "shared", kind: "unordered", itemGap: 30, markerColor: undefined }), [
+      { target: "topics", id: "shared", name: "Shared", kind: "ordered", itemGap: 16, rootMarkerStyle: "square" },
+    ]);
+    const result = detachLinkedTopicsStyle(initial, 0, "topics");
+    expect(selected(result)).toMatchObject({ kind: "unordered", itemGap: 30, rootMarkerStyle: "square" });
+    expect(selected(result)).not.toHaveProperty("linkedStyleId");
+    expect(selected(result).items).toEqual(selected(initial).items);
+  });
+
   it("counts direct and nested Topics references for protected removal", () => {
     const nested = topics({ linkedStyleId: "nested" });
     const initial = presentation(topics({ linkedStyleId: "root", items: [{ id: "item", content: { id: "content", children: [nested] }, children: [] }] }), [
@@ -170,14 +180,24 @@ describe("Topics Linked Style authoring", () => {
     expect(removeUnusedLinkedStyle(initial, "unused")?.linkedStyles).toHaveLength(2);
   });
 
-  it("preserves destination-omitted local Topics properties and materializes omitted source properties on switch", () => {
-    const initial = presentation(topics({ linkedStyleId: "source", kind: "unordered" }), [
+  it("preserves destination-omitted local Topics properties and leaves absent source properties absent on switch", () => {
+    const initial = presentation(topics({ linkedStyleId: "source", kind: "unordered", itemGap: 30 }), [
       { target: "topics", id: "source", name: "Source", kind: "ordered", itemGap: 20, layout: { marginTop: 12 } },
       { target: "topics", id: "destination", name: "Destination" , markerColor: "#112233" },
     ]);
     const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
-    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", kind: "unordered", itemGap: 20, layout: { marginTop: 12 } });
+    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", kind: "unordered", itemGap: 30 });
+    expect(selected(switched)).not.toHaveProperty("layout.marginTop");
     expect(selected(switched)).not.toHaveProperty("markerColor");
+  });
+
+  it("leaves a source-owned property absent when both local and destination omit it", () => {
+    const initial = presentation(topics({ linkedStyleId: "source" }), [
+      { target: "topics", id: "source", name: "Source", itemGap: 20 },
+      { target: "topics", id: "destination", name: "Destination", markerColor: "#112233" },
+    ]);
+    const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
+    expect(selected(switched)).not.toHaveProperty("itemGap");
   });
 
   it("keeps explicit local kind when the destination omits kind", () => {

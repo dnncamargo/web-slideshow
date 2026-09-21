@@ -173,6 +173,7 @@ import { createTextStyleFromText, detachTextStyle } from "./text-typography-auth
 import { presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, areTextStyleDefinitionsEqualForAuthoring, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, propagateTextStyleDefinitionChanges, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleLayoutProperties, TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
+import { parseAuthoringLength } from "@web-slideshow/theme/element-style-defaults";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
@@ -651,6 +652,12 @@ function areLinkedTopicsStylePropertyValuesEqual(
   right: unknown,
 ): boolean {
   if (property === "markerColor") return areLinkedTopicsStyleColorsEqual(left as ColorValue | undefined, right as ColorValue | undefined);
+  if (property === "margin" || property === "marginTop" || property === "marginRight" || property === "marginBottom" || property === "marginLeft") {
+    if (left === undefined || right === undefined) return left === right;
+    const leftLength = parseAuthoringLength(left as number | string);
+    const rightLength = parseAuthoringLength(right as number | string);
+    if (leftLength !== undefined && rightLength !== undefined) return leftLength.value === rightLength.value && leftLength.unit === rightLength.unit;
+  }
   return Object.is(left, right);
 }
 

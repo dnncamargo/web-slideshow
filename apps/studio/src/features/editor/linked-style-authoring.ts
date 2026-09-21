@@ -1,7 +1,6 @@
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
-  resolveLinkedTopicsStyle,
   type ContainerElement,
   type ContainerLayout,
   type ElementEffect,
@@ -333,23 +332,6 @@ function removeLinkedTopicsProperties(topics: TopicsElement, linked: LinkedTopic
   return next;
 }
 
-function switchLinkedTopicsStyleProperties(topics: TopicsElement, source: LinkedTopicsStyle | undefined, destination: LinkedTopicsStyle): TopicsElement {
-  let next = removeLinkedTopicsProperties(topics, destination);
-  if (destination.kind === undefined && topics.kind === undefined && source?.kind !== undefined) next.kind = source.kind;
-  if (destination.rootMarkerStyle === undefined && topics.rootMarkerStyle === undefined && source?.rootMarkerStyle !== undefined) next.rootMarkerStyle = source.rootMarkerStyle;
-  if (destination.markerColor === undefined && topics.markerColor === undefined && source?.markerColor !== undefined) next.markerColor = source.markerColor;
-  if (destination.itemGap === undefined && topics.itemGap === undefined && source?.itemGap !== undefined) next.itemGap = source.itemGap;
-  const sourceLayout = source?.layout;
-  if (sourceLayout !== undefined) {
-    const layout = { ...(next.layout ?? {}) } as PropertyBag;
-    for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
-      if (destination.layout?.[property] === undefined && topics.layout?.[property] === undefined && sourceLayout[property] !== undefined) layout[property] = sourceLayout[property];
-    }
-    next = Object.keys(layout).length === 0 ? (() => { const { layout: _layout, ...withoutLayout } = next; return withoutLayout; })() : { ...next, layout: layout as TopicsElement["layout"] };
-  }
-  return next;
-}
-
 function replaceTopicsInSlide(
   presentation: Presentation,
   slideIndex: number,
@@ -415,10 +397,7 @@ export function attachLinkedTopicsStyle(
 ): Presentation {
   const linked = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
   if (linked === undefined) return presentation;
-  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => {
-    const source = topics.linkedStyleId === undefined ? undefined : presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === topics.linkedStyleId);
-    return switchLinkedTopicsStyleProperties(topics, source, linked);
-  });
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => removeLinkedTopicsProperties(topics, linked));
 }
 
 export function detachLinkedTopicsStyle(
@@ -430,15 +409,18 @@ export function detachLinkedTopicsStyle(
     if (topics.linkedStyleId === undefined) return topics;
     const linked = presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
     if (linked === undefined || !("target" in linked) || linked.target !== "topics") return topics;
-    const resolved = resolveLinkedTopicsStyle(presentation, topics);
     const { linkedStyleId: _linkedStyleId, ...unlinked } = topics;
+    const layout = { ...(topics.layout ?? {}) } as PropertyBag;
+    for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+      if (topics.layout?.[property] === undefined && linked.layout?.[property] !== undefined) layout[property] = linked.layout[property];
+    }
     return {
       ...unlinked,
-      ...(resolved.kind === "ordered" ? { kind: resolved.kind } : {}),
-      ...(resolved.layout === undefined ? {} : { layout: resolved.layout }),
-      ...(resolved.rootMarkerStyle === undefined ? {} : { rootMarkerStyle: resolved.rootMarkerStyle }),
-      ...(resolved.markerColor === undefined ? {} : { markerColor: resolved.markerColor }),
-      ...(resolved.itemGap === undefined ? {} : { itemGap: resolved.itemGap }),
+      ...(topics.kind === undefined && linked.kind !== undefined ? { kind: linked.kind } : {}),
+      ...(Object.keys(layout).length > 0 ? { layout: layout as TopicsElement["layout"] } : {}),
+      ...(topics.rootMarkerStyle === undefined && linked.rootMarkerStyle !== undefined ? { rootMarkerStyle: linked.rootMarkerStyle } : {}),
+      ...(topics.markerColor === undefined && linked.markerColor !== undefined ? { markerColor: linked.markerColor } : {}),
+      ...(topics.itemGap === undefined && linked.itemGap !== undefined ? { itemGap: linked.itemGap } : {}),
     };
   });
 }

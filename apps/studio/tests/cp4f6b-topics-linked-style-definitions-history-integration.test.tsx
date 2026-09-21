@@ -337,4 +337,66 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     await redo();
     expect(await save(saved)).toEqual(removed);
   });
+
+  it("claims a previously omitted itemGap through Add Property and replays the local clears", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 40, items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-topics-linked-style-property-chooser] > button")?.click());
+    const itemGapOption = Array.from(row.querySelectorAll<HTMLButtonElement>("[data-topics-linked-style-property-chooser] button")).find((button) => button.textContent?.trim() === "Topic spacing");
+    if (!itemGapOption) throw new Error("Topics itemGap Add Property option was not rendered");
+    await act(async () => itemGapOption.click());
+    const added = await save(saved);
+    expect(added.linkedStyles?.find((style) => style.id === "topics-style")).toHaveProperty("itemGap", 6);
+    expect(added.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(added.slides[0]?.elements[1]).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(added);
+  });
+
+  it("removes a clean itemGap master and local pair without materializing either old value", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 40, items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-linked-topics-property='itemGap'] [data-resource-action='remove']")?.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[1]).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+  });
+
+  it("does not clear a local margin override for a semantically equivalent master Length", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", layout: { marginTop: 30 }, items: [] }] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", layout: { marginTop: "12px" }, itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const markerColor = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-marker-color");
+    if (!markerColor) throw new Error("Topics markerColor control was not rendered");
+    await act(async () => { markerColor.focus(); setInputValue(markerColor, "#00ff00"); markerColor.blur(); });
+    const unchanged = await save(saved);
+    expect(unchanged.slides[0]?.elements[0]).toHaveProperty("layout.marginTop", 30);
+  });
 });
