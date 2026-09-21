@@ -20,6 +20,7 @@ interface EffectiveNumberInputProps {
   textStyleSource?: TextStyleInspectorSource;
   textStyleLinkedValue?: unknown;
   textStyleFormatValue?: (value: unknown) => string;
+  textStyleOnReset?: () => void;
 }
 
 export function EffectiveNumberInput({
@@ -37,6 +38,7 @@ export function EffectiveNumberInput({
   textStyleSource,
   textStyleLinkedValue,
   textStyleFormatValue,
+  textStyleOnReset,
 }: EffectiveNumberInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -88,7 +90,7 @@ export function EffectiveNumberInput({
           source={textStyleSource}
           linkedValue={textStyleLinkedValue}
           formatValue={textStyleFormatValue}
-          onReset={inherited ? undefined : onReset}
+          onReset={inherited ? undefined : textStyleOnReset ?? onReset}
         />
       ) : inherited ? (
         <span className={styles.inheritedValueLabel}>

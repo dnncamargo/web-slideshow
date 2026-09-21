@@ -364,6 +364,7 @@ export function ElementTypographyFields({
             disabled={isDisabled("fontSize")}
             textStyleSource={propertyInfo("fontSize")?.source}
             textStyleLinkedValue={propertyInfo("fontSize")?.linkedValue}
+            textStyleOnReset={() => onResetTextStyleProperty?.("fontSize")}
             onChange={(fontSize) => {
 
               onUpdateStyle("fontSize", (currentStyle) => ({
@@ -499,6 +500,7 @@ export function ElementTypographyFields({
             disabled={isDisabled("lineHeight")}
             textStyleSource={propertyInfo("lineHeight")?.source}
             textStyleLinkedValue={propertyInfo("lineHeight")?.linkedValue}
+            textStyleOnReset={() => onResetTextStyleProperty?.("lineHeight")}
             onChange={(value) => {
               const lineHeight = parseOptionalPositiveNumber(value);
 
@@ -539,6 +541,7 @@ export function ElementTypographyFields({
             disabled={isDisabled("letterSpacing")}
             textStyleSource={propertyInfo("letterSpacing")?.source}
             textStyleLinkedValue={propertyInfo("letterSpacing")?.linkedValue}
+            textStyleOnReset={() => onResetTextStyleProperty?.("letterSpacing")}
             onChange={(letterSpacing) => {
 
               onUpdateStyle("letterSpacing", (currentStyle) => ({

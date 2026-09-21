@@ -241,6 +241,76 @@ describe("CP4F3 Text Style relationship history", () => {
     expect(await save()).toEqual(switchedToTitle);
   });
 
+  it("proves the master-local-master sequence with sibling isolation", async () => {
+    const initial = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "cp4f3-sequence",
+      title: "CP4F3 sequence",
+      textStyles: [{ id: "body", typography: { fontSize: 20 } }],
+      slides: [{
+        id: "slide-1",
+        title: "Slide 1",
+        elements: [
+          text("sequence-a"),
+          text("sequence-b"),
+        ],
+      }],
+    });
+    await mount(initial);
+    await selectText("sequence-a");
+    expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.25");
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
+
+    const localInput = host.querySelector<HTMLInputElement>("#text-font-size");
+    if (!localInput) throw new Error("Text font size control was not rendered");
+    await act(async () => {
+      changeInput(localInput, "30");
+      localInput.blur();
+    });
+    let local = await save();
+    expect(findCurrentText(local, "sequence-a")).toHaveProperty("typography.fontSize", "30rem");
+    expect(findCurrentText(local, "sequence-b")).not.toHaveProperty("typography.fontSize");
+    expect(local.textStyles).toEqual([{ id: "body", typography: { fontSize: 20 } }]);
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Local override");
+
+    const body = await openTextStyleUsage("body");
+    const masterInput = body.querySelector<HTMLInputElement>("#text-style-body-font-size");
+    if (!masterInput) throw new Error("Text Style font size control was not rendered");
+    await act(async () => {
+      changeInput(masterInput, "24");
+      masterInput.blur();
+    });
+    const master = await save();
+    expect(master.textStyles).toEqual([{ id: "body", typography: { fontSize: 24 } }]);
+    expect(findCurrentText(master, "sequence-a")).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(master, "sequence-b")).not.toHaveProperty("typography.fontSize");
+    await closeResources();
+    expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.5");
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
+
+    const secondLocalInput = host.querySelector<HTMLInputElement>("#text-font-size");
+    if (!secondLocalInput) throw new Error("Text font size control was not rendered after master edit");
+    await act(async () => {
+      changeInput(secondLocalInput, "32");
+      secondLocalInput.blur();
+    });
+    expect((await save()).slides[0]!.elements[0]).toHaveProperty("typography.fontSize", "32rem");
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Local override");
+
+    const removeRow = await openTextStyleUsage("body");
+    const remove = removeRow.querySelector<HTMLButtonElement>("[aria-label='Remove Font size']");
+    if (!remove) throw new Error("Text Style font size remove button was not rendered");
+    await act(async () => remove.click());
+    const removed = await save();
+    expect(removed.textStyles ?? []).toEqual([]);
+    expect(findCurrentText(removed, "sequence-a")).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(removed, "sequence-b")).not.toHaveProperty("typography.fontSize");
+    await closeResources();
+    const finalField = host.querySelector<HTMLInputElement>("#text-font-size")?.parentElement?.parentElement;
+    expect(finalField?.textContent).not.toContain("Local override");
+    expect(finalField?.textContent).not.toContain("Linked");
+  });
+
   it("tracks custom detach, preserves element-local properties, and keeps the resource immutable", async () => {
     const initial = presentation([text(TEXT_A_ID, {
       variant: QUOTE_STYLE_ID,

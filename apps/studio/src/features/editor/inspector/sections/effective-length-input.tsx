@@ -33,6 +33,7 @@ interface EffectiveLengthInputProps {
   textStyleSource?: TextStyleInspectorSource;
   textStyleLinkedValue?: unknown;
   textStyleFormatValue?: (value: unknown) => string;
+  textStyleOnReset?: () => void;
 }
 
 function getInitialUnit(
@@ -64,6 +65,7 @@ export function EffectiveLengthInput({
   textStyleSource,
   textStyleLinkedValue,
   textStyleFormatValue,
+  textStyleOnReset,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -198,7 +200,7 @@ export function EffectiveLengthInput({
           source={textStyleSource}
           linkedValue={textStyleLinkedValue}
           formatValue={textStyleFormatValue}
-          onReset={inherited ? undefined : onReset}
+          onReset={inherited ? undefined : textStyleOnReset ?? onReset}
         />
       ) : inherited ? (
         <span className={styles.inheritedValueLabel}>

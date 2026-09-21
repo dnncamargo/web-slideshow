@@ -25,7 +25,11 @@ export function TextStylePropertyMeta({
 
   const linkedText = linkedValue === undefined
     ? undefined
-    : formatValue?.(linkedValue) ?? String(linkedValue);
+    : formatValue
+      ? formatValue(linkedValue)
+      : typeof linkedValue === "string" || typeof linkedValue === "number" || typeof linkedValue === "boolean"
+        ? String(linkedValue)
+        : undefined;
   return (
     <span className={styles.inheritedValueLabel}>
       {t("inspector.localOverride")}

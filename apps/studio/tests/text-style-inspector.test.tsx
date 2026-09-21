@@ -23,13 +23,14 @@ const fonts: readonly { id: string; family: string }[] = [];
 const topics: TopicsAuthoringControls = { onAddTopLevelTopic: () => null, onAddChildTopic: () => null };
 const tables: TableAuthoringControls = { onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} };
 
-function presentation(textStyles: unknown[] = []): Presentation {
+function presentation(textStyles: unknown[] = [], palette?: unknown): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "presentation",
     title: "Presentation",
     slides: [{ id: "slide", elements: [] }],
     ...(textStyles.length > 0 ? { textStyles } : {}),
+    ...(palette === undefined ? {} : { palette }),
   });
 }
 
@@ -686,6 +687,67 @@ describe("Text Inspector typography style attachment", () => {
     ]));
     expect(host.querySelectorAll(".inheritedValueLabel")).toHaveLength(0);
     expect(host.textContent).not.toContain("Reset linked override");
+  });
+
+  it("does not stringify a palette linked color", async () => {
+    await mount(text({ style: { color: "#ff0000" } }), presentation([
+      { id: "body", style: { color: { kind: "palette", colorId: "primary" } } },
+    ], { colors: [{ id: "primary", name: "Primary", value: "#336699" }] }));
+    const meta = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
+    expect(meta?.textContent).toContain("Local override");
+    expect(meta?.textContent).not.toContain("[object Object]");
+    expect(Array.from(meta?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Reset")).toBeTruthy();
+  });
+
+  it("does not stringify a structured linked text stroke", async () => {
+    await mount(text({ typography: { textStroke: { width: 1, color: "#0000ff" } } }), presentation([
+      { id: "body", typography: { textStroke: { width: 3, color: { kind: "palette", colorId: "outline" } } } },
+    ], { colors: [{ id: "outline", name: "Outline", value: "#336699" }] }));
+    const meta = host.querySelector("#text-text-stroke-mode")?.closest("label");
+    expect(meta?.textContent).toContain("Local override");
+    expect(meta?.textContent).not.toContain("[object Object]");
+    expect(meta?.querySelector("button")?.textContent).toBe("Reset");
+  });
+
+  it("resets a real master-omitted local font size to the theme fallback", async () => {
+    await mount(text({ typography: { fontSize: 30 } }), presentation());
+    const field = host.querySelector<HTMLInputElement>("#text-font-size")?.parentElement?.parentElement;
+    expect(field?.textContent).toContain("Local override");
+    expect(field?.textContent).not.toContain("Linked:");
+    const reset = Array.from(field?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Reset");
+    await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(current).not.toHaveProperty("typography.fontSize");
+    expect(current.variant).toBe("body");
+    const updated = host.querySelector<HTMLInputElement>("#text-font-size")?.parentElement?.parentElement;
+    expect(updated?.textContent).not.toContain("Local override");
+    expect(updated?.textContent).not.toContain("Linked");
+    expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.125");
+  });
+
+  it("shows provenance through attach, switch, and detach", async () => {
+    await mount(text({ variant: "style-a" }), presentation([
+      { id: "style-a", name: "Style A", role: "body", typography: { fontSize: 20, textAlign: "center" } },
+      { id: "style-b", name: "Style B", role: "body", typography: { fontSize: 24 } },
+    ]));
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
+    expect(host.querySelector("#text-text-align")?.parentElement?.textContent).toContain("Linked");
+
+    const variant = host.querySelector<HTMLSelectElement>("#text-variant");
+    if (!variant) throw new Error("Text Style selector was not rendered");
+    await act(async () => {
+      variant.value = "style-b";
+      variant.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(current).toMatchObject({ variant: "style-b", typography: { textAlign: "center" } });
+    expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
+    expect(host.querySelector("#text-text-align")?.parentElement?.textContent).toContain("Local override");
+
+    const detach = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Detach from Style B");
+    if (!detach) throw new Error("Detach button was not rendered");
+    await act(async () => detach.click());
+    expect(current).toHaveProperty("styleDetached", true);
+    expect(host.querySelectorAll(".inheritedValueLabel")).toHaveLength(0);
+    expect(host.textContent).toContain("Local · detached from Body");
   });
 
   it("threads the active Presentation through ElementInspector to TextInspector", async () => {
