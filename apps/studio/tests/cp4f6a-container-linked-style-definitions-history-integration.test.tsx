@@ -500,6 +500,37 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(await save(saved)).toEqual(removed);
   });
 
+  it("removes a pre-existing master and local border without replacing unrelated Container state", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{
+        id: "container-1", type: "container", hidden: false, linkedStyleId: "style-1",
+        layout: { padding: 8, marginBottom: 6 },
+        style: { border: { width: 3, style: "dashed", color: "#ff0000" }, background: { color: "#00ff00" }, borderRadius: 12 },
+        effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } },
+        children: [{ id: "child", type: "text", hidden: false, content: "Keep me" }],
+      }] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } }, style: { border: { width: 1, style: "solid", color: "#000000" } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const remove = row("style-1").querySelector<HTMLButtonElement>("[data-linked-style-property='border'] [data-resource-action='remove']");
+    if (!remove) throw new Error("pre-existing master border remove action was not rendered");
+    await act(async () => remove.click());
+    const removed = await save(saved);
+    const removedStyle = removed.linkedStyles?.find((style) => style.id === "style-1");
+    const removedElement = removed.slides[0]?.elements[0];
+    expect(removedStyle?.style?.border).toBeUndefined();
+    expect(removedElement).not.toHaveProperty("style.border");
+    expect(removedElement).toMatchObject({ linkedStyleId: "style-1", layout: { padding: 8, marginBottom: 6 }, style: { background: { color: "#00ff00" }, borderRadius: 12 }, effect: { opacity: 0.5, shadow: { x: 0, y: 2, blur: 4, color: "#000000" } }, children: [{ id: "child", type: "text", content: "Keep me" }] });
+    expect(removedElement).not.toHaveProperty("style.border.width");
+    expect(removedElement).not.toHaveProperty("style.border.color");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+  });
+
   it("propagates through nested Containers while preserving children and content", async () => {
     const initial = presentation({
       slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "root", type: "container", hidden: false, children: [{ id: "nested", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 }, marginBottom: 30 }, children: [{ id: "child", type: "text", hidden: false, content: "Keep me" }] }] }] }],
