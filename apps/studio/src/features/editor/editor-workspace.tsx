@@ -44,8 +44,6 @@ import {
   type LinkedContainerStyle,
   type LinkedContainerStyleVisual,
   type LinkedTopicsStyle,
-  type TextStroke,
-  type TextStyle,
 } from "@web-slideshow/document-schema";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
@@ -172,7 +170,7 @@ import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
-import { addCustomTextStyle, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
+import { addCustomTextStyle, areTextStyleDefinitionsEqualForAuthoring, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, propagateTextStyleDefinitionChanges, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleLayoutProperties, TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { PresentationColorPaletteProvider } from "./inspector/sections/presentation-color-palette";
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
@@ -358,65 +356,6 @@ function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
   return target.kind === "image"
     ? `image:${target.elementId}`
     : `gallery-item:${target.galleryId}:${target.itemIndex}`;
-}
-
-function areTextStyleColorValuesEqual(
-  left: ColorValue | undefined,
-  right: ColorValue | undefined,
-): boolean {
-  if (typeof left === "string" || typeof right === "string") return left === right;
-  if (left === undefined || right === undefined) return left === right;
-  return left.kind === right.kind && left.kind === "palette" && left.colorId === right.colorId;
-}
-
-function areTextStrokeValuesEqual(
-  left: TextStroke | undefined,
-  right: TextStroke | undefined,
-): boolean {
-  return left === undefined || right === undefined
-    ? left === right
-    : left.width === right.width && areTextStyleColorValuesEqual(left.color, right.color);
-}
-
-const TEXT_STYLE_TYPOGRAPHY_FIELDS = [
-  "fontFamily",
-  "fontSize",
-  "fontWeight",
-  "fontStyle",
-  "textAlign",
-  "lineHeight",
-  "letterSpacing",
-  "textTransform",
-  "whiteSpace",
-  "textWrapStyle",
-  "overflowWrap",
-  "textDecorationLine",
-] as const;
-
-function areTextStyleTypographyValuesEqual(
-  left: TextStyle["typography"] | undefined,
-  right: TextStyle["typography"] | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return left === right;
-  for (const field of TEXT_STYLE_TYPOGRAPHY_FIELDS) {
-    if (left[field] !== right[field]) return false;
-  }
-  return areTextStyleColorValuesEqual(left.textDecorationColor, right.textDecorationColor)
-    && areTextStrokeValuesEqual(left.textStroke, right.textStroke);
-}
-
-function areTextStyleDefinitionsEqual(
-  left: TextStyle | undefined,
-  right: TextStyle | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return left === right;
-  if (left.id !== right.id) return false;
-  if (!areTextStyleColorValuesEqual(left.style?.color, right.style?.color)) return false;
-  if (!areTextStyleTypographyValuesEqual(left.typography, right.typography)) return false;
-  if ("name" in left || "name" in right) {
-    return "name" in left && "name" in right && left.name === right.name && left.role === right.role;
-  }
-  return true;
 }
 
 function areLinkedStyleColorValuesEqual(
@@ -3497,16 +3436,20 @@ export function EditorWorkspace({
         const before = current.textStyles?.find((style) => style.id === id);
         const candidate = upsertFundamentalTextStyleOverride(current, id, patch);
         const after = candidate.textStyles?.find((style) => style.id === id);
-        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+        if (areTextStyleDefinitionsEqualForAuthoring(before, after)) return current;
+        return propagateTextStyleDefinitionChanges(candidate, id, before, after);
       },
     );
   }
   function resetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption"): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.reset", labelKey: "history.element.setting", labelParams: { setting: "textStyle.reset" } },
-      (current) => current.textStyles?.some((style) => style.id === id)
-        ? resetFundamentalTextStyleOverride(current, id)
-        : current,
+      (current) => {
+        const before = current.textStyles?.find((style) => style.id === id);
+        if (before === undefined) return current;
+        const candidate = resetFundamentalTextStyleOverride(current, id);
+        return propagateTextStyleDefinitionChanges(candidate, id, before, undefined);
+      },
     );
   }
   function requestResetFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption") { setPendingTextStyleReset(id); }
@@ -3549,7 +3492,8 @@ export function EditorWorkspace({
         if (before === undefined || !("name" in before)) return current;
         const candidate = updateCustomTextStyle(current, id, patch);
         const after = candidate.textStyles?.find((style) => style.id === id);
-        return areTextStyleDefinitionsEqual(before, after) ? current : candidate;
+        if (areTextStyleDefinitionsEqualForAuthoring(before, after)) return current;
+        return propagateTextStyleDefinitionChanges(candidate, id, before, after);
       },
     );
   }

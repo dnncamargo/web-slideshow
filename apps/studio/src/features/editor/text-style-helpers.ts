@@ -14,9 +14,18 @@ import {
   SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
   SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   SYSTEM_TOPICS_TEXT_STYLE_ID,
+  TEXT_STYLE_LAYOUT_PROPERTY_NAMES,
+  TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
+  TEXT_STYLE_VISUAL_PROPERTY_NAMES,
+  stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
-import { visitElements } from "./element-hierarchy";
+import { updateElementById, visitElements } from "./element-hierarchy";
+
+export type TextStyleOwnedProperty =
+  | { scope: "typography"; property: (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number] }
+  | { scope: "style"; property: (typeof TEXT_STYLE_VISUAL_PROPERTY_NAMES)[number] }
+  | { scope: "layout"; property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number] };
 
 export type TextStyleUsageLocation = {
   slideIndex: number;
@@ -216,6 +225,158 @@ export function updateCustomTextStyle(
     }
     return next;
   }));
+}
+
+function areTextStyleColorValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (typeof left === "string" || typeof right === "string") return false;
+  if (left === undefined || right === undefined || left === null || right === null) return false;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  const leftColor = left as { kind?: unknown; colorId?: unknown };
+  const rightColor = right as { kind?: unknown; colorId?: unknown };
+  return leftColor.kind === "palette"
+    && rightColor.kind === "palette"
+    && leftColor.colorId === rightColor.colorId;
+}
+
+export function areTextStyleOwnedPropertyValuesEqual(
+  property: TextStyleOwnedProperty,
+  left: unknown,
+  right: unknown,
+): boolean {
+  if (property.scope === "style" || property.property === "textDecorationColor") {
+    return areTextStyleColorValuesEqual(left, right);
+  }
+  if (property.property === "textStroke") {
+    if (left === right) return true;
+    if (left === undefined || right === undefined || left === null || right === null) return false;
+    if (typeof left !== "object" || typeof right !== "object") return false;
+    const leftStroke = left as { width?: unknown; color?: unknown };
+    const rightStroke = right as { width?: unknown; color?: unknown };
+    return leftStroke.width === rightStroke.width
+      && areTextStyleColorValuesEqual(leftStroke.color, rightStroke.color);
+  }
+  return left === right;
+}
+
+function getTextStyleOwnedPropertyValue(
+  style: TextStyle | undefined,
+  property: TextStyleOwnedProperty,
+): unknown {
+  if (style === undefined) return undefined;
+  if (property.scope === "typography") return style.typography?.[property.property];
+  if (property.scope === "style") return style.style?.[property.property];
+  return style.layout?.[property.property];
+}
+
+export function areTextStyleDefinitionsEqualForAuthoring(
+  left: TextStyle | undefined,
+  right: TextStyle | undefined,
+): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.id !== right.id) return false;
+  if ("name" in left || "name" in right) {
+    if (!("name" in left) || !("name" in right) || left.name !== right.name || left.role !== right.role) {
+      return false;
+    }
+  }
+  const properties: TextStyleOwnedProperty[] = [
+    ...TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.map((property) => ({ scope: "typography" as const, property })),
+    ...TEXT_STYLE_VISUAL_PROPERTY_NAMES.map((property) => ({ scope: "style" as const, property })),
+    ...TEXT_STYLE_LAYOUT_PROPERTY_NAMES.map((property) => ({ scope: "layout" as const, property })),
+  ];
+  return properties.every((property) => areTextStyleOwnedPropertyValuesEqual(
+    property,
+    getTextStyleOwnedPropertyValue(left, property),
+    getTextStyleOwnedPropertyValue(right, property),
+  ));
+}
+
+function buildChangedTextStyleOwner(
+  before: TextStyle | undefined,
+  after: TextStyle | undefined,
+  changedProperties: readonly TextStyleOwnedProperty[],
+): Pick<TextStyle, "typography" | "style" | "layout"> {
+  const typography: Record<string, unknown> = {};
+  const style: Record<string, unknown> = {};
+  const layout: Record<string, unknown> = {};
+  for (const property of changedProperties) {
+    const afterValue = getTextStyleOwnedPropertyValue(after, property);
+    const value = afterValue !== undefined ? afterValue : getTextStyleOwnedPropertyValue(before, property);
+    if (property.scope === "typography") typography[property.property] = value;
+    else if (property.scope === "style") style[property.property] = value;
+    else layout[property.property] = value;
+  }
+  return {
+    ...(Object.keys(typography).length > 0 ? { typography: typography as TextStyleTypographyProperties } : {}),
+    ...(Object.keys(style).length > 0 ? { style: style as TextStyleVisualProperties } : {}),
+    ...(Object.keys(layout).length > 0 ? { layout: layout as TextStyleLayoutProperties } : {}),
+  };
+}
+
+export function propagateTextStyleDefinitionChanges(
+  presentation: Presentation,
+  textStyleId: string,
+  before: TextStyle | undefined,
+  after: TextStyle | undefined,
+): Presentation {
+  const changedProperties: TextStyleOwnedProperty[] = [
+    ...TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2
+      .map((property) => ({ scope: "typography" as const, property }))
+      .filter((property) => !areTextStyleOwnedPropertyValuesEqual(
+        property,
+        getTextStyleOwnedPropertyValue(before, property),
+        getTextStyleOwnedPropertyValue(after, property),
+      )),
+    ...TEXT_STYLE_VISUAL_PROPERTY_NAMES
+      .map((property) => ({ scope: "style" as const, property }))
+      .filter((property) => !areTextStyleOwnedPropertyValuesEqual(
+        property,
+        getTextStyleOwnedPropertyValue(before, property),
+        getTextStyleOwnedPropertyValue(after, property),
+      )),
+    ...TEXT_STYLE_LAYOUT_PROPERTY_NAMES
+      .map((property) => ({ scope: "layout" as const, property }))
+      .filter((property) => !areTextStyleOwnedPropertyValuesEqual(
+        property,
+        getTextStyleOwnedPropertyValue(before, property),
+        getTextStyleOwnedPropertyValue(after, property),
+      )),
+  ];
+  if (changedProperties.length === 0) return presentation;
+
+  const owner = buildChangedTextStyleOwner(before, after, changedProperties);
+  let next = presentation;
+  for (const { slideIndex, elementId } of findTextStyleUsageLocations(presentation, textStyleId)) {
+    const slide = next.slides[slideIndex];
+    if (slide === undefined) continue;
+    const elements = updateElementById(slide.elements, elementId, (element) => {
+      if (element.type !== "text" || element.variant !== textStyleId || element.styleDetached === true) return element;
+      const hasLocalChangedProperty = changedProperties.some((property) =>
+        property.scope === "typography"
+          ? element.typography?.[property.property] !== undefined
+          : property.scope === "style"
+            ? element.style?.[property.property] !== undefined
+            : element.layout?.[property.property] !== undefined,
+      );
+      if (!hasLocalChangedProperty) return element;
+      const cleared = stripLocalTextStyleProperties(element.typography, element.style, element.layout, owner);
+      const nextElement = { ...element };
+      if (cleared.typography === undefined) delete nextElement.typography;
+      else nextElement.typography = cleared.typography;
+      if (cleared.style === undefined) delete nextElement.style;
+      else nextElement.style = cleared.style;
+      if (cleared.layout === undefined) delete nextElement.layout;
+      else nextElement.layout = cleared.layout;
+      return nextElement;
+    });
+    if (elements === slide.elements) continue;
+    next = {
+      ...next,
+      slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate),
+    };
+  }
+  return next;
 }
 
 export function isTextStyleUsed(presentation: Presentation, id: string): boolean {
