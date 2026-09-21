@@ -57,6 +57,8 @@ interface ElementSpacingSectionProps {
       layout: ElementSpacingLayout | undefined,
     ) => ElementSpacingLayout | undefined,
   ) => void;
+  effectiveLayout?: ElementSpacingLayout;
+  disabledFields?: readonly ElementSpacingField[];
 }
 
 function updateMarginField(
@@ -94,12 +96,17 @@ export function ElementSpacingSection({
   layout,
   controlPrefix,
   onUpdateLayout,
+  effectiveLayout,
+  disabledFields = [],
 }: ElementSpacingSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const displayedLayout = { ...(layout ?? {}), ...(effectiveLayout ?? {}) };
+  const isDisabled = (field: ElementSpacingField): boolean => disabledFields.includes(field);
 
   function updateField(field: ElementSpacingField, value: number | undefined) {
+    if (isDisabled(field)) return;
     if (Object.is(layout?.[field], value)) {
       return;
     }
@@ -127,7 +134,8 @@ export function ElementSpacingSection({
             name={`${controlPrefix}Margin`}
             type="number"
             min="0"
-            value={readAbsoluteNumber(layout?.margin)}
+            value={readAbsoluteNumber(displayedLayout.margin)}
+            disabled={isDisabled("margin")}
             onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta)}
             onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-margin`)}
             onChange={(event) => {
@@ -158,7 +166,8 @@ export function ElementSpacingSection({
                     name={`${controlPrefix}Margin${side[0].toUpperCase()}${side.slice(1)}`}
                     type="number"
                     min="0"
-                    value={readAbsoluteNumber(layout?.[field])}
+                    value={readAbsoluteNumber(displayedLayout[field])}
+                    disabled={isDisabled(field)}
                     onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta)}
                     onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`)}
                     onChange={(event) => {

@@ -129,6 +129,91 @@ describe("Text Inspector typography style attachment", () => {
     expect(current).not.toHaveProperty("styleDetached");
   });
 
+  it("locks explicitly owned alignment while displaying the linked value", async () => {
+    await mount(text({ typography: { textAlign: "left" } }), presentation([
+      { id: "body", typography: { textAlign: "center" } },
+    ]));
+
+    const alignment = host.querySelector<HTMLSelectElement>("#text-text-align");
+    if (!alignment) throw new Error("alignment control was not rendered");
+    expect(alignment.value).toBe("center");
+    expect(alignment.disabled).toBe(true);
+    await act(async () => {
+      alignment.value = "right";
+      alignment.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(current.typography?.textAlign).toBe("left");
+    expect(updates).toHaveLength(0);
+  });
+
+  it("keeps omitted alignment editable and does not lock theme defaults", async () => {
+    await mount(text({ typography: { textAlign: "left" } }), presentation());
+    const alignment = host.querySelector<HTMLSelectElement>("#text-text-align");
+    if (!alignment) throw new Error("alignment control was not rendered");
+    expect(alignment.value).toBe("left");
+    expect(alignment.disabled).toBe(false);
+    await act(async () => {
+      alignment.value = "right";
+      alignment.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(current.typography?.textAlign).toBe("right");
+  });
+
+  it("locks owned margins while keeping omitted margins editable", async () => {
+    await mount(text({ layout: { marginTop: 20, marginBottom: 30 } }), presentation([
+      { id: "body", layout: { marginTop: 10 } },
+    ]));
+    const top = host.querySelector<HTMLInputElement>("#text-margin-top");
+    const bottom = host.querySelector<HTMLInputElement>("#text-margin-bottom");
+    if (!top || !bottom) throw new Error("margin controls were not rendered");
+    expect(top.value).toBe("10");
+    expect(top.disabled).toBe(true);
+    expect(bottom.value).toBe("30");
+    expect(bottom.disabled).toBe(false);
+    await act(async () => {
+      top.value = "40";
+      top.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const editableBottom = host.querySelector<HTMLInputElement>("#text-margin-bottom");
+    if (!editableBottom) throw new Error("margin bottom control was not rendered after update");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("input value setter was not available");
+      setter.call(editableBottom, "35");
+      editableBottom.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(current.layout).toEqual({ marginTop: 20, marginBottom: 35 });
+  });
+
+  it("locks each explicitly owned margin independently", async () => {
+    await mount(text(), presentation([{
+      id: "body",
+      layout: { margin: 1, marginTop: 2, marginRight: 3, marginBottom: 4, marginLeft: 5 },
+    }]));
+    for (const selector of ["#text-margin", "#text-margin-top", "#text-margin-right", "#text-margin-bottom", "#text-margin-left"]) {
+      expect(host.querySelector<HTMLInputElement>(selector)?.disabled).toBe(true);
+    }
+  });
+
+  it("locks linked color and stroke without locking background or shadow", async () => {
+    await mount(text({
+      style: { color: "#ff0000", background: { color: "#eeeeee" } },
+      typography: { textStroke: { width: 1, color: "#ff0000" } },
+    }), presentation([{
+      id: "body",
+      style: { color: "#00ff00" },
+      typography: { textStroke: { width: 3, color: "#0000ff" } },
+    }]));
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.value).toBe("#00ff00");
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#text-background-value")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLSelectElement>("#text-text-stroke-mode")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-color-value")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLSelectElement>("#text-shadow-mode")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("3");
+  });
+
   it("edits one attached field without materializing effective typography", async () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text(), source);
@@ -146,8 +231,8 @@ describe("Text Inspector typography style attachment", () => {
 
   it("offers explicit Detach and materializes the current effective typography", async () => {
     await mount(
-      text({ typography: { fontSize: 22 } }),
-      presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]),
+      text({ typography: { fontSize: 22 }, style: { color: "#ff0000" }, layout: { marginTop: 20 } }),
+      presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 }, style: { color: "#00ff00" }, layout: { marginTop: 10 } }]),
     );
 
     expect(host.textContent).toContain("Attached to Typography Style · Body");
@@ -160,9 +245,15 @@ describe("Text Inspector typography style attachment", () => {
       variant: "body",
       styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500 },
+      style: { color: "#00ff00" },
+      layout: { marginTop: 10 },
     });
     expect(host.textContent).toContain("Local · detached from Body");
     expect(host.textContent).toContain("Attach to Body");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#text-margin-top")?.disabled).toBe(false);
   });
 
   it("detaches a custom style to its fundamental role without inheriting that role's override", async () => {

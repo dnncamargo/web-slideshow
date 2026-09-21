@@ -6,6 +6,9 @@ import {
   type ElementTypography,
   type TextVisualStyle,
   type TextStyle,
+  TEXT_STYLE_LAYOUT_PROPERTY_NAMES,
+  TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
+  TEXT_STYLE_VISUAL_PROPERTY_NAMES,
   stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
@@ -126,6 +129,24 @@ export function TextInspector({
     caption: t("inspector.caption"),
   };
   const selectedStyle = styleOptions.find(({ id }) => id === element.variant)?.style;
+  const linkedStyle = element.styleDetached === true ? undefined : selectedStyle;
+  const ownedTypographyProperties = linkedStyle
+    ? TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.filter((property) => linkedStyle.typography?.[property] !== undefined)
+    : [];
+  const ownedVisualProperties = linkedStyle
+    ? TEXT_STYLE_VISUAL_PROPERTY_NAMES.filter((property) => linkedStyle.style?.[property] !== undefined)
+    : [];
+  const ownedLayoutProperties = linkedStyle
+    ? TEXT_STYLE_LAYOUT_PROPERTY_NAMES.filter((property) => linkedStyle.layout?.[property] !== undefined)
+    : [];
+  const resolvedTextStyle = presentation
+    ? resolveEffectiveTextStyleForAuthoring(presentation, element)
+    : undefined;
+  const effectiveInspectorTypography: ElementTypography = { ...(element.typography ?? {}) };
+  for (const property of ownedTypographyProperties) {
+    const value = effectiveTypography?.[property];
+    if (value !== undefined) Object.assign(effectiveInspectorTypography, { [property]: value });
+  }
   const selectedStyleName = selectedStyle && "name" in selectedStyle
     ? selectedStyle.name
     : fundamentalLabels[element.variant] ?? element.variant;
@@ -204,7 +225,9 @@ export function TextInspector({
         {typographyDefaults && (
           <ElementTypographyFields
             typography={element.typography}
+            effectiveTypography={effectiveTypography}
             effectiveDefaults={typographyDefaults}
+            disabledProperties={ownedTypographyProperties.filter((property): property is Exclude<typeof property, "textDecorationColor" | "textStroke"> => property !== "textDecorationColor" && property !== "textStroke")}
             onUpdateTypography={updateTypography}
             controlPrefix="text"
             fontResources={fontResources}
@@ -212,8 +235,10 @@ export function TextInspector({
         )}
       </InspectorSection>
 
-      <ElementSpacingSection
+        <ElementSpacingSection
         layout={element.layout}
+        effectiveLayout={resolvedTextStyle?.layout}
+        disabledFields={ownedLayoutProperties}
         controlPrefix="text"
         onUpdateLayout={(update) => {
           onUpdate((current) =>
@@ -231,15 +256,18 @@ export function TextInspector({
         onUpdateStyle={updateStyle}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
+        effectiveTextColor={resolvedTextStyle?.style?.color}
+        textColorDisabled={ownedVisualProperties.includes("color")}
       />
 
       <CanonicalTextEffectsSection
         effect={element.effect}
-        typography={element.typography}
+        typography={effectiveInspectorTypography}
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}
         controlPrefix="text"
+        textStrokeDisabled={ownedTypographyProperties.includes("textStroke")}
       />
 
       {shouldShowElementPositioning(layerControls) && (

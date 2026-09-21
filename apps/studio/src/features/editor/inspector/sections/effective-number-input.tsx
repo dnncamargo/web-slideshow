@@ -14,6 +14,7 @@ interface EffectiveNumberInputProps {
   step?: string;
   onChange: (value: string) => void;
   onReset: () => void;
+  disabled?: boolean;
 }
 
 export function EffectiveNumberInput({
@@ -27,6 +28,7 @@ export function EffectiveNumberInput({
   step,
   onChange,
   onReset,
+  disabled = false,
 }: EffectiveNumberInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -59,6 +61,7 @@ export function EffectiveNumberInput({
           {...(max === undefined ? {} : { max })}
           {...(step === undefined ? {} : { step })}
           value={value}
+          disabled={disabled}
           onFocus={beginEditing}
           onBlur={() => authoringHistory?.finish(historyKey)}
           onChange={(event) => {
@@ -77,8 +80,10 @@ export function EffectiveNumberInput({
         <button
           className={styles.effectiveValueReset}
           type="button"
+          disabled={disabled}
           title={t("inspector.useThemeDefault")}
           onClick={() => {
+            if (disabled) return;
             if (!authoringHistory) {
               onReset();
               return;

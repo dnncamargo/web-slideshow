@@ -27,6 +27,7 @@ interface EffectiveLengthInputProps {
   preserveInheritedUnit?: boolean;
   onChange: (value: Length | undefined) => void;
   onReset: () => void;
+  disabled?: boolean;
 }
 
 function getInitialUnit(
@@ -54,6 +55,7 @@ export function EffectiveLengthInput({
   preserveInheritedUnit = false,
   onChange,
   onReset,
+  disabled = false,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -111,6 +113,7 @@ export function EffectiveLengthInput({
           {...(min === undefined ? {} : { min })}
           {...(inputStep === undefined ? {} : { step: inputStep })}
           value={numericValue}
+          disabled={disabled}
           onFocus={beginEditing}
           onBlur={() => authoringHistory?.finish(historyKey)}
           onChange={(event) => {
@@ -135,6 +138,7 @@ export function EffectiveLengthInput({
           id={`${id}-unit`}
           name={`${name}Unit`}
           value={unit}
+          disabled={disabled}
           onChange={(event) => {
             const nextUnit = event.target.value as AuthoringLengthUnit;
 
@@ -185,8 +189,10 @@ export function EffectiveLengthInput({
         <button
           className={styles.effectiveValueReset}
           type="button"
+          disabled={disabled}
           title={inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.useThemeDefault")}
           onClick={() => {
+            if (disabled) return;
             setUnit(preferredUnit);
             if (!authoringHistory) {
               onReset();

@@ -15,6 +15,7 @@ interface CanonicalTextEffectsSectionProps {
   onUpdateEffect: UpdateElementEffect;
   onUpdateTypography: UpdateElementTypography;
   controlPrefix: string;
+  textStrokeDisabled?: boolean;
 }
 
 type ShadowMode = "none" | "outer" | "inset";
@@ -40,6 +41,7 @@ export function CanonicalTextEffectsSection({
   onUpdateEffect,
   onUpdateTypography,
   controlPrefix,
+  textStrokeDisabled = false,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -106,6 +108,7 @@ export function CanonicalTextEffectsSection({
           id={`${controlPrefix}-text-stroke-mode`}
           name={getControlName(controlPrefix, "TextStrokeMode")}
           value={strokeMode}
+          disabled={textStrokeDisabled}
           onChange={(event) => {
             const mode = event.target.value === "stroke" ? "stroke" : "none";
             if (mode === strokeMode) return;
@@ -131,6 +134,7 @@ export function CanonicalTextEffectsSection({
                   type="number"
                   min="0"
                   value={readAbsoluteNumber(typography.textStroke.width)}
+                  disabled={textStrokeDisabled}
                   onFocus={() => beginNumberEditing("text-stroke-width")}
                   onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`)}
                   onChange={(event) => {
@@ -154,6 +158,7 @@ export function CanonicalTextEffectsSection({
               id={`${controlPrefix}-text-stroke-color`}
               name={getControlName(controlPrefix, "TextStrokeColor")}
               value={typography.textStroke.color}
+              disabled={textStrokeDisabled}
               onChange={(color) =>
                 onUpdateTypography((current) => ({
                   ...current,

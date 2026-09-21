@@ -23,6 +23,8 @@ interface CanonicalTextAppearanceSectionProps {
   onUpdateStyle: UpdateElementVisualStyle;
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
+  effectiveTextColor?: TextVisualStyle["color"];
+  textColorDisabled?: boolean;
 }
 
 function readOpacityPercentage(value: number | undefined): number {
@@ -38,6 +40,8 @@ export function CanonicalTextAppearanceSection({
   onUpdateStyle,
   onUpdateEffect,
   controlPrefix,
+  effectiveTextColor,
+  textColorDisabled = false,
 }: CanonicalTextAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -62,7 +66,9 @@ export function CanonicalTextAppearanceSection({
           <ColorControl
             id={`${controlPrefix}-color`}
             name={getControlName(controlPrefix, "Color")}
-            value={style?.color}
+            value={textColorDisabled ? undefined : style?.color}
+            effectiveValue={effectiveTextColor}
+            disabled={textColorDisabled}
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }

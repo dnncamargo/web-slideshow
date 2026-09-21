@@ -27,6 +27,7 @@ export type CoreTypographyProperty = (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAME
 
 interface ElementTypographyControlProps {
   typography?: ElementTypography | undefined;
+  effectiveTypography?: ElementTypography | undefined;
 
   effectiveDefaults: Partial<ThemeTypographyDefaults & ElementTypography>;
 
@@ -37,6 +38,7 @@ interface ElementTypographyControlProps {
   fontResources: readonly FontResource[];
 
   visibleProperties?: readonly CoreTypographyProperty[];
+  disabledProperties?: readonly CoreTypographyProperty[];
 }
 
 function readFontWeightSelection(
@@ -175,12 +177,14 @@ function FontFamilyField({
   effectiveValue,
   fontResources,
   onCommit,
+  disabled = false,
 }: {
   controlPrefix: string;
   currentValue: string | undefined;
   effectiveValue: string | undefined;
   fontResources: readonly FontResource[];
   onCommit: (fontFamily: string | undefined) => void;
+  disabled?: boolean;
 }) {
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(currentValue ?? "");
@@ -213,6 +217,7 @@ function FontFamilyField({
         type="text"
         list={suggestionId}
         value={draft}
+        disabled={disabled}
         placeholder={effectiveValue}
         onInput={(event) => setDraft(event.currentTarget.value)}
         onChange={(event) => setDraft(event.currentTarget.value)}
@@ -245,6 +250,8 @@ export function ElementTypographyFields({
   controlPrefix,
   fontResources,
   visibleProperties,
+  disabledProperties = [],
+  effectiveTypography,
 }: ElementTypographyControlProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -252,6 +259,9 @@ export function ElementTypographyFields({
   const currentTypography = typography;
   const isVisible = (property: CoreTypographyProperty): boolean =>
     visibleProperties === undefined || visibleProperties.includes(property);
+  const isDisabled = (property: CoreTypographyProperty): boolean => disabledProperties.includes(property);
+  const displayValue = <K extends keyof ElementTypography>(property: K): ElementTypography[K] | undefined =>
+    isDisabled(property as CoreTypographyProperty) ? effectiveTypography?.[property] : currentTypography?.[property];
 
   function onUpdateStyle(
     update: (current: ElementTypography | undefined) => ElementTypography,
@@ -277,23 +287,23 @@ export function ElementTypographyFields({
     }
   }
 
-  const fontWeightSelection = readFontWeightSelection(
-    currentTypography?.fontWeight ?? effectiveDefaults.fontWeight,
-  );
+  const fontWeightSelection = readFontWeightSelection(displayValue("fontWeight") ?? effectiveDefaults.fontWeight);
 
   const showUncuratedFontWeight =
-    (currentTypography?.fontWeight ?? effectiveDefaults.fontWeight) !== undefined &&
-    !isCuratedFontWeight(currentTypography?.fontWeight ?? effectiveDefaults.fontWeight ?? 400);
-  const currentFontFamily = currentTypography?.fontFamily;
+    (displayValue("fontWeight") ?? effectiveDefaults.fontWeight) !== undefined &&
+    !isCuratedFontWeight(displayValue("fontWeight") ?? effectiveDefaults.fontWeight ?? 400);
+  const currentFontFamily = isDisabled("fontFamily") ? undefined : currentTypography?.fontFamily;
+  const fontSizeSource = displayValue("fontSize");
   const effectiveFontSizePx =
-    currentTypography?.fontSize === undefined
+    fontSizeSource === undefined
       ? effectiveDefaults.fontSize
-      : convertAuthoringLength(currentTypography.fontSize, "px");
-  const lineHeightValue = effectiveDefaults.lineHeight === undefined && currentTypography?.lineHeight === undefined
+      : convertAuthoringLength(fontSizeSource, "px");
+  const lineHeightSource = displayValue("lineHeight");
+  const lineHeightValue = effectiveDefaults.lineHeight === undefined && lineHeightSource === undefined
     ? { value: "" as const, inherited: true }
     : resolveEffectiveNumericStyleValue(
-      currentTypography?.lineHeight,
-      effectiveDefaults.lineHeight ?? 0,
+      lineHeightSource,
+      isDisabled("lineHeight") ? effectiveTypography?.lineHeight ?? effectiveDefaults.lineHeight ?? 0 : effectiveDefaults.lineHeight ?? 0,
     );
 
   return (
@@ -307,6 +317,7 @@ export function ElementTypographyFields({
             currentValue={currentFontFamily}
             effectiveValue={effectiveDefaults.fontFamily}
             fontResources={fontResources}
+            disabled={isDisabled("fontFamily")}
             onCommit={(fontFamily) => {
               onUpdateDiscreteStyle("typography.fontFamily", (currentTypography) => ({
                 ...currentTypography,
@@ -329,11 +340,12 @@ export function ElementTypographyFields({
             id={`${controlPrefix}-font-size`}
             name={getControlName(controlPrefix, "FontSize")}
             min="1"
-            value={currentTypography?.fontSize}
-            inheritedValue={effectiveDefaults.fontSize}
+            value={isDisabled("fontSize") ? undefined : currentTypography?.fontSize}
+            inheritedValue={isDisabled("fontSize") ? effectiveTypography?.fontSize ?? effectiveDefaults.fontSize : effectiveDefaults.fontSize}
             preferredUnit="rem"
             units={["px", "rem"]}
             stepByUnit={{ px: "1", rem: "0.1" }}
+            disabled={isDisabled("fontSize")}
             onChange={(fontSize) => {
 
               onUpdateStyle((currentStyle) => ({
@@ -359,6 +371,7 @@ export function ElementTypographyFields({
             id={`${controlPrefix}-font-weight`}
             name={getControlName(controlPrefix, "FontWeight")}
             value={fontWeightSelection}
+            disabled={isDisabled("fontWeight")}
             onChange={(event) => {
               const fontWeight = parseFontWeightSelection(event.target.value);
 
@@ -395,7 +408,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-font-style`}
             name={getControlName(controlPrefix, "FontStyle")}
-            value={currentTypography?.fontStyle ?? effectiveDefaults.fontStyle ?? ""}
+            value={displayValue("fontStyle") ?? effectiveDefaults.fontStyle ?? ""}
+            disabled={isDisabled("fontStyle")}
             onChange={(event) => {
               const fontStyle = parseFontStyleSelection(event.target.value);
 
@@ -420,8 +434,10 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-align`}
             name={getControlName(controlPrefix, "TextAlign")}
-            value={currentTypography?.textAlign ?? effectiveDefaults.textAlign ?? ""}
+            value={displayValue("textAlign") ?? effectiveDefaults.textAlign ?? ""}
+            disabled={isDisabled("textAlign")}
             onChange={(event) => {
+              if (isDisabled("textAlign")) return;
               const textAlign = parseTextAlignSelection(event.target.value);
 
               onUpdateDiscreteStyle("typography.textAlign", (currentStyle) => ({
@@ -458,6 +474,7 @@ export function ElementTypographyFields({
             value={lineHeightValue.value}
             inherited={lineHeightValue.inherited}
             unit="×"
+            disabled={isDisabled("lineHeight")}
             onChange={(value) => {
               const lineHeight = parseOptionalPositiveNumber(value);
 
@@ -488,12 +505,13 @@ export function ElementTypographyFields({
           <EffectiveLengthInput
             id={`${controlPrefix}-letter-spacing`}
             name={getControlName(controlPrefix, "LetterSpacing")}
-            value={currentTypography?.letterSpacing}
-            inheritedValue={effectiveDefaults.letterSpacing}
+            value={isDisabled("letterSpacing") ? undefined : currentTypography?.letterSpacing}
+            inheritedValue={isDisabled("letterSpacing") ? effectiveTypography?.letterSpacing ?? effectiveDefaults.letterSpacing : effectiveDefaults.letterSpacing}
             preferredUnit="em"
             units={["px", "em", "rem"]}
             relativeFontSizePx={effectiveFontSizePx}
             stepByUnit={{ px: "0.1", em: "0.01", rem: "0.01" }}
+            disabled={isDisabled("letterSpacing")}
             onChange={(letterSpacing) => {
 
               onUpdateStyle((currentStyle) => ({
@@ -518,7 +536,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-transform`}
             name={getControlName(controlPrefix, "TextTransform")}
-            value={currentTypography?.textTransform ?? effectiveDefaults.textTransform ?? "none"}
+            value={displayValue("textTransform") ?? effectiveDefaults.textTransform ?? "none"}
+            disabled={isDisabled("textTransform")}
             onChange={(event) => {
               const textTransform = parseTextTransformSelection(
                 event.target.value,
@@ -553,7 +572,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-white-space`}
             name={getControlName(controlPrefix, "WhiteSpace")}
-            value={currentTypography?.whiteSpace ?? effectiveDefaults.whiteSpace ?? "normal"}
+            value={displayValue("whiteSpace") ?? effectiveDefaults.whiteSpace ?? "normal"}
+            disabled={isDisabled("whiteSpace")}
             onChange={(event) => {
               const whiteSpace = parseWhiteSpaceSelection(event.target.value);
 
@@ -584,7 +604,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-wrap-style`}
             name={getControlName(controlPrefix, "TextWrapStyle")}
-            value={currentTypography?.textWrapStyle ?? effectiveDefaults.textWrapStyle ?? "auto"}
+            value={displayValue("textWrapStyle") ?? effectiveDefaults.textWrapStyle ?? "auto"}
+            disabled={isDisabled("textWrapStyle")}
             onChange={(event) => {
               const textWrapStyle = parseTextWrapStyleSelection(
                 event.target.value,
@@ -611,7 +632,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-overflow-wrap`}
             name={getControlName(controlPrefix, "OverflowWrap")}
-            value={currentTypography?.overflowWrap ?? effectiveDefaults.overflowWrap ?? "normal"}
+            value={displayValue("overflowWrap") ?? effectiveDefaults.overflowWrap ?? "normal"}
+            disabled={isDisabled("overflowWrap")}
             onChange={(event) => {
               const overflowWrap = parseOverflowWrapSelection(
                 event.target.value,
@@ -644,7 +666,8 @@ export function ElementTypographyFields({
           <select
             id={`${controlPrefix}-text-decoration-line`}
             name={getControlName(controlPrefix, "TextDecorationLine")}
-            value={currentTypography?.textDecorationLine ?? effectiveDefaults.textDecorationLine ?? "none"}
+            value={displayValue("textDecorationLine") ?? effectiveDefaults.textDecorationLine ?? "none"}
+            disabled={isDisabled("textDecorationLine")}
             onChange={(event) => {
               const textDecorationLine = parseTextDecorationLineSelection(
                 event.target.value,
