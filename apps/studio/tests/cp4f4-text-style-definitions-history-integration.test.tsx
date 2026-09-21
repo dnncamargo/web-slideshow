@@ -165,6 +165,12 @@ describe("CP4F4 Text Style definition history", () => {
     await act(async () => row("body").querySelector<HTMLButtonElement>("[aria-label='Remove Margin top']")?.click());
     expect(row("body").querySelector("#text-style-body-marginTop")).toBeNull();
     expect(row("body").textContent).toContain("Built-in");
+    await undo();
+    expect(row("body").querySelector<HTMLInputElement>("#text-style-body-marginTop")?.value).toBe("0");
+    expect(row("body").textContent).toContain("Customized");
+    await redo();
+    expect(row("body").querySelector("#text-style-body-marginTop")).toBeNull();
+    expect(row("body").textContent).toContain("Built-in");
   });
 
   it("keeps reset confirmation local and replays only the fundamental override", async () => {

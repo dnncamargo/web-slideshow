@@ -740,7 +740,7 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false,
           } else onChange(undefined);
           return;
         }
-        const next = Number(event.target.value);
+        const next = event.target.valueAsNumber;
         if (Number.isFinite(next)) {
           const update = () => onChange(serializeAuthoringLength(next, unit));
           if (authoringHistory) {
