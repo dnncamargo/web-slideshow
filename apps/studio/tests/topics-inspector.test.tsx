@@ -941,6 +941,72 @@ describe("TopicsInspector", () => {
     expect(container.querySelector("#topics-text-color")?.parentElement?.parentElement?.textContent).not.toContain("Linked");
   });
 
+  it("cycles kind provenance from linked to local and back without detaching", async () => {
+    mount(topicsElement({ linkedStyleId: "topics-style", kind: undefined }));
+    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "ordered" }] };
+    await act(async () => renderInspector());
+    expect(kindSelect().value).toBe("ordered");
+    expect(container.textContent).toContain("Linked");
+    await act(async () => {
+      kindSelect().value = "unordered";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.kind).toBe("unordered");
+    expect(elementState.linkedStyleId).toBe("topics-style");
+    expect(container.textContent).toContain("Local override");
+    const reset = kindSelect().closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!reset) throw new Error("Kind reset was not rendered");
+    await act(async () => reset.click());
+    expect(elementState.kind).toBeUndefined();
+    expect(elementState.linkedStyleId).toBe("topics-style");
+    expect(kindSelect().value).toBe("ordered");
+    expect(container.textContent).toContain("Linked");
+  });
+
+  it("resets a master-omitted local kind to the effective unordered default", async () => {
+    mount(topicsElement({ linkedStyleId: "topics-style", kind: "unordered" }));
+    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics" }] };
+    await act(async () => renderInspector());
+    expect(container.textContent).toContain("Local override");
+    const reset = kindSelect().closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!reset) throw new Error("Kind reset was not rendered");
+    await act(async () => reset.click());
+    expect(elementState.kind).toBeUndefined();
+    expect(elementState.linkedStyleId).toBe("topics-style");
+    expect(kindSelect().value).toBe("unordered");
+    expect(kindSelect().closest("label")?.textContent).not.toContain("Linked");
+  });
+
+  it("cycles root marker and literal or palette marker-color provenance", async () => {
+    mount(topicsElement({ linkedStyleId: "topics-style", rootMarkerStyle: "circle", markerColor: "#ff0000" }));
+    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", rootMarkerStyle: "square", markerColor: "#00ff00" }] };
+    await act(async () => renderInspector());
+    expect(container.textContent).toContain("Linked");
+    const marker = rootMarkerStyleSelect();
+    await act(async () => {
+      marker.value = "disc";
+      marker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.rootMarkerStyle).toBe("disc");
+    expect(container.textContent).toContain("Local override");
+    const rootMarkerReset = marker.closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!rootMarkerReset) throw new Error("Root marker reset was not rendered");
+    await act(async () => rootMarkerReset.click());
+    expect(elementState.rootMarkerStyle).toBeUndefined();
+    expect(container.textContent).toContain("Linked");
+
+    const color = container.querySelector<HTMLInputElement>("#topics-marker-color-value");
+    if (!color) throw new Error("Topics marker color input was not rendered");
+    await act(async () => setTextInputValue(color, "#112233"));
+    expect(elementState.markerColor).toBe("#112233");
+    expect(container.textContent).toContain("Local override");
+    const markerColorReset = color.closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!markerColorReset) throw new Error("Marker color reset was not rendered");
+    await act(async () => markerColorReset.click());
+    expect(elementState.markerColor).toBeUndefined();
+    expect(container.textContent).toContain("Linked");
+  });
+
   it("Add Topic invokes the structural callback with the selected Topics id", async () => {
     await act(async () => {
       mount(topicsElement());

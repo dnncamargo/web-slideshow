@@ -329,6 +329,10 @@ function removeLinkedTopicsProperties(topics: TopicsElement, linked: LinkedTopic
   if (linked.rootMarkerStyle !== undefined) next = clearLinkedTopicsStyleProperty(next, "rootMarkerStyle");
   if (linked.markerColor !== undefined) next = clearLinkedTopicsStyleProperty(next, "markerColor");
   if (linked.itemGap !== undefined) next = clearLinkedTopicsStyleProperty(next, "itemGap");
+  const hasLocalInset = (["top", "right", "bottom", "left"] as const).some((property) => next.layout?.[property] !== undefined);
+  if (linked.layout?.position !== undefined && hasLocalInset && next.layout?.position === undefined) {
+    next = { ...next, layout: { ...(next.layout ?? {}), position: "absolute" } as TopicsElement["layout"] };
+  }
   return next;
 }
 

@@ -107,6 +107,25 @@ describe("Topics Linked Style authoring", () => {
     expect(attachLinkedTopicsStyle(initial, 0, "topics", "container")).toEqual(initial);
   });
 
+  it("keeps a local inset representable when switching to a style that owns position", () => {
+    const initial = presentation(topics({ linkedStyleId: "source", layout: { position: "absolute", top: 20 } }), [
+      { target: "topics", id: "source", name: "Source", layout: { position: "absolute", top: 99 }, itemGap: 8 },
+      { target: "topics", id: "destination", name: "Destination", layout: { position: "absolute" }, itemGap: 8 },
+    ]);
+    const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
+    expect(switched).toEqual(expect.objectContaining({ slides: expect.any(Array) }));
+    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", layout: { position: "absolute", top: 20 } });
+    expect(selected(switched).layout?.top).not.toBe(99);
+    expect(PresentationSchema.parse(switched)).toEqual(switched);
+
+    const withoutInset = presentation(topics({ linkedStyleId: "source", layout: { position: "absolute" } }), [
+      { target: "topics", id: "source", name: "Source", itemGap: 8 },
+      { target: "topics", id: "destination", name: "Destination", layout: { position: "absolute" }, itemGap: 8 },
+    ]);
+    const ordinary = attachLinkedTopicsStyle(withoutInset, 0, "topics", "destination");
+    expect(ordinary.slides[0]?.elements[0]).not.toHaveProperty("layout");
+  });
+
   it("transfers, updates, overrides, and detaches effective kind", () => {
     const initial = presentation(topics({ kind: "unordered" }), [
       { target: "topics", id: "shared", name: "Shared", kind: "ordered", itemGap: 8 },

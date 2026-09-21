@@ -393,10 +393,103 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     const saved: Presentation[] = [];
     await renderWorkspace(initial, saved);
     const row = await openRow();
-    const markerColor = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-marker-color");
-    if (!markerColor) throw new Error("Topics markerColor control was not rendered");
-    await act(async () => { markerColor.focus(); setInputValue(markerColor, "#00ff00"); markerColor.blur(); });
+    const marginTop = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-marginTop");
+    if (!marginTop) throw new Error("Topics marginTop control was not rendered");
+    await act(async () => { marginTop.focus(); setInputValue(marginTop, "12.0"); marginTop.blur(); });
     const unchanged = await save(saved);
+    expect(unchanged.linkedStyles?.find((style) => style.id === "topics-style")).toHaveProperty("layout.marginTop", 12);
     expect(unchanged.slides[0]?.elements[0]).toHaveProperty("layout.marginTop", 30);
+  });
+
+  it("clears local itemGap once across one continuous master transaction", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 40, items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
+    if (!itemGap) throw new Error("Topics itemGap control was not rendered");
+    await act(async () => { itemGap.focus(); setInputValue(itemGap, "10"); setInputValue(itemGap, "12"); setInputValue(itemGap, "16"); itemGap.blur(); });
+    const edited = await save(saved);
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).toHaveProperty("itemGap", 16);
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(edited.slides[0]?.elements[1]).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
+  it("clears local kind and incompatible root marker together while preserving content", async () => {
+    const items = [{ id: "item", content: { id: "slot", children: [{ id: "text", type: "text" as const, hidden: false, content: "Keep" }] }, children: [] }];
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "unordered", rootMarkerStyle: "circle", itemGap: 22, items }] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "unordered", rootMarkerStyle: "square", itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const kind = row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind");
+    if (!kind) throw new Error("Topics kind control was not rendered");
+    await act(async () => setSelectValue(kind, "ordered"));
+    const edited = await save(saved);
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ kind: "ordered" });
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("rootMarkerStyle");
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("kind");
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("rootMarkerStyle");
+    expect(edited.slides[0]?.elements[0]).toMatchObject({ itemGap: 22, items });
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
+  it("propagates through a nested Topics hierarchy without changing content or ids", async () => {
+    const nestedItems = [{ id: "item", content: { id: "slot", children: [{ id: "text", type: "text" as const, hidden: false, content: "Nested" }] }, children: [{ id: "child", content: { id: "child-slot", children: [] }, children: [] }] }];
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "container", type: "container", hidden: false, children: [{ id: "nested-topics", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, markerColor: "#123456", items: nestedItems }] }] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
+    if (!itemGap) throw new Error("Topics itemGap control was not rendered");
+    await act(async () => { itemGap.focus(); setInputValue(itemGap, "16"); itemGap.blur(); });
+    const edited = await save(saved);
+    const container = edited.slides[0]?.elements[0];
+    if (container?.type !== "container") throw new Error("Nested container was not preserved");
+    const nested = container.children[0];
+    if (nested?.type !== "topics") throw new Error("Nested Topics was not preserved");
+    expect(nested).not.toHaveProperty("itemGap");
+    expect(nested).toMatchObject({ id: "nested-topics", linkedStyleId: "topics-style", markerColor: "#123456", items: nestedItems });
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
+  it("preserves a local override through rename and a canonical no-op edit", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{ id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, items: [] }] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8, markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const name = row.querySelector<HTMLInputElement>("input");
+    const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
+    if (!name || !itemGap) throw new Error("Topics authoring controls were not rendered");
+    await act(async () => { name.focus(); setInputValue(name, "Renamed"); name.blur(); });
+    const renamed = await save(saved);
+    expect(renamed.slides[0]?.elements[0]).toHaveProperty("itemGap", 20);
+    await act(async () => { itemGap.focus(); setInputValue(itemGap, "8"); itemGap.blur(); });
+    const noop = await save(saved);
+    expect(noop.slides[0]?.elements[0]).toHaveProperty("itemGap", 20);
   });
 });
