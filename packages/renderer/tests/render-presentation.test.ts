@@ -89,7 +89,7 @@ describe("renderPresentation", () => {
     expect(html).not.toContain('font-family:&quot;Inter&quot;');
   });
 
-  it("keeps a fundamental local typography override independent", () => {
+  it("lets a defined fundamental Text Style typography property win", () => {
     const html = renderPresentation(createPresentationFixture({
       textStyles: [{ id: "body", typography: { fontFamily: "Inter" } }],
       slides: [createSlide({
@@ -97,8 +97,8 @@ describe("renderPresentation", () => {
       })],
     }));
 
-    expect(html).toContain('font-family:&quot;Fira Code&quot;');
-    expect(html).not.toContain('font-family:&quot;Inter&quot;');
+    expect(html).toContain('font-family:&quot;Inter&quot;');
+    expect(html).not.toContain('font-family:&quot;Fira Code&quot;');
   });
 
   it("renders attached Text Style appearance through canonical Palette variables", () => {
@@ -128,11 +128,33 @@ describe("renderPresentation", () => {
     });
 
     const html = renderPresentation(presentation);
-    expect(html).toContain("color:#00ff00");
+    expect(html).toContain("color:var(--ps-palette-007000720069006d006100720079)");
     expect(html).toContain("text-decoration-line:underline");
     expect(html).toContain("text-decoration-color:var(--ps-palette-007000720069006d006100720079)");
     expect(html).toContain("-webkit-text-stroke:2px var(--ps-palette-006f00750074006c0069006e0065)");
-    expect(html).not.toContain("color:#ff0000");
+    expect(html).not.toContain("color:#00ff00");
+  });
+
+  it("renders linked Text Style margins while preserving local positioning", () => {
+    const presentation = createPresentationFixture({
+      textStyles: [{ id: "body", layout: { marginTop: 10, marginLeft: 12 } }],
+      slides: [createSlide({
+        elements: [createTextElement({
+          variant: "body",
+          layout: { marginTop: 20, marginBottom: 30, position: "absolute", top: 4, left: 6 },
+          content: "Styled",
+        })],
+      })],
+    });
+
+    const html = renderPresentation(presentation);
+    expect(html).toContain("margin-top:10px");
+    expect(html).toContain("margin-left:12px");
+    expect(html).toContain("margin-bottom:30px");
+    expect(html).toContain("position:absolute");
+    expect(html).toContain("top:4px");
+    expect(html).toContain("left:6px");
+    expect(html).not.toContain("margin-top:20px");
   });
 
   it("renders the presentation wrapper", () => {

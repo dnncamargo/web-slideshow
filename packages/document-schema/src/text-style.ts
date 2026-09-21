@@ -1,8 +1,12 @@
 import { z } from "zod";
 
-import type { ElementTypography } from "./element-properties";
+import type {
+  ElementTypography,
+  TextStyleLayoutProperties,
+} from "./element-properties";
 import type { TextVisualStyle } from "./element-properties";
 import {
+  TextStyleLayoutPropertiesSchema,
   TextStyleTypographyPropertiesSchema,
   TextStyleVisualPropertiesSchema,
 } from "./element-properties";
@@ -40,6 +44,7 @@ const NonEmptyTrimmedStringSchema = z.string().trim().min(1);
 export const FundamentalTextStyleOverrideSchema = z
   .object({
     id: FundamentalTextStyleIdSchema,
+    layout: TextStyleLayoutPropertiesSchema.optional(),
     style: TextStyleVisualPropertiesSchema.optional(),
     typography: TextStyleTypographyPropertiesSchema.optional(),
   })
@@ -51,8 +56,11 @@ export const FundamentalTextStyleOverrideSchema = z
     if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
       context.addIssue({ code: "custom", path: ["typography"], message: "Fundamental text style typography cannot be empty." });
     }
+    if (style.layout !== undefined && Object.values(style.layout).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["layout"], message: "Fundamental text style layout cannot be empty." });
+    }
   })
-  .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined), {
+  .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined) || Object.values(style.layout ?? {}).some((value) => value !== undefined), {
     message: "Fundamental text style override cannot be empty.",
   });
 
@@ -68,6 +76,7 @@ export const CustomTextStyleSchema = z
     ),
     name: NonEmptyTrimmedStringSchema,
     role: TextStyleRoleSchema,
+    layout: TextStyleLayoutPropertiesSchema.optional(),
     style: TextStyleVisualPropertiesSchema.optional(),
     typography: TextStyleTypographyPropertiesSchema.optional(),
   })
@@ -78,6 +87,9 @@ export const CustomTextStyleSchema = z
     }
     if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
       context.addIssue({ code: "custom", path: ["typography"], message: "Custom text style typography cannot be empty." });
+    }
+    if (style.layout !== undefined && Object.values(style.layout).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["layout"], message: "Custom text style layout cannot be empty." });
     }
   });
 
@@ -134,6 +146,14 @@ export const TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2 = [
 ] as const satisfies readonly (keyof ElementTypography)[];
 
 export const TEXT_STYLE_VISUAL_PROPERTY_NAMES = ["color"] as const;
+
+export const TEXT_STYLE_LAYOUT_PROPERTY_NAMES = [
+  "margin",
+  "marginTop",
+  "marginRight",
+  "marginBottom",
+  "marginLeft",
+] as const satisfies readonly (keyof TextStyleLayoutProperties)[];
 
 export function stripLocalTextStyleProperties(
   style: ElementTypography | undefined,

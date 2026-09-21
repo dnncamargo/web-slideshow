@@ -111,6 +111,7 @@ function buildAttributes(
         ...(resolved?.style.color === undefined ? {} : { color: resolved.style.color }),
       },
       options.includeTextBorder === false ? { includeBorder: false } : {},
+      resolved?.layout,
     );
   } else if (element.type === "image") {
     baseStyle = renderCanonicalImageStyle(element);

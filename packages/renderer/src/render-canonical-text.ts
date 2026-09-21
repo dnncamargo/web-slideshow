@@ -2,6 +2,7 @@ import type {
   ElementEffect,
   ElementTypography,
   TextElement,
+  TextStyleLayoutProperties,
   TextVisualStyle,
   TextStyleVisualProperties,
 } from "@web-slideshow/document-schema";
@@ -35,7 +36,10 @@ function addLength(
   }
 }
 
-function renderLayout(element: TextElement): string[] {
+function renderLayout(
+  element: TextElement,
+  linkedLayout: TextStyleLayoutProperties | undefined,
+): string[] {
   const layout = element.layout;
   const output: string[] = [];
 
@@ -48,11 +52,11 @@ function renderLayout(element: TextElement): string[] {
   addLength(output, "right", layout.right);
   addLength(output, "bottom", layout.bottom);
   addLength(output, "left", layout.left);
-  addLength(output, "margin", layout.margin);
-  addLength(output, "margin-top", layout.marginTop);
-  addLength(output, "margin-right", layout.marginRight);
-  addLength(output, "margin-bottom", layout.marginBottom);
-  addLength(output, "margin-left", layout.marginLeft);
+  addLength(output, "margin", linkedLayout?.margin ?? layout.margin);
+  addLength(output, "margin-top", linkedLayout?.marginTop ?? layout.marginTop);
+  addLength(output, "margin-right", linkedLayout?.marginRight ?? layout.marginRight);
+  addLength(output, "margin-bottom", linkedLayout?.marginBottom ?? layout.marginBottom);
+  addLength(output, "margin-left", linkedLayout?.marginLeft ?? layout.marginLeft);
 
   return output;
 }
@@ -141,9 +145,10 @@ export function renderCanonicalTextStyle(
   typography: ElementTypography | undefined = element.typography,
   style: TextVisualStyle | TextStyleVisualProperties | undefined = element.style,
   options: CanonicalTextOptions = {},
+  linkedLayout?: TextStyleLayoutProperties,
 ): string {
   return [
-    ...renderLayout(element),
+    ...renderLayout(element, linkedLayout),
     ...renderVisualStyle(style, options),
     ...renderTypography(typography),
     ...renderEffect(element.effect),
