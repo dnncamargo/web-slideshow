@@ -31,6 +31,7 @@ import {
 } from "@web-slideshow/ui";
 
 import {
+  PresentationSchema,
   addPresentationPaletteColor as addPaletteEntry,
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
@@ -188,9 +189,10 @@ import {
   updateLinkedStyle,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
+  clearLinkedContainerStyleProperty,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
-import { createLinkedStyleWithProperty, type LinkedStyleAuthorableProperty } from "./linked-style-property-authoring";
+import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -493,6 +495,104 @@ function areLinkedContainerStyleDefinitionsEqual(
     && areLinkedStyleVisualValuesEqual(left.style, right.style)
     && areLinkedStyleTypographyValuesEqual(left.typography, right.typography)
     && areLinkedStyleEffectValuesEqual(left.effect, right.effect);
+}
+
+function getLinkedContainerStylePropertyValue(style: LinkedContainerStyle | undefined, property: LinkedStyleProperty): unknown {
+  switch (property) {
+    case "layoutMode": return style?.layout?.children?.mode;
+    case "direction": return style?.layout?.children?.direction;
+    case "gap": return style?.layout?.children?.gap;
+    case "distribution": return style?.layout?.children?.distribution;
+    case "horizontalAlign": return style?.layout?.children?.horizontalAlign;
+    case "verticalAlign": return style?.layout?.children?.verticalAlign;
+    case "overflow": return style?.layout?.overflow;
+    case "fit": return undefined;
+    case "position": return style?.layout?.position;
+    case "top": return style?.layout?.top;
+    case "right": return style?.layout?.right;
+    case "bottom": return style?.layout?.bottom;
+    case "left": return style?.layout?.left;
+    case "width": return style?.layout?.width;
+    case "height": return style?.layout?.height;
+    case "preserveSize": return style?.layout?.flexShrink;
+    case "padding": return style?.layout?.padding;
+    case "paddingTop": return style?.layout?.paddingTop;
+    case "paddingRight": return style?.layout?.paddingRight;
+    case "paddingBottom": return style?.layout?.paddingBottom;
+    case "paddingLeft": return style?.layout?.paddingLeft;
+    case "margin": return style?.layout?.margin;
+    case "marginTop": return style?.layout?.marginTop;
+    case "marginRight": return style?.layout?.marginRight;
+    case "marginBottom": return style?.layout?.marginBottom;
+    case "marginLeft": return style?.layout?.marginLeft;
+    case "color": return style?.style?.color;
+    case "backgroundColor": return style?.style?.background?.color;
+    case "gradient": return style?.style?.background?.gradient;
+    case "pattern": return style?.style?.background?.pattern;
+    case "border": return style?.style?.border;
+    case "borderRadius": return style?.style?.borderRadius;
+    case "opacity": return style?.effect?.opacity;
+    case "shadow": return style?.effect?.shadow;
+  }
+}
+
+function areLinkedContainerStylePropertyValuesEqual(
+  property: LinkedStyleProperty,
+  left: unknown,
+  right: unknown,
+): boolean {
+  if (property === "color" || property === "backgroundColor") {
+    return areLinkedStyleColorValuesEqual(left as ColorValue | undefined, right as ColorValue | undefined);
+  }
+  if (property === "gradient") {
+    return areLinkedStyleGradientValuesEqual(left as NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined, right as NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["gradient"]> | undefined);
+  }
+  if (property === "pattern") {
+    return areLinkedStylePatternValuesEqual(left as NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined, right as NonNullable<NonNullable<LinkedContainerStyleVisual["background"]>["pattern"]> | undefined);
+  }
+  if (property === "border") {
+    return areLinkedStyleBorderValuesEqual(left as NonNullable<LinkedContainerStyleVisual["border"]> | undefined, right as NonNullable<LinkedContainerStyleVisual["border"]> | undefined);
+  }
+  if (property === "shadow") {
+    return areLinkedStyleShadowValuesEqual(left as NonNullable<ElementEffect["shadow"]> | undefined, right as NonNullable<ElementEffect["shadow"]> | undefined);
+  }
+  return Object.is(left, right);
+}
+
+function changedLinkedContainerStyleProperties(
+  before: LinkedContainerStyle | undefined,
+  after: LinkedContainerStyle | undefined,
+): Exclude<LinkedStyleProperty, "fit">[] {
+  return LINKED_STYLE_PROPERTY_ORDER
+    .filter((property): property is Exclude<LinkedStyleProperty, "fit"> => property !== "fit")
+    .filter((property) => !areLinkedContainerStylePropertyValuesEqual(
+      property,
+      getLinkedContainerStylePropertyValue(before, property),
+      getLinkedContainerStylePropertyValue(after, property),
+    ));
+}
+
+function propagateLinkedContainerStyleDefinitionChanges(
+  presentation: ReturnType<typeof PresentationSchema.parse>,
+  linkedStyleId: string,
+  before: LinkedContainerStyle | undefined,
+  after: LinkedContainerStyle | undefined,
+): ReturnType<typeof PresentationSchema.parse> {
+  const changedProperties = changedLinkedContainerStyleProperties(before, after);
+  if (changedProperties.length === 0) return presentation;
+  let next = presentation;
+  for (const { slideIndex, elementId } of findContainersLinkedToStyle(presentation, linkedStyleId)) {
+    const slide = next.slides[slideIndex];
+    if (slide === undefined) continue;
+    const elements = updateElementById(slide.elements, elementId, (element) => {
+      if (element.type !== "container" || element.linkedStyleId !== linkedStyleId) return element;
+      return changedProperties.reduce((current, property) => clearLinkedContainerStyleProperty(current, property), element);
+    });
+    if (elements !== slide.elements) {
+      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
+    }
+  }
+  return next;
 }
 
 function areLinkedTopicsStyleColorsEqual(
@@ -3512,7 +3612,7 @@ export function EditorWorkspace({
         const afterPresentation = updateLinkedStyle(current, id, patch);
         const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
         if (after === undefined || ("target" in after && after.target === "topics") || areLinkedContainerStyleDefinitionsEqual(before, after)) return current;
-        return afterPresentation;
+        return propagateLinkedContainerStyleDefinitionChanges(afterPresentation, id, before, after);
       },
     );
   }

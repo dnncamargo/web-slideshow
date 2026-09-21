@@ -17,6 +17,7 @@ import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
 import { createTextStyleId } from "./text-style-helpers";
+import type { LinkedStyleProperty } from "./linked-style-property-authoring";
 
 type ShareableStyle = Omit<ElementVisualStyle, "className">;
 type PropertyBag = Record<string, unknown>;
@@ -91,6 +92,61 @@ function removeLinkedEffectProperties(localEffect: ElementEffect | undefined, li
   if (linked.opacity !== undefined) delete local.opacity;
   if (linked.shadow !== undefined) delete local.shadow;
   return Object.keys(local).length === 0 ? undefined : next;
+}
+
+/** Clears one canonical linked-container property while preserving all other local fields. */
+export function clearLinkedContainerStyleProperty(
+  container: ContainerElement,
+  property: Exclude<LinkedStyleProperty, "fit">,
+): ContainerElement {
+  const layout = container.layout === undefined
+    ? undefined
+    : { ...container.layout, ...(container.layout.children === undefined ? {} : { children: { ...container.layout.children } }) };
+  const style = container.style === undefined
+    ? undefined
+    : { ...container.style, ...(container.style.background === undefined ? {} : { background: { ...container.style.background } }) };
+  const effect = container.effect === undefined ? undefined : { ...container.effect };
+  const layoutBag = layout as PropertyBag | undefined;
+  const childrenBag = layout?.children as PropertyBag | undefined;
+  const styleBag = style as PropertyBag | undefined;
+  const backgroundBag = style?.background as PropertyBag | undefined;
+  const effectBag = effect as PropertyBag | undefined;
+
+  switch (property) {
+    case "layoutMode": if (childrenBag) delete childrenBag.mode; break;
+    case "direction": if (childrenBag) delete childrenBag.direction; break;
+    case "gap": if (childrenBag) delete childrenBag.gap; break;
+    case "distribution": if (childrenBag) delete childrenBag.distribution; break;
+    case "horizontalAlign": if (childrenBag) delete childrenBag.horizontalAlign; break;
+    case "verticalAlign": if (childrenBag) delete childrenBag.verticalAlign; break;
+    case "overflow": if (layoutBag) delete layoutBag.overflow; break;
+    case "position": if (layoutBag) delete layoutBag.position; break;
+    case "top": case "right": case "bottom": case "left":
+    case "width": case "height": case "padding": case "paddingTop": case "paddingRight":
+    case "paddingBottom": case "paddingLeft": case "margin": case "marginTop":
+    case "marginRight": case "marginBottom": case "marginLeft":
+      if (layoutBag) delete layoutBag[property];
+      break;
+    case "preserveSize": if (layoutBag) delete layoutBag.flexShrink; break;
+    case "color": if (styleBag) delete styleBag.color; break;
+    case "backgroundColor": if (backgroundBag) delete backgroundBag.color; break;
+    case "gradient": if (backgroundBag) delete backgroundBag.gradient; break;
+    case "pattern": if (backgroundBag) delete backgroundBag.pattern; break;
+    case "border": if (styleBag) delete styleBag.border; break;
+    case "borderRadius": if (styleBag) delete styleBag.borderRadius; break;
+    case "opacity": if (effectBag) delete effectBag.opacity; break;
+    case "shadow": if (effectBag) delete effectBag.shadow; break;
+  }
+
+  if (layout?.children && Object.keys(layout.children).length === 0) delete (layoutBag as PropertyBag).children;
+  if (style?.background && Object.keys(style.background).length === 0) delete (styleBag as PropertyBag).background;
+  const { layout: _layout, style: _style, effect: _effect, ...structural } = container;
+  return {
+    ...structural,
+    ...(layout && Object.keys(layout).length > 0 ? { layout } : {}),
+    ...(style && Object.keys(style).length > 0 ? { style } : {}),
+    ...(effect && Object.keys(effect).length > 0 ? { effect } : {}),
+  };
 }
 
 /** Transfers ownership of the linked style's authored canonical properties to it. */

@@ -5,6 +5,7 @@ import { PresentationSchema, resolveLinkedContainerStyle, type Presentation } fr
 import {
   attachLinkedStyle,
   canCreateLinkedStyleFromContainer,
+  clearLinkedContainerStyleProperty,
   createLinkedStyleFromContainer,
   detachLinkedStyle,
 } from "../src/features/editor/linked-style-authoring";
@@ -28,6 +29,22 @@ function selected(result: Presentation) {
 }
 
 describe("linked container style authoring", () => {
+  it("clears one linked property atomically and prunes only its empty bag", () => {
+    const initial = selected(presentation({
+      id: "container", type: "container", hidden: false,
+      layout: { margin: 4, marginTop: 8, padding: 12, children: { gap: 16 } },
+      style: { color: "#f00", background: { color: "#0f0" }, border: { width: 1, style: "solid", color: "#00f" }, className: "keep" },
+      effect: { opacity: 0.5 }, children: [],
+    }));
+    const afterMarginTop = clearLinkedContainerStyleProperty(initial, "marginTop");
+    expect(afterMarginTop.layout).toEqual({ margin: 4, padding: 12, children: { gap: 16 } });
+    const afterBorder = clearLinkedContainerStyleProperty(afterMarginTop, "border");
+    expect(afterBorder.style).toEqual({ color: "#ff0000", background: { color: "#00ff00" }, className: "keep" });
+    const afterBackground = clearLinkedContainerStyleProperty(afterBorder, "backgroundColor");
+    expect(afterBackground.style).toEqual({ color: "#ff0000", className: "keep" });
+    expect(afterBackground.effect).toEqual({ opacity: 0.5 });
+  });
+
   it("creates and transfers authored values without className, defaults, or structure", () => {
     const initial = presentation({
       id: "container", type: "container", hidden: true, role: "column", link: { kind: "url", href: "https://example.com" },

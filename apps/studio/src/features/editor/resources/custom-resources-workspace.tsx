@@ -460,12 +460,12 @@ function LinkedStylesWorkspace({
             return <div className={styles.linkedStyleSection} data-linked-style-section={group} key={group}><h3 className={styles.linkedStyleSectionTitle}>{t(`inspector.${group}` as "inspector.layout")}</h3>{visible.map((property) => <LinkedStylePropertyRow key={property} style={linkedStyle} property={property} onUpdate={(next) => commit(linkedStyle.id, patch(next, property))} onRemove={() => runDefinitionDiscrete(() => commit(linkedStyle.id, patch(removeLinkedStyleProperty(linkedStyle, property), property)))} canRemove={(listLinkedStyleAuthoredProperties(linkedStyle).length > 1 || linkedStyle.typography !== undefined) && removeLinkedStyleProperty(linkedStyle, property) !== linkedStyle} />)}</div>;
           })}
           {linkedStyle.typography ? <div className={styles.linkedStyleSection} data-linked-style-section="legacy-typography"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.linkedStyleLegacyTypography")}</h3><p className={styles.status}>{t("customResources.linkedStyleLegacyTypographyDescription")}</p><Button variant="danger" size="compact" disabled={!presentation || !canUpdateLinkedStyle(presentation, linkedStyle.id, { typography: undefined })} onClick={() => runDefinitionDiscrete(() => commit(linkedStyle.id, { typography: undefined }))}>{t("customResources.linkedStyleRemoveLegacyTypography")}</Button></div> : null}
-          {listAvailableLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><div className={styles.resourcePropertyChooser}><button type="button" className={styles.resourceAction} onClick={() => setChooserId(chooserId === linkedStyle.id ? null : linkedStyle.id)}>{t("customResources.addProperty")}</button>{chooserId === linkedStyle.id ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties(linkedStyle)} onChoose={(property) => { const next = addLinkedStyleProperty(linkedStyle, property); runDefinitionDiscrete(() => commit(linkedStyle.id, patch(next, property))); setChooserId(null); }} /> : null}</div></div> : null}
+          {listAvailableLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties(linkedStyle)} onChoose={(property) => { const next = addLinkedStyleProperty(linkedStyle, property); runDefinitionDiscrete(() => commit(linkedStyle.id, patch(next, property))); setChooserId(null); }} /></div> : null}
           <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><span className={styles.status}>{t(matchingLocations.length === 1 ? "customResources.linkedStyleMatchingOne" : "customResources.linkedStyleMatchingMany", { count: matchingLocations.length })}</span>{matchingLocations.length > 0 ? <Button variant="secondary" size="compact" onClick={() => onAttach(linkedStyle.id)}>{t("customResources.linkedStyleAttachMany", { count: matchingLocations.length })}</Button> : null}<ResourceUsageLocations locations={linkedLocations} onSelect={onSelectContainer} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><span className={styles.status}>{t(linkedLocations.length === 1 ? "customResources.linkedStyleChangesOne" : "customResources.linkedStyleChangesMany", { count: linkedLocations.length })}</span><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={linkedLocations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(linkedStyle.id))}>{t("customResources.linkedStyleRemove")}</button></div></div>
         </div></AuthoringHistoryContext.Provider> : null}
       </div>;
     })}
-    {adding ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={(property) => runAddDiscrete(() => create(property))} /> : null}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div></AuthoringHistoryContext.Provider> : addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button><Button variant="ghost" size="compact" onClick={() => { setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
+    {adding ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser openInitially properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={(property) => runAddDiscrete(() => create(property))} /> : null}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div></AuthoringHistoryContext.Provider> : addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button><Button variant="ghost" size="compact" onClick={() => { setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
   </div>;
 }
 
@@ -626,7 +626,7 @@ function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], prop
   }
 }
 
-function LinkedStylePropertyChooser({ properties, onChoose }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void }) {
+function LinkedStylePropertyChooser({ properties, onChoose, openInitially = false }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void; openInitially?: boolean }) {
   const { t } = useStudioI18n();
   const groups = [
     ["layout", LINKED_STYLE_PROPERTY_GROUPS.layout],
@@ -636,16 +636,14 @@ function LinkedStylePropertyChooser({ properties, onChoose }: { properties: read
     ["appearance", LINKED_STYLE_PROPERTY_GROUPS.appearance],
     ["effects", LINKED_STYLE_PROPERTY_GROUPS.effects],
   ] as const;
-  return <div className={styles.resourceChooser} data-linked-style-property-chooser>
-    {groups.map(([group, groupProperties]) => {
-      const available = groupProperties.filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && properties.includes(property));
-      if (available.length === 0) return null;
-      return <div key={group} className={styles.linkedStylePropertyGroup}>
-        <span className={styles.linkedStylePropertyGroupTitle}>{t(`inspector.${group}` as "inspector.layout")}</span>
-        {available.map((property) => <button type="button" className={styles.resourceChooserOption} key={property} onClick={() => onChoose(property)}>{linkedStylePropertyLabel(t, property)}</button>)}
-      </div>;
-    })}
-  </div>;
+  const chooserGroups = groups.map(([group, groupProperties]) => ({
+    id: group,
+    label: t(`inspector.${group}` as "inspector.layout"),
+    items: groupProperties
+      .filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && properties.includes(property))
+      .map((property) => ({ id: property, label: linkedStylePropertyLabel(t, property) })),
+  }));
+  return <CategorizedPropertyChooser dataAttribute="linked-style" openInitially={openInitially} groups={chooserGroups} onSelect={(property) => onChoose(property as LinkedStyleAuthorableProperty)} />;
 }
 
 function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove }: { style: LinkedContainerStyle; property: LinkedStyleProperty; onUpdate: (style: LinkedContainerStyle) => void; onRemove: () => void; canRemove: boolean }) {
@@ -1055,20 +1053,41 @@ const TEXT_STYLE_DISPLAY_ORDER = [
   { kind: "layout" as const, property: "marginLeft" as const },
 ] as const;
 
-function PropertyChooser({ properties, layoutProperties, appearanceProperties, onAdd, onAddLayout, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; layoutProperties: readonly (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number][]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddLayout: (property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
+type CategorizedPropertyChooserGroup = { id: string; label: string; items: readonly { id: string; label: string }[] };
+
+function CategorizedPropertyChooser({ groups, onSelect, dataAttribute, openInitially = false }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style"; openInitially?: boolean }) {
   const { t } = useStudioI18n();
-  const [open, setOpen] = useState(false);
-  const availableProperties = new Set<string>([...properties, ...layoutProperties, ...appearanceProperties]);
-  const options = TEXT_STYLE_DISPLAY_ORDER.filter(({ property }) => availableProperties.has(property));
-  return <div className={styles.resourcePropertyChooser}>
+  const [open, setOpen] = useState(openInitially);
+  return <div className={styles.resourcePropertyChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : {})}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
     {open ? <div className={styles.resourceChooser}>
-      {(["typography", "layout", "appearance"] as const).map((kind) => <div key={kind}>
-        {options.some((item) => item.kind === kind) ? <h4 className={styles.resourcePropertyGroupTitle}>{t(kind === "typography" ? "inspector.typography" : kind === "layout" ? "inspector.spacing" : "inspector.appearance")}</h4> : null}
-        {options.filter((item) => item.kind === kind).map((item) => <button key={item.property} type="button" className={styles.resourceChooserOption} onClick={() => { if (item.kind === "typography") onAdd(item.property); else if (item.kind === "layout") onAddLayout(item.property); else onAddAppearance(item.property); setOpen(false); }}>{t(item.kind === "typography" ? propertyLabelKey[item.property] : item.kind === "layout" ? layoutLabelKey[item.property] : appearanceLabelKey[item.property])}</button>)}
+      {groups.map((group) => group.items.length === 0 ? null : <div key={group.id}>
+        <h4 className={styles.resourcePropertyGroupTitle}>{group.label}</h4>
+        {group.items.map((item) => <button key={item.id} type="button" className={styles.resourceChooserOption} onClick={() => { onSelect(item.id); setOpen(false); }}>{item.label}</button>)}
       </div>)}
     </div> : null}
   </div>;
+}
+
+function PropertyChooser({ properties, layoutProperties, appearanceProperties, onAdd, onAddLayout, onAddAppearance }: { properties: readonly CoreTypographyProperty[]; layoutProperties: readonly (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number][]; appearanceProperties: readonly (keyof typeof appearanceLabelKey)[]; onAdd: (property: CoreTypographyProperty) => void; onAddLayout: (property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]) => void; onAddAppearance: (property: keyof typeof appearanceLabelKey) => void }) {
+  const { t } = useStudioI18n();
+  const availableProperties = new Set<string>([...properties, ...layoutProperties, ...appearanceProperties]);
+  const options = TEXT_STYLE_DISPLAY_ORDER.filter(({ property }) => availableProperties.has(property));
+  const groups = (["typography", "layout", "appearance"] as const).map((kind) => ({
+    id: kind,
+    label: t(kind === "typography" ? "inspector.typography" : kind === "layout" ? "inspector.spacing" : "inspector.appearance"),
+    items: options.filter((item) => item.kind === kind).map((item) => ({
+      id: item.property,
+      label: t(item.kind === "typography" ? propertyLabelKey[item.property] : item.kind === "layout" ? layoutLabelKey[item.property] : appearanceLabelKey[item.property]),
+    })),
+  }));
+  return <CategorizedPropertyChooser groups={groups} onSelect={(id) => {
+    const item = options.find((candidate) => candidate.property === id);
+    if (!item) return;
+    if (item.kind === "typography") onAdd(item.property);
+    else if (item.kind === "layout") onAddLayout(item.property);
+    else onAddAppearance(item.property);
+  }} />;
 }
 
 function TextStyleStrokeFields({ id, stroke, pendingWidth, onWidthChange, onColorChange }: { id: string; stroke: TextStroke | undefined; pendingWidth: number | undefined; onWidthChange: (width: number) => void; onColorChange: (color: ColorValue) => void }) {
