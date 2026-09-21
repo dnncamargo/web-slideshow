@@ -204,6 +204,44 @@ describe("CP4F5 create Text Style from selected Text history", () => {
     expect(await save()).toEqual(created);
   });
 
+  it("captures an explicit local zero-width stroke when creating a Style", async () => {
+    const initial = presentation([text("no-stroke", {
+      content: { type: "rich-text", runs: [{ text: "Keep marks", marks: { bold: true } }] },
+      typography: { textStroke: { width: 0, color: "#0000ff" } },
+      style: { background: { color: "#eeeeee" }, className: "keep-local" },
+      layout: { position: "absolute", left: 10 },
+    })]);
+    await mount(initial);
+    await selectText("no-stroke");
+    await openResources();
+    await createFromSelected("No stroke style");
+
+    const created = await save();
+    expect(created.textStyles).toEqual([{
+      id: "no-stroke-style",
+      name: "No stroke style",
+      role: "body",
+      typography: { textStroke: { width: 0, color: "#0000ff" } },
+    }]);
+    expect(findText(created, "no-stroke")).toEqual({
+      id: "no-stroke",
+      type: "text",
+      hidden: false,
+      variant: "no-stroke-style",
+      content: { type: "rich-text", runs: [{ text: "Keep marks", marks: { bold: true } }] },
+      style: { background: { color: "#eeeeee" }, className: "keep-local" },
+      layout: { position: "absolute", left: 10 },
+    });
+    expect(findText(created, "no-stroke")).not.toHaveProperty("typography.textStroke");
+
+    const undoEvent = await undo();
+    expect(undoEvent.defaultPrevented).toBe(true);
+    expect(await save()).toEqual(initial);
+    const redoEvent = await redo();
+    expect(redoEvent.defaultPrevented).toBe(true);
+    expect(await save()).toEqual(created);
+  });
+
   it("allocates a current unique id from a custom source and leaves the source unchanged", async () => {
     const source = { id: "captured-style", name: "Captured style", role: "caption", style: { color: "#663399" }, typography: { fontSize: 26 } } as const;
     const initial = presentation([text("selected", {
