@@ -105,7 +105,8 @@ describe("Text Inspector typography style attachment", () => {
     await mount(text(), source);
 
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("1.25");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
     expect(updates).toHaveLength(0);
     expect(source.textStyles?.[0]).toMatchObject({ id: "body", typography: { fontSize: 20 } });
@@ -115,70 +116,81 @@ describe("Text Inspector typography style attachment", () => {
     const first = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text({ typography: { fontSize: 22 } }), first);
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Inter");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Inter");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
 
     await mount(current, presentation([{ id: "body", typography: { fontFamily: "Roboto", fontWeight: 700 } }]));
     expect(host.querySelector<HTMLInputElement>("#text-font-size")?.value).toBe("22");
-    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("Roboto");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.value).toBe("");
+    expect(host.querySelector<HTMLInputElement>("#text-font-family")?.placeholder).toBe("Roboto");
     expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("700");
     expect(current).toMatchObject({ variant: "body", typography: { fontSize: 22 } });
     expect(current).not.toHaveProperty("styleDetached");
   });
 
-  it("locks explicitly owned alignment while displaying the linked value", async () => {
-    await mount(text({ typography: { textAlign: "left" } }), presentation([
+  it("lets a local alignment override the linked fallback", async () => {
+    const content = {
+      type: "rich-text" as const,
+      runs: [{ text: "Text", marks: { bold: true, color: "#123456" } }],
+    };
+    await mount(text({ content, typography: { textAlign: "left" } }), presentation([
       { id: "body", typography: { textAlign: "center" } },
     ]));
 
     const alignment = host.querySelector<HTMLSelectElement>("#text-text-align");
     if (!alignment) throw new Error("alignment control was not rendered");
-    expect(alignment.value).toBe("center");
-    expect(alignment.disabled).toBe(true);
+    expect(alignment.value).toBe("left");
+    expect(alignment.disabled).toBe(false);
     await act(async () => {
       alignment.value = "right";
       alignment.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(current.typography?.textAlign).toBe("left");
-    expect(updates).toHaveLength(0);
+    expect(current.typography?.textAlign).toBe("right");
+    expect(current.content).toEqual(content);
   });
 
-  it("displays and protects an owned effective font family", async () => {
-    await mount(text({ typography: { fontFamily: "Arial" } }), presentation([
+  it("shows an inherited font family and allows a local override", async () => {
+    const source = presentation([
       { id: "body", typography: { fontFamily: "Inter" } },
-    ]));
+    ]);
+    await mount(text(), source);
     const input = host.querySelector<HTMLInputElement>("#text-font-family");
     if (!input) throw new Error("font family control was not rendered");
-    expect(input.value).toBe("Inter");
-    expect(input.disabled).toBe(true);
+    expect(input.value).toBe("");
+    expect(input.placeholder).toBe("Inter");
+    expect(input.disabled).toBe(false);
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (!setter) throw new Error("input value setter was not available");
     await act(async () => {
+      input.focus();
       setter.call(input, "Arial Black");
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("blur", { bubbles: true }));
     });
-    expect(current.typography?.fontFamily).toBe("Arial");
-    expect(updates).toHaveLength(0);
+    await act(async () => {
+      input.blur();
+    });
+    expect(current.typography?.fontFamily).toBe("Arial Black");
+    expect(current.variant).toBe("body");
+    expect(source.textStyles?.[0]).toMatchObject({ typography: { fontFamily: "Inter" } });
   });
 
-  it("blocks synthetic edits to an owned effective length", async () => {
+  it("allows a local edit of a linked effective length", async () => {
     await mount(text({ typography: { fontSize: 12 } }), presentation([
       { id: "body", typography: { fontSize: 20 } },
     ]));
     const input = host.querySelector<HTMLInputElement>("#text-font-size");
     if (!input) throw new Error("font size control was not rendered");
-    expect(input.disabled).toBe(true);
+    expect(input.disabled).toBe(false);
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (!setter) throw new Error("input value setter was not available");
     await act(async () => {
-      input.focus();
       setter.call(input, "30");
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.blur();
     });
-    expect(current.typography?.fontSize).toBe(12);
-    expect(updates).toHaveLength(0);
+    expect(current.typography?.fontSize).toBe(30);
+    expect(current.variant).toBe("body");
   });
 
   it("keeps omitted alignment editable and does not lock theme defaults", async () => {
@@ -194,20 +206,22 @@ describe("Text Inspector typography style attachment", () => {
     expect(current.typography?.textAlign).toBe("right");
   });
 
-  it("locks owned margins while keeping omitted margins editable", async () => {
+  it("allows local margin overrides while using linked margins as fallback", async () => {
     await mount(text({ layout: { marginTop: 20, marginBottom: 30 } }), presentation([
       { id: "body", layout: { marginTop: 10 } },
     ]));
     const top = host.querySelector<HTMLInputElement>("#text-margin-top");
     const bottom = host.querySelector<HTMLInputElement>("#text-margin-bottom");
     if (!top || !bottom) throw new Error("margin controls were not rendered");
-    expect(top.value).toBe("10");
-    expect(top.disabled).toBe(true);
+    expect(top.value).toBe("20");
+    expect(top.disabled).toBe(false);
     expect(bottom.value).toBe("30");
     expect(bottom.disabled).toBe(false);
     await act(async () => {
-      top.value = "40";
-      top.dispatchEvent(new Event("change", { bubbles: true }));
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("input value setter was not available");
+      setter.call(top, "40");
+      top.dispatchEvent(new Event("input", { bubbles: true }));
     });
     const editableBottom = host.querySelector<HTMLInputElement>("#text-margin-bottom");
     if (!editableBottom) throw new Error("margin bottom control was not rendered after update");
@@ -217,20 +231,20 @@ describe("Text Inspector typography style attachment", () => {
       setter.call(editableBottom, "35");
       editableBottom.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(current.layout).toEqual({ marginTop: 20, marginBottom: 35 });
+    expect(current.layout).toEqual({ marginTop: 40, marginBottom: 35 });
   });
 
-  it("locks each explicitly owned margin independently", async () => {
+  it("keeps all Text margin controls enabled while linked", async () => {
     await mount(text(), presentation([{
       id: "body",
       layout: { margin: 1, marginTop: 2, marginRight: 3, marginBottom: 4, marginLeft: 5 },
     }]));
     for (const selector of ["#text-margin", "#text-margin-top", "#text-margin-right", "#text-margin-bottom", "#text-margin-left"]) {
-      expect(host.querySelector<HTMLInputElement>(selector)?.disabled).toBe(true);
+      expect(host.querySelector<HTMLInputElement>(selector)?.disabled).toBe(false);
     }
   });
 
-  it("locks linked color and stroke without locking background or shadow", async () => {
+  it("allows local color and stroke overrides without locking background or shadow", async () => {
     await mount(text({
       style: { color: "#ff0000", background: { color: "#eeeeee" } },
       typography: { textStroke: { width: 1, color: "#ff0000" } },
@@ -239,14 +253,14 @@ describe("Text Inspector typography style attachment", () => {
       style: { color: "#00ff00" },
       typography: { textStroke: { width: 3, color: "#0000ff" } },
     }]));
-    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.value).toBe("#00ff00");
-    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.value).toBe("#ff0000");
+    expect(host.querySelector<HTMLInputElement>("#text-color-value")?.disabled).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#text-background-value")?.disabled).toBe(false);
-    expect(host.querySelector<HTMLSelectElement>("#text-text-stroke-mode")?.disabled).toBe(true);
-    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.disabled).toBe(true);
-    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-color-value")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLSelectElement>("#text-text-stroke-mode")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-color-value")?.disabled).toBe(false);
     expect(host.querySelector<HTMLSelectElement>("#text-shadow-mode")?.disabled).toBe(false);
-    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("3");
+    expect(host.querySelector<HTMLInputElement>("#text-text-stroke-width")?.value).toBe("1");
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (!setter) throw new Error("input value setter was not available");
     await act(async () => {
@@ -256,19 +270,16 @@ describe("Text Inspector typography style attachment", () => {
       color.dispatchEvent(new Event("input", { bubbles: true }));
       const mode = host.querySelector<HTMLSelectElement>("#text-text-stroke-mode");
       if (!mode) throw new Error("text stroke mode control was not rendered");
-      mode.value = "none";
-      mode.dispatchEvent(new Event("change", { bubbles: true }));
       const width = host.querySelector<HTMLInputElement>("#text-text-stroke-width");
       if (!width) throw new Error("text stroke width control was not rendered");
       setter.call(width, "9");
       width.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(current.style?.color).toBe("#ff0000");
-    expect(current.typography?.textStroke).toEqual({ width: 1, color: "#ff0000" });
-    expect(updates).toHaveLength(0);
+    expect(current.style?.color).toBe("#123456");
+    expect(current.typography?.textStroke).toMatchObject({ width: 9, color: "#ff0000" });
   });
 
-  it("edits an omitted attached field while rejecting an owned field", async () => {
+  it("edits both omitted and owned attached fields locally", async () => {
     const source = presentation([{ id: "body", typography: { fontFamily: "Inter", fontWeight: 500 } }]);
     await mount(text(), source);
     await act(async () => {
@@ -277,11 +288,11 @@ describe("Text Inspector typography style attachment", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("500");
+    expect(host.querySelector<HTMLSelectElement>("#text-font-weight")?.value).toBe("700");
     expect(current).toMatchObject({ variant: "body" });
     expect(current).not.toHaveProperty("styleDetached");
     expect(current.typography?.fontFamily).toBeUndefined();
-    expect(current.typography?.fontWeight).toBeUndefined();
+    expect(current.typography?.fontWeight).toBe(700);
     const fontSize = host.querySelector<HTMLInputElement>("#text-font-size");
     if (!fontSize) throw new Error("font size control was not rendered");
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -291,7 +302,7 @@ describe("Text Inspector typography style attachment", () => {
       fontSize.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(current).toMatchObject({ typography: { fontSize: "22rem" } });
-    expect(current.typography?.fontWeight).toBeUndefined();
+    expect(current.typography?.fontWeight).toBe(700);
     expect(source.textStyles?.[0]).toMatchObject({ typography: { fontWeight: 500 } });
   });
 
@@ -311,8 +322,8 @@ describe("Text Inspector typography style attachment", () => {
       variant: "body",
       styleDetached: true,
       typography: { fontFamily: "Inter", fontSize: 22, fontWeight: 500 },
-      style: { color: "#00ff00" },
-      layout: { marginTop: 10 },
+      style: { color: "#ff0000" },
+      layout: { marginTop: 20 },
     });
     expect(host.textContent).toContain("Local · detached from Body");
     expect(host.textContent).toContain("Attach to Body");
@@ -433,8 +444,8 @@ describe("Text Inspector typography style attachment", () => {
       name: "Quote",
       role: "body",
       typography: { textAlign: "center", fontWeight: 700 },
-      style: { color: "#00ff00" },
-      layout: { marginTop: 10 },
+      style: { color: "#ff0000" },
+      layout: { marginTop: 20 },
     }]));
 
     const select = host.querySelector<HTMLSelectElement>("#text-variant");

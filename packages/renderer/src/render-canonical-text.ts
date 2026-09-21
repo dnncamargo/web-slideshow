@@ -43,20 +43,20 @@ function renderLayout(
   const layout = element.layout;
   const output: string[] = [];
 
-  if (!layout) {
+  if (!layout && !linkedLayout) {
     return output;
   }
 
-  addStyle(output, "position", layout.position);
-  addLength(output, "top", layout.top);
-  addLength(output, "right", layout.right);
-  addLength(output, "bottom", layout.bottom);
-  addLength(output, "left", layout.left);
-  addLength(output, "margin", linkedLayout?.margin ?? layout.margin);
-  addLength(output, "margin-top", linkedLayout?.marginTop ?? layout.marginTop);
-  addLength(output, "margin-right", linkedLayout?.marginRight ?? layout.marginRight);
-  addLength(output, "margin-bottom", linkedLayout?.marginBottom ?? layout.marginBottom);
-  addLength(output, "margin-left", linkedLayout?.marginLeft ?? layout.marginLeft);
+  addStyle(output, "position", layout?.position);
+  addLength(output, "top", layout?.top);
+  addLength(output, "right", layout?.right);
+  addLength(output, "bottom", layout?.bottom);
+  addLength(output, "left", layout?.left);
+  addLength(output, "margin", layout?.margin ?? linkedLayout?.margin);
+  addLength(output, "margin-top", layout?.marginTop ?? linkedLayout?.marginTop);
+  addLength(output, "margin-right", layout?.marginRight ?? linkedLayout?.marginRight);
+  addLength(output, "margin-bottom", layout?.marginBottom ?? linkedLayout?.marginBottom);
+  addLength(output, "margin-left", layout?.marginLeft ?? linkedLayout?.marginLeft);
 
   return output;
 }

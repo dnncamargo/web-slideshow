@@ -66,23 +66,23 @@ describe("Text Style canonical lifecycle", () => {
 
     expect(resolveTextStyle(presentationA, attachedText).typography).toMatchObject({
       fontFamily: "Inter",
-      fontSize: 18,
+      fontSize: 22,
       fontWeight: 400,
     });
     expect(attachedText).not.toHaveProperty("styleDetached");
     expect(resolveTextStyle(presentationB, attachedText).typography).toMatchObject({
       fontFamily: "Roboto",
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: 500,
     });
 
     const renderedA = renderPresentation(presentationA);
     const renderedB = renderPresentation(presentationB);
     expect(renderedA).toContain("font-family:&quot;Inter&quot;");
-    expect(renderedA).toContain("font-size:18px");
+    expect(renderedA).toContain("font-size:22px");
     expect(renderedA).toContain("font-weight:400");
     expect(renderedB).toContain("font-family:&quot;Roboto&quot;");
-    expect(renderedB).toContain("font-size:20px");
+    expect(renderedB).toContain("font-size:22px");
     expect(renderedB).toContain("font-weight:500");
     expect(attachedText).toEqual(firstText(presentationA));
     expect(presentationA).toEqual(beforeRender);
@@ -93,7 +93,7 @@ describe("Text Style canonical lifecycle", () => {
       styleDetached: true,
       typography: {
         fontFamily: "Roboto",
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: 500,
         textStroke: { width: 1, color: "#000000" },
         textDecorationColor: "#ff0000",
@@ -110,7 +110,7 @@ describe("Text Style canonical lifecycle", () => {
 
     const detachedHtml = renderPresentation(reloaded);
     expect(detachedHtml).toContain("font-family:&quot;Roboto&quot;");
-    expect(detachedHtml).toContain("font-size:20px");
+    expect(detachedHtml).toContain("font-size:22px");
     expect(detachedHtml).toContain("font-weight:500");
 
     const changedAfterDetach = PresentationSchema.parse({
@@ -119,7 +119,7 @@ describe("Text Style canonical lifecycle", () => {
     });
     const changedHtml = renderPresentation(changedAfterDetach);
     expect(changedHtml).toContain("font-family:&quot;Roboto&quot;");
-    expect(changedHtml).toContain("font-size:20px");
+    expect(changedHtml).toContain("font-size:22px");
     expect(changedHtml).toContain("font-weight:500");
     expect(changedHtml).not.toContain("font-family:&quot;Another Family&quot;");
     expect(changedHtml).not.toContain("font-size:30px");

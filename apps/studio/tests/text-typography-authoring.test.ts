@@ -95,7 +95,7 @@ describe("effective text typography for authoring", () => {
     });
   });
 
-  it("lets explicitly owned Presentation properties override local values", () => {
+  it("lets local Text properties override explicitly owned Presentation values", () => {
     const resolved = resolveEffectiveTextStyleForAuthoring(
       presentation([
         { id: "body", typography: { fontFamily: "Inter", fontSize: "1.25rem", fontWeight: 500 } },
@@ -107,14 +107,14 @@ describe("effective text typography for authoring", () => {
       role: "body",
       typography: {
         fontFamily: "Inter",
-        fontSize: "1.25rem",
+        fontSize: "1.375rem",
         fontWeight: 500,
         lineHeight: 1.6,
       },
     });
   });
 
-  it("propagates Presentation fundamental Style changes while preserving omitted local values", () => {
+  it("uses Presentation fundamental Style values as fallback while preserving local values", () => {
     const localText = text({ variant: "body", typography: { fontSize: 22 } });
     const presentationA = presentation([
       { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400 } },
@@ -125,12 +125,12 @@ describe("effective text typography for authoring", () => {
 
     expect(resolveEffectiveTextStyleForAuthoring(presentationA, localText).typography).toMatchObject({
       fontFamily: "Inter",
-      fontSize: 18,
+      fontSize: 22,
       fontWeight: 400,
     });
     expect(resolveEffectiveTextStyleForAuthoring(presentationB, localText).typography).toMatchObject({
       fontFamily: "Roboto",
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: 500,
     });
   });

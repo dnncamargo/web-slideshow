@@ -25,12 +25,10 @@ function resolveOwnedProperties<T extends object, K extends keyof T>(
   linked: T | undefined,
   properties: readonly K[],
 ): T {
-  const resolved = { ...(local ?? {}) } as T;
+  const resolved = {} as T;
   for (const property of properties) {
-    const value = linked?.[property];
-    if (value !== undefined) {
-      resolved[property] = value;
-    }
+    const value = local?.[property] ?? linked?.[property];
+    if (value !== undefined) resolved[property] = value;
   }
   return resolved;
 }
