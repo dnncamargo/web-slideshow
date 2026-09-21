@@ -7,6 +7,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 import {
+  attachTextStyle,
   createTextStyleFromText,
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
@@ -33,6 +34,70 @@ function text(overrides: Record<string, unknown> = {}) {
 }
 
 describe("effective text typography for authoring", () => {
+  it("preserves omitted source-master properties when switching styles", () => {
+    const source = presentation([
+      { id: "source", name: "Source", role: "body", typography: { fontSize: 20, textAlign: "center" }, style: { color: "#00ff00" }, layout: { marginTop: 10, marginBottom: 12 } },
+      { id: "destination", name: "Destination", role: "body", style: { color: "#0000ff" }, layout: { marginBottom: 30 } },
+    ]);
+    const original = text({
+      variant: "source",
+      typography: { textAlign: "right" },
+      layout: { marginTop: 20, position: "absolute", top: 5 },
+      style: { background: { color: "#eeeeee" }, className: "local-text" },
+    });
+
+    const switched = attachTextStyle(source, original, "destination");
+
+    expect(switched).toMatchObject({
+      variant: "destination",
+      typography: { fontSize: 20, textAlign: "right" },
+      style: { background: { color: "#eeeeee" }, className: "local-text" },
+      layout: { marginTop: 20, position: "absolute", top: 5 },
+    });
+    expect(switched.style).not.toHaveProperty("color");
+    expect(switched.layout).not.toHaveProperty("marginBottom");
+  });
+
+  it("replaces local and source values when the destination explicitly owns them", () => {
+    const source = presentation([
+      { id: "source", name: "Source", role: "body", typography: { fontSize: 20, textStroke: { width: 3, color: "#00f" } } },
+      { id: "destination", name: "Destination", role: "body", typography: { fontSize: 24, textStroke: { width: 1, color: "#f00" } } },
+    ]);
+    const original = text({ variant: "source", typography: { fontSize: 30, textStroke: { width: 0, color: "#00f" } } });
+
+    const switched = attachTextStyle(source, original, "destination");
+
+    expect(switched).not.toHaveProperty("typography.fontSize");
+    expect(switched).not.toHaveProperty("typography.textStroke");
+  });
+
+  it("does not materialize source values when the source relationship is detached", () => {
+    const source = presentation([
+      { id: "source", name: "Source", role: "body", typography: { fontSize: 20 }, style: { color: "#00f" } },
+      { id: "destination", name: "Destination", role: "body" },
+    ]);
+    const original = text({ variant: "source", styleDetached: true, typography: { textAlign: "right" } });
+
+    const switched = attachTextStyle(source, original, "destination");
+
+    expect(switched).toMatchObject({ variant: "destination", typography: { textAlign: "right" } });
+    expect(switched).not.toHaveProperty("typography.fontSize");
+    expect(switched).not.toHaveProperty("style.color");
+    expect(switched).not.toHaveProperty("styleDetached");
+  });
+
+  it("preserves a local zero-width stroke when the destination omits stroke", () => {
+    const source = presentation([
+      { id: "source", name: "Source", role: "body", typography: { textStroke: { width: 3, color: "#00f" } } },
+      { id: "destination", name: "Destination", role: "body" },
+    ]);
+    const original = text({ variant: "source", typography: { textStroke: { width: 0, color: "#00f" } } });
+
+    expect(attachTextStyle(source, original, "destination").typography).toEqual({
+      textStroke: { width: 0, color: "#0000ff" },
+    });
+  });
+
   it("creates a sparse style and preserves non-style text properties", () => {
     const original = text({
       variant: "body",

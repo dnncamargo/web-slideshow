@@ -180,7 +180,7 @@ describe("CP4F5 create Text Style from selected Text history", () => {
         name: "Captured style",
         role: "body",
         style: { color: { kind: "palette", colorId: "primary" } },
-        layout: { marginTop: 8, marginBottom: 20 },
+        layout: { marginTop: 24, marginBottom: 20 },
         typography: { fontSize: 20, fontWeight: 600, textDecorationLine: "underline", textDecorationColor: "#ff0000", textStroke: { width: 2, color: "#111111" } },
       },
     ]);

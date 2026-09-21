@@ -5,8 +5,6 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
-  type TextStyle,
-  stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -42,6 +40,7 @@ import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-s
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
+  attachTextStyle as attachTextStyleRelationship,
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
 } from "../text-typography-authoring";
@@ -140,16 +139,12 @@ export function TextInspector({
     runStyleRelationship(() => {
       onUpdate((current) => {
         if (current.type !== "text") return current;
-        const targetStyle = presentation?.textStyles?.find((style) => style.id === variant) as TextStyle | undefined;
-        const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, layout: _ownedLayout, ...attached } = current;
-        const local = stripLocalTextStyleProperties(current.typography, current.style, current.layout, targetStyle ?? {});
-        return {
-          ...attached,
-          variant,
-          ...(local.style === undefined ? {} : { style: local.style }),
-          ...(local.typography === undefined ? {} : { typography: local.typography }),
-          ...(local.layout === undefined ? {} : { layout: local.layout }),
-        };
+        return presentation
+          ? attachTextStyleRelationship(presentation, current, variant)
+          : (() => {
+              const { styleDetached: _styleDetached, ...attached } = current;
+              return { ...attached, variant };
+            })();
       });
     });
   }

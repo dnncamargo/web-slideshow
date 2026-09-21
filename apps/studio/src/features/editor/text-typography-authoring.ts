@@ -10,6 +10,8 @@ import {
   resolveTextStyle,
   stripLocalTextStyleProperties,
   TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2,
+  TEXT_STYLE_LAYOUT_PROPERTY_NAMES,
+  TEXT_STYLE_VISUAL_PROPERTY_NAMES,
 } from "@web-slideshow/document-schema";
 import { resolveThemeTextTypographyBaseline } from "@web-slideshow/theme/element-style-defaults";
 
@@ -26,6 +28,65 @@ export interface CreatedTextStyleFromText {
   presentation: Presentation;
   textStyleId: string;
   text: TextElement;
+}
+
+/**
+ * Applies a Text Style relationship change while preserving the last explicit
+ * source-master value for properties omitted by the destination style.
+ */
+export function attachTextStyle(
+  presentation: Presentation,
+  text: TextElement,
+  variant: TextElement["variant"],
+): TextElement {
+  const sourceStyle = text.styleDetached === true
+    ? undefined
+    : presentation.textStyles?.find((style) => style.id === text.variant);
+  const destinationStyle = presentation.textStyles?.find((style) => style.id === variant);
+  const typography = { ...(text.typography ?? {}) };
+  const style = { ...(text.style ?? {}) };
+  const layout = { ...(text.layout ?? {}) };
+
+  for (const property of TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2) {
+    if (destinationStyle?.typography?.[property] === undefined && typography[property] === undefined) {
+      const sourceValue = sourceStyle?.typography?.[property];
+      if (sourceValue !== undefined) {
+        Object.assign(typography, { [property]: sourceValue });
+      }
+    }
+  }
+  for (const property of TEXT_STYLE_VISUAL_PROPERTY_NAMES) {
+    if (destinationStyle?.style?.[property] === undefined && style[property] === undefined) {
+      const sourceValue = sourceStyle?.style?.[property];
+      if (sourceValue !== undefined) {
+        Object.assign(style, { [property]: sourceValue });
+      }
+    }
+  }
+  for (const property of TEXT_STYLE_LAYOUT_PROPERTY_NAMES) {
+    if (destinationStyle?.layout?.[property] === undefined && layout[property] === undefined) {
+      const sourceValue = sourceStyle?.layout?.[property];
+      if (sourceValue !== undefined) {
+        Object.assign(layout, { [property]: sourceValue });
+      }
+    }
+  }
+
+  const local = stripLocalTextStyleProperties(
+    Object.keys(typography).length > 0 ? typography : undefined,
+    Object.keys(style).length > 0 ? style : undefined,
+    Object.keys(layout).length > 0 ? layout : undefined,
+    destinationStyle ?? {},
+  );
+  const { styleDetached: _styleDetached, typography: _typography, style: _style, layout: _layout, ...attached } = text;
+
+  return {
+    ...attached,
+    variant,
+    ...(local.style === undefined ? {} : { style: local.style }),
+    ...(local.typography === undefined ? {} : { typography: local.typography }),
+    ...(local.layout === undefined ? {} : { layout: local.layout }),
+  };
 }
 
 export function createTextStyleFromText(

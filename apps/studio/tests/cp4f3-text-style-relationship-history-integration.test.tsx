@@ -266,6 +266,27 @@ describe("CP4F3 Text Style relationship history", () => {
     expect(await save()).toEqual(detached);
   });
 
+  it("materializes omitted source-master properties in one switch action", async () => {
+    const initial = presentation([text(TEXT_A_ID, { variant: QUOTE_STYLE_ID })]);
+    await mount(initial);
+    await selectText(TEXT_A_ID);
+
+    await act(async () => changeSelect(inspectorStyleSelect(), "body"));
+    const switched = await save();
+    expect(findCurrentText(switched, TEXT_A_ID)).toMatchObject({
+      variant: "body",
+      typography: { fontStyle: "italic" },
+      style: { color: "#663399" },
+    });
+    expect(findCurrentText(switched, TEXT_A_ID).typography).not.toHaveProperty("fontFamily");
+    expect(findCurrentText(switched, TEXT_A_ID).typography).not.toHaveProperty("fontWeight");
+
+    await undo();
+    expect(await save()).toEqual(initial);
+    await redo();
+    expect(await save()).toEqual(switched);
+  });
+
   it("tracks fundamental detach without a persisted fundamental override", async () => {
     const initial = presentation([text(TEXT_A_ID, { variant: "body" })], false);
     await mount(initial);
