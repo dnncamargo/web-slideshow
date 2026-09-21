@@ -626,7 +626,7 @@ function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], prop
   }
 }
 
-function LinkedStylePropertyChooser({ properties, onChoose, openInitially = false }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void; openInitially?: boolean }) {
+function LinkedStylePropertyChooser({ properties, onChoose, openInitially = false, withTrigger = true }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void; openInitially?: boolean; withTrigger?: boolean }) {
   const { t } = useStudioI18n();
   const groups = [
     ["layout", LINKED_STYLE_PROPERTY_GROUPS.layout],
@@ -643,7 +643,9 @@ function LinkedStylePropertyChooser({ properties, onChoose, openInitially = fals
       .filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && properties.includes(property))
       .map((property) => ({ id: property, label: linkedStylePropertyLabel(t, property) })),
   }));
-  return <CategorizedPropertyChooser dataAttribute="linked-style" openInitially={openInitially} groups={chooserGroups} onSelect={(property) => onChoose(property as LinkedStyleAuthorableProperty)} />;
+  return withTrigger && !openInitially
+    ? <CategorizedPropertyChooser dataAttribute="linked-style" openInitially={openInitially} groups={chooserGroups} onSelect={(property) => onChoose(property as LinkedStyleAuthorableProperty)} />
+    : <CategorizedPropertyChooserPanel dataAttribute="linked-style" groups={chooserGroups} onSelect={(property) => onChoose(property as LinkedStyleAuthorableProperty)} />;
 }
 
 function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove }: { style: LinkedContainerStyle; property: LinkedStyleProperty; onUpdate: (style: LinkedContainerStyle) => void; onRemove: () => void; canRemove: boolean }) {
@@ -1055,17 +1057,21 @@ const TEXT_STYLE_DISPLAY_ORDER = [
 
 type CategorizedPropertyChooserGroup = { id: string; label: string; items: readonly { id: string; label: string }[] };
 
+function CategorizedPropertyChooserPanel({ groups, onSelect, dataAttribute }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style" }) {
+  return <div className={styles.resourceChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : {})}>
+    {groups.map((group) => group.items.length === 0 ? null : <div key={group.id}>
+      <h4 className={styles.resourcePropertyGroupTitle}>{group.label}</h4>
+      {group.items.map((item) => <button key={item.id} type="button" className={styles.resourceChooserOption} onClick={() => onSelect(item.id)}>{item.label}</button>)}
+    </div>)}
+  </div>;
+}
+
 function CategorizedPropertyChooser({ groups, onSelect, dataAttribute, openInitially = false }: { groups: readonly CategorizedPropertyChooserGroup[]; onSelect: (id: string) => void; dataAttribute?: "linked-style"; openInitially?: boolean }) {
   const { t } = useStudioI18n();
   const [open, setOpen] = useState(openInitially);
   return <div className={styles.resourcePropertyChooser} {...(dataAttribute === "linked-style" ? { "data-linked-style-property-chooser": true } : {})}>
     <button type="button" className={styles.resourceAction} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{t("customResources.addProperty")}</button>
-    {open ? <div className={styles.resourceChooser}>
-      {groups.map((group) => group.items.length === 0 ? null : <div key={group.id}>
-        <h4 className={styles.resourcePropertyGroupTitle}>{group.label}</h4>
-        {group.items.map((item) => <button key={item.id} type="button" className={styles.resourceChooserOption} onClick={() => { onSelect(item.id); setOpen(false); }}>{item.label}</button>)}
-      </div>)}
-    </div> : null}
+    {open ? <CategorizedPropertyChooserPanel groups={groups} onSelect={(id) => { onSelect(id); setOpen(false); }} /> : null}
   </div>;
 }
 

@@ -126,6 +126,10 @@ describe("CP4F6A Container Linked Style definition history", () => {
     const first = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Add first property");
     if (!first) throw new Error("first property chooser was not rendered");
     await act(async () => first.click());
+    const firstPropertyPanel = host.querySelector<HTMLElement>("[data-linked-style-property-chooser]");
+    expect(firstPropertyPanel).not.toBeNull();
+    expect(firstPropertyPanel?.querySelector("button.resourceAction")).toBeNull();
+    expect(Array.from(firstPropertyPanel?.querySelectorAll("h4") ?? []).map((heading) => heading.textContent)).toEqual(["Layout", "Position", "Size", "Spacing", "Appearance", "Effects"]);
     const gap = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Gap");
     if (!gap) throw new Error("Gap property was not rendered");
     await act(async () => gap.click());
@@ -335,7 +339,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     await openRow("style-1");
     const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
     if (!gap) throw new Error("definition gap input was not rendered");
-    await act(async () => { gap.focus(); setInputValue(gap, "16"); gap.blur(); });
+    await act(async () => { gap.focus(); setInputValue(gap, "10"); setInputValue(gap, "12"); setInputValue(gap, "16"); gap.blur(); });
     const definitionEdited = await save(saved);
 
     const customResources = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
@@ -360,5 +364,76 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(await save(saved)).toEqual(definitionEdited);
     await redo();
     expect(await save(saved)).toEqual(relationshipEdited);
+  });
+
+  it("clears only linked local gap overrides across matching Containers", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "container-a", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 }, marginBottom: 30 }, children: [] },
+        { id: "container-b", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 40 } }, children: [] },
+        { id: "container-c", type: "container", hidden: false, linkedStyleId: "style-2", layout: { children: { gap: 60 } }, children: [] },
+        { id: "container-d", type: "container", hidden: false, layout: { children: { gap: 80 } }, children: [] },
+      ] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }, { id: "style-2", name: "Two", layout: { children: { gap: 12 } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const gap = host.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("shared definition gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "16"); gap.blur(); });
+    const changed = await save(saved);
+    const elements = changed.slides[0]?.elements ?? [];
+    expect(elements[0]).toMatchObject({ layout: { marginBottom: 30 } });
+    expect(elements[0]).not.toHaveProperty("layout.children.gap");
+    expect(elements[1]).not.toHaveProperty("layout.children.gap");
+    expect(elements[2]).toEqual(initial.slides[0]?.elements[2]);
+    expect(elements[3]).toEqual(initial.slides[0]?.elements[3]);
+    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(16);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
+  });
+
+  it("propagates master add and remove while preserving independent spacing locals", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "container-a", type: "container", hidden: false, linkedStyleId: "style-1", layout: { marginTop: 12, marginRight: 7 }, children: [] },
+        { id: "container-b", type: "container", hidden: false, linkedStyleId: "style-1", layout: { marginTop: 24, marginRight: 9 }, children: [] },
+      ] }],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    await openRow("style-1");
+    const add = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='style-1'] button")).find((button) => button.textContent?.includes("Add property"));
+    if (!add) throw new Error("Add property trigger was not rendered");
+    await act(async () => add.click());
+    const marginTop = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Margin top");
+    if (!marginTop) throw new Error("Margin top option was not rendered");
+    await act(async () => marginTop.click());
+    const added = await save(saved);
+    expect(added.linkedStyles?.find((style) => style.id === "style-1")?.layout?.marginTop).toBe(0);
+    expect(added.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 } });
+    expect(added.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
+    expect(added.slides[0]?.elements[1]).not.toHaveProperty("layout.marginTop");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(added);
+
+    const remove = row("style-1").querySelector<HTMLButtonElement>("[data-linked-style-property='marginTop'] [data-resource-action='remove']");
+    if (!remove) throw new Error("Margin top remove action was not rendered");
+    await act(async () => remove.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.marginTop).toBeUndefined();
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
+    expect(removed.slides[0]?.elements[1]).not.toHaveProperty("layout.marginTop");
+    expect(removed.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 } });
+    await undo();
+    expect(await save(saved)).toEqual(added);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
   });
 });
