@@ -248,7 +248,27 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     await act(async () => handle.dispatchEvent(pointer("pointermove", 560, 440)));
     await act(async () => handle.dispatchEvent(pointer("pointerup", 560, 440)));
     saved = await save(onSave);
-    expect(rootElement(saved, "shared-image")).not.toEqual(dragged);
+    const resized = rootElement(saved, "shared-image");
+    expect(resized.type).toBe("image");
+    expect(dragged.type).toBe("image");
+    if (resized.type !== "image" || dragged.type !== "image") throw new Error("Expected resized Root Image");
+    expect(resized.layout).not.toEqual(dragged.layout);
+    expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
+
+    await replay();
+    saved = await save(onSave);
+    const undoneResize = rootElement(saved, "shared-image");
+    expect(undoneResize.type).toBe("image");
+    if (undoneResize.type !== "image") throw new Error("Expected Root Image after resize Undo");
+    expect(undoneResize.layout).toEqual(dragged.layout);
+    expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
+
+    await replay(true);
+    saved = await save(onSave);
+    const redoneResize = rootElement(saved, "shared-image");
+    expect(redoneResize.type).toBe("image");
+    if (redoneResize.type !== "image") throw new Error("Expected Root Image after resize Redo");
+    expect(redoneResize.layout).toEqual(resized.layout);
     expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
   });
 
@@ -284,11 +304,31 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     await act(async () => focalButton.click());
     const marker = host.querySelector<HTMLButtonElement>("[class*='canvasFocalMarker']");
     if (!marker) throw new Error("Expected Root Image focal marker");
+    const beforeFocal = rootElement(await save(onSave), "shared-image");
+    if (beforeFocal.type !== "image") throw new Error("Expected Root Image before focal gesture");
     await act(async () => marker.dispatchEvent(pointer("pointerdown", 180, 170)));
     await act(async () => marker.dispatchEvent(pointer("pointerup", 300, 250)));
     saved = await save(onSave);
     const focused = rootElement(saved, "shared-image");
-    expect(focused).not.toEqual(rootElement(source, "shared-image"));
+    expect(focused.type).toBe("image");
+    if (focused.type !== "image") throw new Error("Expected Root Image after focal gesture");
+    expect(focused.focalPoint).not.toEqual(beforeFocal.focalPoint);
+    expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
+
+    await replay();
+    saved = await save(onSave);
+    const undoneFocal = rootElement(saved, "shared-image");
+    expect(undoneFocal.type).toBe("image");
+    if (undoneFocal.type !== "image") throw new Error("Expected Root Image after focal Undo");
+    expect(undoneFocal.focalPoint).toEqual(beforeFocal.focalPoint);
+    expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
+
+    await replay(true);
+    saved = await save(onSave);
+    const redoneFocal = rootElement(saved, "shared-image");
+    expect(redoneFocal.type).toBe("image");
+    if (redoneFocal.type !== "image") throw new Error("Expected Root Image after focal Redo");
+    expect(redoneFocal.focalPoint).toEqual(focused.focalPoint);
     expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
   });
 
@@ -325,14 +365,47 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     await act(async () => marker.dispatchEvent(pointer("pointerdown", 360, 240)));
     await act(async () => marker.dispatchEvent(pointer("pointerup", 440, 300)));
 
+    const beforeAddSnapshot = await save(onSave);
+    const beforeAdd = rootElement(beforeAddSnapshot, "shared-gallery");
+    if (beforeAdd.type !== "gallery") throw new Error("Expected Root Gallery before add");
     const add = host.querySelector<HTMLButtonElement>("[data-presentation-gallery-add]");
     if (!add) throw new Error("Expected Gallery add action");
     await act(async () => add.click());
+    let saved = await save(onSave);
+    const addedGallery = rootElement(saved, "shared-gallery");
+    expect(addedGallery.type).toBe("gallery");
+    if (addedGallery.type !== "gallery") throw new Error("Expected Root Gallery after add");
+    expect(addedGallery.items).toHaveLength(3);
+    expect(host.querySelector('[data-presentation-gallery-select][data-presentation-gallery-index="2"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(saved.slides[0]?.elements[1]).toEqual(source.slides[0]?.elements[1]);
+
+    await replay();
+    saved = await save(onSave);
+    const undoneAdd = rootElement(saved, "shared-gallery");
+    expect(undoneAdd.type).toBe("gallery");
+    if (undoneAdd.type !== "gallery") throw new Error("Expected Root Gallery after add Undo");
+    expect(undoneAdd.items).toHaveLength(2);
+    expect(undoneAdd.items).toEqual(beforeAdd.items);
+    expect(saved.slides[0]?.elements[1]).toEqual(source.slides[0]?.elements[1]);
+
+    await replay(true);
+    saved = await save(onSave);
+    const redoneAdd = rootElement(saved, "shared-gallery");
+    expect(redoneAdd.type).toBe("gallery");
+    if (redoneAdd.type !== "gallery") throw new Error("Expected Root Gallery after add Redo");
+    expect(redoneAdd.items).toEqual(addedGallery.items);
+    expect(saved.slides[0]?.elements[1]).toEqual(source.slides[0]?.elements[1]);
+
+    const reselectedAddedItem = host.querySelector<HTMLButtonElement>(
+      '[data-presentation-gallery-select][data-presentation-gallery-index="2"]',
+    );
+    if (!reselectedAddedItem) throw new Error("Expected Gallery item selector after add Redo");
+    await act(async () => reselectedAddedItem.click());
     const remove = host.querySelector<HTMLButtonElement>("[data-presentation-gallery-remove]");
     if (!remove) throw new Error("Expected Gallery remove action");
     await act(async () => remove.click());
 
-    const saved = await save(onSave);
+    saved = await save(onSave);
     const rootGallery = rootElement(saved, "shared-gallery");
     expect(rootGallery.type).toBe("gallery");
     if (rootGallery.type === "gallery") {
@@ -355,8 +428,65 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     expect(rootContainer.classList.contains("studio-editor-draggable")).toBe(false);
     expect(host.querySelector("[class*='canvasResizeOverlay']")).toBeNull();
     expect(host.querySelector("#container-direction")).not.toBeNull();
-    expect(Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Save")?.disabled).toBe(true);
+    const saveButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    expect(saveButton?.disabled).toBe(true);
     expect(onSave).not.toHaveBeenCalled();
-    expect(source.slides[0]?.elements[0]).toEqual(rootElement(source, "shared-image"));
+    const beforeRootGesture = rootElement(source, "root-container");
+    const canvas = host.querySelector<HTMLElement>("[class*='slideCanvas']");
+    if (!canvas) throw new Error("Expected Root Canvas");
+    await act(async () => rootContainer.dispatchEvent(pointer("pointerdown", 120, 100)));
+    await act(async () => canvas.dispatchEvent(pointer("pointermove", 240, 190)));
+    await act(async () => canvas.dispatchEvent(pointer("pointerup", 240, 190)));
+
+    expect(rootElement(source, "root-container")).toEqual(beforeRootGesture);
+    expect(host.querySelector("[class*='canvasResizeOverlay']")).toBeNull();
+    expect(saveButton?.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(source.slides[0]?.elements).toEqual(presentation().slides[0]?.elements);
+    expect(host.querySelector('[data-presentation-id="shared-image"]')).not.toBeNull();
+  });
+
+  it("cancels an active Root crop gesture when exiting master editing without dirtying or redirecting it", async () => {
+    const source = presentation();
+    const onSave = await mount(source);
+    await selectElement("shared-image");
+    const editButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.includes("Edit on Canvas"));
+    if (!editButton) throw new Error("Expected Root Image crop Canvas action");
+    await act(async () => editButton.click());
+    await loadCropSource();
+    const cropHandle = host.querySelector<HTMLButtonElement>("[class*='canvasCropHandleE']");
+    if (!cropHandle) throw new Error("Expected Root crop handle");
+    const rootCropBefore = rootElement(source, "shared-image");
+    const slideCropBefore = source.slides[0]?.elements[0];
+    if (rootCropBefore.type !== "image" || slideCropBefore?.type !== "image") throw new Error("Expected same-id Images");
+
+    await act(async () => cropHandle.dispatchEvent(pointer("pointerdown", 300, 180)));
+    const exit = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Exit master editing");
+    if (!exit) throw new Error("Expected Exit master editing action");
+    await act(async () => exit.click());
+
+    expect(host.querySelector('[data-authoring-target="root-definition"]')).toBeNull();
+    expect(host.querySelector("[class*='canvasCropHandle']")).toBeNull();
+    expect(host.querySelector("[class*='canvasCropSourceLoader']")).toBeNull();
+    expect(host.querySelector('[data-presentation-id="shared-image"]')).not.toBeNull();
+    const saveButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    expect(saveButton?.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+
+    await act(async () => cropHandle.dispatchEvent(pointer("pointerup", 360, 180)));
+    expect(rootElement(source, "shared-image")).toEqual(rootCropBefore);
+    expect(source.slides[0]?.elements[0]).toEqual(slideCropBefore);
+    expect(saveButton?.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+
+    const historyTab = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "History");
+    if (!historyTab) throw new Error("Expected History panel tab");
+    await act(async () => historyTab.click());
+    expect(host.textContent).toContain("History is not populated yet.");
   });
 });
