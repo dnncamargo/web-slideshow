@@ -115,25 +115,29 @@ Editor History is a current authoring capability. It provides session-only Undo/
 
 Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.
 
-Text Style precedence:
+Text property precedence:
 
 ```text
-Theme role baseline
-→ Text Style
-→ local Text override
+1. authored local Text property
+2. Text Style property
+3. Theme role baseline / default
 ```
+
+Inspector edits are local to the selected Text and keep its relationship attached. Resources edits modify the shared Text Style; adding, editing or removing property `P` clears local `P` from all currently linked Texts while leaving unrelated property `Q` untouched. Text content and rich content are not Style-owned.
 
 A detached Text materializes its effective typography locally and no longer counts as linked usage even when it retains a fundamental `variant` role.
 
-Linked Style precedence:
+Linked Style property precedence:
 
 ```text
-Theme / defaults
-→ Linked Style
-→ local Container override
+1. authored local property on the linked element
+2. compatible Linked Style property
+3. element / Theme / role default
 ```
 
-Linked Styles are Presentation-scoped, self-contained and Container-only in the current contract. Custom Library Styles remain copy/materialization resources rather than runtime dependencies.
+Linked Styles are Presentation-scoped, self-contained and currently support Container and Topics targets; they do not imply support for every element type. Inspector edits remain local to the selected element. Resources edits modify the shared Style, and adding, editing or removing property `P` clears local `P` from all currently linked applicable usages while leaving unrelated `Q` untouched.
+
+Switching from Style A to Style B uses destination ownership only: destination-defined properties take effect, while destination-omitted properties do not inherit or copy Style A values. Detach is different: it removes the relationship while preserving effective state by materializing required values locally.
 
 ## Import / Export
 
