@@ -17,6 +17,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { ElementTreePanel } from "../src/features/editor/element-tree-panel";
+import { resolveTreeDrop } from "../src/features/editor/element-tree-helpers";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -289,6 +290,7 @@ describe("ElementTreePanel", () => {
       onOutdentTopicItem?: ReturnType<typeof vi.fn>;
       onMoveTableColumn?: ReturnType<typeof vi.fn>;
       onMoveTableRow?: ReturnType<typeof vi.fn>;
+      workspaceRootContainerId?: string | null;
     } = {},
   ) {
     const onSelectElement = options.onSelectElement ?? vi.fn();
@@ -314,6 +316,7 @@ describe("ElementTreePanel", () => {
             onGalleryStructureDrop={vi.fn()}
             onMoveTableColumn={options.onMoveTableColumn ?? vi.fn()}
             onMoveTableRow={options.onMoveTableRow ?? vi.fn()}
+            workspaceRootContainerId={options.workspaceRootContainerId}
             onBrowseElementStyles={vi.fn()}
           />
         </StudioI18nProvider>,
@@ -358,6 +361,79 @@ describe("ElementTreePanel", () => {
     });
     document.body.innerHTML = "";
     vi.clearAllMocks();
+  });
+
+  it("treats the canonical Root Container as an inside-only workspace root", () => {
+    const slide: Slide = {
+      id: "root-workspace",
+      title: "Root",
+      summary: "",
+      speakerNotes: "",
+      elements: [topicContainer("root-container", [topicContainer("child-container", [text("child")])])],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "root-container",
+      workspaceRootContainerId: "root-container",
+    });
+
+    const topLevel = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"]');
+    expect(topLevel?.querySelector(':scope > div[draggable="false"]')).not.toBeNull();
+    expect(footerMoveUpButton(container).disabled).toBe(true);
+    expect(footerMoveDownButton(container).disabled).toBe(true);
+    expect(footerMoveToSelect(container).disabled).toBe(true);
+
+    const options = Array.from(footerMoveToSelect(container).options).map((option) => option.value);
+    expect(options).toEqual([""]);
+    expect(resolveTreeDrop(slide.elements, "child-container", "root-container", "inside", "root-container")).toEqual({
+      elementId: "child-container",
+      targetParentRef: { kind: "container", id: "root-container" },
+    });
+    expect(resolveTreeDrop(slide.elements, "child-container", "root-container", "before", "root-container")).toBeNull();
+    expect(resolveTreeDrop(slide.elements, "root-container", "child-container", "inside", "root-container")).toBeNull();
+  });
+
+  it("keeps Root descendants draggable while protecting only the canonical Root Container", () => {
+    const slide: Slide = {
+      id: "root-dragging",
+      title: "Root",
+      summary: "",
+      speakerNotes: "",
+      elements: [topicContainer("root-container", [
+        topicContainer("child-container", [image("child-image")]),
+      ])],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "child-image",
+      workspaceRootContainerId: "root-container",
+    });
+
+    const rootRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > div');
+    const childRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > ul > li[role="treeitem"] > div');
+    const nestedRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > ul > li[role="treeitem"] > ul > li[role="treeitem"] > div');
+    expect(rootRow?.draggable).toBe(false);
+    expect(childRow?.draggable).toBe(true);
+    expect(nestedRow?.draggable).toBe(true);
+  });
+
+  it("omits the synthetic Slide root from Root workspace Move to targets", () => {
+    const slide: Slide = {
+      id: "root-workspace",
+      title: "Root",
+      summary: "",
+      speakerNotes: "",
+      elements: [topicContainer("root-container", [topicContainer("child-container", [text("child")])])],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "child",
+      workspaceRootContainerId: "root-container",
+    });
+
+    const values = Array.from(footerMoveToSelect(container).options).map((option) => option.value);
+    expect(values.slice(1)).not.toContain("");
+    expect(values).toContain("root-container");
   });
 
   it("renders content elements directly before structural subtopics", () => {

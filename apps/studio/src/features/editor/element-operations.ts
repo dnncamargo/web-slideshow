@@ -3,7 +3,6 @@ import type {
   ColorValue,
   GalleryElement,
   PresentationElement,
-  Slide,
   StructuredTableColumn,
   StructuredTableElement,
   StructuredTableRow,
@@ -2878,43 +2877,29 @@ function buildStructuredRow(
 }
 
 function applyStructuredTableMutation(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   mutate: (
     table: StructuredTableElement,
     usedIds: Set<string>,
   ) => StructuredTableElement,
   usedIds?: Set<string>,
-): Slide[] {
-  let changed = false;
-
-  const nextSlides = slides.map((slide) => {
-    const elements = updateElementById(slide.elements, tableId, (element) => {
-      if (element.type !== "table" || element.mode !== "structured") {
-        return element;
-      }
-
-      return mutate(element, usedIds ?? new Set());
-    });
-
-    if (elements === slide.elements) {
-      return slide;
+): PresentationElement[] {
+  return updateElementById(elements, tableId, (element) => {
+    if (element.type !== "table" || element.mode !== "structured") {
+      return element;
     }
 
-    changed = true;
-
-    return { ...slide, elements };
+    return mutate(element, usedIds ?? new Set());
   });
-
-  return changed ? nextSlides : (slides as Slide[]);
 }
 
 export function addColumnToStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   usedIds: Set<string>,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table, usedIds) => {
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table, usedIds) => {
     const column = buildStructuredColumn(usedIds);
 
     return {
@@ -2929,11 +2914,11 @@ export function addColumnToStructuredTable(
 }
 
 export function removeColumnFromStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   index: number,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table) => {
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table) => {
     if (!table.columns[index]) {
       return table;
     }
@@ -2950,12 +2935,12 @@ export function removeColumnFromStructuredTable(
 }
 
 export function moveColumnInStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   columnId: string,
   offset: -1 | 1,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table) => {
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table) => {
     const index = table.columns.findIndex((column) => column.id === columnId);
     const targetIndex = index + offset;
     if (index < 0 || targetIndex < 0 || targetIndex >= table.columns.length) {
@@ -2986,34 +2971,37 @@ export function moveColumnInStructuredTable(
 }
 
 export function addRowToStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   usedIds: Set<string>,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table, usedIds) => ({
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table, usedIds) => ({
     ...table,
     rows: [...table.rows, buildStructuredRow(usedIds, table.columns.length)],
   }), usedIds);
 }
 
 export function removeRowFromStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   index: number,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table) => ({
-    ...table,
-    rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
-  }));
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table) => {
+    if (!table.rows[index]) return table;
+    return {
+      ...table,
+      rows: table.rows.filter((_row, rowIndex) => rowIndex !== index),
+    };
+  });
 }
 
 export function moveRowInStructuredTable(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   rowId: string,
   offset: -1 | 1,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table) => {
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table) => {
     const index = table.rows.findIndex((row) => row.id === rowId);
     const targetIndex = index + offset;
     if (index < 0 || targetIndex < 0 || targetIndex >= table.rows.length) {
@@ -3031,14 +3019,13 @@ export function moveRowInStructuredTable(
 }
 
 export function setStructuredTableShowHeader(
-  slides: readonly Slide[],
+  elements: readonly PresentationElement[],
   tableId: string,
   showHeader: boolean,
-): Slide[] {
-  return applyStructuredTableMutation(slides, tableId, (table) => ({
-    ...table,
-    showHeader,
-  }));
+): PresentationElement[] {
+  return applyStructuredTableMutation(elements, tableId, (table) =>
+    table.showHeader === showHeader ? table : { ...table, showHeader },
+  );
 }
 
 // ============================================================

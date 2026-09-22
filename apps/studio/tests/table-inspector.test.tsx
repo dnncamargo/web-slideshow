@@ -8,7 +8,6 @@ import type {
   PresentationElement,
   FontResource,
   SimpleTableElement,
-  Slide,
   StructuredTableElement,
 } from "@web-slideshow/document-schema";
 
@@ -118,18 +117,6 @@ function structuredTable(): StructuredTableElement {
   };
 }
 
-function wrapSlide(element: PresentationElement): Slide[] {
-  return [
-    {
-      id: "slide",
-      title: "",
-      summary: "",
-      speakerNotes: "",
-      elements: [element],
-    },
-  ];
-}
-
 describe("TableInspector", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -169,40 +156,40 @@ describe("TableInspector", () => {
     selectedTableStructuralNode = null;
     controls = {
       onAddColumn: (tableId) => {
-        const slides = addColumnToStructuredTable(wrapSlide(elementState), tableId, new Set());
-        elementState = slides[0]!.elements[0]!;
+        const elements = addColumnToStructuredTable([elementState], tableId, new Set());
+        elementState = elements[0]!;
         renderInspector();
       },
       onRemoveColumn: (tableId, index) => {
-        const slides = removeColumnFromStructuredTable(
-          wrapSlide(elementState),
+        const elements = removeColumnFromStructuredTable(
+          [elementState],
           tableId,
           index,
         );
-        elementState = slides[0]!.elements[0]!;
+        elementState = elements[0]!;
         renderInspector();
       },
       onAddRow: (tableId) => {
-        const slides = addRowToStructuredTable(wrapSlide(elementState), tableId, new Set());
-        elementState = slides[0]!.elements[0]!;
+        const elements = addRowToStructuredTable([elementState], tableId, new Set());
+        elementState = elements[0]!;
         renderInspector();
       },
       onRemoveRow: (tableId, index) => {
-        const slides = removeRowFromStructuredTable(
-          wrapSlide(elementState),
+        const elements = removeRowFromStructuredTable(
+          [elementState],
           tableId,
           index,
         );
-        elementState = slides[0]!.elements[0]!;
+        elementState = elements[0]!;
         renderInspector();
       },
       onShowHeaderChange: (tableId, showHeader) => {
-        const slides = setStructuredTableShowHeader(
-          wrapSlide(elementState),
+        const elements = setStructuredTableShowHeader(
+          [elementState],
           tableId,
           showHeader,
         );
-        elementState = slides[0]!.elements[0]!;
+        elementState = elements[0]!;
         renderInspector();
       },
     };

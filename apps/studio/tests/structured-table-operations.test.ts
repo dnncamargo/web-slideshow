@@ -612,9 +612,9 @@ describe("structured table creation and structure", () => {
     });
     const usedIds = collectPresentationAuthoringIds(presentation);
     const tableId = presentation.slides[0]!.elements[0]!.id;
-    const withColumn = addColumnToStructuredTable(presentation.slides, tableId, usedIds);
+    const withColumn = addColumnToStructuredTable(presentation.slides[0]!.elements, tableId, usedIds);
     const withRow = addRowToStructuredTable(withColumn, tableId, usedIds);
-    const result = withRow[0]!.elements[0]!;
+    const result = withRow[0]!;
 
     expect(result.type).toBe("table");
     if (result.type !== "table" || result.mode !== "structured") return;
@@ -688,25 +688,23 @@ describe("structured table creation and structure", () => {
     expect(created.columns[0]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
     expect(created.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
-    const withColumn = addColumnToStructuredTable([slide([created])], created.id, usedIds([created]))[0]?.elements[0];
+    const withColumn = addColumnToStructuredTable([created], created.id, usedIds([created]))[0];
     if (withColumn?.type !== "table" || withColumn.mode !== "structured") throw new Error("Expected a Structured Table");
     expect(withColumn.columns[1]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
     expect(withColumn.rows[0]?.cells[1]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
-    const withRow = addRowToStructuredTable([slide([withColumn])], withColumn.id, usedIds([withColumn]))[0]?.elements[0];
+    const withRow = addRowToStructuredTable([withColumn], withColumn.id, usedIds([withColumn]))[0];
     if (withRow?.type !== "table" || withRow.mode !== "structured") throw new Error("Expected a Structured Table");
     expect(withRow.rows[1]?.cells.every((cell) => cell.children[0]?.type === "text" && cell.children[0].variant === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
   });
 
   it("adds a column preserving every row length", () => {
-    let slides = [
-      slide([structuredTable()]),
-    ];
+    let elements: PresentationElement[] = [structuredTable()];
     const tableId = "table-1";
 
-    slides = addColumnToStructuredTable(slides, tableId, usedIds(slides[0]?.elements));
+    elements = addColumnToStructuredTable(elements, tableId, usedIds(elements));
 
-    const table = slides[0]?.elements[0];
+    const table = elements[0];
 
     if (table?.type === "table" && table.mode === "structured") {
       expect(table.columns).toHaveLength(3);
@@ -717,10 +715,9 @@ describe("structured table creation and structure", () => {
   });
 
   it("removes a column preserving every row length", () => {
-    let slides = [slide([structuredTable()])];
-    slides = removeColumnFromStructuredTable(slides, "table-1", 1);
+    const elements = removeColumnFromStructuredTable([structuredTable()], "table-1", 1);
 
-    const table = slides[0]?.elements[0];
+    const table = elements[0];
     if (table?.type === "table" && table.mode === "structured") {
       expect(table.columns).toHaveLength(1);
       for (const row of table.rows) {
@@ -732,9 +729,9 @@ describe("structured table creation and structure", () => {
 
   it("moves a column and its cells by stable column ID", () => {
     const table = structuredTable();
-    const withColumn = addColumnToStructuredTable([slide([table])], "table-1", usedIds([table]));
-    const slides = moveColumnInStructuredTable(withColumn, "table-1", "col-2", 1);
-    const result = slides[0]?.elements[0];
+    const withColumn = addColumnToStructuredTable([table], "table-1", usedIds([table]));
+    const elements = moveColumnInStructuredTable(withColumn, "table-1", "col-2", 1);
+    const result = elements[0];
     if (result?.type === "table" && result.mode === "structured") {
       expect(result.columns.map((column) => column.id)).toEqual(["col-1", "table-column", "col-2"]);
       expect(result.rows[0]?.cells[2]?.id).toBe("cell-1-2");
@@ -745,8 +742,8 @@ describe("structured table creation and structure", () => {
 
   it("moves a complete row by stable row ID", () => {
     const table = structuredTable();
-    const slides = moveRowInStructuredTable([slide([table])], "table-1", "row-2", -1);
-    const result = slides[0]?.elements[0];
+    const elements = moveRowInStructuredTable([table], "table-1", "row-2", -1);
+    const result = elements[0];
     if (result?.type === "table" && result.mode === "structured") {
       expect(result.rows.map((row) => row.id)).toEqual(["row-2", "row-1"]);
       expect(result.rows[0]?.cells[0]?.id).toBe("cell-2-1");
@@ -754,10 +751,9 @@ describe("structured table creation and structure", () => {
   });
 
   it("adds a row producing one cell per column", () => {
-    let slides = [slide([structuredTable()])];
-    slides = addRowToStructuredTable(slides, "table-1", usedIds(slides[0]?.elements));
+    const elements = addRowToStructuredTable([structuredTable()], "table-1", usedIds([structuredTable()]));
 
-    const table = slides[0]?.elements[0];
+    const table = elements[0];
     if (table?.type === "table" && table.mode === "structured") {
       expect(table.rows).toHaveLength(3);
       const newRow = table.rows[2];
@@ -766,15 +762,10 @@ describe("structured table creation and structure", () => {
   });
 
   it("adds a row with zero columns producing cells: []", () => {
-    let slides = [
-      slide([
-        structuredTable({ columns: [], rows: [] }),
-      ]),
-    ];
+    const elements = [structuredTable({ columns: [], rows: [] })];
+    const nextElements = addRowToStructuredTable(elements, "table-1", usedIds(elements));
 
-    slides = addRowToStructuredTable(slides, "table-1", usedIds(slides[0]?.elements));
-
-    const table = slides[0]?.elements[0];
+    const table = nextElements[0];
     if (table?.type === "table" && table.mode === "structured") {
       expect(table.rows).toHaveLength(1);
       expect(table.rows[0]?.cells).toEqual([]);
@@ -782,10 +773,9 @@ describe("structured table creation and structure", () => {
   });
 
   it("removes a row preserving columns", () => {
-    let slides = [slide([structuredTable()])];
-    slides = removeRowFromStructuredTable(slides, "table-1", 0);
+    const elements = removeRowFromStructuredTable([structuredTable()], "table-1", 0);
 
-    const table = slides[0]?.elements[0];
+    const table = elements[0];
     if (table?.type === "table" && table.mode === "structured") {
       expect(table.rows).toHaveLength(1);
       expect(table.columns).toHaveLength(2);
@@ -798,14 +788,24 @@ describe("structured table creation and structure", () => {
     const headerBefore = table.columns[0]?.header;
     const headerTextBefore = headerBefore?.children[0];
 
-    const slides = setStructuredTableShowHeader([slide([table])], "table-1", false);
+    const elements = setStructuredTableShowHeader([table], "table-1", false);
 
-    const resultingTable = slides[0]?.elements[0];
+    const resultingTable = elements[0];
     if (resultingTable?.type === "table" && resultingTable.mode === "structured") {
       expect(resultingTable.showHeader).toBe(false);
       expect(resultingTable.columns[0]?.header!.id).toBe(headerBefore?.id);
       expect(resultingTable.columns[0]?.header!.children[0]).toBe(headerTextBefore);
     }
+  });
+
+  it("mutates only the supplied element tree when table IDs are repeated across owners", () => {
+    const ownerA: PresentationElement[] = [structuredTable({ showHeader: true })];
+    const ownerB: PresentationElement[] = [structuredTable({ showHeader: true })];
+
+    const nextOwnerA = setStructuredTableShowHeader(ownerA, "table-1", false);
+
+    expect(nextOwnerA[0]).toMatchObject({ id: "table-1", showHeader: false });
+    expect(ownerB[0]).toMatchObject({ id: "table-1", showHeader: true });
   });
 
   it("preserves canonical ContentSlot metadata when adding a child", () => {

@@ -351,7 +351,9 @@ function isRootDefinitionGenericInspectorElement(element: PresentationElement): 
     || element.type === "divider"
     || element.type === "embed"
     || element.type === "scripted"
-    || element.type === "blocks";
+    || element.type === "blocks"
+    || element.type === "topics"
+    || element.type === "table";
 }
 
 type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
@@ -4325,9 +4327,10 @@ export function EditorWorkspace({
   function addTopLevelTopic(topicsId: string): string | null {
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
-    const selectedSlide = presentation.slides[selectedSlideIndex];
+    const target = authoringTarget;
+    const elements = resolveAuthoringElements(presentation, target);
 
-    if (!selectedSlide) {
+    if (!elements) {
       return null;
     }
 
@@ -4335,48 +4338,35 @@ export function EditorWorkspace({
     // string | null. O resultado NÃO é reaproveitado na escrita.
     if (
       appendTopicItemToTopics(
-        selectedSlide.elements,
+        elements,
         topicsId,
         created.item,
-      ) === selectedSlide.elements
+      ) === elements
     ) {
       return null;
     }
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "topics.add",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.add" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) {
-          return current;
-        }
-
+      (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedSlide = prepared.slides[selectedSlideIndex];
-        if (!preparedSlide) {
-          return current;
-        }
+        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        if (!preparedElements) return current;
 
         const elements = appendTopicItemToTopics(
-          preparedSlide.elements,
+          preparedElements,
           topicsId,
           created.item,
         );
 
-        if (elements === preparedSlide.elements) {
-          return current;
-        }
-
-        return {
-          ...prepared,
-          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
-            ? { ...slide, elements }
-            : slide),
-        };
+        return elements === preparedElements
+          ? current
+          : replaceAuthoringElements(prepared, authoringTarget, elements);
       },
     );
 
@@ -4386,9 +4376,10 @@ export function EditorWorkspace({
   function addChildTopic(topicsId: string, topicItemId: string): string | null {
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
-    const selectedSlide = presentation.slides[selectedSlideIndex];
+    const target = authoringTarget;
+    const elements = resolveAuthoringElements(presentation, target);
 
-    if (!selectedSlide) {
+    if (!elements) {
       return null;
     }
 
@@ -4396,50 +4387,37 @@ export function EditorWorkspace({
     // O array produzido aqui NÃO é usado na escrita React.
     if (
       appendChildTopicItemToTopics(
-        selectedSlide.elements,
+        elements,
         topicsId,
         topicItemId,
         created.item,
-      ) === selectedSlide.elements
+      ) === elements
     ) {
       return null;
     }
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "topics.add",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.add" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) {
-          return current;
-        }
-
+      (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedSlide = prepared.slides[selectedSlideIndex];
-        if (!preparedSlide) {
-          return current;
-        }
+        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        if (!preparedElements) return current;
 
         const elements = appendChildTopicItemToTopics(
-          preparedSlide.elements,
+          preparedElements,
           topicsId,
           topicItemId,
           created.item,
         );
 
-        if (elements === preparedSlide.elements) {
-          return current;
-        }
-
-        return {
-          ...prepared,
-          slides: prepared.slides.map((slide, index) => index === selectedSlideIndex
-            ? { ...slide, elements }
-            : slide),
-        };
+        return elements === preparedElements
+          ? current
+          : replaceAuthoringElements(prepared, authoringTarget, elements);
       },
     );
 
@@ -4859,14 +4837,24 @@ export function EditorWorkspace({
   }
 
   function moveElementInTree(options: Parameters<typeof moveElement>[1]) {
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       { kind: "element.move", labelKey: "history.element.move" },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        if (!currentElements) return current;
 
-        const source = findElementLocation(currentSlide.elements, options.elementId);
+        const source = findElementLocation(currentElements, options.elementId);
         if (!source) return current;
+
+        const canonicalRootId = resolveCanonicalRootContainerId(current, authoringTarget);
+        if (
+          canonicalRootId !== null &&
+          (options.elementId === canonicalRootId || options.targetParentRef.kind === "slide")
+        ) {
+          return current;
+        }
 
         const areElementParentRefsEqual = (
           left: ElementParentRef,
@@ -4890,15 +4878,10 @@ export function EditorWorkspace({
           return current;
         }
 
-        const result = moveElement(currentSlide.elements, options);
+        const result = moveElement(currentElements, options);
         if (!result.moved) return current;
 
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: result.elements } : slide,
-          ),
-        };
+        return replaceAuthoringElements(current, authoringTarget, result.elements);
       },
     );
   }
@@ -4908,95 +4891,88 @@ export function EditorWorkspace({
     topicItemId: string,
     targetIndex: number,
   ) {
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       {
         kind: "topics.move",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.move" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        if (!currentElements) return current;
 
         const nextElements = moveTopicItemToSiblingIndex(
-          currentSlide.elements,
+          currentElements,
           topicsId,
           topicItemId,
           targetIndex,
         );
 
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
-          ),
-        };
+        return nextElements === currentElements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function indentTopicItemInTree(topicsId: string, topicItemId: string) {
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       {
         kind: "topics.indent",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.indent" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        if (!currentElements) return current;
 
         const nextElements = indentTopicItem(
-          currentSlide.elements,
+          currentElements,
           topicsId,
           topicItemId,
         );
 
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
-          ),
-        };
+        return nextElements === currentElements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function outdentTopicItemInTree(topicsId: string, topicItemId: string) {
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       {
         kind: "topics.outdent",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.outdent" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        if (!currentElements) return current;
 
         const nextElements = outdentTopicItem(
-          currentSlide.elements,
+          currentElements,
           topicsId,
           topicItemId,
         );
 
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
-          ),
-        };
+        return nextElements === currentElements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
-    if (!selectedSlide) return;
+    const authoringTargetAtStart = authoringTarget;
+    const elements = resolveAuthoringElements(presentation, authoringTargetAtStart);
+    if (!elements) return;
 
     const source = options.source;
     const target = options.target;
@@ -5027,7 +5003,10 @@ export function EditorWorkspace({
         if (
           currentTarget === null ||
           currentTarget.type !== target.element.type ||
-          (options.intent === "inside" && currentTarget.type !== "container")
+          (options.intent === "inside" && currentTarget.type !== "container") ||
+          (authoringTargetAtStart.kind === "root-definition" &&
+            target.element.id === resolveCanonicalRootContainerId(presentation, authoringTargetAtStart) &&
+            options.intent !== "inside")
         ) return null;
 
         return {
@@ -5083,7 +5062,7 @@ export function EditorWorkspace({
     };
 
     const resolved = resolveOperation(
-      selectedSlide.elements,
+      elements,
       collectPresentationAuthoringIds(presentation),
     );
     if (!resolved?.outcome.changed) return;
@@ -5096,12 +5075,12 @@ export function EditorWorkspace({
     const expectedImageId = resolved.kind === "detach" ? resolved.outcome.imageId : undefined;
 
     closeCanvasMediaEditing();
-    commitPresentationAction(meta, (current) => {
-      const currentSlide = current.slides[selectedSlideIndex];
-      if (!currentSlide) return current;
+    commitAuthoringAction(authoringTargetAtStart, meta, (current, authoringTarget) => {
+      const currentElements = resolveAuthoringElements(current, authoringTarget);
+      if (!currentElements) return current;
 
       const currentResolved = resolveOperation(
-        currentSlide.elements,
+        currentElements,
         collectPresentationAuthoringIds(current),
       );
       if (
@@ -5110,14 +5089,7 @@ export function EditorWorkspace({
         (expectedImageId !== undefined && currentResolved.outcome.imageId !== expectedImageId)
       ) return current;
 
-      return {
-        ...current,
-        slides: current.slides.map((slide, index) =>
-          index === selectedSlideIndex
-            ? { ...slide, elements: currentResolved.outcome.elements }
-            : slide,
-        ),
-      };
+      return replaceAuthoringElements(current, authoringTarget, currentResolved.outcome.elements);
     });
 
     if (resolved.outcome.imageId) {
@@ -5136,8 +5108,11 @@ export function EditorWorkspace({
     itemIndex: number,
     offset: -1 | 1,
   ) {
+    const target = authoringTarget;
+    const elements = resolveAuthoringElements(presentation, target);
+    if (!elements) return;
     const outcome = reorderGalleryItem(
-      selectedSlide?.elements ?? [],
+      elements,
       galleryId,
       itemIndex,
       itemIndex + offset,
@@ -5145,30 +5120,26 @@ export function EditorWorkspace({
     if (!outcome.changed || outcome.galleryItemIndex === undefined) return;
 
     closeCanvasMediaEditing();
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "gallery.move",
         labelKey: "history.element.setting",
         labelParams: { setting: "gallery.move" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        if (!currentElements) return current;
 
         const currentOutcome = reorderGalleryItem(
-          currentSlide.elements,
+          currentElements,
           galleryId,
           itemIndex,
           itemIndex + offset,
         );
         if (!currentOutcome.changed) return current;
 
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: currentOutcome.elements } : slide,
-          ),
-        };
+        return replaceAuthoringElements(current, authoringTarget, currentOutcome.elements);
       },
     );
     setSelectedElement({ id: galleryId, type: "gallery" });
@@ -5183,112 +5154,167 @@ export function EditorWorkspace({
   // BEGIN: STRUCTURED TABLE AUTHORING CONTROLS
   //
   // Structural Table mutations need globally-unique IDs, so they
-  // run against the full presentation slides rather than the
-  // single selected element updater.
+  // prepare the full Presentation but mutate only the captured
+  // AuthoringTarget tree.
   // ==========================================================
 
-  function findStructuredTableInPresentation(
+  function resolveStructuredTableInTarget(
     current: Presentation,
+    target: AuthoringTarget,
     tableId: string,
   ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
-    for (const slide of current.slides) {
-      const element = findElementById(slide.elements, tableId);
-      if (element?.type === "table" && element.mode === "structured") {
-        return element;
-      }
-    }
-    return null;
+    const elements = resolveAuthoringElements(current, target);
+    const element = elements ? findElementById(elements, tableId) : null;
+    return element?.type === "table" && element.mode === "structured" ? element : null;
   }
 
   const tableAuthoringControls: TableAuthoringControls = {
     onAddColumn: (tableId) => {
-      commitPresentationAction(
+      const target = authoringTarget;
+      commitAuthoringAction(
+        target,
         {
           kind: "table.addColumn",
           labelKey: "history.element.setting",
           labelParams: { setting: "table.addColumn" },
         },
-        (current) => {
-          if (!findStructuredTableInPresentation(current, tableId)) return current;
+        (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
+          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
-          return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId, usedIds) };
+          const nextElements = addColumnToStructuredTable(elements, tableId, usedIds);
+          return nextElements === elements
+            ? current
+            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
         },
       );
     },
 
     onRemoveColumn: (tableId, index) => {
-      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const target = authoringTarget;
+      const currentTable = resolveStructuredTableInTarget(history.present, target, tableId);
       const expectedColumnId = currentTable?.columns[index]?.id;
       if (expectedColumnId === undefined) return;
 
-      commitPresentationAction(
+      commitAuthoringAction(
+        target,
         {
           kind: "table.removeColumn",
           labelKey: "history.element.setting",
           labelParams: { setting: "table.removeColumn" },
         },
-        (current) => {
-          const table = findStructuredTableInPresentation(current, tableId);
+        (current, authoringTarget) => {
+          const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.columns[index]?.id !== expectedColumnId) return current;
-          return {
-            ...current,
-            slides: removeColumnFromStructuredTable(current.slides, tableId, index),
-          };
+          const elements = resolveAuthoringElements(current, authoringTarget);
+          if (!elements) return current;
+          const nextElements = removeColumnFromStructuredTable(elements, tableId, index);
+          return nextElements === elements
+            ? current
+            : replaceAuthoringElements(current, authoringTarget, nextElements);
         },
       );
     },
 
     onAddRow: (tableId) => {
-      commitPresentationAction(
+      const target = authoringTarget;
+      commitAuthoringAction(
+        target,
         {
           kind: "table.addRow",
           labelKey: "history.element.setting",
           labelParams: { setting: "table.addRow" },
         },
-        (current) => {
-          if (!findStructuredTableInPresentation(current, tableId)) return current;
+        (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
+          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
-          return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId, usedIds) };
+          const nextElements = addRowToStructuredTable(elements, tableId, usedIds);
+          return nextElements === elements
+            ? current
+            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
         },
       );
     },
 
     onRemoveRow: (tableId, index) => {
-      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const target = authoringTarget;
+      const currentTable = resolveStructuredTableInTarget(history.present, target, tableId);
       const expectedRowId = currentTable?.rows[index]?.id;
       if (expectedRowId === undefined) return;
 
-      commitPresentationAction(
+      commitAuthoringAction(
+        target,
         {
           kind: "table.removeRow",
           labelKey: "history.element.setting",
           labelParams: { setting: "table.removeRow" },
         },
-        (current) => {
-          const table = findStructuredTableInPresentation(current, tableId);
+        (current, authoringTarget) => {
+          const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.rows[index]?.id !== expectedRowId) return current;
-          return {
-            ...current,
-            slides: removeRowFromStructuredTable(current.slides, tableId, index),
-          };
+          const elements = resolveAuthoringElements(current, authoringTarget);
+          if (!elements) return current;
+          const nextElements = removeRowFromStructuredTable(elements, tableId, index);
+          return nextElements === elements
+            ? current
+            : replaceAuthoringElements(current, authoringTarget, nextElements);
         },
       );
     },
 
     onShowHeaderChange: (tableId, showHeader) => {
-      const currentTable = findStructuredTableInPresentation(history.present, tableId);
+      const target = authoringTarget;
+      const currentTable = resolveStructuredTableInTarget(history.present, target, tableId);
       if (!currentTable || currentTable.showHeader === showHeader) return;
-      commitPresentationAction(
+      commitAuthoringAction(
+        target,
         { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
-        (current) => ({
-          ...current,
-          slides: setStructuredTableShowHeader(current.slides, tableId, showHeader),
-        }),
+        (current, authoringTarget) => {
+          const elements = resolveAuthoringElements(current, authoringTarget);
+          if (!elements) return current;
+          const nextElements = setStructuredTableShowHeader(elements, tableId, showHeader);
+          return nextElements === elements
+            ? current
+            : replaceAuthoringElements(current, authoringTarget, nextElements);
+        },
       );
     },
   };
+
+  function moveTableColumnInTree(tableId: string, columnId: string, offset: -1 | 1): void {
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
+      { kind: "table.moveColumn", labelKey: "history.element.setting", labelParams: { setting: "table.moveColumn" } },
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const nextElements = moveColumnInStructuredTable(elements, tableId, columnId, offset);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
+      },
+    );
+  }
+
+  function moveTableRowInTree(tableId: string, rowId: string, offset: -1 | 1): void {
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
+      { kind: "table.moveRow", labelKey: "history.element.setting", labelParams: { setting: "table.moveRow" } },
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const nextElements = moveRowInStructuredTable(elements, tableId, rowId, offset);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
+      },
+    );
+  }
 
   // ==========================================================
   // END: STRUCTURED TABLE AUTHORING CONTROLS
@@ -6074,34 +6100,15 @@ export function EditorWorkspace({
                       });
                     }
                   }}
-                  onMoveElement={rootDefinitionMode ? () => {} : moveElementInTree}
-                  onMoveTopicItem={rootDefinitionMode ? () => {} : moveTopicItemInTree}
-                  onIndentTopicItem={rootDefinitionMode ? () => {} : indentTopicItemInTree}
-                  onOutdentTopicItem={rootDefinitionMode ? () => {} : outdentTopicItemInTree}
-                  onMoveGalleryItem={rootDefinitionMode ? () => {} : moveGalleryItemInTree}
-                  onGalleryStructureDrop={rootDefinitionMode ? () => {} : applyGalleryStructureDrop}
-                  onMoveTableColumn={rootDefinitionMode ? () => {} : (tableId, columnId, offset) => commitPresentationAction(
-                    {
-                      kind: "table.moveColumn",
-                      labelKey: "history.element.setting",
-                      labelParams: { setting: "table.moveColumn" },
-                    },
-                    (current) => {
-                      const slides = moveColumnInStructuredTable(current.slides, tableId, columnId, offset);
-                      return slides === current.slides ? current : { ...current, slides };
-                    },
-                  )}
-                  onMoveTableRow={rootDefinitionMode ? () => {} : (tableId, rowId, offset) => commitPresentationAction(
-                    {
-                      kind: "table.moveRow",
-                      labelKey: "history.element.setting",
-                      labelParams: { setting: "table.moveRow" },
-                    },
-                    (current) => {
-                      const slides = moveRowInStructuredTable(current.slides, tableId, rowId, offset);
-                      return slides === current.slides ? current : { ...current, slides };
-                    },
-                  )}
+                  onMoveElement={moveElementInTree}
+                  onMoveTopicItem={moveTopicItemInTree}
+                  onIndentTopicItem={indentTopicItemInTree}
+                  onOutdentTopicItem={outdentTopicItemInTree}
+                  onMoveGalleryItem={moveGalleryItemInTree}
+                  onGalleryStructureDrop={applyGalleryStructureDrop}
+                  onMoveTableColumn={moveTableColumnInTree}
+                  onMoveTableRow={moveTableRowInTree}
+                  workspaceRootContainerId={rootDefinitionMode ? resolveCanonicalRootContainerId(presentation, authoringTarget) : undefined}
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
@@ -6209,11 +6216,11 @@ export function EditorWorkspace({
                           onCreateQrFromLink={rootDefinitionMode ? undefined : createQrFromSelectedLink}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
-                          onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
-                          onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
+                          onAttachLinkedTopicsStyle={rootDefinitionMode ? undefined : attachSelectedTopicsLinkedStyle}
+                          onDetachLinkedTopicsStyle={rootDefinitionMode ? undefined : detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
                           layerControls={
-                            selectedDocumentElement.type === "text" && rootDefinitionMode
+                            rootDefinitionMode
                               ? null
                               : selectedElementPosition
                               ? {

@@ -62,6 +62,7 @@ interface ElementTreePanelProps {
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
   onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
+  workspaceRootContainerId?: string | null;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
@@ -129,6 +130,7 @@ interface ElementTreeNodeProps {
   onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
   onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
   contentSlotId?: string;
+  isDraggable: boolean;
 }
 
 interface GalleryItemTreeNodeProps {
@@ -319,6 +321,7 @@ function ElementTreeNode({
   onMoveTableColumn,
   onMoveTableRow,
   contentSlotId,
+  isDraggable,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
   const isExpandable =
@@ -375,8 +378,8 @@ function ElementTreeNode({
             ? `${styles.elementTreeRow} ${styles.elementTreeSelected}`
             : styles.elementTreeRow
         }
-        draggable
-        onDragStart={(event) => onDragStart(element, event)}
+        draggable={isDraggable}
+        onDragStart={isDraggable ? (event) => onDragStart(element, event) : undefined}
         onDragOver={(event) => onDragOver(element, event)}
         onDrop={(event) => {
           event.preventDefault();
@@ -495,6 +498,7 @@ function ElementTreeNode({
                 onMoveTableColumn={onMoveTableColumn}
                 onMoveTableRow={onMoveTableRow}
                 contentSlotId={contentSlotId}
+                isDraggable={true}
               />
             ))}
           {element.type === "topics" &&
@@ -577,6 +581,7 @@ function ElementTreeNode({
                 onSelectTableStructuralNode,
                 onMoveTableColumn,
                 onMoveTableRow,
+                isDraggable: true,
               }}
             />
           )}
@@ -845,6 +850,7 @@ function TopicItemTreeNode({
               onIndentTopicItem={onIndentTopicItem}
               onOutdentTopicItem={onOutdentTopicItem}
               getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
+              isDraggable={true}
             />
           ))}
           {structuralChildren.map((child, childIndex) => (
@@ -894,6 +900,7 @@ export function ElementTreePanel({
   onGalleryStructureDrop,
   onMoveTableColumn,
   onMoveTableRow,
+  workspaceRootContainerId,
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
   customLibraryRepository,
@@ -958,7 +965,7 @@ export function ElementTreePanel({
   const selectedStructuralTopicItemId =
     isStructuralTopicRow ? selectedTopicItemPosition?.topicItemId ?? null : null;
   const selectedTargets = selectedElementForMovement
-    ? getParentTargets(slide, selectedElementForMovement, (key) => t(key))
+    ? getParentTargets(slide, selectedElementForMovement, (key) => t(key), workspaceRootContainerId)
     : [];
   const selectedActionState = selectedPositionForMovement
     ? getTreeActionState(
@@ -978,6 +985,9 @@ export function ElementTreePanel({
     : -1;
   const selectedTableRepresentativeChild = selectedPositionForMovement?.parentRef.kind === "content-slot" &&
     isStructuredTableContentSlotId(slide.elements, selectedPositionForMovement.parentRef.id);
+  const isSelectedWorkspaceRoot = selectedElementId !== null &&
+    workspaceRootContainerId !== undefined &&
+    selectedElementId === workspaceRootContainerId;
 
   function getDropIntent(
     target: PresentationElement,
@@ -1026,6 +1036,7 @@ export function ElementTreePanel({
               }}
               onSelectElement={selectRealElement}
               onDragStart={(element, event) => {
+                if (workspaceRootContainerId !== undefined && element.id === workspaceRootContainerId) return;
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", element.id);
                 setDragSource({ kind: "element", elementId: element.id });
@@ -1040,6 +1051,14 @@ export function ElementTreePanel({
                 }
 
                 const intent = getDropIntent(target, event);
+                if (
+                  workspaceRootContainerId !== undefined &&
+                  target.id === workspaceRootContainerId &&
+                  intent !== "inside"
+                ) {
+                  setDropTarget(null);
+                  return;
+                }
                 if (dragSource.kind === "gallery-item") {
                   if (target.type === "gallery" && intent === "inside") {
                     setDropTarget(null);
@@ -1064,6 +1083,7 @@ export function ElementTreePanel({
                   dragSource.elementId,
                   target.id,
                   intent,
+                  workspaceRootContainerId,
                 );
 
                 if (resolved) {
@@ -1095,7 +1115,7 @@ export function ElementTreePanel({
                     intent: dropTarget.intent,
                   });
                 } else {
-                  const resolved = resolveTreeDrop(slide.elements, dragSource.elementId, target.id, dropTarget.intent);
+                  const resolved = resolveTreeDrop(slide.elements, dragSource.elementId, target.id, dropTarget.intent, workspaceRootContainerId);
                   if (resolved) onMoveElement(resolved);
 
                   if (
@@ -1155,6 +1175,7 @@ export function ElementTreePanel({
               onSelectTableStructuralNode={setSelectedTableStructuralNode}
               onMoveTableColumn={onMoveTableColumn}
               onMoveTableRow={onMoveTableRow}
+              isDraggable={workspaceRootContainerId === undefined || element.id !== workspaceRootContainerId}
             />
           ))}
         </ul>
@@ -1173,7 +1194,7 @@ export function ElementTreePanel({
               ? selectedGalleryItemIndex === 0
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === 0
-              : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
+              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
           }
           onClick={() => {
             if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
@@ -1212,7 +1233,7 @@ export function ElementTreePanel({
               ? selectedGalleryItemIndex === selectedGallery.items.length - 1
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === selectedTopicItemPosition.count - 1
-              : !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
+              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
           }
           onClick={() => {
             if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
@@ -1240,7 +1261,7 @@ export function ElementTreePanel({
         </button>
         <select
           aria-label={t("tree.moveTo")}
-          disabled={!selectedElementForMovement || selectedGallery !== null || selectedTableRepresentativeChild}
+          disabled={!selectedElementForMovement || isSelectedWorkspaceRoot || selectedGallery !== null || selectedTableRepresentativeChild}
           value=""
           onChange={(event) => {
             if (selectedElementId && selectedElementForMovement) {
