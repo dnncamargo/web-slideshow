@@ -581,12 +581,12 @@ describe("SM6D4 Root structural authoring", () => {
     expect(saved.slides).toEqual(source.slides);
   });
 
-  it("keeps Root Gallery structural reorder available while leaving Gallery Inspector read-only", async () => {
+  it("keeps Root Gallery structural reorder available with the editable Gallery Inspector", async () => {
     const source = presentation();
     const onSave = await mount();
     await selectCanvasElement("gallery-root");
     await openInspector();
-    expect(host.querySelector('[data-presentation-gallery-add="true"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-gallery-add="true"]')).not.toBeNull();
 
     await openTree();
     const secondItem = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))

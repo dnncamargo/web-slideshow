@@ -347,6 +347,8 @@ interface SelectedElementInfo {
 function isRootDefinitionGenericInspectorElement(element: PresentationElement): boolean {
   return element.type === "container"
     || element.type === "text"
+    || element.type === "image"
+    || element.type === "gallery"
     || element.type === "code"
     || element.type === "plot"
     || element.type === "terminal"
@@ -369,24 +371,36 @@ type ImageMediaAuthoringTarget =
   | { kind: "image"; elementId: string }
   | { kind: "gallery-item"; galleryId: string; itemIndex: number };
 
+type OwnedImageMediaAuthoringTarget = {
+  authoringTarget: AuthoringTarget;
+  mediaTarget: ImageMediaAuthoringTarget;
+};
+
 type GalleryItem = GalleryElement["items"][number];
 type ImageMediaValue = Extract<PresentationElement, { type: "image" }> | GalleryItem;
 
 function areImageMediaTargetsEqual(
-  left: ImageMediaAuthoringTarget | null,
-  right: ImageMediaAuthoringTarget | null,
+  left: OwnedImageMediaAuthoringTarget | null,
+  right: OwnedImageMediaAuthoringTarget | null,
 ): boolean {
-  if (left?.kind !== right?.kind) return false;
   if (!left || !right) return left === right;
-  return left.kind === "image"
-    ? left.elementId === (right.kind === "image" ? right.elementId : "")
-    : right.kind === "gallery-item" && left.galleryId === right.galleryId && left.itemIndex === right.itemIndex;
+  if (!areAuthoringTargetsEqual(left.authoringTarget, right.authoringTarget)) return false;
+  const leftMedia = left.mediaTarget;
+  const rightMedia = right.mediaTarget;
+  if (leftMedia.kind !== rightMedia.kind) return false;
+  return leftMedia.kind === "image"
+    ? leftMedia.elementId === (rightMedia.kind === "image" ? rightMedia.elementId : "")
+    : rightMedia.kind === "gallery-item" && leftMedia.galleryId === rightMedia.galleryId && leftMedia.itemIndex === rightMedia.itemIndex;
 }
 
-function imageMediaTargetKey(target: ImageMediaAuthoringTarget): string {
-  return target.kind === "image"
-    ? `image:${target.elementId}`
-    : `gallery-item:${target.galleryId}:${target.itemIndex}`;
+function imageMediaTargetKey(target: OwnedImageMediaAuthoringTarget): string {
+  const ownerKey = target.authoringTarget.kind === "slide"
+    ? `slide:${target.authoringTarget.slideIndex}`
+    : `root-definition:${target.authoringTarget.rootDefinitionId}`;
+  const mediaKey = target.mediaTarget.kind === "image"
+    ? `image:${target.mediaTarget.elementId}`
+    : `gallery-item:${target.mediaTarget.galleryId}:${target.mediaTarget.itemIndex}`;
+  return `${ownerKey}:${mediaKey}`;
 }
 
 function areLinkedStyleColorValuesEqual(
@@ -805,7 +819,9 @@ function isEditableKeyboardTarget(target: EventTarget | null): boolean {
 
 interface CanvasDragState {
   pointerId: number;
+  authoringTarget: AuthoringTarget;
   elementId: string;
+  elementType: PresentationElement["type"];
   target: HTMLElement;
   initialTranslate: string;
   startClientX: number;
@@ -833,7 +849,9 @@ interface CanvasResizeOverlay {
 
 interface CanvasResizeState {
   pointerId: number;
+  authoringTarget: AuthoringTarget;
   elementId: string;
+  elementType: PresentationElement["type"];
   handle: HTMLElement;
   direction: CanvasResizeDirection;
   startClientX: number;
@@ -884,7 +902,7 @@ function hasCanvasResizeLayoutChange(
 }
 
 interface CanvasFocalOverlay {
-  target: ImageMediaAuthoringTarget;
+  target: OwnedImageMediaAuthoringTarget;
   left: number;
   top: number;
   width: number;
@@ -893,13 +911,13 @@ interface CanvasFocalOverlay {
 
 interface CanvasFocalDragState {
   pointerId: number;
-  target: ImageMediaAuthoringTarget;
+  target: OwnedImageMediaAuthoringTarget;
   handle: HTMLElement;
   bounds: CanvasFocalOverlay;
 }
 
 interface CanvasCropOverlay extends CropCanvasBounds {
-  target: ImageMediaAuthoringTarget;
+  target: OwnedImageMediaAuthoringTarget;
   source: string;
   crop: CropCanvasBounds;
 }
@@ -912,7 +930,7 @@ interface CanvasCropAppearance extends CropCanvasBounds {
 
 interface CanvasCropDragState {
   pointerId: number;
-  target: ImageMediaAuthoringTarget;
+  target: OwnedImageMediaAuthoringTarget;
   operation: CropCanvasOperation;
   startClientX: number;
   startClientY: number;
@@ -1272,9 +1290,9 @@ export function EditorWorkspace({
   const [preserveImageProportion, setPreserveImageProportion] =
     useState<boolean>(DEFAULT_IMAGE_PROPORTION_PRESERVED);
   const [focalEditingTarget, setFocalEditingTarget] =
-    useState<ImageMediaAuthoringTarget | null>(null);
+    useState<OwnedImageMediaAuthoringTarget | null>(null);
   const [cropEditingTarget, setCropEditingTarget] =
-    useState<ImageMediaAuthoringTarget | null>(null);
+    useState<OwnedImageMediaAuthoringTarget | null>(null);
 
   // ==========================================================
   // END: SELEÇÃO
@@ -1347,7 +1365,7 @@ export function EditorWorkspace({
     useState<CanvasCropAppearance | null>(null);
   const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
 
-  function setCropEditingMode(target: ImageMediaAuthoringTarget | null) {
+  function setCropEditingMode(target: OwnedImageMediaAuthoringTarget | null) {
     if (target === null) {
       canvasCropDragRef.current = null;
       setCanvasCropPreview(null);
@@ -1429,6 +1447,20 @@ export function EditorWorkspace({
     }
   }, [rootDefinitionMode, rightPanelMode]);
 
+  const previousAuthoringTargetRef = useRef<AuthoringTarget | null>(null);
+  useEffect(() => {
+    const previous = previousAuthoringTargetRef.current;
+    previousAuthoringTargetRef.current = authoringTarget;
+    if (!previous || areAuthoringTargetsEqual(previous, authoringTarget)) return;
+
+    closeCanvasMediaEditing();
+    clearCanvasDragPreview();
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+  }, [authoringTarget]);
+
   useEffect(() => {
     if (rootDefinitionMode) {
       setSelectedElement(null);
@@ -1439,7 +1471,7 @@ export function EditorWorkspace({
       setPendingTextStyleReset(null);
       setPendingCut(null);
       closeCanvasMediaEditing();
-      canvasDragRef.current = null;
+      clearCanvasDragPreview();
       canvasResizeRef.current = null;
       setCanvasResizeOverlay(null);
       setCanvasGuides([]);
@@ -1497,9 +1529,12 @@ export function EditorWorkspace({
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
     && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement));
 
-  const currentImageMediaTarget = useMemo<ImageMediaAuthoringTarget | null>(() => {
+  const currentImageMediaTarget = useMemo<OwnedImageMediaAuthoringTarget | null>(() => {
     if (selectedDocumentElement?.type === "image") {
-      return { kind: "image", elementId: selectedDocumentElement.id };
+      return {
+        authoringTarget,
+        mediaTarget: { kind: "image", elementId: selectedDocumentElement.id },
+      };
     }
     if (
       selectedDocumentElement?.type === "gallery" &&
@@ -1508,64 +1543,63 @@ export function EditorWorkspace({
       galleryItemSelection.itemIndex < selectedDocumentElement.items.length
     ) {
       return {
-        kind: "gallery-item",
-        galleryId: selectedDocumentElement.id,
-        itemIndex: galleryItemSelection.itemIndex,
+        authoringTarget,
+        mediaTarget: {
+          kind: "gallery-item",
+          galleryId: selectedDocumentElement.id,
+          itemIndex: galleryItemSelection.itemIndex,
+        },
       };
     }
     return null;
-  }, [galleryItemSelection, selectedDocumentElement]);
+  }, [authoringTarget, galleryItemSelection, selectedDocumentElement]);
 
   function resolveImageMediaTarget(
-    target: ImageMediaAuthoringTarget,
+    target: OwnedImageMediaAuthoringTarget,
     sourcePresentation: Presentation = presentation,
   ): ImageMediaValue | null {
-    const slide = sourcePresentation.slides[selectedSlideIndex];
-    if (!slide) return null;
-    if (target.kind === "image") {
-      const element = findElementById(slide.elements, target.elementId);
+    const elements = resolveAuthoringElements(sourcePresentation, target.authoringTarget);
+    if (!elements) return null;
+    if (target.mediaTarget.kind === "image") {
+      const element = findElementById(elements, target.mediaTarget.elementId);
       return element?.type === "image" ? element : null;
     }
-    const gallery = findElementById(slide.elements, target.galleryId);
-    return gallery?.type === "gallery" ? gallery.items[target.itemIndex] ?? null : null;
+    const gallery = findElementById(elements, target.mediaTarget.galleryId);
+    return gallery?.type === "gallery" ? gallery.items[target.mediaTarget.itemIndex] ?? null : null;
   }
 
   function applyImageMediaTargetUpdate(
     current: Presentation,
-    target: ImageMediaAuthoringTarget,
+    target: OwnedImageMediaAuthoringTarget,
     update: (media: ImageMediaValue) => ImageMediaValue,
   ): Presentation {
-    const slide = current.slides[selectedSlideIndex];
-    if (!slide) return current;
+    const elements = resolveAuthoringElements(current, target.authoringTarget);
+    if (!elements) return current;
 
-    const elements = target.kind === "image"
-      ? updateElementById(slide.elements, target.elementId, (element) => {
+    const mediaTarget = target.mediaTarget;
+    const nextElements = mediaTarget.kind === "image"
+      ? updateElementById(elements, mediaTarget.elementId, (element) => {
           if (element.type !== "image") return element;
           const next = update(element);
           return next === element ? element : next as typeof element;
         })
-      : updateElementById(slide.elements, target.galleryId, (element) => {
+      : updateElementById(elements, mediaTarget.galleryId, (element) => {
           if (element.type !== "gallery") return element;
-          const item = element.items[target.itemIndex];
+          const item = element.items[mediaTarget.itemIndex];
           if (!item) return element;
           const nextItem = update(item);
           if (nextItem === item) return element;
           return {
             ...element,
             items: element.items.map((currentItem, itemIndex) =>
-              itemIndex === target.itemIndex ? nextItem as typeof currentItem : currentItem,
+              itemIndex === mediaTarget.itemIndex ? nextItem as typeof currentItem : currentItem,
             ),
           };
         });
 
-    if (elements === slide.elements) return current;
-
-    return {
-      ...current,
-      slides: current.slides.map((currentSlide, index) =>
-        index === selectedSlideIndex ? { ...currentSlide, elements } : currentSlide,
-      ),
-    };
+    return nextElements === elements
+      ? current
+      : replaceAuthoringElements(current, target.authoringTarget, nextElements);
   }
 
   useEffect(() => {
@@ -1721,7 +1755,7 @@ export function EditorWorkspace({
     setPendingTextStyleReset(null);
     setPendingCut(null);
     closeCanvasMediaEditing();
-    canvasDragRef.current = null;
+    clearCanvasDragPreview();
     canvasResizeRef.current = null;
     setCanvasResizeOverlay(null);
     setCanvasGuides([]);
@@ -2069,7 +2103,11 @@ export function EditorWorkspace({
                   ? documentElement.layout?.position === "absolute"
                   : false;
 
-        if (!rootDefinitionMode && draggable && !isInsideContainerFitSurface(candidate)) {
+        if (
+          draggable &&
+          !isProtectedRootContainer(presentation, authoringTarget, id ?? "") &&
+          !isInsideContainerFitSurface(candidate)
+        ) {
           candidate.classList.add("studio-editor-draggable");
         }
       }
@@ -2089,7 +2127,7 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
-      rootDefinitionMode ||
+      isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id) ||
       !isCanvasResizable(selectedDocumentElement) ||
       isInsideContainerFitSurface(target)
     ) {
@@ -2099,13 +2137,23 @@ export function EditorWorkspace({
 
     const bounds = target.getBoundingClientRect();
 
-    setCanvasResizeOverlay({
+    const nextOverlay: CanvasResizeOverlay = {
       elementId: selectedDocumentElement.id,
       left: bounds.left,
       top: bounds.top,
       width: bounds.width,
       height: bounds.height,
-    });
+    };
+    setCanvasResizeOverlay((current) =>
+      current &&
+      current.elementId === nextOverlay.elementId &&
+      current.left === nextOverlay.left &&
+      current.top === nextOverlay.top &&
+      current.width === nextOverlay.width &&
+      current.height === nextOverlay.height
+        ? current
+        : nextOverlay,
+    );
   }, [
     canvasGeometry,
     locale,
@@ -2114,7 +2162,8 @@ export function EditorWorkspace({
     selectedElement,
     selectedSlide,
     pendingCut,
-    rootDefinitionMode,
+    authoringTarget,
+    presentation,
   ]);
 
   useEffect(() => {
@@ -2144,9 +2193,9 @@ export function EditorWorkspace({
 
     const canvas = slideCanvasRef.current;
     const target = canvas
-      ? focalEditingTarget.kind === "image"
-        ? findCanvasElementById(canvas, focalEditingTarget.elementId)
-        : findCanvasGalleryItem(canvas, focalEditingTarget.galleryId, focalEditingTarget.itemIndex)
+      ? focalEditingTarget.mediaTarget.kind === "image"
+        ? findCanvasElementById(canvas, focalEditingTarget.mediaTarget.elementId)
+        : findCanvasGalleryItem(canvas, focalEditingTarget.mediaTarget.galleryId, focalEditingTarget.mediaTarget.itemIndex)
       : null;
 
     if (!target) {
@@ -2183,9 +2232,9 @@ export function EditorWorkspace({
     }
     const canvas = slideCanvasRef.current;
     const target = canvas
-      ? cropEditingTarget.kind === "image"
-        ? findCanvasElementById(canvas, cropEditingTarget.elementId)
-        : findCanvasGalleryItem(canvas, cropEditingTarget.galleryId, cropEditingTarget.itemIndex)
+      ? cropEditingTarget.mediaTarget.kind === "image"
+        ? findCanvasElementById(canvas, cropEditingTarget.mediaTarget.elementId)
+        : findCanvasGalleryItem(canvas, cropEditingTarget.mediaTarget.galleryId, cropEditingTarget.mediaTarget.itemIndex)
       : null;
     const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media.src}`;
     const preview = cropSourceMetrics?.key === sourceKey && target
@@ -2197,9 +2246,10 @@ export function EditorWorkspace({
       : null;
 
     if (target) {
-      const appearanceTarget = cropEditingTarget.kind === "gallery-item"
+      const mediaTarget = cropEditingTarget.mediaTarget;
+      const appearanceTarget = mediaTarget.kind === "gallery-item"
         ? Array.from(canvas?.querySelectorAll<HTMLElement>("[data-presentation-id][data-presentation-type]") ?? [])
-            .find((candidate) => candidate.dataset.presentationType === "gallery" && candidate.dataset.presentationId === cropEditingTarget.galleryId) ?? null
+            .find((candidate) => candidate.dataset.presentationType === "gallery" && candidate.dataset.presentationId === mediaTarget.galleryId) ?? null
         : target;
       if (!appearanceTarget) {
         setCanvasCropAppearance(null);
@@ -2303,7 +2353,7 @@ export function EditorWorkspace({
     setPendingTextStyleReset(null);
     setPendingCut(null);
     closeCanvasMediaEditing();
-    canvasDragRef.current = null;
+    clearCanvasDragPreview();
     canvasResizeRef.current = null;
     setCanvasResizeOverlay(null);
     setCanvasGuides([]);
@@ -2576,8 +2626,6 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
-    if (rootDefinitionMode) return;
-
     const draggable =
       selection.documentElement.type === "container"
         ? isContainerCanvasDraggable(selection.documentElement)
@@ -2590,6 +2638,10 @@ export function EditorWorkspace({
             : false;
 
     if (elementTarget && isInsideContainerFitSurface(elementTarget)) {
+      return;
+    }
+
+    if (isProtectedRootContainer(presentation, authoringTarget, selection.id)) {
       return;
     }
 
@@ -2658,7 +2710,9 @@ export function EditorWorkspace({
     setCanvasGuideBounds(snap.parentBounds);
     canvasDragRef.current = {
       pointerId: event.pointerId,
+      authoringTarget,
       elementId: selection.id,
+      elementType: selection.documentElement.type,
       target: elementTarget,
       initialTranslate: elementTarget.style.getPropertyValue("translate"),
       startClientX: event.clientX,
@@ -2729,87 +2783,70 @@ export function EditorWorkspace({
     }
 
     clearCanvasDragPreview();
-    commitPresentationAction(
+    commitAuthoringAction(
+      drag.authoringTarget,
       {
         kind: "canvas.drag",
         labelKey: "history.element.setting",
         labelParams: { setting: "canvas.drag" },
       },
-      (current) => {
-        const slide = current.slides[selectedSlideIndex];
-        if (!slide) {
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        const element = elements ? findElementById(elements, drag.elementId) : null;
+        if (
+          !elements ||
+          !element ||
+          element.type !== drag.elementType ||
+          isProtectedRootContainer(current, authoringTarget, drag.elementId)
+        ) {
           return current;
         }
 
-        const elements = updateElementById(
-          slide.elements,
-          drag.elementId,
-          (element) => {
-            if (element.type === "container") {
-              if (!drag.containerGeometry) {
-                return element;
-              }
+        const nextElements = updateElementById(elements, drag.elementId, (currentElement) => {
+          if (currentElement.type !== drag.elementType) return currentElement;
+          if (currentElement.type === "container") {
+            return drag.containerGeometry
+              ? updateContainerForCanvasDrag(
+                  currentElement,
+                  drag.deltaX,
+                  drag.deltaY,
+                  drag.containerGeometry,
+                )
+              : currentElement;
+          }
+          if (currentElement.type === "text") {
+            return drag.canonicalTextGeometry
+              ? updateCanonicalTextForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+              : currentElement;
+          }
+          if (currentElement.type === "image") {
+            return drag.canonicalTextGeometry
+              ? updateCanonicalImageForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+              : currentElement;
+          }
+          if (currentElement.type === "gallery" || currentElement.type === "embed" || currentElement.type === "scripted" || currentElement.type === "code" || currentElement.type === "terminal" || currentElement.type === "table" || currentElement.type === "blocks") {
+            return drag.canonicalTextGeometry
+              ? updateCanonicalSurfaceForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
+              : currentElement;
+          }
+          if (currentElement.type === "divider" || currentElement.type === "topics" || currentElement.type === "plot" || currentElement.type === "interactive") {
+            return updateCanonicalElementForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
+              parentWidthPx: drag.parentWidthPx,
+              parentHeightPx: drag.parentHeightPx,
+              initialLeftPx: 0,
+              initialTopPx: 0,
+              initialRightPx: 0,
+              initialBottomPx: 0,
+              initialWidthPx: 0,
+              initialHeightPx: 0,
+            });
+          }
+          return currentElement;
+        });
 
-              return updateContainerForCanvasDrag(
-                element,
-                drag.deltaX,
-                drag.deltaY,
-                drag.containerGeometry,
-              );
-            }
-
-            if (element.type === "text") {
-              return drag.canonicalTextGeometry
-                ? updateCanonicalTextForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                : element;
-            }
-
-            if (element.type === "image") {
-              return drag.canonicalTextGeometry
-                ? updateCanonicalImageForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                : element;
-            }
-
-            if (element.type === "gallery" || element.type === "embed" || element.type === "scripted") {
-              return drag.canonicalTextGeometry
-                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                : element;
-            }
-
-            if (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "blocks") {
-              return drag.canonicalTextGeometry
-                ? updateCanonicalSurfaceForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
-                : element;
-            }
-            if (element.type === "divider" || element.type === "topics" || element.type === "plot" || element.type === "interactive") {
-              return updateCanonicalElementForCanvasDrag(element, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry ?? {
-                parentWidthPx: drag.parentWidthPx,
-                parentHeightPx: drag.parentHeightPx,
-                initialLeftPx: 0,
-                initialTopPx: 0,
-                initialRightPx: 0,
-                initialBottomPx: 0,
-                initialWidthPx: 0,
-                initialHeightPx: 0,
-              });
-            }
-
-            return element;
-          },
-        );
-
-        if (elements === slide.elements) {
-          return current;
-        }
-
-        return {
-          ...current,
-          slides: current.slides.map((currentSlide, index) =>
-            index === selectedSlideIndex
-              ? { ...currentSlide, elements }
-              : currentSlide,
-          ),
-        };
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
@@ -2865,9 +2902,10 @@ export function EditorWorkspace({
     ));
   }
 
-  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, target: ImageMediaAuthoringTarget) {
+  function commitCanvasCrop(crop: NonNullable<CanvasCropDragState["initialCrop"]>, target: OwnedImageMediaAuthoringTarget) {
     const normalized = normalizeCropCanvasValue(crop);
-    commitPresentationAction(
+    commitAuthoringAction(
+      target.authoringTarget,
       {
         kind: "canvas.crop",
         labelKey: "history.element.setting",
@@ -2942,7 +2980,7 @@ export function EditorWorkspace({
     event: ReactPointerEvent<HTMLButtonElement>,
     direction: CanvasResizeDirection,
   ) {
-    if (rootDefinitionMode || cropEditingTarget || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+    if (cropEditingTarget || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
       return;
     }
 
@@ -2961,6 +2999,10 @@ export function EditorWorkspace({
     const canvas = slideCanvasRef.current;
 
     if (!canvas || !isCanvasResizable(selectedDocumentElement)) {
+      return;
+    }
+
+    if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return;
     }
 
@@ -3027,7 +3069,9 @@ export function EditorWorkspace({
     setCanvasGuideBounds(snap.parentBounds);
     canvasResizeRef.current = {
       pointerId: event.pointerId,
+      authoringTarget,
       elementId: selectedDocumentElement.id,
+      elementType: selectedDocumentElement.type,
       handle: event.currentTarget,
       direction,
       startClientX: event.clientX,
@@ -3166,22 +3210,31 @@ export function EditorWorkspace({
 
     canvasResizeRef.current = null;
     clearCanvasGuides();
-    commitPresentationAction(
+    commitAuthoringAction(
+      resize.authoringTarget,
       {
         kind: "canvas.resize",
         labelKey: "history.element.setting",
         labelParams: { setting: "canvas.resize" },
       },
-      (current) => {
-        const slide = current.slides[selectedSlideIndex];
-        if (!slide) {
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        const element = elements ? findElementById(elements, resize.elementId) : null;
+        if (
+          !elements ||
+          !element ||
+          element.type !== resize.elementType ||
+          isProtectedRootContainer(current, authoringTarget, resize.elementId)
+        ) {
           return current;
         }
 
-        const elements = updateElementById(
-          slide.elements,
+        const nextElements = updateElementById(
+          elements,
           resize.elementId,
-          (element) => {
+          (currentElement) => {
+            if (currentElement.type !== resize.elementType) return currentElement;
+            const element = currentElement;
             let nextElement: PresentationElement = element;
 
             if (element.type === "container") {
@@ -3243,18 +3296,9 @@ export function EditorWorkspace({
           },
         );
 
-        if (elements === slide.elements) {
-          return current;
-        }
-
-        return {
-          ...current,
-          slides: current.slides.map((currentSlide, index) =>
-            index === selectedSlideIndex
-              ? { ...currentSlide, elements }
-              : currentSlide,
-          ),
-        };
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
@@ -3282,7 +3326,7 @@ export function EditorWorkspace({
   }
 
   function handleFocalPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (rootDefinitionMode || !canvasFocalOverlay || !focalEditingTarget) {
+    if (!canvasFocalOverlay || !focalEditingTarget) {
       return;
     }
 
@@ -3313,9 +3357,10 @@ export function EditorWorkspace({
 
   function commitCanvasFocalPoint(
     focalPoint: ImageFocalPoint,
-    target: ImageMediaAuthoringTarget,
+    target: OwnedImageMediaAuthoringTarget,
   ) {
-    commitPresentationAction(
+    commitAuthoringAction(
+      target.authoringTarget,
       {
         kind: "canvas.focalPoint",
         labelKey: "history.element.setting",
