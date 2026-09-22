@@ -766,6 +766,14 @@ interface PendingElementDeletion {
   elementType: PresentationElement["type"];
 }
 
+interface PendingQrSelection {
+  target: AuthoringTarget;
+  sourceElementId: string;
+  qrElementId: string;
+  qrSource: string;
+  beforePresentation: Presentation;
+}
+
 function areAuthoringTargetsEqual(
   left: AuthoringTarget,
   right: AuthoringTarget,
@@ -1188,6 +1196,7 @@ export function EditorWorkspace({
 
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
+  const pendingQrSelectionRef = useRef<PendingQrSelection | null>(null);
   const [galleryItemSelection, setGalleryItemSelection] =
     useState<GalleryItemSelection | null>(null);
   const [selectedTableStructuralNode, setSelectedTableStructuralNode] =
@@ -1196,6 +1205,33 @@ export function EditorWorkspace({
     useState<PendingElementDeletion | null>(null);
   const [pendingTextStyleReset, setPendingTextStyleReset] = useState<"title" | "subtitle" | "body" | "caption" | null>(null);
   const [pendingStyleDetach, setPendingStyleDetach] = useState<PendingStyleDetach | null>(null);
+
+  useEffect(() => {
+    const pending = pendingQrSelectionRef.current;
+    if (!pending) return;
+
+    if (!areAuthoringTargetsEqual(authoringTarget, pending.target)) {
+      pendingQrSelectionRef.current = null;
+      return;
+    }
+
+    if (presentation === pending.beforePresentation) return;
+
+    pendingQrSelectionRef.current = null;
+    const elements = resolveAuthoringElements(presentation, pending.target);
+    const source = elements ? findElementById(elements, pending.sourceElementId) : undefined;
+    const qr = elements ? findElementById(elements, pending.qrElementId) : undefined;
+    if (
+      !source ||
+      !qr ||
+      qr.type !== "image" ||
+      qr.src !== pending.qrSource
+    ) {
+      return;
+    }
+
+    setSelectedElement({ id: qr.id, type: "image" });
+  }, [authoringTarget, presentation]);
 
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
@@ -4218,7 +4254,17 @@ export function EditorWorkspace({
       return;
     }
 
-    let createdElementId: string | null = null;
+    const newElement = createQrImageElement(href, collectPresentationAuthoringIds(presentation));
+    if (!newElement) return;
+
+    pendingQrSelectionRef.current = {
+      target,
+      sourceElementId,
+      qrElementId: newElement.id,
+      qrSource: newElement.src,
+      beforePresentation: presentation,
+    };
+
     commitAuthoringAction(
       target,
       {
@@ -4242,22 +4288,16 @@ export function EditorWorkspace({
         }
         if (isProtectedRootContainer(current, authoringTarget, sourceElementId)) return current;
 
-        const newElement = createQrImageElement(href, collectPresentationAuthoringIds(current));
-        if (!newElement) return current;
+        if (collectPresentationAuthoringIds(current).has(newElement.id)) return current;
         const nextElements = insertElementAfterId(
           elements,
           sourceElementId,
           newElement,
         );
         if (nextElements === elements) return current;
-        createdElementId = newElement.id;
         return replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
-
-    if (createdElementId !== null) {
-      setSelectedElement({ id: createdElementId, type: "image" });
-    }
   }
 
   // ==========================================================

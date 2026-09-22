@@ -35,7 +35,7 @@ function rootContainer(presentation: Presentation): ContainerElement {
   return root;
 }
 
-function presentation(): Presentation {
+function presentation(options: { effectiveContainerFit?: boolean } = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "sm6d5-presentation",
@@ -64,12 +64,27 @@ function presentation(): Presentation {
         hidden: false,
         kind: "unordered",
         items: [],
+      }, {
+        id: "image-element",
+        type: "image",
+        hidden: false,
+        src: "/reserved.png",
+        alt: "Reserved QR candidate",
+        fit: "contain",
       }],
     }],
     linkedStyles: [{
       id: "container-style",
       name: "Root Container Style",
-      layout: { children: { gap: 12, direction: "row" } },
+      layout: {
+        children: {
+          gap: 12,
+          direction: "row",
+          ...(options.effectiveContainerFit
+            ? { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } }
+            : {}),
+        },
+      },
       style: { background: { color: "#112233" } },
     }, {
       target: "topics",
@@ -92,6 +107,7 @@ function presentation(): Presentation {
           hidden: false,
           children: [],
           layout: { children: { direction: "column" } },
+          ...(options.effectiveContainerFit ? { linkedStyleId: "container-style" } : {}),
         }, {
           id: "root-text",
           type: "text",
@@ -348,6 +364,25 @@ describe("SM6D5 Root specialized authoring", () => {
     expect(failedSave).not.toHaveBeenCalled();
   });
 
+  it("materializes an effective linked Container Fit before changing the Root owner", async () => {
+    const source = presentation({ effectiveContainerFit: true });
+    const onSave = await mount(source);
+    await selectElement("shared-container");
+    const fit = host.querySelector<HTMLSelectElement>("#container-children-fit");
+    if (!fit) throw new Error("Expected Container Fit control");
+
+    await act(async () => changeSelect(fit, "cover"));
+    const saved = await save(onSave);
+    const shared = rootElement(saved, "shared-container");
+    expect(shared.type === "container" ? shared.layout?.children?.fit : undefined).toEqual({
+      mode: "cover",
+      sourceWidth: 800,
+      sourceHeight: 600,
+    });
+    expect(shared.type === "container" ? shared.linkedStyleId : undefined).toBe("container-style");
+    expect(saved.slides).toEqual(source.slides);
+  });
+
   it("creates Root QR Images after editable sources, preserves selection/history, and blocks the canonical Root Container boundary", async () => {
     const source = presentation();
     const onSave = await mount(source);
@@ -360,8 +395,21 @@ describe("SM6D5 Root specialized authoring", () => {
     const root = rootContainer(saved);
     const textIndex = root.children.findIndex((element) => element.id === "root-text");
     expect(root.children[textIndex + 1]?.type).toBe("image");
-    expect(root.children[textIndex + 1]?.id).not.toBe("shared-container");
+    const qrId = root.children[textIndex + 1]?.id;
+    expect(qrId).toBeDefined();
+    expect(qrId).not.toBe("image-element");
     expect(saved.slides).toEqual(source.slides);
+
+    const elementsTab = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Elements");
+    if (!elementsTab) throw new Error("Expected Elements tab after QR creation");
+    await act(async () => elementsTab.click());
+    const selectedTreeItems = Array.from(host.querySelectorAll<HTMLElement>('[role="treeitem"][aria-selected="true"]'));
+    expect(selectedTreeItems).toHaveLength(1);
+    expect(selectedTreeItems[0]?.textContent).toContain("Image");
+    const sourceTreeItem = Array.from(host.querySelectorAll<HTMLElement>('[role="treeitem"]'))
+      .find((item) => item.textContent?.includes("Text"));
+    expect(sourceTreeItem?.getAttribute("aria-selected")).toBe("false");
 
     await replay("z");
     saved = await save(onSave);
@@ -371,6 +419,10 @@ describe("SM6D5 Root specialized authoring", () => {
     expect(rootContainer(saved).children[textIndex + 1]?.type).toBe("image");
 
     await selectElement("root-container");
+    const inspectorTab = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Inspector");
+    if (!inspectorTab) throw new Error("Expected Inspector tab after QR selection");
+    await act(async () => inspectorTab.click());
     expect(host.querySelector("#container-direction")).not.toBeNull();
     expect(Array.from(host.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.includes("QR"))).toBe(false);
     const blockedSave = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
