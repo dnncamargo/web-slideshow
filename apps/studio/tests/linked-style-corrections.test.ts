@@ -35,6 +35,42 @@ describe("Linked Style correction contracts", () => {
     expect(edited.linkedStyles?.[0]?.layout?.children?.gap).toBe(24);
   });
 
+  it.each([
+    ["Root Definition", {
+      id: "root-container", type: "container", hidden: false, linkedStyleId: "card", children: [],
+    }],
+    ["local Root child", {
+      id: "local-container", type: "container", hidden: false, linkedStyleId: "card", children: [],
+    }],
+  ] as const)("protects a Linked Style referenced only by a %s", (_label, usedElement) => {
+    const document = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 12 } } }],
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: _label === "Root Definition"
+          ? usedElement
+          : { id: "root-container", type: "container", hidden: false, children: [] },
+      }],
+      defaultRootDefinitionId: "root-definition",
+      slides: [{
+        id: "slide",
+        title: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        ...(_label === "local Root child" ? {
+          localRootChildren: [{ targetContainerId: "root-container", children: [usedElement] }],
+        } : {}),
+      }],
+    });
+
+    expect(removeUnusedLinkedStyle(document, "card")).toBeUndefined();
+  });
+
   it("keeps source based on authorship and preserves string Length values", () => {
     const document = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [{ id: "c", type: "container", hidden: false, linkedStyleId: "card", style: { borderRadius: 16 }, children: [] }] }], palette: { colors: [{ id: "accent", name: "Accent", value: "#fff" }] }, linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 12 } }, style: { borderRadius: "1rem", color: { kind: "palette", colorId: "accent" } } }] });
     const container = document.slides[0]!.elements[0]!;

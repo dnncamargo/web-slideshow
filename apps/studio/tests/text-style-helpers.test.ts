@@ -155,6 +155,61 @@ describe("presentation typography style authoring", () => {
     expect(used.slides[0]?.elements[0]).toMatchObject({ type: "text", variant: "quote", content: "x" });
   });
 
+  it.each([
+    ["Root Definition", { id: "root-text", type: "text", hidden: false, variant: "quote", content: "root" }],
+    ["local Root child", { id: "local-text", type: "text", hidden: false, variant: "quote", content: "local" }],
+  ] as const)("treats a custom style used only by a %s as in use", (_label, usedElement) => {
+    const created = addCustomTextStyle(base(), "Quote", "body");
+    const presentation = PresentationSchema.parse({
+      ...created,
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: _label === "Root Definition" ? [usedElement] : [],
+        },
+      }],
+      defaultRootDefinitionId: "root-definition",
+      slides: [{
+        id: "slide",
+        title: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        ...(_label === "local Root child" ? {
+          localRootChildren: [{ targetContainerId: "root-container", children: [usedElement] }],
+        } : {}),
+      }],
+    });
+
+    expect(isTextStyleUsed(presentation, "quote")).toBe(true);
+    expect(removeUnusedCustomTextStyle(presentation, "quote")).toBeNull();
+  });
+
+  it("keeps detached Root Definition text outside the current usage semantics", () => {
+    const created = addCustomTextStyle(base(), "Quote", "body");
+    const presentation = PresentationSchema.parse({
+      ...created,
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [{ ...textElement(), variant: "body", styleDetached: true }],
+        },
+      }],
+      defaultRootDefinitionId: "root-definition",
+      slides: [{ id: "slide", title: "", elements: [], rootDefinitionId: "root-definition" }],
+    });
+
+    expect(isTextStyleUsed(presentation, "body")).toBe(false);
+  });
+
   it("projects every matching text element in canonical slide and hierarchy order", () => {
     const first = textElement();
     const second = { ...textElement(), id: "nested-quote" };

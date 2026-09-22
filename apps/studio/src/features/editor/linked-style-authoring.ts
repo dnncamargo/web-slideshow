@@ -15,6 +15,7 @@ import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow
 
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
+import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
 import { createTextStyleId } from "./text-style-helpers";
 import type { LinkedStyleProperty } from "./linked-style-property-authoring";
 
@@ -533,8 +534,11 @@ export function renameLinkedStyle(presentation: Presentation, linkedStyleId: str
 
 export function removeUnusedLinkedStyle(presentation: Presentation, linkedStyleId: string): Presentation | undefined {
   if (!presentation.linkedStyles?.some((style) => style.id === linkedStyleId)) return undefined;
-  const referenced = presentation.slides.some((slide) =>
-    (collectLinkedStyleReferenceCounts(slide.elements).get(linkedStyleId) ?? 0) > 0);
+  const referenceCounts = new Map<string, number>();
+  forEachPresentationAuthoringTree(presentation, (elements) => {
+    collectLinkedStyleReferenceCounts(elements, referenceCounts);
+  });
+  const referenced = (referenceCounts.get(linkedStyleId) ?? 0) > 0;
   if (referenced) return undefined;
   const linkedStyles = presentation.linkedStyles.filter((style) => style.id !== linkedStyleId);
   return PresentationSchema.parse({ ...presentation, ...(linkedStyles.length === 0 ? { linkedStyles: undefined } : { linkedStyles }) });

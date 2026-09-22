@@ -20,7 +20,8 @@ import {
   stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
-import { updateElementById, visitElements } from "./element-hierarchy";
+import { someElement, updateElementById, visitElements } from "./element-hierarchy";
+import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
 
 export type TextStyleOwnedProperty =
   | { scope: "typography"; property: (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number] }
@@ -380,7 +381,14 @@ export function propagateTextStyleDefinitionChanges(
 }
 
 export function isTextStyleUsed(presentation: Presentation, id: string): boolean {
-  return findTextStyleUsageLocations(presentation, id).length > 0;
+  let used = false;
+  forEachPresentationAuthoringTree(presentation, (elements) => {
+    if (used) return;
+    used = someElement(elements, (element) =>
+      element.type === "text" && element.variant === id && element.styleDetached !== true,
+    );
+  });
+  return used;
 }
 
 export function findTextStyleUsageLocations(
