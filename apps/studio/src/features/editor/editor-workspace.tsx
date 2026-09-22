@@ -1065,6 +1065,15 @@ export function EditorWorkspace({
     dispatchHistory({ type: "commit", meta, update });
   }
 
+  function commitPresentationGlobalAction(
+    meta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-commit" });
+    authoringTransactionTargetRef.current = null;
+    dispatchHistory({ type: "commit", meta, update });
+  }
+
   function commitAuthoringAction(
     target: AuthoringTarget,
     meta: HistoryActionMeta,
@@ -1148,7 +1157,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -1442,7 +1451,7 @@ export function EditorWorkspace({
   }, [authoringTarget, presentation, resolvedAuthoringTarget, retainedSlideIndex]);
 
   useEffect(() => {
-    if (rootDefinitionMode && rightPanelMode !== "editor") {
+    if (rootDefinitionMode && rightPanelMode === "notes") {
       setRightPanelMode("editor");
     }
   }, [rootDefinitionMode, rightPanelMode]);
@@ -3838,7 +3847,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addNamedPresentationPaletteColor(name: string, color: Color) {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.add",
         labelKey: "history.element.setting",
@@ -3852,7 +3861,7 @@ export function EditorWorkspace({
   }
 
   function removePresentationPaletteColor(colorId: string) {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.remove",
         labelKey: "history.element.setting",
@@ -3896,7 +3905,7 @@ export function EditorWorkspace({
   function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
     const result = addCustomLibraryPaletteToPresentation(presentation, palette);
     if (!result.ok) return { ok: false, reason: result.reason };
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.import",
         labelKey: "history.element.setting",
@@ -3916,7 +3925,7 @@ export function EditorWorkspace({
       return { kind: result.kind, addedFaces: 0 };
     }
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "font.import",
         labelKey: "history.element.setting",
@@ -3937,7 +3946,7 @@ export function EditorWorkspace({
     if (!fontResource) return "not-found";
     if (presentationUsesFontFamily(presentation, fontResource.family)) return "in-use";
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "font.remove",
         labelKey: "history.element.setting",
@@ -5822,9 +5831,8 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "resources"}
-                disabled={rootDefinitionMode}
+                disabled={false}
                 onClick={() => {
-                  if (rootDefinitionMode) return;
                   setRightPanelMode((current) =>
                     current === "resources" ? "editor" : "resources",
                   );
@@ -6104,6 +6112,7 @@ export function EditorWorkspace({
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
             onApplyElementStyle={applyCustomLibraryItem}
+            allowElementStyleApply={!rootDefinitionMode}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}

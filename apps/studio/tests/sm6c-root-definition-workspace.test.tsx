@@ -236,7 +236,7 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("keeps Notes and Resources unavailable without touching the notes repository", () => {
+  it("keeps Notes unavailable but allows Resources without touching the notes repository", () => {
     const getNotes = vi.fn(() => new Promise<PresentationNotes>(() => {}));
     const setSlideNote = vi.fn(async () => {});
     const notesRepository: PresentationNotesRepository = {
@@ -250,14 +250,16 @@ describe("SM6C Root Definition workspace shell", () => {
     const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Custom Resources");
     expect(notes?.disabled).toBe(true);
-    expect(resources?.disabled).toBe(true);
+    expect(resources?.disabled).toBe(false);
 
     act(() => {
       notes?.click();
       resources?.click();
     });
     expect(containerElement.textContent).not.toContain("Speaker notes");
-    expect(containerElement.textContent).not.toContain("Custom Resources workspace");
+    expect(containerElement.querySelector('[aria-label="Custom Resources"]')).not.toBeNull();
+    expect(containerElement.querySelector('[aria-label="Custom Resources"] button[disabled]'))
+      .not.toBeNull();
     expect(getNotes.mock.calls.flat()).not.toContain(
       "root-definition-workspace:root-1",
     );

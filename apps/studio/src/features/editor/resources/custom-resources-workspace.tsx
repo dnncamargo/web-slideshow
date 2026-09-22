@@ -50,6 +50,7 @@ interface CustomResourcesWorkspaceProps {
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
   onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
+  allowElementStyleApply?: boolean;
   onAddPresentationColor: (name: string, value: Color) => void;
   onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
@@ -155,6 +156,7 @@ export function CustomResourcesWorkspace({
   onAddLibraryPalette,
   onAddLibraryFont,
   onApplyElementStyle,
+  allowElementStyleApply = true,
   onAddPresentationColor,
   onUpdatePresentationColor,
   onRemovePresentationColor,
@@ -261,12 +263,12 @@ export function CustomResourcesWorkspace({
           <InspectorSection title={t("customResources.elementStyles")} open={resourceSections.elementStyles} onOpenChange={(open) => onResourceSectionChange("elementStyles", open)}>
             <div className={styles.group}>
               <div className={styles.groupHeader}>
-                <button type="button" className={styles.resourceAction} onClick={() => setElementStyleChooserOpen((open) => !open)}>
+                <button type="button" className={styles.resourceAction} disabled={!allowElementStyleApply} onClick={() => setElementStyleChooserOpen((open) => !open)}>
                   {elementStyleChooserOpen ? t("customResources.close") : t("customResources.addSavedElement")}
                 </button>
               </div>
             </div>
-            {elementStyleChooserOpen ? <CustomLibraryApplyPicker
+            {elementStyleChooserOpen && allowElementStyleApply ? <CustomLibraryApplyPicker
               repository={customLibraryRepository}
               onApply={onApplyElementStyle}
               actionClassName={styles.resourceAction}
