@@ -118,7 +118,7 @@ const englishMessages = {
   "notes.loadError": "Could not load notes.",
   "notes.saveError": "Could not save note.",
   "editor.customResources": "Custom Resources",
-  "editor.masterContext": "Slide mestre · {name}",
+  "editor.masterContext": "Master slide · {name}",
   "editor.exitMasterEditing": "Exit master editing",
   "editor.masterReadOnly": "Master content is read-only in this workspace.",
   "customResources.title": "Resources",
