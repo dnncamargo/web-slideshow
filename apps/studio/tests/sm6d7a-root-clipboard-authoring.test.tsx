@@ -102,6 +102,12 @@ describe("SM6D7A Root clipboard authoring", () => {
     expect(ids).toContain("root-source");
     expect(ids).toContain("root-source-copy");
     expect(ids).not.toContain("root-definition-workspace:root-definition");
+
+    await pressKey("z", { ctrlKey: true });
+    expect(renderIds(host)).not.toContain("root-source-copy");
+    expect(renderIds(host)).toContain("root-source");
+    await pressKey("z", { ctrlKey: true, shiftKey: true });
+    expect(renderIds(host)).toContain("root-source-copy");
   });
 
   it("does not cut the canonical Root Container", async () => {
@@ -123,6 +129,13 @@ describe("SM6D7A Root clipboard authoring", () => {
     expect(ids).not.toContain("root-source");
     expect(ids).toContain("root-source-copy");
     expect(ids.filter((id) => id === "root-container")).toHaveLength(1);
+
+    await pressKey("z", { ctrlKey: true });
+    expect(renderIds(host)).toContain("root-source");
+    expect(renderIds(host)).not.toContain("root-source-copy");
+    await pressKey("z", { ctrlKey: true, shiftKey: true });
+    expect(renderIds(host)).not.toContain("root-source");
+    expect(renderIds(host)).toContain("root-source-copy");
   });
 
   it("carries a Root snapshot to the retained Slide without moving the Root source", async () => {
