@@ -1064,7 +1064,7 @@ describe("Add Element -> Scripted flow", () => {
 
     const elements = [base];
 
-    const created = createElement("scripted", [slide(elements)]);
+    const created = createElement("scripted", new Set());
 
     const destination = resolveAddElementDestination(
       elements,

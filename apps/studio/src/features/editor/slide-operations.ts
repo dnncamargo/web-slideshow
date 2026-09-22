@@ -2,150 +2,9 @@ import type {
   ContainerElement,
   PresentationElement,
   Slide,
-  StructuredTableElement,
   TextElement,
   TopicItem,
 } from "@web-slideshow/document-schema";
-
-
-// ============================================================
-// BEGIN: COLETA DE IDs
-//
-// Tratamos IDs de slides e elementos como um único namespace
-// dentro da Presentation.
-//
-// O schema exige apenas strings não vazias, mas o Editor evita
-// colisões deliberadamente.
-// ============================================================
-
-function collectElementIds(
-  elements: readonly PresentationElement[],
-  ids: Set<string>,
-) {
-  for (const element of elements) {
-    ids.add(
-      element.id,
-    );
-
-
-    if (
-      element.type ===
-      "container"
-    ) {
-      collectElementIds(
-        element.children,
-        ids,
-      );
-    }
-
-    if (
-      element.type ===
-      "topics"
-    ) {
-      collectTopicSlotElementIds(
-        element.items,
-        ids,
-      );
-    }
-
-    if (
-      element.type ===
-        "table" &&
-      element.mode ===
-        "structured"
-    ) {
-      collectStructuredTableSlotElementIds(
-        element,
-        ids,
-      );
-    }
-  }
-}
-
-
-/**
- * Reaches every PresentationElement array owned by the TopicItem
- * ContentSlots, recursively through nested TopicItems. Blocks (and
- * Containers containing Blocks) located there must participate in the
- * authoring ID inventory.
- *
- * TopicItem/ContentSlot structure IDs are NOT collected here: they are
- * not PresentationElements and this duplicate-slide path has always
- * preserved them.
- */
-function collectTopicSlotElementIds(
-  items: readonly TopicItem[],
-  ids: Set<string>,
-): void {
-  for (const item of items) {
-    collectElementIds(
-      item.content.children,
-      ids,
-    );
-
-    collectTopicSlotElementIds(
-      item.children,
-      ids,
-    );
-  }
-}
-
-
-/**
- * Reaches every PresentationElement array owned by the Structured Table
- * header/column and row cell ContentSlots.
- *
- * Column/header/row/cell structural IDs are NOT collected here.
- */
-function collectStructuredTableSlotElementIds(
-  table: StructuredTableElement,
-  ids: Set<string>,
-): void {
-  for (const column of table.columns) {
-    collectElementIds(
-      column.header.children,
-      ids,
-    );
-  }
-
-  for (const row of table.rows) {
-    for (const cell of row.cells) {
-      collectElementIds(
-        cell.children,
-        ids,
-      );
-    }
-  }
-}
-
-
-
-function collectPresentationIds(
-  slides: readonly Slide[],
-): Set<string> {
-  const ids =
-    new Set<string>();
-
-
-  for (const slide of slides) {
-    ids.add(
-      slide.id,
-    );
-
-
-    collectElementIds(
-      slide.elements,
-      ids,
-    );
-  }
-
-
-  return ids;
-}
-
-// ============================================================
-// END: COLETA DE IDs
-// ============================================================
 
 
 // ============================================================
@@ -165,28 +24,16 @@ function createUniqueId(
   baseId: string,
   usedIds: Set<string>,
 ): string {
-  if (
-    !usedIds.has(
-      baseId,
-    )
-  ) {
-    return baseId;
-  }
-
-
+  let id = baseId;
   let suffix = 2;
 
-
-  while (
-    usedIds.has(
-      `${baseId}-${suffix}`,
-    )
-  ) {
+  while (usedIds.has(id)) {
+    id = `${baseId}-${suffix}`;
     suffix += 1;
   }
 
-
-  return `${baseId}-${suffix}`;
+  usedIds.add(id);
+  return id;
 }
 
 // ============================================================
@@ -535,24 +382,13 @@ export type SlideLayoutPreset =
 
 export function createSlideFromPreset(
   preset: SlideLayoutPreset,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): Slide {
-  const usedIds =
-    collectPresentationIds(
-      slides,
-    );
-
-
   const slideId =
     createUniqueId(
       "slide",
       usedIds,
     );
-
-
-  usedIds.add(
-    slideId,
-  );
 
 
   // ----------------------------------------------------------
@@ -568,11 +404,6 @@ export function createSlideFromPreset(
         `${slideId}-${name}`,
         usedIds,
       );
-
-
-    usedIds.add(
-      id,
-    );
 
 
     return id;
@@ -769,11 +600,11 @@ export function createSlideFromPreset(
 // ============================================================
 
 export function createBlankSlide(
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): Slide {
   return createSlideFromPreset(
     "blank",
-    slides,
+    usedIds,
   );
 }
 
@@ -796,14 +627,8 @@ export function createBlankSlide(
 
 export function duplicateSlideWithUniqueIds(
   source: Slide,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): Slide {
-  const usedIds =
-    collectPresentationIds(
-      slides,
-    );
-
-
   const clone =
     structuredClone(
       source,
@@ -815,11 +640,6 @@ export function duplicateSlideWithUniqueIds(
       `${source.id}-copy`,
       usedIds,
     );
-
-
-  usedIds.add(
-    id,
-  );
 
 
   return {

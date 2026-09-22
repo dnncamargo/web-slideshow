@@ -41,25 +41,23 @@ function slide(elements: Slide["elements"] = []): Slide {
 
 describe("Embed element authoring", () => {
   it("creates an Embed", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     expect(created.type).toBe("embed");
   });
 
   it("defaults the unique id to embed-element", () => {
-    expect(createElement("embed", []).id).toBe("embed-element");
+    expect(createElement("embed", new Set()).id).toBe("embed-element");
   });
 
   it("uses embed-element-2 on id collision", () => {
-    const created = createElement("embed", [
-      slide([embed({ id: "embed-element" })]),
-    ]);
+    const created = createElement("embed", new Set(["embed-element"]));
 
     expect(created.id).toBe("embed-element-2");
   });
 
   it("defaults hidden to false", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created.hidden).toBe(false);
@@ -67,7 +65,7 @@ describe("Embed element authoring", () => {
   });
 
   it("defaults src to https://example.com/", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created.src).toBe("https://example.com/");
@@ -75,7 +73,7 @@ describe("Embed element authoring", () => {
   });
 
   it("defaults title to Embedded content", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created.title).toBe("Embedded content");
@@ -83,7 +81,7 @@ describe("Embed element authoring", () => {
   });
 
   it("defaults style width to 60%", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created.layout?.width).toBe("60%");
@@ -91,7 +89,7 @@ describe("Embed element authoring", () => {
   });
 
   it("defaults style height to 55%", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created.layout?.height).toBe("55%");
@@ -99,7 +97,7 @@ describe("Embed element authoring", () => {
   });
 
   it("keeps Embed a leaf with no children or slots", () => {
-    const created = createElement("embed", []);
+    const created = createElement("embed", new Set());
 
     if (created.type === "embed") {
       expect(created).not.toHaveProperty("children");
@@ -109,7 +107,7 @@ describe("Embed element authoring", () => {
   });
 
   it("duplicates an Embed with a unique element id", () => {
-    const duplicate = duplicateElement(embed(), [slide()]);
+    const duplicate = duplicateElement(embed(), new Set());
 
     expect(duplicate.id).toBe("embed-1-copy");
 
@@ -119,7 +117,7 @@ describe("Embed element authoring", () => {
   it("duplicate preserves src", () => {
     const duplicate = duplicateElement(
       embed({ src: "https://player.example.com/live" }),
-      [slide()],
+      new Set(),
     );
 
     if (duplicate.type === "embed") {
@@ -130,7 +128,7 @@ describe("Embed element authoring", () => {
   it("duplicate preserves title", () => {
     const duplicate = duplicateElement(
       embed({ title: "Live chart" }),
-      [slide()],
+      new Set(),
     );
 
     if (duplicate.type === "embed") {
@@ -149,7 +147,7 @@ describe("Embed element authoring", () => {
         },
         style: { borderRadius: 12, background: { color: "#0f172a" } },
       }),
-      [slide()],
+      new Set(),
     );
 
     if (duplicate.type === "embed") {
@@ -161,7 +159,7 @@ describe("Embed element authoring", () => {
   it("duplicate layout is not the same reference as the source", () => {
     const source = embed({ layout: { width: "60%", height: "55%" } });
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "embed") {
       expect(duplicate.layout).not.toBe(source.layout);
@@ -175,7 +173,7 @@ describe("Embed element authoring", () => {
 
     const source = original;
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "embed") {
       duplicate.src = "https://changed.example.com/";

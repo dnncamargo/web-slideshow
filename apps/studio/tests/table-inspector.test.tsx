@@ -169,7 +169,7 @@ describe("TableInspector", () => {
     selectedTableStructuralNode = null;
     controls = {
       onAddColumn: (tableId) => {
-        const slides = addColumnToStructuredTable(wrapSlide(elementState), tableId);
+        const slides = addColumnToStructuredTable(wrapSlide(elementState), tableId, new Set());
         elementState = slides[0]!.elements[0]!;
         renderInspector();
       },
@@ -183,7 +183,7 @@ describe("TableInspector", () => {
         renderInspector();
       },
       onAddRow: (tableId) => {
-        const slides = addRowToStructuredTable(wrapSlide(elementState), tableId);
+        const slides = addRowToStructuredTable(wrapSlide(elementState), tableId, new Set());
         elementState = slides[0]!.elements[0]!;
         renderInspector();
       },

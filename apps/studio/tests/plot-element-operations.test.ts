@@ -12,7 +12,7 @@ describe("Plot element authoring", () => {
   });
 
   it("creates a canonical Plot with deterministic defaults", () => {
-    const created = createElement("plot", []);
+    const created = createElement("plot", new Set());
 
     expect(created).toMatchObject({
       id: "plot-element",
@@ -26,13 +26,7 @@ describe("Plot element authoring", () => {
   });
 
   it("uses plot-element-2 on id collision", () => {
-    const created = createElement("plot", [{
-      id: "slide-1",
-      title: "",
-      summary: "",
-      speakerNotes: "",
-      elements: [{ id: "plot-element", type: "plot", hidden: false, source: "" }],
-    }]);
+    const created = createElement("plot", new Set(["plot-element"]));
 
     expect(created.id).toBe("plot-element-2");
   });

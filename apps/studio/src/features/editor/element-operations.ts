@@ -65,50 +65,20 @@ export type ElementCreateType =
 // ============================================================
 
 // ============================================================
-// BEGIN: COLETA DE IDS
-// ============================================================
-
-function collectElementIds(
-  elements: readonly PresentationElement[],
-  ids: Set<string>,
-) {
-  for (const element of elements) {
-    collectAuthoringIds(element, ids);
-  }
-}
-
-export function collectPresentationElementIds(
-  slides: readonly Slide[],
-): Set<string> {
-  const ids = new Set<string>();
-
-  for (const slide of slides) {
-    collectElementIds(slide.elements, ids);
-  }
-
-  return ids;
-}
-
-// ============================================================
-// END: COLETA DE IDS
-// ============================================================
-
-// ============================================================
 // BEGIN: ID ÚNICO
 // ============================================================
 
 function createUniqueId(baseId: string, usedIds: Set<string>): string {
-  if (!usedIds.has(baseId)) {
-    return baseId;
-  }
-
+  let id = baseId;
   let suffix = 2;
 
-  while (usedIds.has(`${baseId}-${suffix}`)) {
+  while (usedIds.has(id)) {
+    id = `${baseId}-${suffix}`;
     suffix += 1;
   }
 
-  return `${baseId}-${suffix}`;
+  usedIds.add(id);
+  return id;
 }
 
 // ============================================================
@@ -274,10 +244,8 @@ function buildDefaultTopicItem(usedIds: Set<string>): CreatedTopicItem {
 }
 
 export function createDefaultTopicItem(
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): CreatedTopicItem {
-  const usedIds = collectPresentationElementIds(slides);
-
   return buildDefaultTopicItem(usedIds);
 }
 
@@ -971,10 +939,8 @@ export function resolveAddElementDestination(
 
 export function createElement(
   type: ElementCreateType,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): PresentationElement {
-  const usedIds = collectPresentationElementIds(slides);
-
   switch (type) {
     case "text": {
       return {
@@ -1367,10 +1333,8 @@ function clonePresentationElementWithUniqueIds(
 
 export function duplicateElement(
   source: PresentationElement,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): PresentationElement {
-  const usedIds = collectPresentationElementIds(slides);
-
   return clonePresentationElementWithUniqueIds(source, usedIds);
 }
 
@@ -2743,7 +2707,7 @@ function resolveGalleryDetachDestination(
 
 export function detachGalleryItemToImage(
   elements: PresentationElement[],
-  slides: readonly Slide[],
+  usedIds: Set<string>,
   galleryId: string,
   itemIndex: number,
   targetId: string,
@@ -2757,7 +2721,7 @@ export function detachGalleryItemToImage(
     return { elements, changed: false };
   }
 
-  const image = createElement("image", slides);
+  const image = createElement("image", usedIds);
   if (image.type !== "image") return { elements, changed: false };
 
   const detachedImage: PresentationElement = {
@@ -2920,8 +2884,8 @@ function applyStructuredTableMutation(
     table: StructuredTableElement,
     usedIds: Set<string>,
   ) => StructuredTableElement,
+  usedIds?: Set<string>,
 ): Slide[] {
-  const usedIds = collectPresentationElementIds(slides);
   let changed = false;
 
   const nextSlides = slides.map((slide) => {
@@ -2930,7 +2894,7 @@ function applyStructuredTableMutation(
         return element;
       }
 
-      return mutate(element, usedIds);
+      return mutate(element, usedIds ?? new Set());
     });
 
     if (elements === slide.elements) {
@@ -2948,6 +2912,7 @@ function applyStructuredTableMutation(
 export function addColumnToStructuredTable(
   slides: readonly Slide[],
   tableId: string,
+  usedIds: Set<string>,
 ): Slide[] {
   return applyStructuredTableMutation(slides, tableId, (table, usedIds) => {
     const column = buildStructuredColumn(usedIds);
@@ -2960,7 +2925,7 @@ export function addColumnToStructuredTable(
         cells: [...row.cells, buildStructuredCell(usedIds)],
       })),
     };
-  });
+  }, usedIds);
 }
 
 export function removeColumnFromStructuredTable(
@@ -3023,11 +2988,12 @@ export function moveColumnInStructuredTable(
 export function addRowToStructuredTable(
   slides: readonly Slide[],
   tableId: string,
+  usedIds: Set<string>,
 ): Slide[] {
   return applyStructuredTableMutation(slides, tableId, (table, usedIds) => ({
     ...table,
     rows: [...table.rows, buildStructuredRow(usedIds, table.columns.length)],
-  }));
+  }), usedIds);
 }
 
 export function removeRowFromStructuredTable(

@@ -67,7 +67,7 @@ function topics(id: string, items: TopicItem[]): TopicsElement {
 
 describe("Divider element authoring", () => {
   it("creates a canonical horizontal Divider", () => {
-    const created = createElement("divider", []);
+    const created = createElement("divider", new Set());
 
     expect(created).toEqual({
       id: "divider-element",
@@ -89,11 +89,11 @@ describe("Divider element authoring", () => {
       elements: [divider("divider-element")],
     };
 
-    expect(createElement("divider", [slide]).id).toBe("divider-element-2");
+    expect(createElement("divider", new Set(["divider-element"])).id).toBe("divider-element-2");
   });
 
   it("creates a Divider without persisted style defaults", () => {
-    const created = createElement("divider", []);
+    const created = createElement("divider", new Set());
 
     if (created.type === "divider") {
       expect(created.style).toBeUndefined();

@@ -78,6 +78,49 @@ describe("applyCustomLibraryItemToPresentation", () => {
     expect(style).toEqual(itemBefore);
   });
 
+  it("allocates applied recipe trees outside Root/local reservations", () => {
+    const original = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "root-library-apply",
+      title: "Item apply",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [
+            { id: "container-element", type: "text", hidden: false, variant: "body", content: "container" },
+            { id: "text-element", type: "text", hidden: false, variant: "body", content: "text" },
+            { id: "image-element", type: "text", hidden: false, variant: "body", content: "image" },
+          ],
+        },
+      }],
+      slides: [{ id: "slide", title: "Slide", summary: "", speakerNotes: "", elements: [] }],
+    });
+    const style = item({
+      type: "container",
+      properties: [],
+      children: [
+        { type: "text", properties: [{ path: "content", value: "Applied text" }] },
+        { type: "image", properties: [] },
+      ],
+    });
+    const before = structuredClone(original);
+    const result = applyCustomLibraryItemToPresentation(style, original, 0, null);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const applied = result.presentation.slides[0]?.elements[0];
+    expect(applied?.id).not.toBe("container-element");
+    if (applied?.type !== "container") return;
+    expect(applied.children.map((child) => child.id)).not.toContain("text-element");
+    expect(applied.children.map((child) => child.id)).not.toContain("image-element");
+    expect(original).toEqual(before);
+  });
+
   it("materializes a missing Text Style and keeps the applied variant resolvable", () => {
     const original = presentation();
     const style = item({ type: "text", properties: [

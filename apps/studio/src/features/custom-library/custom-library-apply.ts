@@ -1,7 +1,6 @@
 import {
   PresentationElementSchema,
   type PresentationElement,
-  type Slide,
 } from "@web-slideshow/document-schema";
 
 import {
@@ -134,13 +133,13 @@ function isValidRecipe(recipe: CustomLibraryElementRecipe): boolean {
 
 function buildRawCreateCandidate(
   recipe: CustomLibraryElementRecipe,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): { ok: true; element: PresentationElement } | { ok: false; reason: CustomLibraryApplyFailureReason } {
   if (!isElementCreateType(recipe.type)) {
     return { ok: false, reason: "unsupported-create-type" };
   }
 
-  const candidate = createElement(recipe.type, slides);
+  const candidate = createElement(recipe.type, usedIds);
 
   if (!applyRecipeProperties(candidate, recipe)) {
     return { ok: false, reason: "invalid-recipe-application" };
@@ -157,7 +156,7 @@ function buildRawCreateCandidate(
 
     const children: PresentationElement[] = [];
     for (const childRecipe of recipe.children) {
-      const child = buildRawCreateCandidate(childRecipe, slides);
+      const child = buildRawCreateCandidate(childRecipe, usedIds);
       if (!child.ok) {
         return child;
       }
@@ -174,7 +173,7 @@ function buildRawCreateCandidate(
 
 export function materializeCustomLibraryElementRecipe(
   recipe: CustomLibraryElementRecipe,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): CustomLibraryElementApplyResult {
   if (!isElementCreateType(recipe.type)) {
     return { ok: false, reason: "unsupported-create-type" };
@@ -184,12 +183,12 @@ export function materializeCustomLibraryElementRecipe(
     return { ok: false, reason: "invalid-recipe-application" };
   }
 
-  const raw = buildRawCreateCandidate(recipe, slides);
+  const raw = buildRawCreateCandidate(recipe, usedIds);
   if (!raw.ok) {
     return raw;
   }
 
-  const element = validateElement(duplicateElement(raw.element, slides));
+  const element = validateElement(duplicateElement(raw.element, usedIds));
   return element
     ? { ok: true, element }
     : { ok: false, reason: "invalid-recipe-application" };
@@ -198,7 +197,7 @@ export function materializeCustomLibraryElementRecipe(
 export function mergeCustomLibraryElementRecipe(
   recipe: CustomLibraryElementRecipe,
   target: PresentationElement,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): CustomLibraryElementApplyResult {
   if (recipe.type !== target.type) {
     return { ok: false, reason: "type-mismatch" };
@@ -224,7 +223,7 @@ export function mergeCustomLibraryElementRecipe(
 
     const children: PresentationElement[] = [];
     for (const childRecipe of recipe.children) {
-      const child = buildRawCreateCandidate(childRecipe, slides);
+      const child = buildRawCreateCandidate(childRecipe, usedIds);
       if (!child.ok) {
         return child;
       }
@@ -238,7 +237,7 @@ export function mergeCustomLibraryElementRecipe(
     return { ok: false, reason: "invalid-recipe-application" };
   }
 
-  const freshCandidate = duplicateElement(validatedCandidate, slides);
+  const freshCandidate = duplicateElement(validatedCandidate, usedIds);
   const result = structuredClone(target);
 
   for (const property of recipe.properties) {
