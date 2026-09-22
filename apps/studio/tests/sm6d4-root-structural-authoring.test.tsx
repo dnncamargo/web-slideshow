@@ -422,15 +422,15 @@ describe("SM6D4 Root structural authoring", () => {
     expect(saved.slides).toEqual(source.slides);
   });
 
-  it("enables Root Topics structural authoring while keeping linked-style relationship writes unavailable", async () => {
+  it("enables Root Topics structural authoring and linked-style relationship writes", async () => {
     const onSave = await mount(topicsPresentation());
     await selectCanvasElement("topics-root");
     await openInspector();
 
     const linkedStyle = host.querySelector<HTMLSelectElement>("#topics-linked-style");
-    expect(linkedStyle?.disabled).toBe(true);
+    expect(linkedStyle?.disabled).toBe(false);
     const detachStyle = host.querySelector<HTMLButtonElement>('[data-presentation-topics-detach-linked-style="true"]');
-    if (detachStyle) expect(detachStyle.disabled).toBe(true);
+    if (detachStyle) expect(detachStyle.disabled).toBe(false);
     const addTopic = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.includes("Add topic"));
     if (!addTopic) throw new Error("Expected Add topic control");

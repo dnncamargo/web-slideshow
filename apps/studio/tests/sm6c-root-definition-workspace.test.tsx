@@ -319,15 +319,16 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(containerElement.querySelector("#image-src")).toBeNull();
   });
 
-  it("keeps the Root Container Inspector read-only", () => {
+  it("mounts the normal Root Container Inspector while preserving structural guards", () => {
     render();
 
     const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
     if (!rootContainer) throw new Error("expected Root Definition Container in Canvas");
     act(() => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
-    expect(containerElement.textContent).toContain("Master content is read-only in this workspace.");
-    expect(containerElement.querySelector("#container-direction")).toBeNull();
+    expect(containerElement.textContent).not.toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector("#container-direction")).not.toBeNull();
+    expect(containerElement.querySelector('button[aria-label="Move up"]')).toBeNull();
   });
 
   it("allows descendant Tree movement while preserving Root Definition ownership", async () => {

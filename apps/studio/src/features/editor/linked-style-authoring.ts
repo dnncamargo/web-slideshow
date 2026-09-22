@@ -287,9 +287,19 @@ export function attachLinkedStyle(
   containerId: string,
   linkedStyleId: string,
 ): Presentation {
+  return replaceContainerInSlide(presentation, slideIndex, containerId, (container) =>
+    attachLinkedContainerStyleToElement(presentation, container, linkedStyleId) ?? container,
+  );
+}
+
+/** Applies the canonical container linked-style relationship to one element. */
+export function attachLinkedContainerStyleToElement(
+  presentation: Presentation,
+  container: ContainerElement,
+  linkedStyleId: string,
+): ContainerElement | null {
   const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
-  if (linked === undefined) return presentation;
-  return replaceContainerInSlide(presentation, slideIndex, containerId, (container) => adoptLinkedContainerStyle(container, linked));
+  return linked === undefined ? null : adoptLinkedContainerStyle(container, linked);
 }
 
 type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
@@ -400,9 +410,21 @@ export function attachLinkedTopicsStyle(
   topicsId: string,
   linkedStyleId: string,
 ): Presentation {
-  const linked = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle => "target" in style && style.target === "topics" && style.id === linkedStyleId);
-  if (linked === undefined) return presentation;
-  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => removeLinkedTopicsProperties(topics, linked));
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) =>
+    attachLinkedTopicsStyleToElement(presentation, topics, linkedStyleId) ?? topics,
+  );
+}
+
+/** Applies the canonical Topics linked-style relationship to one element. */
+export function attachLinkedTopicsStyleToElement(
+  presentation: Presentation,
+  topics: TopicsElement,
+  linkedStyleId: string,
+): TopicsElement | null {
+  const linked = presentation.linkedStyles?.find((style): style is LinkedTopicsStyle =>
+    "target" in style && style.target === "topics" && style.id === linkedStyleId,
+  );
+  return linked === undefined ? null : removeLinkedTopicsProperties(topics, linked);
 }
 
 export function detachLinkedTopicsStyle(
@@ -410,24 +432,32 @@ export function detachLinkedTopicsStyle(
   slideIndex: number,
   topicsId: string,
 ): Presentation {
-  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) => {
-    if (topics.linkedStyleId === undefined) return topics;
-    const linked = presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
-    if (linked === undefined || !("target" in linked) || linked.target !== "topics") return topics;
-    const { linkedStyleId: _linkedStyleId, ...unlinked } = topics;
-    const layout = { ...(topics.layout ?? {}) } as PropertyBag;
-    for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
-      if (topics.layout?.[property] === undefined && linked.layout?.[property] !== undefined) layout[property] = linked.layout[property];
-    }
-    return {
-      ...unlinked,
-      ...(topics.kind === undefined && linked.kind !== undefined ? { kind: linked.kind } : {}),
-      ...(Object.keys(layout).length > 0 ? { layout: layout as TopicsElement["layout"] } : {}),
-      ...(topics.rootMarkerStyle === undefined && linked.rootMarkerStyle !== undefined ? { rootMarkerStyle: linked.rootMarkerStyle } : {}),
-      ...(topics.markerColor === undefined && linked.markerColor !== undefined ? { markerColor: linked.markerColor } : {}),
-      ...(topics.itemGap === undefined && linked.itemGap !== undefined ? { itemGap: linked.itemGap } : {}),
-    };
-  });
+  return replaceTopicsInSlide(presentation, slideIndex, topicsId, (topics) =>
+    detachLinkedTopicsStyleFromElement(presentation, topics) ?? topics,
+  );
+}
+
+/** Materializes effective Topics linked-style values and removes the relationship. */
+export function detachLinkedTopicsStyleFromElement(
+  presentation: Presentation,
+  topics: TopicsElement,
+): TopicsElement | null {
+  if (topics.linkedStyleId === undefined) return null;
+  const linked = presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
+  if (linked === undefined || !("target" in linked) || linked.target !== "topics") return null;
+  const { linkedStyleId: _linkedStyleId, ...unlinked } = topics;
+  const layout = { ...(topics.layout ?? {}) } as PropertyBag;
+  for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+    if (topics.layout?.[property] === undefined && linked.layout?.[property] !== undefined) layout[property] = linked.layout[property];
+  }
+  return {
+    ...unlinked,
+    ...(topics.kind === undefined && linked.kind !== undefined ? { kind: linked.kind } : {}),
+    ...(Object.keys(layout).length > 0 ? { layout: layout as TopicsElement["layout"] } : {}),
+    ...(topics.rootMarkerStyle === undefined && linked.rootMarkerStyle !== undefined ? { rootMarkerStyle: linked.rootMarkerStyle } : {}),
+    ...(topics.markerColor === undefined && linked.markerColor !== undefined ? { markerColor: linked.markerColor } : {}),
+    ...(topics.itemGap === undefined && linked.itemGap !== undefined ? { itemGap: linked.itemGap } : {}),
+  };
 }
 
 export function updateLinkedTopicsStyle(
@@ -467,18 +497,28 @@ export function detachLinkedStyle(
   slideIndex: number,
   containerId: string,
 ): Presentation {
-  return replaceContainerInSlide(presentation, slideIndex, containerId, (container) => {
-    if (container.linkedStyleId === undefined) return container;
-    const resolved = resolveLinkedContainerStyle(presentation, container);
-    const { linkedStyleId: _linkedStyleId, ...unlinked } = container;
-    return {
-      ...unlinked,
-      ...(resolved.layout === undefined ? {} : { layout: resolved.layout }),
-      ...(resolved.style === undefined ? {} : { style: resolved.style }),
-      ...(resolved.typography === undefined ? {} : { typography: resolved.typography }),
-      ...(resolved.effect === undefined ? {} : { effect: resolved.effect }),
-    };
-  });
+  return replaceContainerInSlide(presentation, slideIndex, containerId, (container) =>
+    detachLinkedContainerStyleFromElement(presentation, container) ?? container,
+  );
+}
+
+/** Materializes effective container linked-style values and removes the relationship. */
+export function detachLinkedContainerStyleFromElement(
+  presentation: Presentation,
+  container: ContainerElement,
+): ContainerElement | null {
+  if (container.linkedStyleId === undefined) return null;
+  const linked = presentation.linkedStyles?.find((style) => style.id === container.linkedStyleId);
+  if (linked === undefined) return null;
+  const resolved = resolveLinkedContainerStyle(presentation, container);
+  const { linkedStyleId: _linkedStyleId, ...unlinked } = container;
+  return {
+    ...unlinked,
+    ...(resolved.layout === undefined ? {} : { layout: resolved.layout }),
+    ...(resolved.style === undefined ? {} : { style: resolved.style }),
+    ...(resolved.typography === undefined ? {} : { typography: resolved.typography }),
+    ...(resolved.effect === undefined ? {} : { effect: resolved.effect }),
+  };
 }
 
 export type LinkedStylePatch = Pick<LinkedContainerStyle, "layout" | "style" | "typography" | "effect">;
