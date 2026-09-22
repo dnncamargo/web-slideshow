@@ -305,18 +305,18 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("selects Root Definition geometry without exposing drag or resize affordances", () => {
+  it("selects Root Definition descendants with Canvas drag and resize affordances", () => {
     render();
 
     const rootImage = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-image"]');
     if (!rootImage) throw new Error("expected absolutely positioned Root Definition image");
     act(() => rootImage.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
-    expect(rootImage.classList.contains("studio-editor-draggable")).toBe(false);
-    expect(containerElement.querySelector("[class*='canvasResizeOverlay']")).toBeNull();
+    expect(rootImage.classList.contains("studio-editor-draggable")).toBe(true);
+    expect(containerElement.querySelector("[class*='canvasResizeOverlay']")).not.toBeNull();
     expect(containerElement.textContent).toContain("root-image");
-    expect(containerElement.textContent).toContain("Master content is read-only in this workspace.");
-    expect(containerElement.querySelector("#image-src")).toBeNull();
+    expect(containerElement.textContent).not.toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector("#image-src")).not.toBeNull();
   });
 
   it("mounts the normal Root Container Inspector while preserving structural guards", () => {
