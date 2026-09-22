@@ -393,6 +393,30 @@ describe("ElementTreePanel", () => {
     expect(resolveTreeDrop(slide.elements, "root-container", "child-container", "inside", "root-container")).toBeNull();
   });
 
+  it("keeps Root descendants draggable while protecting only the canonical Root Container", () => {
+    const slide: Slide = {
+      id: "root-dragging",
+      title: "Root",
+      summary: "",
+      speakerNotes: "",
+      elements: [topicContainer("root-container", [
+        topicContainer("child-container", [image("child-image")]),
+      ])],
+    };
+
+    renderPanel(slide, {
+      selectedElementId: "child-image",
+      workspaceRootContainerId: "root-container",
+    });
+
+    const rootRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > div');
+    const childRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > ul > li[role="treeitem"] > div');
+    const nestedRow = container.querySelector<HTMLElement>('[role="tree"] > li[role="treeitem"] > ul > li[role="treeitem"] > ul > li[role="treeitem"] > div');
+    expect(rootRow?.draggable).toBe(false);
+    expect(childRow?.draggable).toBe(true);
+    expect(nestedRow?.draggable).toBe(true);
+  });
+
   it("omits the synthetic Slide root from Root workspace Move to targets", () => {
     const slide: Slide = {
       id: "root-workspace",

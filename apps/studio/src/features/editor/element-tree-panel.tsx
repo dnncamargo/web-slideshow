@@ -498,7 +498,7 @@ function ElementTreeNode({
                 onMoveTableColumn={onMoveTableColumn}
                 onMoveTableRow={onMoveTableRow}
                 contentSlotId={contentSlotId}
-                isDraggable={isDraggable}
+                isDraggable={true}
               />
             ))}
           {element.type === "topics" &&
