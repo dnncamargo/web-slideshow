@@ -34,9 +34,9 @@ function text(overrides: Record<string, unknown> = {}) {
 }
 
 describe("effective text typography for authoring", () => {
-  it("preserves omitted source-master properties when switching styles", () => {
+  it("leaves source-only properties absent when switching styles", () => {
     const source = presentation([
-      { id: "source", name: "Source", role: "body", typography: { fontSize: 20, textAlign: "center" }, style: { color: "#00ff00" }, layout: { marginTop: 10, marginBottom: 12 } },
+      { id: "source", name: "Source", role: "body", typography: { fontSize: 20, fontStyle: "italic", fontWeight: 500, textAlign: "center" }, style: { color: "#00ff00" }, layout: { marginTop: 10, marginBottom: 12 } },
       { id: "destination", name: "Destination", role: "body", style: { color: "#0000ff" }, layout: { marginBottom: 30 } },
     ]);
     const original = text({
@@ -50,10 +50,13 @@ describe("effective text typography for authoring", () => {
 
     expect(switched).toMatchObject({
       variant: "destination",
-      typography: { fontSize: 20, textAlign: "right" },
+      typography: { textAlign: "right" },
       style: { background: { color: "#eeeeee" }, className: "local-text" },
       layout: { marginTop: 20, position: "absolute", top: 5 },
     });
+    expect(switched.typography).not.toHaveProperty("fontSize");
+    expect(switched.typography).not.toHaveProperty("fontStyle");
+    expect(switched.typography).not.toHaveProperty("fontWeight");
     expect(switched.style).not.toHaveProperty("color");
     expect(switched.layout).not.toHaveProperty("marginBottom");
   });
@@ -61,14 +64,18 @@ describe("effective text typography for authoring", () => {
   it("replaces local and source values when the destination explicitly owns them", () => {
     const source = presentation([
       { id: "source", name: "Source", role: "body", typography: { fontSize: 20, textStroke: { width: 3, color: "#00f" } } },
-      { id: "destination", name: "Destination", role: "body", typography: { fontSize: 24, textStroke: { width: 1, color: "#f00" } } },
+      { id: "destination", name: "Destination", role: "body", typography: { fontSize: 24, textStroke: { width: 1, color: "#f00" } }, style: { color: "#0f0" }, layout: { marginTop: 12 } },
     ]);
-    const original = text({ variant: "source", typography: { fontSize: 30, textStroke: { width: 0, color: "#00f" } } });
+    const original = text({ variant: "source", typography: { fontSize: 30, textStroke: { width: 0, color: "#00f" } }, style: { color: "#f0f", background: { color: "#eee" } }, layout: { marginTop: 30, marginBottom: 40 } });
 
     const switched = attachTextStyle(source, original, "destination");
 
     expect(switched).not.toHaveProperty("typography.fontSize");
     expect(switched).not.toHaveProperty("typography.textStroke");
+    expect(switched).not.toHaveProperty("style.color");
+    expect(switched).not.toHaveProperty("layout.marginTop");
+    expect(switched).toHaveProperty("style.background.color", "#eeeeee");
+    expect(switched).toHaveProperty("layout.marginBottom", 40);
   });
 
   it("does not materialize source values when the source relationship is detached", () => {

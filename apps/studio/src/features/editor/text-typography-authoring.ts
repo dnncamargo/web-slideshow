@@ -30,47 +30,16 @@ export interface CreatedTextStyleFromText {
   text: TextElement;
 }
 
-/**
- * Applies a Text Style relationship change while preserving the last explicit
- * source-master value for properties omitted by the destination style.
- */
+/** Applies a Text Style relationship change using destination-owned properties only. */
 export function attachTextStyle(
   presentation: Presentation,
   text: TextElement,
   variant: TextElement["variant"],
 ): TextElement {
-  const sourceStyle = text.styleDetached === true
-    ? undefined
-    : presentation.textStyles?.find((style) => style.id === text.variant);
   const destinationStyle = presentation.textStyles?.find((style) => style.id === variant);
   const typography = { ...(text.typography ?? {}) };
   const style = { ...(text.style ?? {}) };
   const layout = { ...(text.layout ?? {}) };
-
-  for (const property of TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2) {
-    if (destinationStyle?.typography?.[property] === undefined && typography[property] === undefined) {
-      const sourceValue = sourceStyle?.typography?.[property];
-      if (sourceValue !== undefined) {
-        Object.assign(typography, { [property]: sourceValue });
-      }
-    }
-  }
-  for (const property of TEXT_STYLE_VISUAL_PROPERTY_NAMES) {
-    if (destinationStyle?.style?.[property] === undefined && style[property] === undefined) {
-      const sourceValue = sourceStyle?.style?.[property];
-      if (sourceValue !== undefined) {
-        Object.assign(style, { [property]: sourceValue });
-      }
-    }
-  }
-  for (const property of TEXT_STYLE_LAYOUT_PROPERTY_NAMES) {
-    if (destinationStyle?.layout?.[property] === undefined && layout[property] === undefined) {
-      const sourceValue = sourceStyle?.layout?.[property];
-      if (sourceValue !== undefined) {
-        Object.assign(layout, { [property]: sourceValue });
-      }
-    }
-  }
 
   const local = stripLocalTextStyleProperties(
     Object.keys(typography).length > 0 ? typography : undefined,

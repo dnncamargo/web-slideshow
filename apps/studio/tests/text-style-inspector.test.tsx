@@ -765,9 +765,10 @@ describe("Text Inspector typography style attachment", () => {
       variant.value = "style-b";
       variant.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(current).toMatchObject({ variant: "style-b", typography: { textAlign: "center" } });
+    expect(current).toMatchObject({ variant: "style-b" });
+    expect(current).not.toHaveProperty("typography.textAlign");
     expect(host.querySelector("#text-font-size")?.parentElement?.parentElement?.textContent).toContain("Linked");
-    expect(host.querySelector("#text-text-align")?.parentElement?.textContent).toContain("Local override");
+    expect(host.querySelector("#text-text-align")?.parentElement?.textContent).not.toContain("Local override");
 
     const detach = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Detach from Style B");
     if (!detach) throw new Error("Detach button was not rendered");

@@ -336,7 +336,7 @@ describe("CP4F3 Text Style relationship history", () => {
     expect(await save()).toEqual(detached);
   });
 
-  it("materializes omitted source-master properties in one switch action", async () => {
+  it("does not materialize omitted source-master properties in one switch action", async () => {
     const initial = presentation([text(TEXT_A_ID, { variant: QUOTE_STYLE_ID })]);
     await mount(initial);
     await selectText(TEXT_A_ID);
@@ -345,11 +345,10 @@ describe("CP4F3 Text Style relationship history", () => {
     const switched = await save();
     expect(findCurrentText(switched, TEXT_A_ID)).toMatchObject({
       variant: "body",
-      typography: { fontStyle: "italic" },
-      style: { color: "#663399" },
     });
-    expect(findCurrentText(switched, TEXT_A_ID).typography).not.toHaveProperty("fontFamily");
-    expect(findCurrentText(switched, TEXT_A_ID).typography).not.toHaveProperty("fontWeight");
+    expect(findCurrentText(switched, TEXT_A_ID)).not.toHaveProperty("typography.fontStyle");
+    expect(findCurrentText(switched, TEXT_A_ID)).not.toHaveProperty("typography.fontFamily");
+    expect(findCurrentText(switched, TEXT_A_ID)).not.toHaveProperty("style.color");
 
     await undo();
     expect(await save()).toEqual(initial);
