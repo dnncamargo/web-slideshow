@@ -255,7 +255,7 @@ import {
   resolveAddElementDestination,
 } from "./element-operations";
 import {
-  moveClipboardElement,
+  moveClipboardElementInElements,
   resolveClipboardPasteDestination,
 } from "./clipboard-operations";
 
@@ -1639,99 +1639,170 @@ export function EditorWorkspace({
   }
 
   function cutSelectedElement(): boolean {
-    if (rootDefinitionMode) {
+    if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
       return false;
     }
-    if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
+    if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return false;
     }
 
     setPendingCut(
-      createPendingClipboardCut(selectedDocumentElement, selectedSlide.id),
+      createPendingClipboardCut(
+        selectedDocumentElement,
+        authoringTarget.kind === "slide"
+          ? { kind: "slide", slideId: selectedSlide.id }
+          : { kind: "root-definition", rootDefinitionId: authoringTarget.rootDefinitionId },
+      ),
     );
     setClipboardSession((current) => ({ ...current, selectedEntryId: null }));
     return true;
   }
 
   function pasteClipboardEntry(entryId: string): boolean {
-    if (rootDefinitionMode) {
-      return false;
-    }
+    const target = authoringTarget;
     const entry = clipboardSession.entries.find(
       (candidate) => candidate.id === entryId,
     );
-    if (!entry || !selectedSlide) {
+    if (!entry) {
       return false;
     }
 
-    const currentSlide = history.present.slides[selectedSlideIndex];
-    if (!currentSlide || !resolveClipboardPasteDestination(
-      currentSlide.elements, entry.element.id, selectedDocumentElement,
-      selectedElement?.contentSlotId ?? null,
-    )) return false;
-    commitPresentationAction(
+    const selectedElementAtPaste = selectedDocumentElement;
+    const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
+    const initialElements = resolveAuthoringElements(history.present, target);
+    if (
+      !initialElements ||
+      !resolveClipboardPasteDestination(
+        initialElements,
+        entry.element.id,
+        selectedElementAtPaste,
+        selectedContentSlotId,
+        target.kind === "root-definition"
+          ? resolveCanonicalRootContainerId(history.present, target)
+          : null,
+      )
+    ) return false;
+
+    commitAuthoringAction(
+      target,
       { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
-      (current) => {
-        const slide = current.slides[selectedSlideIndex];
-        if (!slide) return current;
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
         const destination = resolveClipboardPasteDestination(
-          slide.elements,
+          elements,
           entry.element.id,
-          selectedDocumentElement,
-          selectedElement?.contentSlotId ?? null,
+          selectedElementAtPaste,
+          selectedContentSlotId,
+          authoringTarget.kind === "root-definition"
+            ? resolveCanonicalRootContainerId(current, authoringTarget)
+            : null,
         );
         if (!destination) return current;
         const usedIds = collectPresentationAuthoringIds(current);
         const pastedElement = duplicateElement(entry.element, usedIds);
         const nextElements = destination.kind === "slide"
-          ? [...slide.elements, pastedElement]
+          ? [...elements, pastedElement]
           : destination.kind === "container"
-            ? appendElementToContainer(slide.elements, destination.id, pastedElement)
-            : appendElementToContentSlot(slide.elements, destination.id, pastedElement);
-        if (nextElements === slide.elements) return current;
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
-          ),
-        };
+            ? appendElementToContainer(elements, destination.id, pastedElement)
+            : appendElementToContentSlot(elements, destination.id, pastedElement);
+        if (nextElements === elements) return current;
+        return replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
     return true;
   }
 
   function pastePendingCut(): boolean {
-    if (rootDefinitionMode) {
-      return false;
-    }
     if (!pendingCut) return false;
 
-    const nextPresentation = moveClipboardElement(
+    const target = authoringTarget;
+    const source = pendingCut.source;
+    const sourceMatchesTarget = source.kind === "slide"
+      ? target.kind === "slide"
+      : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
+    if (!sourceMatchesTarget) {
+      setPendingCut(null);
+      return false;
+    }
+
+    const sourceTarget: AuthoringTarget = source.kind === "slide"
+      ? {
+          kind: "slide",
+          slideIndex: history.present.slides.findIndex((slide) => slide.id === source.slideId),
+        }
+      : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+    const sourceElements = resolveAuthoringElements(history.present, sourceTarget);
+    const receiverElements = resolveAuthoringElements(history.present, target);
+    const selectedElementAtPaste = selectedDocumentElement;
+    const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
+    if (!sourceElements) {
+      setPendingCut(null);
+      return false;
+    }
+    if (!findElementById(sourceElements, pendingCut.sourceElementId)) {
+      setPendingCut(null);
+      return false;
+    }
+    if (
+      !receiverElements ||
+      (target.kind === "root-definition" &&
+        isProtectedRootContainer(history.present, target, pendingCut.sourceElementId))
+    ) return false;
+
+    const initialMove = moveClipboardElementInElements(
       history.present,
-      pendingCut.sourceSlideId,
+      sourceElements,
+      receiverElements,
       pendingCut.sourceElementId,
-      selectedSlideIndex,
-      selectedDocumentElement,
-      selectedElement?.contentSlotId ?? null,
+      selectedElementAtPaste,
+      selectedContentSlotId,
+      source.kind === "root-definition" ||
+        (target.kind === "slide" && sourceTarget.kind === "slide" && sourceTarget.slideIndex === target.slideIndex),
+      target.kind === "root-definition"
+        ? resolveCanonicalRootContainerId(history.present, target)
+        : null,
     );
-    if (!nextPresentation) {
-      if (!history.present.slides.some((slide) => slide.id === pendingCut.sourceSlideId)
-        || !history.present.slides.some((slide) => findElementById(slide.elements, pendingCut.sourceElementId))) {
+    if (!initialMove) {
+      if (!findElementById(sourceElements, pendingCut.sourceElementId)) {
         setPendingCut(null);
       }
       return false;
     }
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       { kind: "element.move", labelKey: "history.element.move" },
-      (current) => moveClipboardElement(
-        current,
-        pendingCut.sourceSlideId,
-        pendingCut.sourceElementId,
-        selectedSlideIndex,
-        selectedDocumentElement,
-        selectedElement?.contentSlotId ?? null,
-      ) ?? current,
+      (current) => {
+        const currentSourceTarget: AuthoringTarget = source.kind === "slide"
+          ? {
+              kind: "slide",
+              slideIndex: current.slides.findIndex((slide) => slide.id === source.slideId),
+            }
+          : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+        const currentSourceElements = resolveAuthoringElements(current, currentSourceTarget);
+        const currentReceiverElements = resolveAuthoringElements(current, target);
+        if (!currentSourceElements || !currentReceiverElements) return current;
+        const result = moveClipboardElementInElements(
+          current,
+          currentSourceElements,
+          currentReceiverElements,
+          pendingCut.sourceElementId,
+          selectedElementAtPaste,
+          selectedContentSlotId,
+          source.kind === "root-definition" ||
+            (target.kind === "slide" && currentSourceTarget.kind === "slide" && currentSourceTarget.slideIndex === target.slideIndex),
+          target.kind === "root-definition"
+            ? resolveCanonicalRootContainerId(current, target)
+            : null,
+        );
+        if (!result) return current;
+
+        const afterReceiver = replaceAuthoringElements(current, target, result.receiverElements);
+        return source.kind === "root-definition"
+          ? afterReceiver
+          : replaceAuthoringElements(afterReceiver, currentSourceTarget, result.sourceElements);
+      },
     );
     setPendingCut(null);
     return true;
@@ -6122,7 +6193,6 @@ export function EditorWorkspace({
                   }}
                   onSelect={selectClipboardEntry}
                   onPaste={(entryId) => {
-                    if (rootDefinitionMode) return;
                     selectClipboardEntry(entryId);
                     pasteClipboardEntry(entryId);
                   }}

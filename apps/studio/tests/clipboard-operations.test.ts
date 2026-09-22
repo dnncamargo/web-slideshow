@@ -104,14 +104,14 @@ describe("Clipboard paste destination", () => {
     } as unknown as PresentationElement;
 
     expect(
-      resolveClipboardPasteDestination([topics], "child", divider("child"), "slot"),
+      resolveClipboardPasteDestination([topics], "child", null, "slot"),
     ).toEqual({ kind: "content-slot", id: "slot" });
     expect(
-      resolveClipboardPasteDestination([topics], "child", divider("child"), null),
+      resolveClipboardPasteDestination([topics], "child", null, null),
     ).toEqual({ kind: "slide" });
     expect(
-      resolveClipboardPasteDestination([topics], "child", divider("child"), "missing"),
-    ).toEqual({ kind: "slide" });
+      resolveClipboardPasteDestination([topics], "child", null, "missing"),
+    ).toEqual(null);
   });
 });
 

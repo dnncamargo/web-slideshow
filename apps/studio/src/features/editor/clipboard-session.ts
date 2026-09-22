@@ -14,19 +14,29 @@ export interface ClipboardSessionState {
   selectedEntryId: string | null;
 }
 
+export type ClipboardCutSource =
+  | {
+      kind: "slide";
+      slideId: string;
+    }
+  | {
+      kind: "root-definition";
+      rootDefinitionId: string;
+    };
+
 export interface PendingClipboardCut {
   sourceElementId: string;
-  sourceSlideId: string;
+  source: ClipboardCutSource;
   elementType: PresentationElement["type"];
 }
 
 export function createPendingClipboardCut(
   element: PresentationElement,
-  sourceSlideId: string,
+  source: ClipboardCutSource,
 ): PendingClipboardCut {
   return {
     sourceElementId: element.id,
-    sourceSlideId,
+    source,
     elementType: element.type,
   };
 }
