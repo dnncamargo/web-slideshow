@@ -187,7 +187,7 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "presentation-schema",
         title: "Presentation",
         summary:
-          "A raiz canônica permanece em schemaVersion 1 e contém identidade, recursos, estilos e slides.",
+          "A raiz canônica permanece em schemaVersion 1 e contém identidade, recursos, estilos, Root Definitions e slides.",
         sections: [
           {
             title: "Shape raiz",
@@ -252,8 +252,8 @@ export const docsGroups: readonly DocsGroup[] = [
             title: "Ownership estrutural",
             bullets: [
               "Containers e demais elementos da Root Definition continuam master-owned; suas propriedades não se misturam com as propriedades locais do Slide.",
-              "Permitir filhos locais é uma autorização estrutural explícita e o default é não permitir.",
-              "Quando um Container master autoriza filhos locais, cada Slide pode possuir seus próprios filhos naquele receiver. Esses filhos continuam slide-owned e usam o fluxo normal de autoria atual.",
+              "Permitir filhos locais é uma autorização estrutural explícita. localChildTargetIds identifica os Containers master autorizados; por default não há receiver autorizado.",
+              "Quando um Container master autoriza filhos locais, cada Slide pode possuir seus próprios filhos direcionados a ele em localRootChildren. Esses filhos continuam slide-owned e usam o fluxo normal de autoria atual.",
               "O ambiente de layout do Container master continua valendo para os filhos locais. Por exemplo, um receiver master com alinhamento vertical organiza os filhos locais do Slide nesse ambiente sem transferir o ownership do Container ao Slide.",
             ],
           },
