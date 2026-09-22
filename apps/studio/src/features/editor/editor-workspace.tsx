@@ -178,10 +178,11 @@ import { PresentationColorPaletteProvider } from "./inspector/sections/presentat
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 import {
-  attachLinkedStyle,
   detachLinkedStyle,
-  attachLinkedTopicsStyle,
-  detachLinkedTopicsStyle,
+  attachLinkedContainerStyleToElement,
+  detachLinkedContainerStyleFromElement,
+  attachLinkedTopicsStyleToElement,
+  detachLinkedTopicsStyleFromElement,
   createLinkedStyleFromContainer,
   createLinkedStyleFromTopics,
   canCreateLinkedStyleFromContainer,
@@ -344,7 +345,8 @@ interface SelectedElementInfo {
 }
 
 function isRootDefinitionGenericInspectorElement(element: PresentationElement): boolean {
-  return element.type === "text"
+  return element.type === "container"
+    || element.type === "text"
     || element.type === "code"
     || element.type === "plot"
     || element.type === "terminal"
@@ -3378,90 +3380,110 @@ export function EditorWorkspace({
 
   function attachSelectedContainerLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "container") return;
+    const target = authoringTarget;
     const containerId = selectedDocumentElement.id;
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "element.setting",
         labelKey: "history.element.setting",
         labelParams: { setting: "container.linkedStyle" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const currentContainer = findElementById(currentSlide.elements, containerId);
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentContainer = findElementById(elements, containerId);
         if (currentContainer?.type !== "container") return current;
         if (currentContainer.linkedStyleId === linkedStyleId) return current;
-        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId)) return current;
-
-        return attachLinkedStyle(current, selectedSlideIndex, containerId, linkedStyleId);
+        const nextContainer = attachLinkedContainerStyleToElement(current, currentContainer, linkedStyleId);
+        if (nextContainer === null) return current;
+        const nextElements = updateElementById(elements, containerId, () => nextContainer);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function detachSelectedContainerLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "container") return;
+    const target = authoringTarget;
     const containerId = selectedDocumentElement.id;
-    commitPresentationAction(
+    const expectedLinkedStyleId = selectedDocumentElement.linkedStyleId;
+    if (expectedLinkedStyleId === undefined) return;
+    commitAuthoringAction(
+      target,
       {
         kind: "element.setting",
         labelKey: "history.element.setting",
         labelParams: { setting: "container.linkedStyle" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const currentContainer = findElementById(currentSlide.elements, containerId);
-        if (currentContainer?.type !== "container" || currentContainer.linkedStyleId === undefined) return current;
-        if (!current.linkedStyles?.some((style) => style.id === currentContainer.linkedStyleId)) return current;
-
-        return detachLinkedStyle(current, selectedSlideIndex, containerId);
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentContainer = findElementById(elements, containerId);
+        if (currentContainer?.type !== "container" || currentContainer.linkedStyleId !== expectedLinkedStyleId) return current;
+        const nextContainer = detachLinkedContainerStyleFromElement(current, currentContainer);
+        if (nextContainer === null) return current;
+        const nextElements = updateElementById(elements, containerId, () => nextContainer);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function attachSelectedTopicsLinkedStyle(linkedStyleId: string): void {
     if (selectedDocumentElement?.type !== "topics") return;
+    const target = authoringTarget;
     const topicsId = selectedDocumentElement.id;
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "element.setting",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.linkedStyle" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const currentTopics = findElementById(currentSlide.elements, topicsId);
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentTopics = findElementById(elements, topicsId);
         if (currentTopics?.type !== "topics") return current;
         if (currentTopics.linkedStyleId === linkedStyleId) return current;
-        if (!current.linkedStyles?.some((style) => style.id === linkedStyleId && "target" in style && style.target === "topics")) return current;
-
-        return attachLinkedTopicsStyle(current, selectedSlideIndex, topicsId, linkedStyleId);
+        const nextTopics = attachLinkedTopicsStyleToElement(current, currentTopics, linkedStyleId);
+        if (nextTopics === null) return current;
+        const nextElements = updateElementById(elements, topicsId, () => nextTopics);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
 
   function detachSelectedTopicsLinkedStyle(): void {
     if (selectedDocumentElement?.type !== "topics") return;
+    const target = authoringTarget;
     const topicsId = selectedDocumentElement.id;
-    commitPresentationAction(
+    const expectedLinkedStyleId = selectedDocumentElement.linkedStyleId;
+    if (expectedLinkedStyleId === undefined) return;
+    commitAuthoringAction(
+      target,
       {
         kind: "element.setting",
         labelKey: "history.element.setting",
         labelParams: { setting: "topics.linkedStyle" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const currentTopics = findElementById(currentSlide.elements, topicsId);
-        if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId === undefined) return current;
-        if (!current.linkedStyles?.some((style) => style.id === currentTopics.linkedStyleId && "target" in style && style.target === "topics")) return current;
-
-        return detachLinkedTopicsStyle(current, selectedSlideIndex, topicsId);
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentTopics = findElementById(elements, topicsId);
+        if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId !== expectedLinkedStyleId) return current;
+        const nextTopics = detachLinkedTopicsStyleFromElement(current, currentTopics);
+        if (nextTopics === null) return current;
+        const nextElements = updateElementById(elements, topicsId, () => nextTopics);
+        return nextElements === elements
+          ? current
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
   }
@@ -3469,6 +3491,7 @@ export function EditorWorkspace({
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
     if (selectedDocumentElement?.type !== "container") return false;
 
+    const target = authoringTarget;
     const containerId = selectedDocumentElement.id;
     const renderTimeLocalFit = selectedDocumentElement.layout?.children?.fit;
     const renderTimeEffectiveFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
@@ -3486,17 +3509,17 @@ export function EditorWorkspace({
       measuredSourceSize = measured;
     }
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "element.setting",
         labelKey: "history.element.setting",
         labelParams: { setting: "container.childrenFit" },
       },
-      (current) => {
-        const slide = current.slides[selectedSlideIndex];
-        if (slide === undefined) return current;
-
-        const currentElement = findElementById(slide.elements, containerId);
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentElement = findElementById(elements, containerId);
         if (currentElement?.type !== "container") return current;
 
         const currentLocalFit = currentElement.layout?.children?.fit;
@@ -3529,15 +3552,10 @@ export function EditorWorkspace({
         const updatedLocalFit = updated.layout?.children?.fit;
         if (areAuthoredContainerFitsEqual(currentLocalFit, updatedLocalFit)) return current;
 
-        const elements = updateElementById(slide.elements, containerId, () => updated);
-        return elements === slide.elements
+        const nextElements = updateElementById(elements, containerId, () => updated);
+        return nextElements === elements
           ? current
-          : {
-              ...current,
-              slides: current.slides.map((candidate) =>
-                candidate === slide ? { ...slide, elements } : candidate,
-              ),
-            };
+          : replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
     return true;
@@ -4194,27 +4212,24 @@ export function EditorWorkspace({
       return;
     }
 
+    const target = authoringTarget;
     const sourceElementId = selectedElement?.id;
-    const usedIds = collectPresentationAuthoringIds(presentation);
-    const newElement = createQrImageElement(href, usedIds);
-    if (!newElement || !sourceElementId) {
+    if (!sourceElementId || isProtectedRootContainer(presentation, target, sourceElementId)) {
       return;
     }
 
-    commitPresentationAction(
+    let createdElementId: string | null = null;
+    commitAuthoringAction(
+      target,
       {
         kind: "element.add",
         labelKey: "history.element.add",
         labelParams: { elementType: "image" },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const currentSource = findElementById(
-          currentSlide.elements,
-          sourceElementId,
-        );
+      (current, authoringTarget) => {
+        const elements = resolveAuthoringElements(current, authoringTarget);
+        if (!elements) return current;
+        const currentSource = findElementById(elements, sourceElementId);
         if (
           !currentSource ||
           (currentSource.type !== "text" &&
@@ -4225,26 +4240,24 @@ export function EditorWorkspace({
         ) {
           return current;
         }
+        if (isProtectedRootContainer(current, authoringTarget, sourceElementId)) return current;
 
+        const newElement = createQrImageElement(href, collectPresentationAuthoringIds(current));
+        if (!newElement) return current;
         const nextElements = insertElementAfterId(
-          currentSlide.elements,
+          elements,
           sourceElementId,
           newElement,
         );
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex
-              ? { ...slide, elements: nextElements }
-              : slide,
-          ),
-        };
+        if (nextElements === elements) return current;
+        createdElementId = newElement.id;
+        return replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
 
-    setSelectedElement({ id: newElement.id, type: "image" });
+    if (createdElementId !== null) {
+      setSelectedElement({ id: createdElementId, type: "image" });
+    }
   }
 
   // ==========================================================
@@ -6213,11 +6226,19 @@ export function EditorWorkspace({
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
-                          onCreateQrFromLink={rootDefinitionMode ? undefined : createQrFromSelectedLink}
+                          onCreateQrFromLink={
+                            selectedDocumentElement && isProtectedRootContainer(
+                              presentation,
+                              authoringTarget,
+                              selectedDocumentElement.id,
+                            )
+                              ? undefined
+                              : createQrFromSelectedLink
+                          }
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
-                          onAttachLinkedTopicsStyle={rootDefinitionMode ? undefined : attachSelectedTopicsLinkedStyle}
-                          onDetachLinkedTopicsStyle={rootDefinitionMode ? undefined : detachSelectedTopicsLinkedStyle}
+                          onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
+                          onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
                           layerControls={
                             rootDefinitionMode
