@@ -280,7 +280,11 @@ import {
 import { reconcileSelectedElementAfterReplay } from "./editor-history-selection-reconciliation";
 import {
   isRootDefinitionTarget,
+  isProtectedRootContainer,
+  replaceAuthoringElements,
+  resolveAuthoringElements,
   resolveAuthoringTarget,
+  resolveCanonicalRootContainerId,
   updateAuthoringElements,
   type AuthoringTarget,
 } from "./authoring-target";
@@ -753,9 +757,19 @@ function areAuthoredContainerFitsEqual(
 }
 
 interface PendingElementDeletion {
+  target: AuthoringTarget;
   elementId: string;
   elementType: PresentationElement["type"];
-  slideIndex: number;
+}
+
+function areAuthoringTargetsEqual(
+  left: AuthoringTarget,
+  right: AuthoringTarget,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  return left.kind === "slide"
+    ? left.slideIndex === (right as Extract<AuthoringTarget, { kind: "slide" }>).slideIndex
+    : left.rootDefinitionId === (right as Extract<AuthoringTarget, { kind: "root-definition" }>).rootDefinitionId;
 }
 
 interface PendingStyleDetach {
@@ -1019,6 +1033,20 @@ export function EditorWorkspace({
     dispatchHistory({ type: "transaction-commit" });
     authoringTransactionTargetRef.current = null;
     dispatchHistory({ type: "commit", meta, update });
+  }
+
+  function commitAuthoringAction(
+    target: AuthoringTarget,
+    meta: HistoryActionMeta,
+    update: (current: Presentation, target: AuthoringTarget) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-commit" });
+    authoringTransactionTargetRef.current = null;
+    dispatchHistory({
+      type: "commit",
+      meta,
+      update: (current) => update(current, target),
+    });
   }
 
   function beginPresentationTransaction(key: string, meta: HistoryActionMeta): void {
@@ -1380,6 +1408,29 @@ export function EditorWorkspace({
   }, [rootDefinitionMode]);
 
   useEffect(() => {
+    if (!pendingElementDeletion) return;
+    const elements = resolveAuthoringElements(
+      presentation,
+      pendingElementDeletion.target,
+    );
+    const element = elements
+      ? findElementById(elements, pendingElementDeletion.elementId)
+      : null;
+    if (
+      !areAuthoringTargetsEqual(authoringTarget, pendingElementDeletion.target) ||
+      !element ||
+      element.type !== pendingElementDeletion.elementType ||
+      isProtectedRootContainer(
+        presentation,
+        pendingElementDeletion.target,
+        pendingElementDeletion.elementId,
+      )
+    ) {
+      setPendingElementDeletion(null);
+    }
+  }, [authoringTarget, pendingElementDeletion, presentation]);
+
+  useEffect(() => {
     if (!rootDefinitionMode && authoringTarget.kind === "slide" && authoringTarget.slideIndex !== retainedSlideIndex) {
       setAuthoringTarget({ kind: "slide", slideIndex: retainedSlideIndex });
     }
@@ -1662,17 +1713,17 @@ export function EditorWorkspace({
   }
 
   function requestElementDeletion() {
-    if (rootDefinitionMode) {
+    if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
     }
-    if (!selectedDocumentElement || pendingElementDeletion !== null) {
+    if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return;
     }
 
     setPendingElementDeletion({
+      target: authoringTarget,
       elementId: selectedDocumentElement.id,
       elementType: selectedDocumentElement.type,
-      slideIndex: selectedSlideIndex,
     });
   }
 
@@ -4037,73 +4088,88 @@ export function EditorWorkspace({
   function addElement(type: ElementCreateType) {
     const usedIds = collectPresentationAuthoringIds(presentation);
     const newElement = createElement(type, usedIds);
+    const target = authoringTarget;
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "element.add",
         labelKey: "history.element.add",
         labelParams: { elementType: type },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
+      (current, authoringTarget) => {
         const prepared = type === "table"
           ? ensureStructuredTableTextStyles(current).presentation
           : type === "topics"
             ? ensureTopicsTextStyle(current)
             : current;
-        const preparedSlide = prepared.slides[selectedSlideIndex];
-        if (!preparedSlide) return current;
+        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        if (!preparedElements) return current;
+
+        const selectedElementId = selectedElement?.id ?? null;
+        if (
+          selectedElementId !== null &&
+          !findElementById(preparedElements, selectedElementId)
+        ) {
+          return current;
+        }
+
+        const rootContainerId = authoringTarget.kind === "root-definition"
+          ? resolveCanonicalRootContainerId(prepared, authoringTarget)
+          : null;
 
         const destination = resolveAddElementDestination(
-          preparedSlide.elements,
-          selectedElement?.id ?? null,
+          preparedElements,
+          selectedElementId,
           newElement,
           selectedElement?.contentSlotId ?? null,
         );
 
+        const resolvedDestination =
+          authoringTarget.kind === "root-definition" && selectedElementId === null
+            ? { kind: "append-container" as const, containerId: rootContainerId }
+            : destination;
+        if (
+          resolvedDestination.kind === "append-container" &&
+          resolvedDestination.containerId === null
+        ) {
+          return current;
+        }
+
         let nextElements: PresentationElement[];
-        switch (destination.kind) {
+        switch (resolvedDestination.kind) {
           case "slide-root":
-            nextElements = [...preparedSlide.elements, newElement];
+            nextElements = [...preparedElements, newElement];
             break;
 
           case "append-container":
+            if (resolvedDestination.containerId === null) return current;
             nextElements = appendElementToContainer(
-              preparedSlide.elements,
-              destination.containerId,
+              preparedElements,
+              resolvedDestination.containerId,
               newElement,
             );
             break;
 
           case "append-content-slot":
             nextElements = appendElementToContentSlot(
-              preparedSlide.elements,
-              destination.contentSlotId,
+              preparedElements,
+              resolvedDestination.contentSlotId,
               newElement,
             );
             break;
 
           case "insert-after":
             nextElements = insertElementAfterId(
-              preparedSlide.elements,
-              destination.targetId,
+              preparedElements,
+              resolvedDestination.targetId,
               newElement,
             );
             break;
         }
 
-        if (nextElements === preparedSlide.elements) return current;
-
-        return {
-          ...prepared,
-          slides: prepared.slides.map((slide, index) =>
-            index === selectedSlideIndex
-              ? { ...slide, elements: nextElements }
-              : slide,
-          ),
-        };
+        if (nextElements === preparedElements) return current;
+        return replaceAuthoringElements(prepared, authoringTarget, nextElements);
       },
     );
 
@@ -4400,38 +4466,43 @@ export function EditorWorkspace({
     if (!selectedDocumentElement) {
       return;
     }
+    if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
+      return;
+    }
 
     const sourceElementId = selectedDocumentElement.id;
     const usedIds = collectPresentationAuthoringIds(presentation);
     const duplicatedElement = duplicateElement(selectedDocumentElement, usedIds);
+    const target = authoringTarget;
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "element.duplicate",
         labelKey: "history.element.duplicate",
         labelParams: { elementType: selectedDocumentElement.type },
       },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide || !findElementById(currentSlide.elements, sourceElementId)) {
+      (current, authoringTarget) => {
+        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        const source = currentElements
+          ? findElementById(currentElements, sourceElementId)
+          : null;
+        if (
+          !currentElements ||
+          !source ||
+          source.type !== selectedDocumentElement.type ||
+          isProtectedRootContainer(current, authoringTarget, sourceElementId)
+        ) {
           return current;
         }
 
         const nextElements = insertElementAfterId(
-          currentSlide.elements,
+          currentElements,
           sourceElementId,
           duplicatedElement,
         );
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex
-              ? { ...slide, elements: nextElements }
-              : slide,
-          ),
-        };
+        if (nextElements === currentElements) return current;
+        return replaceAuthoringElements(current, authoringTarget, nextElements);
       },
     );
 
@@ -4457,23 +4528,45 @@ export function EditorWorkspace({
 
     const deletion = pendingElementDeletion;
     const current = history.present;
-    const deletionSlide = current.slides[deletion.slideIndex];
-    if (!deletionSlide || !findElementById(deletionSlide.elements, deletion.elementId)) {
+    if (!areAuthoringTargetsEqual(authoringTarget, deletion.target)) {
       setPendingElementDeletion(null);
-      setSelectedElement((selected) => selected?.id === deletion.elementId ? null : selected);
       return;
     }
-    commitPresentationAction(
+    const currentElements = resolveAuthoringElements(current, deletion.target);
+    const currentElement = currentElements
+      ? findElementById(currentElements, deletion.elementId)
+      : null;
+    if (
+      !currentElements ||
+      !currentElement ||
+      currentElement.type !== deletion.elementType ||
+      isProtectedRootContainer(current, deletion.target, deletion.elementId)
+    ) {
+      setPendingElementDeletion(null);
+      return;
+    }
+
+    commitAuthoringAction(
+      deletion.target,
       { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } },
-      (currentPresentation) => {
-        const slide = currentPresentation.slides[deletion.slideIndex];
-        if (!slide || !findElementById(slide.elements, deletion.elementId)) return currentPresentation;
-        return {
-          ...currentPresentation,
-          slides: currentPresentation.slides.map((candidate, index) => index === deletion.slideIndex
-            ? { ...candidate, elements: removeElementById(candidate.elements, deletion.elementId) }
-            : candidate),
-        };
+      (currentPresentation, target) => {
+        const elements = resolveAuthoringElements(currentPresentation, target);
+        const element = elements
+          ? findElementById(elements, deletion.elementId)
+          : null;
+        if (
+          !elements ||
+          !element ||
+          element.type !== deletion.elementType ||
+          isProtectedRootContainer(currentPresentation, target, deletion.elementId)
+        ) {
+          return currentPresentation;
+        }
+        return replaceAuthoringElements(
+          currentPresentation,
+          target,
+          removeElementById(elements, deletion.elementId),
+        );
       },
     );
 
@@ -4489,26 +4582,45 @@ export function EditorWorkspace({
     }
 
     const deletion = pendingElementDeletion;
-    commitPresentationAction(
+    const current = history.present;
+    const currentElements = resolveAuthoringElements(current, deletion.target);
+    const currentElement = currentElements
+      ? findElementById(currentElements, deletion.elementId)
+      : null;
+    if (
+      !areAuthoringTargetsEqual(authoringTarget, deletion.target) ||
+      !currentElements ||
+      !currentElement ||
+      currentElement.type !== "container" ||
+      isProtectedRootContainer(current, deletion.target, deletion.elementId)
+    ) {
+      setPendingElementDeletion(null);
+      return;
+    }
+
+    commitAuthoringAction(
+      deletion.target,
       {
         kind: "element.deleteContainerPreserveChildren",
         labelKey: "history.element.deleteContainerPreserveChildren",
       },
-      (currentPresentation) => {
-        const slide = currentPresentation.slides[deletion.slideIndex];
-        if (!slide || !findElementById(slide.elements, deletion.elementId)) {
+      (currentPresentation, target) => {
+        const elements = resolveAuthoringElements(currentPresentation, target);
+        const element = elements
+          ? findElementById(elements, deletion.elementId)
+          : null;
+        if (
+          !elements ||
+          element?.type !== "container" ||
+          isProtectedRootContainer(currentPresentation, target, deletion.elementId)
+        ) {
           return currentPresentation;
         }
 
-        const result = unwrapContainerPreservingChildren(slide.elements, deletion.elementId);
+        const result = unwrapContainerPreservingChildren(elements, deletion.elementId);
         if (!result.changed) return currentPresentation;
 
-        return {
-          ...currentPresentation,
-          slides: currentPresentation.slides.map((candidate, index) => index === deletion.slideIndex
-            ? { ...candidate, elements: result.elements }
-            : candidate),
-        };
+        return replaceAuthoringElements(currentPresentation, target, result.elements);
       },
     );
 
@@ -6014,15 +6126,42 @@ export function EditorWorkspace({
      BEGIN: ELEMENT CRUD CONTROLS
      ========================================================== */}
 
-                  {!rootDefinitionMode && <ElementCrudControls
+                  <ElementCrudControls
                     selectedElement={selectedDocumentElement}
                     selectedContentSlotId={
                       selectedElement?.contentSlotId ?? null
                     }
+                    canDuplicate={
+                      Boolean(selectedDocumentElement) &&
+                      !(
+                        rootDefinitionMode &&
+                        selectedDocumentElement !== null &&
+                        isProtectedRootContainer(
+                          presentation,
+                          authoringTarget,
+                          selectedDocumentElement.id,
+                        )
+                      )
+                    }
+                    canDelete={
+                      Boolean(selectedDocumentElement) &&
+                      !(
+                        rootDefinitionMode &&
+                        selectedDocumentElement !== null &&
+                        isProtectedRootContainer(
+                          presentation,
+                          authoringTarget,
+                          selectedDocumentElement.id,
+                        )
+                      )
+                    }
+                    noSelectionDestination={
+                      rootDefinitionMode ? "root-container" : "slide-root"
+                    }
                     onAdd={addElement}
                     onDuplicate={duplicateSelectedElement}
                     onDelete={requestElementDeletion}
-                  />}
+                  />
 
                   {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
@@ -6189,10 +6328,13 @@ export function EditorWorkspace({
       </div>
 
       {pendingElementDeletion ? (() => {
-        const pendingSlide = presentation.slides[pendingElementDeletion.slideIndex];
+        const pendingElements = resolveAuthoringElements(
+          presentation,
+          pendingElementDeletion.target,
+        );
         const preserveAvailable = pendingElementDeletion.elementType === "container" &&
-          pendingSlide !== undefined &&
-          unwrapContainerPreservingChildren(pendingSlide.elements, pendingElementDeletion.elementId).changed;
+          pendingElements !== null &&
+          unwrapContainerPreservingChildren(pendingElements, pendingElementDeletion.elementId).changed;
 
         if (preserveAvailable) {
           return <ContainerDeletionDialog

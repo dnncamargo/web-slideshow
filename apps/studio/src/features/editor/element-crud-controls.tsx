@@ -27,6 +27,12 @@ interface ElementCrudControlsProps {
 
   selectedContentSlotId?: string | null;
 
+  canDuplicate?: boolean;
+
+  canDelete?: boolean;
+
+  noSelectionDestination?: "slide-root" | "root-container";
+
   onAdd: (
     type: ElementCreateType,
   ) => void;
@@ -49,6 +55,9 @@ interface ElementCrudControlsProps {
 export function ElementCrudControls({
   selectedElement,
   selectedContentSlotId,
+  canDuplicate = Boolean(selectedElement),
+  canDelete = Boolean(selectedElement),
+  noSelectionDestination = "slide-root",
   onAdd,
   onDuplicate,
   onDelete,
@@ -71,10 +80,12 @@ const insertionDescription =
       ? t("elementCrud.addInsideTopicContent")
       : selectedElement?.type === "table" &&
           selectedContentSlotId
-        ? t("elementCrud.addInsideContentSlot")
+          ? t("elementCrud.addInsideContentSlot")
         : selectedElement
           ? t("elementCrud.addAfterElement")
-          : t("elementCrud.addToSlideRoot");
+          : noSelectionDestination === "root-container"
+            ? t("elementCrud.addToRootContainer")
+            : t("elementCrud.addToSlideRoot");
 
 
   // ============================================================
@@ -220,7 +231,7 @@ const insertionDescription =
           type="button"
 
           disabled={
-            !selectedElement
+            !canDuplicate
           }
 
           onClick={
@@ -241,7 +252,7 @@ const insertionDescription =
           }
 
           disabled={
-            !selectedElement
+            !canDelete
           }
 
           onClick={
