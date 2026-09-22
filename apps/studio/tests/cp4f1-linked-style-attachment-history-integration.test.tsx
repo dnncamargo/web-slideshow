@@ -274,6 +274,97 @@ describe("CP4F1 linked style attachment history", () => {
     expect(await save(saved)).toEqual(switched);
   });
 
+  it("proves all three destination-only Container switch cases", async () => {
+    const styleA = { id: "switch-a", name: "Switch A", style: { color: "#111111" }, layout: { width: "60%" } };
+    const styleB = { id: "switch-b", name: "Switch B", style: { borderRadius: 8 } };
+    const initial = presentation([
+      containerElement({ linkedStyleId: "switch-a", style: { borderRadius: 20 }, layout: { width: "80%" } }),
+    ], [styleA, styleB]);
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+    await selectElement(CONTAINER_ID);
+    await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#container-linked-style")!, "switch-b"));
+    const switched = await save(saved);
+    const result = containerFrom(switched);
+    expect(result).toMatchObject({ linkedStyleId: "switch-b", layout: { width: "80%" } });
+    expect(result).not.toHaveProperty("style.borderRadius");
+    expect(result).not.toHaveProperty("style.color");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(switched);
+  });
+
+  it("isolates Text, Container, and Topics master edits in one Presentation", async () => {
+    const initial = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "cp7-family-isolation",
+      title: "CP7 family isolation",
+      textStyles: [{ id: "body", typography: { fontSize: 20 } }],
+      linkedStyles: [
+        { id: "cp7-container-style", name: "Container", layout: { marginTop: 12 }, style: { borderRadius: 8 } },
+        { target: "topics", id: "cp7-topics-style", name: "Topics", kind: "unordered", itemGap: 8, markerColor: "#ff0000" },
+      ],
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "cp7-family-text", type: "text", hidden: false, variant: "body", typography: { fontSize: 30 }, content: "Keep family text" },
+        { id: "cp7-family-container", type: "container", hidden: false, linkedStyleId: "cp7-container-style", layout: { marginTop: 30 }, children: [{ id: "cp7-family-child", type: "text", hidden: false, content: "Keep family child" }] },
+        { id: "cp7-family-topics", type: "topics", hidden: false, linkedStyleId: "cp7-topics-style", itemGap: 20, items: [{ id: "family-item", content: { id: "family-slot", children: [{ id: "family-topic-text", type: "text", hidden: false, content: "Keep family topic" }] }, children: [] }] },
+      ] }],
+    });
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+    const resources = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("Custom Resources button was not rendered");
+    await act(async () => resources.click());
+
+    const textSection = Array.from(host.querySelectorAll<HTMLElement>("details"))
+      .find((detail) => detail.querySelector("summary")?.textContent?.includes("Text Styles"));
+    if (!textSection) throw new Error("Text Styles resource section was not rendered");
+    await act(async () => textSection.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const textRow = host.querySelector<HTMLElement>("[data-text-style-id='body']");
+    if (!textRow) throw new Error("Text Style row was not rendered");
+    await act(async () => textRow.querySelector<HTMLButtonElement>("button")?.click());
+    const textMaster = textRow.querySelector<HTMLInputElement>("#text-style-body-font-size");
+    if (!textMaster) throw new Error("Text Style master control was not rendered");
+    await act(async () => { changeInput(textMaster, "24"); textMaster.blur(); });
+    const afterText = await save(saved);
+    expect(afterText.slides[0]?.elements[1]).toEqual(initial.slides[0]?.elements[1]);
+    expect(afterText.slides[0]?.elements[2]).toEqual(initial.slides[0]?.elements[2]);
+
+    const containerRow = host.querySelector<HTMLElement>("[data-linked-style-id='cp7-container-style']");
+    if (!containerRow) throw new Error("Container Style row was not rendered");
+    await act(async () => containerRow.querySelector<HTMLButtonElement>("button[aria-controls], button[aria-expanded]")?.click());
+    const containerMaster = containerRow.querySelector<HTMLInputElement>("[data-linked-style-property='marginTop'] input");
+    if (!containerMaster) throw new Error("Container master control was not rendered");
+    await act(async () => { changeInput(containerMaster, "16"); containerMaster.blur(); });
+    const afterContainer = await save(saved);
+    expect(afterContainer.slides[0]?.elements[0]).toEqual(afterText.slides[0]?.elements[0]);
+    expect(afterContainer.slides[0]?.elements[2]).toEqual(afterText.slides[0]?.elements[2]);
+    expect(afterContainer.slides[0]?.elements[1]).not.toEqual(afterText.slides[0]?.elements[1]);
+
+    const topicsRow = host.querySelector<HTMLElement>("[data-linked-style-id='cp7-topics-style']");
+    if (!topicsRow) throw new Error("Topics Style row was not rendered");
+    await act(async () => topicsRow.querySelector<HTMLButtonElement>("button[aria-controls], button[aria-expanded]")?.click());
+    const topicsMaster = topicsRow.querySelector<HTMLInputElement>("#linked-topics-style-cp7-topics-style-item-gap");
+    if (!topicsMaster) throw new Error("Topics master control was not rendered");
+    await act(async () => { changeInput(topicsMaster, "12"); topicsMaster.blur(); });
+    const afterTopics = await save(saved);
+    expect(afterTopics.slides[0]?.elements[0]).toEqual(afterContainer.slides[0]?.elements[0]);
+    expect(afterTopics.slides[0]?.elements[1]).toEqual(afterContainer.slides[0]?.elements[1]);
+    expect(afterTopics.slides[0]?.elements[2]).not.toEqual(afterContainer.slides[0]?.elements[2]);
+
+    await undo();
+    expect(await save(saved)).toEqual(afterContainer);
+    await redo();
+    expect(await save(saved)).toEqual(afterTopics);
+    await undo();
+    expect(await save(saved)).toEqual(afterContainer);
+    await undo();
+    expect(await save(saved)).toEqual(afterText);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+  });
+
   it("keeps attach and detach as separate actions, including nested Containers", async () => {
     const initial = presentation([
       containerElement({

@@ -91,11 +91,17 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
   }
 
-  async function openRow(): Promise<HTMLElement> {
-    const row = host.querySelector<HTMLElement>("[data-linked-style-id='topics-style']");
+  async function openRow(id = "topics-style"): Promise<HTMLElement> {
+    const row = host.querySelector<HTMLElement>(`[data-linked-style-id='${id}']`);
     if (!row) throw new Error("Topics Linked Style row was not rendered");
     await act(async () => row.querySelector<HTMLButtonElement>("button")?.click());
-    return host.querySelector<HTMLElement>("[data-linked-style-id='topics-style']")!;
+    return host.querySelector<HTMLElement>(`[data-linked-style-id='${id}']`)!;
+  }
+
+  async function selectElement(id: string): Promise<void> {
+    const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
+    if (!element) throw new Error(`Topics element was not rendered: ${id}`);
+    await act(async () => element.dispatchEvent(new Event("pointerdown", { bubbles: true })));
   }
 
   it("tracks rename as one action and ignores draft typing and same-name blur", async () => {
@@ -546,6 +552,125 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     expect(await save(saved)).toEqual(initial);
     await redo();
     expect(await save(saved)).toEqual(edited);
+  });
+
+  it("covers the CP7 Topics ownership lifecycle with exact snapshots", async () => {
+    const items = [{ id: "cp7-item", content: { id: "cp7-slot", children: [{ id: "cp7-text", type: "text" as const, hidden: false, content: "Keep Topics text" }] }, children: [] }];
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{
+        id: "cp7-topics", type: "topics", hidden: false, itemGap: 20, markerColor: "#123456", items,
+      }, {
+        id: "cp7-topics-root", type: "container", hidden: false, children: [{
+          id: "cp7-nested-topics", type: "topics", hidden: false, linkedStyleId: "cp7-topics-style",
+          itemGap: 40, markerColor: "#654321", items: structuredClone(items),
+        }],
+      }] }],
+      linkedStyles: [{ target: "topics", id: "cp7-topics-style", name: "CP7 Topics", kind: "unordered", itemGap: 8 }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const toggleResources = async (): Promise<void> => {
+      const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Custom Resources");
+      if (!button) throw new Error("Custom Resources button was not rendered");
+      await act(async () => button.click());
+    };
+    await toggleResources();
+    await selectElement("cp7-topics");
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("#topics-linked-style")!, "cp7-topics-style"));
+    const attached = await save(saved);
+    const attachedTopics = attached.slides[0]?.elements[0];
+    expect(attachedTopics).toMatchObject({ linkedStyleId: "cp7-topics-style", markerColor: "#123456", items });
+    expect(attachedTopics).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(attached);
+
+    const localInput = host.querySelector<HTMLInputElement>("#topics-item-gap");
+    if (!localInput) throw new Error("Topics itemGap Inspector input was not rendered");
+    await act(async () => { setInputValue(localInput, "24"); localInput.blur(); });
+    const local = await save(saved);
+    expect(local.slides[0]?.elements[0]).toHaveProperty("itemGap", 24);
+    expect(local.slides[0]?.elements[0]).toHaveProperty("markerColor", "#123456");
+
+    await toggleResources();
+    const row = await openRow("cp7-topics-style");
+    const masterInput = row.querySelector<HTMLInputElement>("#linked-topics-style-cp7-topics-style-item-gap");
+    if (!masterInput) throw new Error("Topics master itemGap input was not rendered");
+    await act(async () => { setInputValue(masterInput, "12"); masterInput.blur(); });
+    const edited = await save(saved);
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(edited.slides[0]?.elements[0]).toMatchObject({ markerColor: "#123456", items });
+    const editedNested = ((edited.slides[0]?.elements[1] as { children?: unknown[] }).children?.[0]) as { itemGap?: unknown; markerColor?: unknown; items?: unknown };
+    expect(editedNested).not.toHaveProperty("itemGap");
+    expect(editedNested).toMatchObject({ markerColor: "#654321", items: structuredClone(items) });
+    await undo();
+    expect(await save(saved)).toEqual(local);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+
+    await toggleResources();
+    const localAgainInput = host.querySelector<HTMLInputElement>("#topics-item-gap");
+    if (!localAgainInput) throw new Error("Topics itemGap Inspector input was not rendered after edit");
+    await act(async () => { setInputValue(localAgainInput, "26"); localAgainInput.blur(); });
+    const localAgain = await save(saved);
+    expect(localAgain.slides[0]?.elements[0]).toHaveProperty("itemGap", 26);
+
+    await toggleResources();
+    const editedRow = await openRow("cp7-topics-style");
+    const remove = editedRow.querySelector<HTMLButtonElement>("[data-linked-topics-property='itemGap'] [data-resource-action='remove']");
+    if (!remove) throw new Error("Topics master itemGap remove action was not rendered");
+    await act(async () => remove.click());
+    const removed = await save(saved);
+    const removedStyle = removed.linkedStyles?.find((style) => style.id === "cp7-topics-style");
+    expect(removedStyle).not.toHaveProperty("itemGap");
+    expect(removedStyle).toHaveProperty("kind", "unordered");
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(removed.slides[0]?.elements[0]).toMatchObject({ markerColor: "#123456", items });
+    expect((removed.slides[0]?.elements[1] as { children?: unknown[] }).children?.[0]).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(localAgain);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+
+    await toggleResources();
+    const localAfterRemoveInput = host.querySelector<HTMLInputElement>("#topics-item-gap");
+    if (!localAfterRemoveInput) throw new Error("Topics itemGap Inspector input was not rendered after remove");
+    await act(async () => { setInputValue(localAfterRemoveInput, "28"); localAfterRemoveInput.blur(); });
+    const localAfterRemove = await save(saved);
+    expect(localAfterRemove.slides[0]?.elements[0]).toHaveProperty("itemGap", 28);
+
+    await toggleResources();
+    const addRow = await openRow("cp7-topics-style");
+    await act(async () => addRow.querySelector<HTMLButtonElement>("[data-topics-linked-style-property-chooser] > button")?.click());
+    const itemGapOption = Array.from(addRow.querySelectorAll<HTMLButtonElement>("[data-topics-linked-style-property-chooser] button"))
+      .find((button) => button.textContent?.trim() === "Topic spacing");
+    if (!itemGapOption) throw new Error("Topics Topic spacing Add property option was not rendered");
+    await act(async () => itemGapOption.click());
+    const added = await save(saved);
+    const addedStyle = added.linkedStyles?.find((style) => style.id === "cp7-topics-style");
+    expect(addedStyle).toHaveProperty("itemGap", 6);
+    expect(addedStyle).toHaveProperty("kind", "unordered");
+    expect(added.slides[0]?.elements[0]).not.toHaveProperty("itemGap");
+    expect(added.slides[0]?.elements[0]).toMatchObject({ markerColor: "#123456", items });
+    expect((added.slides[0]?.elements[1] as { children?: unknown[] }).children?.[0]).not.toHaveProperty("itemGap");
+    await undo();
+    expect(await save(saved)).toEqual(localAfterRemove);
+    await redo();
+    expect(await save(saved)).toEqual(added);
+
+    await toggleResources();
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("#topics-linked-style")!, ""));
+    const detached = await save(saved);
+    const detachedTopics = detached.slides[0]?.elements[0] as { linkedStyleId?: unknown; kind?: unknown; itemGap?: unknown; markerColor?: unknown; items?: unknown };
+    expect(detachedTopics).not.toHaveProperty("linkedStyleId");
+    expect(detachedTopics).toMatchObject({ kind: "unordered", itemGap: 6, markerColor: "#123456", items });
+    expect((detached.slides[0]?.elements[1] as { children?: unknown[] }).children?.[0]).toHaveProperty("linkedStyleId", "cp7-topics-style");
+    expect(detached.linkedStyles).toEqual(added.linkedStyles);
+    await undo();
+    expect(await save(saved)).toEqual(added);
+    await redo();
+    expect(await save(saved)).toEqual(detached);
   });
 
   it("preserves a local override through rename and a canonical no-op edit", async () => {

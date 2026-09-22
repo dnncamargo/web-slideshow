@@ -358,6 +358,8 @@ describe("CP4F3 Text Style relationship history", () => {
     expect(findCurrentText(edited, "cp7-text-a")).not.toHaveProperty("typography.fontSize");
     expect(findCurrentText(edited, "cp7-text-b")).not.toHaveProperty("typography.fontSize");
     expect(findCurrentText(edited, "cp7-text-a")).toHaveProperty("typography.textAlign", "right");
+    expect(findCurrentText(edited, "cp7-text-a")).toHaveProperty("content", "Keep A");
+    expect(findCurrentText(edited, "cp7-text-b")).toMatchObject({ typography: { textAlign: "left" }, content: "Keep B" });
     await undo();
     expect(await save()).toEqual(local);
     await redo();
@@ -381,6 +383,8 @@ describe("CP4F3 Text Style relationship history", () => {
     expect(removed.textStyles ?? []).toEqual([]);
     expect(findCurrentText(removed, "cp7-text-a")).not.toHaveProperty("typography.fontSize");
     expect(findCurrentText(removed, "cp7-text-b")).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(removed, "cp7-text-a")).toMatchObject({ typography: { textAlign: "right" }, content: "Keep A" });
+    expect(findCurrentText(removed, "cp7-text-b")).toMatchObject({ typography: { textAlign: "left" }, content: "Keep B" });
     await undo();
     expect(await save()).toEqual(localAgain);
     await redo();
@@ -408,9 +412,12 @@ describe("CP4F3 Text Style relationship history", () => {
     if (!fontSize) throw new Error("Text Style Font size Add property option was not rendered");
     await act(async () => fontSize.click());
     const added = await save();
-    expect(added.textStyles?.find((style) => style.id === "body")).toHaveProperty("typography.fontSize");
+    const addedBody = added.textStyles?.find((style) => style.id === "body");
+    expect(addedBody).toHaveProperty("typography.fontSize");
     expect(findCurrentText(added, "cp7-text-a")).not.toHaveProperty("typography.fontSize");
     expect(findCurrentText(added, "cp7-text-b")).not.toHaveProperty("typography.fontSize");
+    expect(findCurrentText(added, "cp7-text-a")).toMatchObject({ typography: { textAlign: "right" }, content: "Keep A" });
+    expect(findCurrentText(added, "cp7-text-b")).toMatchObject({ typography: { textAlign: "left" }, content: "Keep B" });
     await undo();
     expect(await save()).toEqual(localAfterRemove);
     await redo();
@@ -422,8 +429,11 @@ describe("CP4F3 Text Style relationship history", () => {
     if (!detach) throw new Error("Text Style detach action was not rendered");
     await act(async () => detach.click());
     const detached = await save();
-    expect(findCurrentText(detached, "cp7-text-a")).toMatchObject({ variant: "body", styleDetached: true, typography: { textAlign: "right" }, content: "Keep A" });
+    const detachedText = findCurrentText(detached, "cp7-text-a");
+    expect(detachedText).toMatchObject({ variant: "body", styleDetached: true, typography: { textAlign: "right" }, content: "Keep A" });
+    expect(detachedText.typography?.fontSize).toEqual(addedBody?.typography?.fontSize);
     expect(findCurrentText(detached, "cp7-text-b")).toHaveProperty("variant", "body");
+    expect(findCurrentText(detached, "cp7-text-b")).toMatchObject({ typography: { textAlign: "left" }, content: "Keep B" });
     expect(detached.textStyles).toEqual(added.textStyles);
     await undo();
     expect(await save()).toEqual(added);

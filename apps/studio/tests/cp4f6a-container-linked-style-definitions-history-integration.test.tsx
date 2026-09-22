@@ -576,4 +576,125 @@ describe("CP4F6A Container Linked Style definition history", () => {
     await redo();
     expect(await save(saved)).toEqual(renamed);
   });
+
+  it("covers the CP7 Container ownership lifecycle with exact snapshots", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [{
+        id: "cp7-container-root", type: "container", hidden: false,
+        layout: { marginTop: 30, marginRight: 7 }, style: { className: "keep" },
+        children: [{ id: "cp7-container-child", type: "text", hidden: false, content: "Keep selected child" }, {
+          id: "cp7-container-nested", type: "container", hidden: false, linkedStyleId: "cp7-container-style",
+          layout: { marginTop: 40, marginRight: 9 }, children: [{ id: "cp7-nested-child", type: "text", hidden: false, content: "Keep nested child" }],
+        }],
+      }] }],
+      linkedStyles: [{ id: "cp7-container-style", name: "CP7 Container", layout: { marginTop: 12 }, style: { borderRadius: 8 } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const toggleResources = async (): Promise<void> => {
+      const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Custom Resources");
+      if (!button) throw new Error("Custom Resources button was not rendered");
+      await act(async () => button.click());
+    };
+    await toggleResources();
+    await selectElement("cp7-container-root");
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("#container-linked-style")!, "cp7-container-style"));
+    const attached = await save(saved);
+    const attachedRoot = attached.slides[0]?.elements[0];
+    expect(attachedRoot).toMatchObject({ linkedStyleId: "cp7-container-style", layout: { marginRight: 7 }, style: { className: "keep" }, children: initial.slides[0]?.elements[0]?.type === "container" ? initial.slides[0].elements[0].children : undefined });
+    expect(attachedRoot).not.toHaveProperty("layout.marginTop");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(attached);
+
+    const localInput = host.querySelector<HTMLInputElement>("#container-margin-top");
+    if (!localInput) throw new Error("Container marginTop Inspector input was not rendered");
+    await act(async () => { setInputValue(localInput, "30"); localInput.blur(); });
+    const local = await save(saved);
+    expect(local.slides[0]?.elements[0]).toHaveProperty("layout.marginTop", 30);
+    expect(local.slides[0]?.elements[0]).toHaveProperty("layout.marginRight", 7);
+
+    await toggleResources();
+    const row = await openRow("cp7-container-style");
+    const masterInput = row.querySelector<HTMLInputElement>("[data-linked-style-property='marginTop'] input");
+    if (!masterInput) throw new Error(`Container master marginTop input was not rendered: ${row.textContent}`);
+    await act(async () => { setInputValue(masterInput, "16"); masterInput.blur(); });
+    const edited = await save(saved);
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
+    expect(edited.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 }, style: { className: "keep" } });
+    const editedChildren = (edited.slides[0]?.elements[0] as { children?: Array<{ id?: string; children?: unknown[] }> }).children;
+    expect(editedChildren?.[0]).toMatchObject({ id: "cp7-container-child", content: "Keep selected child" });
+    expect(editedChildren?.[1]).toMatchObject({ id: "cp7-container-nested", children: [{ id: "cp7-nested-child", content: "Keep nested child" }] });
+    const editedNested = (edited.slides[0]?.elements[0] as { children?: unknown[] }).children?.[1] as { layout?: { marginTop?: unknown; marginRight?: unknown } };
+    expect(editedNested.layout).toMatchObject({ marginRight: 9 });
+    expect(editedNested.layout).not.toHaveProperty("marginTop");
+    await undo();
+    expect(await save(saved)).toEqual(local);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+
+    await toggleResources();
+    const localAgainInput = host.querySelector<HTMLInputElement>("#container-margin-top");
+    if (!localAgainInput) throw new Error("Container marginTop Inspector input was not rendered after edit");
+    await act(async () => { setInputValue(localAgainInput, "32"); localAgainInput.blur(); });
+    const localAgain = await save(saved);
+    expect(localAgain.slides[0]?.elements[0]).toHaveProperty("layout.marginTop", 32);
+
+    await toggleResources();
+    const editedRow = await openRow("cp7-container-style");
+    const remove = editedRow.querySelector<HTMLButtonElement>("[data-linked-style-property='marginTop'] [data-resource-action='remove']");
+    if (!remove) throw new Error("Container master marginTop remove action was not rendered");
+    await act(async () => remove.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "cp7-container-style")).not.toHaveProperty("layout.marginTop");
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
+    expect(removed.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 }, style: { className: "keep" } });
+    expect((removed.slides[0]?.elements[0] as { children?: unknown[] }).children?.[1]).not.toHaveProperty("layout.marginTop");
+    await undo();
+    expect(await save(saved)).toEqual(localAgain);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+
+    await toggleResources();
+    const localAfterRemoveInput = host.querySelector<HTMLInputElement>("#container-margin-top");
+    if (!localAfterRemoveInput) throw new Error("Container marginTop Inspector input was not rendered after remove");
+    await act(async () => { setInputValue(localAfterRemoveInput, "34"); localAfterRemoveInput.blur(); });
+    const localAfterRemove = await save(saved);
+    expect(localAfterRemove.slides[0]?.elements[0]).toHaveProperty("layout.marginTop", 34);
+
+    await toggleResources();
+    const addRow = await openRow("cp7-container-style");
+    const add = Array.from(addRow.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.includes("Add property"));
+    if (!add) throw new Error("Container Add property action was not rendered");
+    await act(async () => add.click());
+    const marginTop = Array.from(addRow.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Margin top");
+    if (!marginTop) throw new Error("Container Margin top Add property option was not rendered");
+    await act(async () => marginTop.click());
+    const added = await save(saved);
+    const addedStyle = added.linkedStyles?.find((style) => style.id === "cp7-container-style");
+    expect(addedStyle).toHaveProperty("layout.marginTop", 0);
+    expect(added.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
+    expect(added.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 }, style: { className: "keep" } });
+    expect((added.slides[0]?.elements[0] as { children?: unknown[] }).children?.[1]).not.toHaveProperty("layout.marginTop");
+    await undo();
+    expect(await save(saved)).toEqual(localAfterRemove);
+    await redo();
+    expect(await save(saved)).toEqual(added);
+
+    await toggleResources();
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("#container-linked-style")!, ""));
+    const detached = await save(saved);
+    const detachedRoot = detached.slides[0]?.elements[0] as { linkedStyleId?: unknown; layout?: Record<string, unknown>; style?: Record<string, unknown>; children?: unknown[] };
+    expect(detachedRoot).not.toHaveProperty("linkedStyleId");
+    expect(detachedRoot.layout).toMatchObject({ marginTop: 0, marginRight: 7 });
+    expect(detachedRoot.style).toMatchObject({ borderRadius: 8, className: "keep" });
+    expect(detachedRoot.children).toEqual((added.slides[0]?.elements[0] as { children?: unknown[] }).children);
+    expect((detached.slides[0]?.elements[0] as { children?: unknown[] }).children?.[1]).toHaveProperty("linkedStyleId", "cp7-container-style");
+    expect(detached.linkedStyles).toEqual(added.linkedStyles);
+    await undo();
+    expect(await save(saved)).toEqual(added);
+    await redo();
+    expect(await save(saved)).toEqual(detached);
+  });
 });
