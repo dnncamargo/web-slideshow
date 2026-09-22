@@ -206,6 +206,46 @@ describe("font resource traversal", () => {
     expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
   });
 
+  it.each([
+    ["Root Definition", {
+      id: "root-text", type: "text", hidden: false, variant: "body", content: "Root", typography: { fontFamily: "Space Grotesk" },
+    }],
+    ["local Root child", {
+      id: "local-text", type: "text", hidden: false, variant: "body", content: "Local", typography: { fontFamily: "Space Grotesk" },
+    }],
+  ] as const)("detects a font used only by a %s", (_label, usedElement) => {
+    const presentation = PresentationSchema.parse({
+      ...presentationWithElements([], {
+        rootDefinitions: [{
+          id: "root-definition",
+          name: "Root Definition",
+          localChildTargetIds: ["root-container"],
+          root: {
+            id: "root-container",
+            type: "container",
+            hidden: false,
+            children: _label === "Root Definition" ? [usedElement] : [],
+          },
+        }],
+        defaultRootDefinitionId: "root-definition",
+      }),
+      slides: [{
+        id: "slide",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        ...(_label === "local Root child" ? {
+          localRootChildren: [{ targetContainerId: "root-container", children: [usedElement] }],
+        } : {}),
+      }],
+    });
+
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
+    expect(presentationUsesFontFamily(presentation, "Inter")).toBe(false);
+  });
+
   it("does not treat the font resource itself as usage", () => {
     const presentation = presentationWithElements([], {
       resources: {

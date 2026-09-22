@@ -11,6 +11,7 @@ export {
 } from "@/features/fonts/font-face-helpers";
 import { normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import { someElement } from "./element-tree";
+import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
 
 export function createFontResourceId(
   family: string,
@@ -112,10 +113,13 @@ export function presentationUsesFontFamily(
   family: string,
 ): boolean {
   const normalizedFamily = normalizeFontFamily(family);
+  let directElementUsage = false;
+  forEachPresentationAuthoringTree(presentation, (elements) => {
+    if (directElementUsage) return;
+    directElementUsage = someElement(elements, (element) => elementUsesFontFamily(element, normalizedFamily));
+  });
 
-  return presentation.slides.some((slide) =>
-    someElement(slide.elements, (element) => elementUsesFontFamily(element, normalizedFamily)),
-  ) || (presentation.textStyles ?? []).some((style) =>
+  return directElementUsage || (presentation.textStyles ?? []).some((style) =>
     matchesFontFamily(style.typography?.fontFamily, normalizedFamily),
   ) || (presentation.linkedStyles ?? []).some((style) =>
     matchesFontFamily(style.typography?.fontFamily, normalizedFamily),
