@@ -169,7 +169,11 @@ describe("editor history state", () => {
     const b = presentation("B");
     const c = presentation("C");
     const afterUndo = undoHistory(commitHistory(commitHistory(createHistoryState(a), b, action("b")), c, action("c")));
-    const noOp = commitHistoryTransaction(beginHistoryTransaction(afterUndo, "field", action("edit")), "field");
+    const active = beginHistoryTransaction(afterUndo, "field", action("edit"));
+    const mismatched = commitHistoryTransaction(active, "other-field");
+    expect(mismatched).toBe(active);
+    expect(mismatched.transaction?.key).toBe("field");
+    const noOp = commitHistoryTransaction(mismatched, "field");
     expect(noOp.future[0]?.after).toBe(c);
 
     const committed = commitHistoryTransaction(

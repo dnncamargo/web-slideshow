@@ -1036,7 +1036,12 @@ export function EditorWorkspace({
 
   function finishPresentationTransaction(key?: string): void {
     dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
-    authoringTransactionTargetRef.current = null;
+    if (
+      key === undefined ||
+      authoringTransactionTargetRef.current?.key === key
+    ) {
+      authoringTransactionTargetRef.current = null;
+    }
   }
 
   function beginAuthoringTransaction(key: string, meta: HistoryActionMeta): void {
