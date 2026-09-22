@@ -11,6 +11,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import {
+  PresentationSchema,
   SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
   SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
 } from "@web-slideshow/document-schema";
@@ -31,6 +32,7 @@ import {
   resolveAddElementDestination,
   setStructuredTableShowHeader,
 } from "../src/features/editor/element-operations";
+import { collectPresentationAuthoringIds } from "../src/features/editor/presentation-authoring-trees";
 
 import {
   collectAuthoringIds,
@@ -125,6 +127,14 @@ function collectIds(element: PresentationElement): string[] {
   const ids = new Set<string>();
   collectAuthoringIds(element, ids);
   return [...ids];
+}
+
+function usedIds(elements: readonly PresentationElement[] = []): Set<string> {
+  const ids = new Set<string>(["slide"]);
+  for (const element of elements) {
+    collectAuthoringIds(element, ids);
+  }
+  return ids;
 }
 
 function countElementOccurrences(
@@ -455,7 +465,7 @@ describe("structured table hierarchy traversal", () => {
     const table = structuredTable();
     const slides = [slide([table])];
 
-    const duplicate = duplicateElement(table, slides);
+    const duplicate = duplicateElement(table, usedIds(slides[0]?.elements));
     const sourceIds = collectIds(table);
     const duplicateIds = collectIds(duplicate);
 
@@ -575,8 +585,63 @@ describe("structured table hierarchy traversal", () => {
 });
 
 describe("structured table creation and structure", () => {
+  it("allocates new column and row structure outside Root/local reservations", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "table-presentation",
+      title: "Table",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [
+            "table-column",
+            "table-header-slot",
+            "table-header-text",
+            "table-row",
+            "table-cell-slot",
+            "table-text",
+          ].map((id) => text(id)),
+        },
+      }],
+      slides: [slide([structuredTable()])],
+    });
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const tableId = presentation.slides[0]!.elements[0]!.id;
+    const withColumn = addColumnToStructuredTable(presentation.slides, tableId, usedIds);
+    const withRow = addRowToStructuredTable(withColumn, tableId, usedIds);
+    const result = withRow[0]!.elements[0]!;
+
+    expect(result.type).toBe("table");
+    if (result.type !== "table" || result.mode !== "structured") return;
+    const column = result.columns[1]!;
+    const row = result.rows[1]!;
+    const generated = [
+      column.id,
+      column.header.id,
+      column.header.children[0]!.id,
+      row.id,
+      row.cells[0]!.id,
+      row.cells[0]!.children[0]!.id,
+    ];
+    expect(generated.every((id) => ![
+      "table-column",
+      "table-header-slot",
+      "table-header-text",
+      "table-row",
+      "table-cell-slot",
+      "table-text",
+    ].includes(id))).toBe(true);
+    expect(new Set(generated).size).toBe(generated.length);
+    expect(result.rows.every((candidate) => candidate.cells.length === result.columns.length)).toBe(true);
+  });
+
   it("creates a new Table as a Structured Table", () => {
-    const created = createElement("table", [slide([])]);
+    const created = createElement("table", usedIds());
 
     expect(created.type).toBe("table");
     if (created.type === "table") {
@@ -585,7 +650,7 @@ describe("structured table creation and structure", () => {
   });
 
   it("creates a rectangular default Structured Table", () => {
-    const created = createElement("table", [slide([])]);
+    const created = createElement("table", usedIds());
 
     if (created.type !== "table" || created.mode !== "structured") {
       throw new Error("Expected a Structured Table");
@@ -598,7 +663,7 @@ describe("structured table creation and structure", () => {
   });
 
   it("creates unique structural and child IDs for the default Table", () => {
-    const created = createElement("table", [slide([])]);
+    const created = createElement("table", usedIds());
 
     expect(created.type).toBe("table");
     if (created.type === "table" && created.mode === "structured") {
@@ -617,18 +682,18 @@ describe("structured table creation and structure", () => {
   });
 
   it("assigns canonical styles to every auto-created header and body Text", () => {
-    const created = createElement("table", [slide([])]);
+    const created = createElement("table", usedIds());
     if (created.type !== "table" || created.mode !== "structured") throw new Error("Expected a Structured Table");
 
     expect(created.columns[0]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
     expect(created.rows[0]?.cells[0]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
-    const withColumn = addColumnToStructuredTable([slide([created])], created.id)[0]?.elements[0];
+    const withColumn = addColumnToStructuredTable([slide([created])], created.id, usedIds([created]))[0]?.elements[0];
     if (withColumn?.type !== "table" || withColumn.mode !== "structured") throw new Error("Expected a Structured Table");
     expect(withColumn.columns[1]?.header.children[0]).toMatchObject({ variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID });
     expect(withColumn.rows[0]?.cells[1]?.children[0]).toMatchObject({ variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID });
 
-    const withRow = addRowToStructuredTable([slide([withColumn])], withColumn.id)[0]?.elements[0];
+    const withRow = addRowToStructuredTable([slide([withColumn])], withColumn.id, usedIds([withColumn]))[0]?.elements[0];
     if (withRow?.type !== "table" || withRow.mode !== "structured") throw new Error("Expected a Structured Table");
     expect(withRow.rows[1]?.cells.every((cell) => cell.children[0]?.type === "text" && cell.children[0].variant === SYSTEM_TABLE_CELL_TEXT_STYLE_ID)).toBe(true);
   });
@@ -639,7 +704,7 @@ describe("structured table creation and structure", () => {
     ];
     const tableId = "table-1";
 
-    slides = addColumnToStructuredTable(slides, tableId);
+    slides = addColumnToStructuredTable(slides, tableId, usedIds(slides[0]?.elements));
 
     const table = slides[0]?.elements[0];
 
@@ -667,7 +732,7 @@ describe("structured table creation and structure", () => {
 
   it("moves a column and its cells by stable column ID", () => {
     const table = structuredTable();
-    const withColumn = addColumnToStructuredTable([slide([table])], "table-1");
+    const withColumn = addColumnToStructuredTable([slide([table])], "table-1", usedIds([table]));
     const slides = moveColumnInStructuredTable(withColumn, "table-1", "col-2", 1);
     const result = slides[0]?.elements[0];
     if (result?.type === "table" && result.mode === "structured") {
@@ -690,7 +755,7 @@ describe("structured table creation and structure", () => {
 
   it("adds a row producing one cell per column", () => {
     let slides = [slide([structuredTable()])];
-    slides = addRowToStructuredTable(slides, "table-1");
+    slides = addRowToStructuredTable(slides, "table-1", usedIds(slides[0]?.elements));
 
     const table = slides[0]?.elements[0];
     if (table?.type === "table" && table.mode === "structured") {
@@ -707,7 +772,7 @@ describe("structured table creation and structure", () => {
       ]),
     ];
 
-    slides = addRowToStructuredTable(slides, "table-1");
+    slides = addRowToStructuredTable(slides, "table-1", usedIds(slides[0]?.elements));
 
     const table = slides[0]?.elements[0];
     if (table?.type === "table" && table.mode === "structured") {

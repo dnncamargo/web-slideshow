@@ -329,11 +329,11 @@ describe("presentation persistence helpers", () => {
 describe("persistence round trip with an Embed", () => {
   it("preserves a nested Embed created and inserted through Studio authoring", () => {
     const presentation = basePresentation();
-    const container = createElement("container", []) as Extract<
+    const container = createElement("container", new Set()) as Extract<
       Presentation["slides"][number]["elements"][number],
       { type: "container" }
     >;
-    const embed = createElement("embed", []);
+    const embed = createElement("embed", new Set());
 
     presentation.slides = [
       {

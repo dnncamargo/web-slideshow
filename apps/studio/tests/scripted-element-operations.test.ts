@@ -55,25 +55,23 @@ describe("Scripted element authoring", () => {
   });
 
   it("creates a Scripted element", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     expect(created.type).toBe("scripted");
   });
 
   it("defaults the unique id to scripted-element", () => {
-    expect(createElement("scripted", []).id).toBe("scripted-element");
+    expect(createElement("scripted", new Set()).id).toBe("scripted-element");
   });
 
   it("uses scripted-element-2 on id collision", () => {
-    const created = createElement("scripted", [
-      slide([scripted({ id: "scripted-element" })]),
-    ]);
+    const created = createElement("scripted", new Set(["scripted-element"]));
 
     expect(created.id).toBe("scripted-element-2");
   });
 
   it("defaults hidden to false", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.hidden).toBe(false);
@@ -81,7 +79,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults title to Scripted content", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.title).toBe("Scripted content");
@@ -89,7 +87,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults html to an empty string", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.html).toBe("");
@@ -97,7 +95,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults css to an empty string", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.css).toBe("");
@@ -105,7 +103,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults script to an empty string", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.script).toBe("");
@@ -113,7 +111,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults ports to an empty array", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.ports).toEqual([]);
@@ -121,7 +119,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults style width to 60%", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.layout?.width).toBe("60%");
@@ -129,7 +127,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("defaults style height to 55%", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created.layout?.height).toBe("55%");
@@ -137,7 +135,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("keeps Scripted a leaf with no children or slots", () => {
-    const created = createElement("scripted", []);
+    const created = createElement("scripted", new Set());
 
     if (created.type === "scripted") {
       expect(created).not.toHaveProperty("children");
@@ -147,7 +145,7 @@ describe("Scripted element authoring", () => {
   });
 
   it("duplicates a Scripted element with a unique element id", () => {
-    const duplicate = duplicateElement(scripted(), [slide()]);
+    const duplicate = duplicateElement(scripted(), new Set());
 
     expect(duplicate.id).toBe("scripted-1-copy");
 
@@ -165,7 +163,7 @@ describe("Scripted element authoring", () => {
 
         script: "console.log('ready');",
       }),
-      [slide()],
+      new Set(),
     );
 
     if (duplicate.type === "scripted") {
@@ -182,7 +180,7 @@ describe("Scripted element authoring", () => {
   it("duplicate preserves style and does not share the reference", () => {
     const source = scripted({ layout: { width: "60%", height: "55%" } });
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "scripted") {
       expect(duplicate.layout).toEqual({ width: "60%", height: "55%" });

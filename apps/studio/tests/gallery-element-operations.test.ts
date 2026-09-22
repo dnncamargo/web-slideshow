@@ -47,25 +47,23 @@ function slide(elements: Slide["elements"] = []): Slide {
 
 describe("Gallery element authoring", () => {
   it("creates a Gallery", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     expect(created.type).toBe("gallery");
   });
 
   it("defaults the unique id to gallery-element", () => {
-    expect(createElement("gallery", []).id).toBe("gallery-element");
+    expect(createElement("gallery", new Set()).id).toBe("gallery-element");
   });
 
   it("uses gallery-element-2 on id collision", () => {
-    const created = createElement("gallery", [
-      slide([galleryElement({ id: "gallery-element" })]),
-    ]);
+    const created = createElement("gallery", new Set(["gallery-element"]));
 
     expect(created.id).toBe("gallery-element-2");
   });
 
   it("defaults hidden to false", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.hidden).toBe(false);
@@ -73,7 +71,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("defaults fit to contain", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.fit).toBe("contain");
@@ -81,7 +79,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("defaults items to exactly one item", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.items).toHaveLength(1);
@@ -89,7 +87,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("defaults the single item to the neutral demo asset and empty alt", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.items[0]).toEqual({
@@ -101,7 +99,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("defaults style width to 60%", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.layout?.width).toBe("60%");
@@ -109,7 +107,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("defaults style height to 55%", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.layout?.height).toBe("55%");
@@ -117,7 +115,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("duplicates a Gallery with a unique element id", () => {
-    const duplicate = duplicateElement(galleryElement(), [slide()]);
+    const duplicate = duplicateElement(galleryElement(), new Set());
 
     expect(duplicate.id).toBe("gallery-1-copy");
 
@@ -127,7 +125,7 @@ describe("Gallery element authoring", () => {
   it("duplicate preserves fit", () => {
     const duplicate = duplicateElement(
       galleryElement({ fit: "cover" }),
-      [slide()],
+      new Set(),
     );
 
     if (duplicate.type === "gallery") {
@@ -136,7 +134,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("duplicate preserves item values", () => {
-    const duplicate = duplicateElement(galleryElement(), [slide()]);
+    const duplicate = duplicateElement(galleryElement(), new Set());
 
     if (duplicate.type === "gallery") {
       expect(duplicate.items).toEqual([
@@ -149,7 +147,7 @@ describe("Gallery element authoring", () => {
   it("duplicate items array is not the same reference", () => {
     const source = galleryElement();
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "gallery") {
       expect(duplicate.items).not.toBe(source.items);
@@ -159,7 +157,7 @@ describe("Gallery element authoring", () => {
   it("duplicate item object is not the same reference", () => {
     const source = galleryElement();
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "gallery") {
       expect(duplicate.items[0]).not.toBe(source.items[0]);
@@ -169,7 +167,7 @@ describe("Gallery element authoring", () => {
   it("modifying duplicate item values does not modify the original", () => {
     const source = galleryElement();
 
-    const duplicate = duplicateElement(source, [slide()]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "gallery") {
       duplicate.items[0] = {
@@ -193,7 +191,7 @@ describe("Gallery element authoring", () => {
   });
 
   it("keeps Gallery a leaf with no nested item ids", () => {
-    const created = createElement("gallery", []);
+    const created = createElement("gallery", new Set());
 
     if (created.type === "gallery") {
       expect(created.items).toHaveLength(1);
@@ -205,7 +203,7 @@ describe("Gallery element authoring", () => {
 
 describe("application-owned new content defaults", () => {
   it("uses a neutral Code example", () => {
-    const created = createElement("code", []);
+    const created = createElement("code", new Set());
 
     expect(created.type).toBe("code");
     if (created.type === "code") {

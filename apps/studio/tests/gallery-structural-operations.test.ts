@@ -13,6 +13,7 @@ import {
   reorderGalleryItem,
 } from "../src/features/editor/element-operations";
 import { findElementById } from "../src/features/editor/element-tree";
+import { collectPresentationAuthoringIds } from "../src/features/editor/presentation-authoring-trees";
 
 function slide(elements: PresentationElement[]): Slide {
   return { id: "slide-1", title: "Slide", summary: "", speakerNotes: "", elements };
@@ -47,7 +48,7 @@ describe("Gallery structural operations", () => {
       style: { background: { color: "#fff" } },
       effect: { opacity: 0.2, shadow: { color: "#000", blur: 4, x: 1, y: 1 } },
     });
-    const outcome = detachGalleryItemToImage([source], [slide([image("image-element")])], "gallery", 0, "gallery", "after");
+    const outcome = detachGalleryItemToImage([source], new Set(["image-element"]), "gallery", 0, "gallery", "after");
     const detached = findElementById(outcome.elements, outcome.imageId ?? "");
 
     expect(detached).toMatchObject({ type: "image", src: "a.png", alt: "Facade", fit: "cover", crop, focalPoint, layout: { width: "60%", height: "55%" } });
@@ -60,12 +61,12 @@ describe("Gallery structural operations", () => {
   it("honors explicit item fit and supports Container inside detach", () => {
     const source = gallery([{ src: "a.png", alt: "A", fit: "fill" }]);
     const target = { id: "target", type: "container" as const, hidden: false, children: [] };
-    const outcome = detachGalleryItemToImage([source, target], [slide([source, target])], "gallery", 0, "target", "inside");
+    const outcome = detachGalleryItemToImage([source, target], new Set(), "gallery", 0, "target", "inside");
     const updatedTarget = findElementById(outcome.elements, "target");
 
     expect(updatedTarget).toMatchObject({ type: "container", children: [{ type: "image", src: "a.png", fit: "fill" }] });
     expect((outcome.elements[0] as GalleryElement).items).toEqual([]);
-    expect(detachGalleryItemToImage([source], [slide([source])], "gallery", 0, "gallery", "inside").changed).toBe(false);
+    expect(detachGalleryItemToImage([source], new Set(), "gallery", 0, "gallery", "inside").changed).toBe(false);
   });
 
   it("attaches only standalone Images and discards standalone-only properties", () => {
@@ -82,7 +83,41 @@ describe("Gallery structural operations", () => {
 
   it("keeps converted documents valid at schemaVersion 1", () => {
     const source = gallery([item("A")]);
-    const outcome = detachGalleryItemToImage([source], [slide([source])], "gallery", 0, "gallery", "after");
+    const outcome = detachGalleryItemToImage([source], new Set(), "gallery", 0, "gallery", "after");
     expect(PresentationSchema.safeParse({ schemaVersion: 1, id: "presentation", title: "Presentation", slides: [slide(outcome.elements)] }).success).toBe(true);
+  });
+
+  it("avoids an Image id reserved only by a Root Definition", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "gallery-presentation",
+      title: "Gallery",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [image("image-element")],
+        },
+      }],
+      slides: [slide([gallery([item("A")])])],
+    });
+    const source = presentation.slides[0]!.elements[0]!;
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const outcome = detachGalleryItemToImage(
+      [source],
+      usedIds,
+      "gallery",
+      0,
+      "gallery",
+      "after",
+    );
+
+    expect(outcome.changed).toBe(true);
+    expect(outcome.imageId).not.toBe("image-element");
+    expect(PresentationSchema.safeParse(presentation).success).toBe(true);
   });
 });

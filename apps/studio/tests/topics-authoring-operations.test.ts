@@ -30,6 +30,7 @@ import {
   collectAuthoringIds,
   findTopicItemById,
 } from "../src/features/editor/element-hierarchy";
+import { collectPresentationAuthoringIds } from "../src/features/editor/presentation-authoring-trees";
 
 function slide(elements: PresentationElement[]): Slide {
   return {
@@ -91,9 +92,17 @@ function collectIds(elements: readonly PresentationElement[]): Set<string> {
   return ids;
 }
 
+function usedIds(elements: readonly PresentationElement[] = []): Set<string> {
+  const ids = new Set<string>(["slide"]);
+  for (const element of elements) {
+    collectAuthoringIds(element, ids);
+  }
+  return ids;
+}
+
 describe("topics element creation", () => {
   it("creates a canonical TopicsElement with a single default topic", () => {
-    const created = createElement("topics", [slide([])]) as TopicsElement;
+    const created = createElement("topics", usedIds()) as TopicsElement;
 
     expect(created.type).toBe("topics");
     expect(created.hidden).toBe(false);
@@ -111,7 +120,7 @@ describe("topics element creation", () => {
   });
 
   it("generates distinct IDs for Topics, TopicItem, ContentSlot and Text", () => {
-    const created = createElement("topics", [slide([])]) as TopicsElement;
+    const created = createElement("topics", usedIds()) as TopicsElement;
 
     const ids = [
       created.id,
@@ -134,7 +143,7 @@ describe("topics element creation", () => {
       ]),
     ];
 
-    const created = createElement("topics", slides) as TopicsElement;
+    const created = createElement("topics", usedIds(slides[0]?.elements)) as TopicsElement;
 
     const used = collectIds(slides[0]?.elements ?? []);
     const createdIds = [
@@ -662,8 +671,39 @@ describe("TopicItem hierarchy operations", () => {
 });
 
 describe("default topic item creation", () => {
+  it("avoids TopicItem, ContentSlot, and Text ids reserved by Root/local content", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "topic-presentation",
+      title: "Topics",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [
+            "topic-item",
+            "topic-slot",
+            "topic-text",
+          ].map((id) => text(id)),
+        },
+      }],
+      slides: [slide([])],
+    });
+    const before = structuredClone(presentation);
+    const created = createDefaultTopicItem(collectPresentationAuthoringIds(presentation));
+
+    expect(created.item.id).not.toBe("topic-item");
+    expect(created.item.content.id).not.toBe("topic-slot");
+    expect(created.textId).not.toBe("topic-text");
+    expect(presentation).toEqual(before);
+  });
+
   it("creates a fresh TopicItem with one Text child and exposes the Text ID", () => {
-    const { item, textId } = createDefaultTopicItem([slide([])]);
+    const { item, textId } = createDefaultTopicItem(usedIds());
 
     expect(item.children).toEqual([]);
     expect(item.content.children).toHaveLength(1);
@@ -676,7 +716,7 @@ describe("default topic item creation", () => {
   });
 
   it("generates distinct fresh structural IDs", () => {
-    const { item } = createDefaultTopicItem([slide([])]);
+    const { item } = createDefaultTopicItem(usedIds());
 
     const ids = [item.id, item.content.id, item.content.children[0]?.id];
     expect(new Set(ids).size).toBe(3);
@@ -692,7 +732,7 @@ describe("default topic item creation", () => {
 
     const elements: PresentationElement[] = [existing];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendTopicItemToTopics(elements, "topics", created.item);
 
@@ -730,7 +770,7 @@ describe("default topic item creation", () => {
       ]),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendTopicItemToTopics(
       elements,
@@ -772,7 +812,7 @@ describe("default topic item creation", () => {
     );
 
     const elements: PresentationElement[] = [topics("topics", [parent, sibling])];
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -809,7 +849,7 @@ describe("default topic item creation", () => {
     );
 
     const elements: PresentationElement[] = [topics("topics", [grandchildParent])];
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -842,7 +882,7 @@ describe("default topic item creation", () => {
       ]),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -870,7 +910,7 @@ describe("default topic item creation", () => {
   it("returns the original hierarchy for an invalid Topics target", () => {
     const elements: PresentationElement[] = [text("not-topics")];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     expect(appendTopicItemToTopics(elements, "missing", created.item)).toBe(
       elements,
@@ -888,7 +928,7 @@ describe("default topic item creation", () => {
       ]),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     expect(
       appendChildTopicItemToTopics(
@@ -982,14 +1022,14 @@ describe("default topic item creation", () => {
       topicItem("topic-item", contentSlot("topic-slot", [text("topic-text")])),
     ]);
 
-    const { item, textId } = createDefaultTopicItem([slide([existing])]);
+    const { item, textId } = createDefaultTopicItem(usedIds([existing]));
 
     expect(item.id).not.toBe("topic-item");
     expect(item.content.id).not.toBe("topic-slot");
     expect(textId).not.toBe("topic-text");
   });
   it("creates a topic Text child without a local style override", () => {
-    const created = createDefaultTopicItem([slide([])]);
+    const created = createDefaultTopicItem(usedIds());
     const textChild = created.item.content.children[0];
 
     expect(textChild?.type).toBe("text");
@@ -1014,7 +1054,7 @@ describe("default topic item creation", () => {
       ]),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]);
+    const created = createDefaultTopicItem(usedIds(elements));
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -1102,7 +1142,7 @@ describe("topics structural depth authoring limit", () => {
       topics("topics", structuralChain(4)),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]).item;
+    const created = createDefaultTopicItem(usedIds(elements)).item;
 
     for (const targetId of [
       "topic-level-1",
@@ -1126,7 +1166,7 @@ describe("topics structural depth authoring limit", () => {
       topics("topics", structuralChain(5)),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]).item;
+    const created = createDefaultTopicItem(usedIds(elements)).item;
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -1143,7 +1183,7 @@ describe("topics structural depth authoring limit", () => {
       topics("topics", structuralChain(7)),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]).item;
+    const created = createDefaultTopicItem(usedIds(elements)).item;
 
     const result = appendChildTopicItemToTopics(
       elements,
@@ -1160,7 +1200,7 @@ describe("topics structural depth authoring limit", () => {
       topics("topics", structuralChain(5)),
     ];
 
-    const created = createDefaultTopicItem([slide(elements)]).item;
+    const created = createDefaultTopicItem(usedIds(elements)).item;
     const refused = appendChildTopicItemToTopics(
       elements,
       "topics",

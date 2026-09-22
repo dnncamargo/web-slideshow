@@ -43,11 +43,17 @@ function ids(element: PresentationElement): Set<string> {
   return authoringIds(element);
 }
 
+function allocationIds(input: readonly Slide[] = slides): Set<string> {
+  const result = new Set(input.map((candidate) => candidate.id));
+  input.forEach((candidate) => candidate.elements.forEach((element) => collectAuthoringIds(element, result)));
+  return result;
+}
+
 describe("Custom Library apply core", () => {
   it("materializes with create defaults and selected properties", () => {
     const result = materializeCustomLibraryElementRecipe(
       recipe("text", [{ path: "typography.fontFamily", value: "Roboto" }]),
-      slides,
+      allocationIds(),
     );
 
     expect(result.ok).toBe(true);
@@ -65,7 +71,7 @@ describe("Custom Library apply core", () => {
         { path: "typography.fontWeight", value: 900 },
         { path: "typography.textStroke", value: { width: 2, color: "#000000" } },
       ]),
-      slides,
+      allocationIds(),
     );
 
     expect(result.ok).toBe(true);
@@ -79,7 +85,7 @@ describe("Custom Library apply core", () => {
   });
 
   it("materializes an empty recipe with ordinary create defaults", () => {
-    const result = materializeCustomLibraryElementRecipe(recipe("text"), slides);
+    const result = materializeCustomLibraryElementRecipe(recipe("text"), allocationIds());
 
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "text") return;
@@ -91,7 +97,7 @@ describe("Custom Library apply core", () => {
     const source = recipe("text", [{ path: "content", value: "Saved" }]);
     const sourceBefore = structuredClone(source);
     const slidesBefore = structuredClone(slides);
-    const result = materializeCustomLibraryElementRecipe(source, slides);
+    const result = materializeCustomLibraryElementRecipe(source, allocationIds());
 
     expect(result.ok && result.element.type === "text" && result.element.content).toBe("Saved");
     expect(source).toEqual(sourceBefore);
@@ -104,7 +110,7 @@ describe("Custom Library apply core", () => {
         recipe("text", [{ path: "content", value: "A" }]),
         recipe("container", [], [recipe("text", [{ path: "content", value: "B" }])]),
       ]),
-      [slide([text("text-element-1", "Existing")])],
+      allocationIds([slide([text("text-element-1", "Existing")])]),
     );
 
     expect(result.ok).toBe(true);
@@ -128,7 +134,7 @@ describe("Custom Library apply core", () => {
     };
     const result = materializeCustomLibraryElementRecipe(
       recipe("table", [{ path: "rows", value: sourceTable.type === "table" ? sourceTable.rows : [] }]),
-      [slide([text("source-row", "collision")])],
+      allocationIds([slide([text("source-row", "collision")])]),
     );
 
     expect(result.ok).toBe(true);
@@ -148,7 +154,7 @@ describe("Custom Library apply core", () => {
       { path: "items", value: items },
     ]);
     const before = structuredClone(source);
-    const result = materializeCustomLibraryElementRecipe(source, [slide([text("topic-item-source", "collision")])]);
+    const result = materializeCustomLibraryElementRecipe(source, allocationIds([slide([text("topic-item-source", "collision")])]));
 
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "topics") return;
@@ -163,7 +169,7 @@ describe("Custom Library apply core", () => {
     const source = "move [10] steps";
     const result = materializeCustomLibraryElementRecipe(recipe("blocks", [
       { path: "source", value: source },
-    ]), slides);
+    ]), allocationIds());
 
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "blocks") return;
@@ -183,7 +189,7 @@ describe("Custom Library apply core", () => {
     const result = mergeCustomLibraryElementRecipe(
       recipe("text", [{ path: "typography.fontFamily", value: "Roboto" }]),
       target,
-      [slide([target])],
+      allocationIds([slide([target])]),
     );
 
     expect(result.ok).toBe(true);
@@ -208,7 +214,7 @@ describe("Custom Library apply core", () => {
         { path: "typography.textStroke", value: { width: 2, color: "#000000" } },
       ]),
       target,
-      [slide([target])],
+      allocationIds([slide([target])]),
     );
 
     expect(result.ok).toBe(true);
@@ -232,7 +238,7 @@ describe("Custom Library apply core", () => {
     const result = mergeCustomLibraryElementRecipe(
       recipe("container", [], [recipe("text", [{ path: "content", value: "New" }])]),
       target,
-      [slide([target])],
+      allocationIds([slide([target])]),
     );
 
     expect(result.ok).toBe(true);
@@ -254,7 +260,7 @@ describe("Custom Library apply core", () => {
       rows: [{ id: "existing-row", cells: [{ id: "existing-cell", children: [text("existing-cell-text", "Old")] }] }],
     };
     const recipeRows = [{ id: "recipe-row", cells: [{ id: "recipe-cell", children: [text("recipe-cell-text", "New")] }] }];
-    const result = mergeCustomLibraryElementRecipe(recipe("table", [{ path: "rows", value: recipeRows }]), target, [slide([target])]);
+    const result = mergeCustomLibraryElementRecipe(recipe("table", [{ path: "rows", value: recipeRows }]), target, allocationIds([slide([target])]));
 
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "table" || result.element.mode !== "structured") return;
@@ -279,22 +285,22 @@ describe("Custom Library apply core", () => {
     };
     const atomic = mergeCustomLibraryElementRecipe(recipe("image", [
       { path: "link", value: { kind: "url", href: "https://new.example" } },
-    ]), target, [slide([target])]);
+    ]), target, allocationIds([slide([target])]));
     expect(atomic.ok && atomic.element.type === "image" && atomic.element.link).toEqual({ kind: "url", href: "https://new.example" });
 
-    const empty = mergeCustomLibraryElementRecipe(recipe("image"), target, [slide([target])]);
+    const empty = mergeCustomLibraryElementRecipe(recipe("image"), target, allocationIds([slide([target])]));
     expect(empty.ok && empty.element).toEqual(target);
-    const hidden = mergeCustomLibraryElementRecipe(recipe("image", [{ path: "hidden", value: true }]), target, [slide([target])]);
+    const hidden = mergeCustomLibraryElementRecipe(recipe("image", [{ path: "hidden", value: true }]), target, allocationIds([slide([target])]));
     expect(hidden.ok && hidden.element.type === "image" && hidden.element.hidden).toBe(true);
   });
 
   it("rejects mismatches, unsupported creates, invalid values, and unsafe paths", () => {
     const target = text("target", "Target");
-    expect(mergeCustomLibraryElementRecipe(recipe("image"), target, slides)).toEqual({ ok: false, reason: "type-mismatch" });
-    expect(materializeCustomLibraryElementRecipe(recipe("interactive"), slides)).toEqual({ ok: false, reason: "unsupported-create-type" });
-    expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: 42 }]), slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(mergeCustomLibraryElementRecipe(recipe("image"), target, allocationIds())).toEqual({ ok: false, reason: "type-mismatch" });
+    expect(materializeCustomLibraryElementRecipe(recipe("interactive"), allocationIds())).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: 42 }]), allocationIds())).toEqual({ ok: false, reason: "invalid-recipe-application" });
     for (const path of ["__proto__.polluted", "constructor.x", "prototype.x", "typography..fontSize", "content.0"]) {
-      expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path, value: "x" }]), slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
+      expect(materializeCustomLibraryElementRecipe(recipe("text", [{ path, value: "x" }]), allocationIds())).toEqual({ ok: false, reason: "invalid-recipe-application" });
     }
   });
 
@@ -302,12 +308,12 @@ describe("Custom Library apply core", () => {
     const target = text("target", "Target");
     const stale = recipe("text", [{ path: "invented.field", value: "x" }]);
     const staleBefore = structuredClone(stale);
-    expect(materializeCustomLibraryElementRecipe(stale, slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(materializeCustomLibraryElementRecipe(stale, allocationIds())).toEqual({ ok: false, reason: "invalid-recipe-application" });
     expect(stale).toEqual(staleBefore);
 
     const nonClonable = recipe("text", [{ path: "content", value: () => "nope" }]);
-    expect(() => materializeCustomLibraryElementRecipe(nonClonable, slides)).not.toThrow();
-    expect(materializeCustomLibraryElementRecipe(nonClonable, slides)).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(() => materializeCustomLibraryElementRecipe(nonClonable, allocationIds())).not.toThrow();
+    expect(materializeCustomLibraryElementRecipe(nonClonable, allocationIds())).toEqual({ ok: false, reason: "invalid-recipe-application" });
     expect(target).toEqual(text("target", "Target"));
     expect(slides).toEqual([slide()]);
   });
@@ -316,7 +322,7 @@ describe("Custom Library apply core", () => {
     const result = materializeCustomLibraryElementRecipe(recipe("container", [], [
       recipe("text", [{ path: "content", value: "Supported" }]),
       recipe("interactive", []),
-    ]), slides);
+    ]), allocationIds());
     expect(result).toEqual({ ok: false, reason: "unsupported-create-type" });
   });
 
@@ -329,7 +335,7 @@ describe("Custom Library apply core", () => {
     };
     const result = mergeCustomLibraryElementRecipe(recipe("plot", [
       { path: "source", value: "y = x^2" },
-    ]), target, [slide([target])]);
+    ]), target, allocationIds([slide([target])]));
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "plot") return;
     expect(result.element.id).toBe("plot-target");
@@ -344,7 +350,7 @@ describe("Custom Library apply core", () => {
       hidden: false,
       children: [text("existing-child", "Existing")],
     };
-    const result = mergeCustomLibraryElementRecipe(recipe("container", [], [recipe("text", [{ path: "content", value: "New" }])]), target, [slide([target])]);
+    const result = mergeCustomLibraryElementRecipe(recipe("container", [], [recipe("text", [{ path: "content", value: "New" }])]), target, allocationIds([slide([target])]));
     expect(result.ok).toBe(true);
     if (!result.ok || result.element.type !== "container") return;
     expect(result.element.children).toHaveLength(2);
@@ -369,7 +375,7 @@ describe("Custom Library apply core", () => {
     ];
 
     for (const invalid of invalidRecipes) {
-      const result = mergeCustomLibraryElementRecipe(invalid, target, slides);
+      const result = mergeCustomLibraryElementRecipe(invalid, target, allocationIds());
       expect(result).toEqual({ ok: false, reason: "invalid-recipe-application" });
     }
 
@@ -382,7 +388,7 @@ describe("Custom Library apply core", () => {
     expect(mergeCustomLibraryElementRecipe(
       recipe("container", [{ path: "children", value: [] }]),
       containerTarget,
-      [slide([containerTarget])],
+      allocationIds([slide([containerTarget])]),
     )).toEqual({ ok: false, reason: "invalid-recipe-application" });
     expect(containerTarget.children[0]?.id).toBe("existing-child");
 
@@ -392,7 +398,7 @@ describe("Custom Library apply core", () => {
 
   it("rejects children on non-Container recipes", () => {
     const invalid = recipe("text", [], [recipe("text")]);
-    expect(materializeCustomLibraryElementRecipe(invalid, slides)).toEqual({
+    expect(materializeCustomLibraryElementRecipe(invalid, allocationIds())).toEqual({
       ok: false,
       reason: "invalid-recipe-application",
     });
@@ -401,11 +407,11 @@ describe("Custom Library apply core", () => {
   it("keeps valid recipe children and unsupported-create ordering intact", () => {
     const container = materializeCustomLibraryElementRecipe(
       recipe("container", [], [recipe("text", [{ path: "content", value: "Child" }])]),
-      slides,
+      allocationIds(),
     );
     expect(container.ok).toBe(true);
 
-    const interactive = materializeCustomLibraryElementRecipe(recipe("interactive", []), slides);
+    const interactive = materializeCustomLibraryElementRecipe(recipe("interactive", []), allocationIds());
     expect(interactive).toEqual({ ok: false, reason: "unsupported-create-type" });
   });
 });

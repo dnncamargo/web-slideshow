@@ -18,6 +18,7 @@ import {
 import type { CustomLibraryApplyFailureReason } from "./custom-library-apply";
 import { createLinkedStyleId } from "../editor/linked-style-authoring";
 import { createTextStyleId } from "../editor/text-style-helpers";
+import { collectPresentationAuthoringIds } from "../editor/presentation-authoring-trees";
 
 export type CustomLibraryItemApplyFailureReason =
   | CustomLibraryApplyFailureReason
@@ -400,6 +401,8 @@ export function applyCustomLibraryItemToPresentation(
     return { ok: false, reason: "invalid-recipe-application" };
   }
 
+  const usedIds = collectPresentationAuthoringIds(workingPresentation);
+
   const workingSlide = workingPresentation.slides[selectedSlideIndex];
   if (!workingSlide) {
     return { ok: false, reason: "invalid-recipe-application" };
@@ -408,7 +411,7 @@ export function applyCustomLibraryItemToPresentation(
   const placement = placeCustomLibraryElementRecipe(
     workingRecipe,
     workingSlide,
-    workingPresentation.slides,
+    usedIds,
     selectedElementId,
   );
   if (!placement.ok) {

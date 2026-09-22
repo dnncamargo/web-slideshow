@@ -207,4 +207,32 @@ describe("Pending Cut move", () => {
     const next = moveClipboardElement(current, "slide-1", "source-container", 0, descendant, null);
     expect(next).toBeNull();
   });
+
+  it("allocates clipboard duplicates outside Root/local ids", () => {
+    const current = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "clipboard-root-collision",
+      title: "Clipboard",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [{ id: "source-copy", type: "text", hidden: false, variant: "body", content: "reserved" }],
+        },
+      }],
+      slides: [
+        { id: "slide-a", title: "A", summary: "", speakerNotes: "", elements: [divider("source")] },
+        { id: "slide-b", title: "B", summary: "", speakerNotes: "", elements: [] },
+      ],
+    });
+
+    const next = moveClipboardElement(current, "slide-a", "source", 1, null, null);
+    expect(next?.slides[1]?.elements[0]?.id).toBe("source-copy-2");
+    expect(next?.slides[0]?.elements).toEqual([]);
+    expect(current.rootDefinitions?.[0]?.root.id).toBe("root-container");
+  });
 });

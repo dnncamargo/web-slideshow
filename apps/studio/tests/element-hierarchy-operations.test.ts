@@ -197,8 +197,8 @@ describe("canonical element hierarchy operations", () => {
       },
     ];
 
-    expect(createElement("text", slides).id).toBe("text-element-2");
-    expect(createElement("container", slides).id).toBe("container-element-2");
+    expect(createElement("text", new Set(["text-element"])).id).toBe("text-element-2");
+    expect(createElement("container", new Set(["container-element"])).id).toBe("container-element-2");
   });
 
   it("duplicates Topics trees with fresh IDs for structural and content nodes", () => {
@@ -238,7 +238,7 @@ describe("canonical element hierarchy operations", () => {
       },
     ];
 
-    const duplicate = duplicateElement(source, slides);
+    const duplicate = duplicateElement(source, new Set());
     const duplicateIds = collectIds(duplicate);
     const sourceIds = collectIds(source);
 
@@ -262,15 +262,7 @@ describe("canonical element hierarchy operations", () => {
 
   it("preserves existing container duplication behavior", () => {
     const source = container("source", [text("child")]);
-    const duplicate = duplicateElement(source, [
-      {
-        id: "slide",
-        title: "",
-        summary: "",
-        speakerNotes: "",
-        elements: [source],
-      },
-    ]);
+    const duplicate = duplicateElement(source, new Set());
 
     if (duplicate.type === "container") {
       expect(duplicate.id).not.toBe("source");

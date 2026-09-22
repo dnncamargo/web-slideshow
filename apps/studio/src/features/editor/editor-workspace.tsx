@@ -261,6 +261,7 @@ import {
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrImageElement } from "./qr-image-authoring";
+import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 import {
   beginHistoryTransaction,
@@ -1555,7 +1556,8 @@ export function EditorWorkspace({
           selectedElement?.contentSlotId ?? null,
         );
         if (!destination) return current;
-        const pastedElement = duplicateElement(entry.element, current.slides);
+        const usedIds = collectPresentationAuthoringIds(current);
+        const pastedElement = duplicateElement(entry.element, usedIds);
         const nextElements = destination.kind === "slide"
           ? [...slide.elements, pastedElement]
           : destination.kind === "container"
@@ -4033,7 +4035,8 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addElement(type: ElementCreateType) {
-    const newElement = createElement(type, presentation.slides);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const newElement = createElement(type, usedIds);
 
     commitPresentationAction(
       {
@@ -4124,7 +4127,8 @@ export function EditorWorkspace({
     }
 
     const sourceElementId = selectedElement?.id;
-    const newElement = createQrImageElement(href, presentation.slides);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const newElement = createQrImageElement(href, usedIds);
     if (!newElement || !sourceElementId) {
       return;
     }
@@ -4253,7 +4257,8 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addTopLevelTopic(topicsId: string): string | null {
-    const created = createDefaultTopicItem(presentation.slides);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const created = createDefaultTopicItem(usedIds);
     const selectedSlide = presentation.slides[selectedSlideIndex];
 
     if (!selectedSlide) {
@@ -4313,7 +4318,8 @@ export function EditorWorkspace({
   }
 
   function addChildTopic(topicsId: string, topicItemId: string): string | null {
-    const created = createDefaultTopicItem(presentation.slides);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const created = createDefaultTopicItem(usedIds);
     const selectedSlide = presentation.slides[selectedSlideIndex];
 
     if (!selectedSlide) {
@@ -4396,10 +4402,8 @@ export function EditorWorkspace({
     }
 
     const sourceElementId = selectedDocumentElement.id;
-    const duplicatedElement = duplicateElement(
-      selectedDocumentElement,
-      presentation.slides,
-    );
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const duplicatedElement = duplicateElement(selectedDocumentElement, usedIds);
 
     commitPresentationAction(
       {
@@ -4551,7 +4555,8 @@ export function EditorWorkspace({
       presentation.slides.length,
     );
 
-    const newSlide = createSlideFromPreset(preset, presentation.slides);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const newSlide = createSlideFromPreset(preset, usedIds);
 
     commitPresentationAction(
       { kind: "slide.add", labelKey: "history.slide.add" },
@@ -4594,10 +4599,8 @@ export function EditorWorkspace({
 
     const insertionIndex = selectedSlideIndex + 1;
 
-    const duplicatedSlide = duplicateSlideWithUniqueIds(
-      selectedSlide,
-      presentation.slides,
-    );
+    const usedIds = collectPresentationAuthoringIds(presentation);
+    const duplicatedSlide = duplicateSlideWithUniqueIds(selectedSlide, usedIds);
 
     commitPresentationAction(
       { kind: "slide.duplicate", labelKey: "history.slide.duplicate" },
@@ -4885,7 +4888,7 @@ export function EditorWorkspace({
 
     const source = options.source;
     const target = options.target;
-    const resolveOperation = (elements: PresentationElement[], slides: readonly Slide[]) => {
+    const resolveOperation = (elements: PresentationElement[], usedIds: Set<string>) => {
       if (source.kind === "gallery-item") {
         if (target.kind === "gallery-item") {
           const gallery = findElementById(elements, source.galleryId);
@@ -4920,7 +4923,7 @@ export function EditorWorkspace({
           galleryId: source.galleryId,
           outcome: detachGalleryItemToImage(
             elements,
-            slides,
+            usedIds,
             source.galleryId,
             source.itemIndex,
             target.element.id,
@@ -4967,7 +4970,10 @@ export function EditorWorkspace({
       return null;
     };
 
-    const resolved = resolveOperation(selectedSlide.elements, presentation.slides);
+    const resolved = resolveOperation(
+      selectedSlide.elements,
+      collectPresentationAuthoringIds(presentation),
+    );
     if (!resolved?.outcome.changed) return;
 
     const meta: HistoryActionMeta = {
@@ -4982,7 +4988,10 @@ export function EditorWorkspace({
       const currentSlide = current.slides[selectedSlideIndex];
       if (!currentSlide) return current;
 
-      const currentResolved = resolveOperation(currentSlide.elements, current.slides);
+      const currentResolved = resolveOperation(
+        currentSlide.elements,
+        collectPresentationAuthoringIds(current),
+      );
       if (
         !currentResolved?.outcome.changed ||
         currentResolved.kind !== resolved.kind ||
@@ -5090,7 +5099,8 @@ export function EditorWorkspace({
         (current) => {
           if (!findStructuredTableInPresentation(current, tableId)) return current;
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId) };
+          const usedIds = collectPresentationAuthoringIds(prepared);
+          return { ...prepared, slides: addColumnToStructuredTable(prepared.slides, tableId, usedIds) };
         },
       );
     },
@@ -5127,7 +5137,8 @@ export function EditorWorkspace({
         (current) => {
           if (!findStructuredTableInPresentation(current, tableId)) return current;
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId) };
+          const usedIds = collectPresentationAuthoringIds(prepared);
+          return { ...prepared, slides: addRowToStructuredTable(prepared.slides, tableId, usedIds) };
         },
       );
     },

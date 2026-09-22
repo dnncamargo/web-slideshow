@@ -2,19 +2,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QRCodeSVG } from "qrcode.react";
 
 import { isAbsoluteHttpHref } from "@web-slideshow/document-schema";
-import type { ImageElement, Slide } from "@web-slideshow/document-schema";
+import type { ImageElement } from "@web-slideshow/document-schema";
 
 import { createElement } from "./element-operations";
 
 export function createQrImageElement(
   href: string,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): ImageElement | null {
   if (!isAbsoluteHttpHref(href)) {
     return null;
   }
 
-  const image = createElement("image", slides);
+  const image = createElement("image", usedIds);
   if (image.type !== "image") {
     return null;
   }

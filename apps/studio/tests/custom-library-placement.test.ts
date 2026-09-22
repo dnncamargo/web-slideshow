@@ -19,7 +19,7 @@ function success(result: CustomLibraryPlacementResult): Extract<CustomLibraryPla
   return result;
 }
 function allIds(slides: readonly Slide[]): Set<string> {
-  const result = new Set<string>();
+  const result = new Set(slides.map((slide) => slide.id));
   for (const current of slides) for (const element of current.elements) collectAuthoringIds(element, result);
   return result;
 }
@@ -29,7 +29,7 @@ describe("Custom Library placement core", () => {
     const current = slide([text("first"), text("last")]);
     const allSlides = [current, slide([text("text-element-1")])];
     for (const selectedId of [null, "stale"]) {
-      const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "Created" }]), current, allSlides, selectedId));
+      const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "Created" }]), current, allIds(allSlides), selectedId));
       expect(result.mode).toBe("create-root");
       expect(result.slide.elements.map((element) => element.id)).toEqual(["first", "last", result.appliedElementId]);
       expect(allIds(allSlides)).not.toContain(result.appliedElementId);
@@ -39,7 +39,7 @@ describe("Custom Library placement core", () => {
   it("merges same-type roots in place and preserves id/order", () => {
     const current = slide([text("before"), text("selected", "Old"), text("after")]);
     const before = structuredClone(current);
-    const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "New" }]), current, [current], "selected"));
+    const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "New" }]), current, allIds([current]), "selected"));
     expect(result.mode).toBe("merge-selected");
     expect(result.appliedElementId).toBe("selected");
     expect(result.slide.elements.map((element) => element.id)).toEqual(["before", "selected", "after"]);
@@ -49,7 +49,7 @@ describe("Custom Library placement core", () => {
 
   it("creates different types after a selected container, not inside it", () => {
     const current = slide([container("selected", [text("inside")]), text("after")]);
-    const result = success(placeCustomLibraryElementRecipe(recipe("text"), current, [current], "selected"));
+    const result = success(placeCustomLibraryElementRecipe(recipe("text"), current, allIds([current]), "selected"));
     expect(result.mode).toBe("create-sibling");
     expect(result.slide.elements.map((element) => element.id)).toEqual(["selected", result.appliedElementId, "after"]);
     const selected = result.slide.elements[0];
@@ -58,13 +58,13 @@ describe("Custom Library placement core", () => {
 
   it("merges a container recipe into a selected container and inserts a complete tree", () => {
     const current = slide([container("selected", [text("existing")]), text("after")]);
-    const merged = success(placeCustomLibraryElementRecipe(recipe("container", [], [recipe("text", [{ path: "content", value: "child" }])]), current, [current], "selected"));
+    const merged = success(placeCustomLibraryElementRecipe(recipe("container", [], [recipe("text", [{ path: "content", value: "child" }])]), current, allIds([current]), "selected"));
     expect(merged.mode).toBe("merge-selected");
     expect(merged.appliedElementId).toBe("selected");
     const selected = merged.slide.elements[0];
     if (selected?.type === "container") expect(selected.children.map((element) => element.type)).toEqual(["text", "text"]);
 
-    const created = success(placeCustomLibraryElementRecipe(recipe("container", [], [recipe("text"), recipe("image")]), current, [current], "after"));
+    const created = success(placeCustomLibraryElementRecipe(recipe("container", [], [recipe("text"), recipe("image")]), current, allIds([current]), "after"));
     expect(created.mode).toBe("create-sibling");
     expect(created.slide.elements.map((element) => element.id)).toEqual(["selected", "after", created.appliedElementId]);
     const inserted = created.slide.elements[2];
@@ -83,7 +83,7 @@ describe("Custom Library placement core", () => {
     ]);
     const cases = ["container-selected", "header-selected", "cell-selected", "topic-selected"];
     for (const selectedId of cases) {
-      const result = success(placeCustomLibraryElementRecipe(recipe("image"), current, [current], selectedId));
+      const result = success(placeCustomLibraryElementRecipe(recipe("image"), current, allIds([current]), selectedId));
       expect(result.mode).toBe("create-sibling");
       const found = findElementById(result.slide.elements, selectedId);
       expect(found).toBeTruthy();
@@ -106,7 +106,7 @@ describe("Custom Library placement core", () => {
   it("merges same-type nested elements in Container and ContentSlot in place", () => {
     const current = slide([container("outer", [text("container-selected", "Old")]), topics("topics", [{ id: "topic", content: slot("slot", [text("slot-selected", "Old")]), children: [] }])]);
     for (const selectedId of ["container-selected", "slot-selected"]) {
-      const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "New" }]), current, [current], selectedId));
+      const result = success(placeCustomLibraryElementRecipe(recipe("text", [{ path: "content", value: "New" }]), current, allIds([current]), selectedId));
       expect(result.mode).toBe("merge-selected");
       expect(result.appliedElementId).toBe(selectedId);
       expect(findElementById(result.slide.elements, selectedId)).toMatchObject({ content: "New" });
@@ -116,15 +116,15 @@ describe("Custom Library placement core", () => {
   it("propagates unsupported create failures without modifying the slide", () => {
     const current = slide([text("selected")]);
     const before = structuredClone(current);
-    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, [current], null)).toEqual({ ok: false, reason: "unsupported-create-type" });
-    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, [current], "selected")).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, allIds([current]), null)).toEqual({ ok: false, reason: "unsupported-create-type" });
+    expect(placeCustomLibraryElementRecipe(recipe("interactive"), current, allIds([current]), "selected")).toEqual({ ok: false, reason: "unsupported-create-type" });
     expect(current).toEqual(before);
   });
 
   it("supports same-type Plot merge", () => {
     const plot: PresentationElement = { id: "plot", type: "plot", hidden: false, source: "" };
     const current = slide([text("before"), plot, text("after")]);
-    const result = success(placeCustomLibraryElementRecipe(recipe("plot", [{ path: "source", value: "y = x^2" }]), current, [current], "plot"));
+    const result = success(placeCustomLibraryElementRecipe(recipe("plot", [{ path: "source", value: "y = x^2" }]), current, allIds([current]), "plot"));
     expect(result.mode).toBe("merge-selected");
     expect(result.appliedElementId).toBe("plot");
     expect(result.slide.elements.map((element) => element.id)).toEqual(["before", "plot", "after"]);
@@ -135,7 +135,7 @@ describe("Custom Library placement core", () => {
     const allSlides = [current, slide([image("other")])];
     const input = recipe("text", [{ path: "content", value: 42 }]);
     const before = { current: structuredClone(current), allSlides: structuredClone(allSlides), input: structuredClone(input) };
-    expect(placeCustomLibraryElementRecipe(input, current, allSlides, null)).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(placeCustomLibraryElementRecipe(input, current, allIds(allSlides), null)).toEqual({ ok: false, reason: "invalid-recipe-application" });
     expect(current).toEqual(before.current);
     expect(allSlides).toEqual(before.allSlides);
     expect(input).toEqual(before.input);

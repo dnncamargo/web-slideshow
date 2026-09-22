@@ -34,9 +34,9 @@ export type CustomLibraryPlacementResult =
 function createRoot(
   recipe: CustomLibraryElementRecipe,
   slide: Slide,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
 ): CustomLibraryPlacementResult {
-  const materialized = materializeCustomLibraryElementRecipe(recipe, slides);
+  const materialized = materializeCustomLibraryElementRecipe(recipe, usedIds);
 
   if (!materialized.ok) {
     return materialized;
@@ -56,7 +56,7 @@ function createRoot(
 export function placeCustomLibraryElementRecipe(
   recipe: CustomLibraryElementRecipe,
   slide: Slide,
-  slides: readonly Slide[],
+  usedIds: Set<string>,
   selectedElementId: string | null,
 ): CustomLibraryPlacementResult {
   const selected = selectedElementId === null
@@ -64,11 +64,11 @@ export function placeCustomLibraryElementRecipe(
     : findElementById(slide.elements, selectedElementId);
 
   if (selected === null) {
-    return createRoot(recipe, slide, slides);
+    return createRoot(recipe, slide, usedIds);
   }
 
   if (selected.type === recipe.type) {
-    const merged = mergeCustomLibraryElementRecipe(recipe, selected, slides);
+    const merged = mergeCustomLibraryElementRecipe(recipe, selected, usedIds);
 
     if (!merged.ok) {
       return merged;
@@ -85,7 +85,7 @@ export function placeCustomLibraryElementRecipe(
     };
   }
 
-  const materialized = materializeCustomLibraryElementRecipe(recipe, slides);
+  const materialized = materializeCustomLibraryElementRecipe(recipe, usedIds);
 
   if (!materialized.ok) {
     return materialized;

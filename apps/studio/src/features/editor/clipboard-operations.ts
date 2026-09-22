@@ -11,6 +11,7 @@ import {
   duplicateElement,
   removeElementById,
 } from "./element-operations";
+import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 
 export type ClipboardPasteDestination =
   | { kind: "slide" }
@@ -84,7 +85,8 @@ export function moveClipboardElement(
     if (destinationIsDescendant) return null;
   }
 
-  const movedElement = duplicateElement(sourceLocation.element, presentation.slides);
+  const usedIds = collectPresentationAuthoringIds(presentation);
+  const movedElement = duplicateElement(sourceLocation.element, usedIds);
   const nextReceiverElements = destination.kind === "slide"
     ? [...receiverSlide.elements, movedElement]
     : destination.kind === "container"

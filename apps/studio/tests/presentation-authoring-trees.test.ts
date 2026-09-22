@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, type Presentation, type PresentationElement } from "@web-slideshow/document-schema";
 
 import { visitElements } from "../src/features/editor/element-hierarchy";
 import {
   collectPresentationAuthoringIds,
   forEachPresentationAuthoringTree,
 } from "../src/features/editor/presentation-authoring-trees";
+import { collectAuthoringIds } from "../src/features/editor/element-hierarchy";
+import { createElement, duplicateElement } from "../src/features/editor/element-operations";
 
 function text(id: string) {
   return { id, type: "text" as const, hidden: false, variant: "body", content: id };
@@ -170,5 +172,120 @@ describe("canonical Presentation authoring trees", () => {
     expect(() => collectPresentationAuthoringIds(historicalDuplicate)).not.toThrow();
     expect(collectPresentationAuthoringIds(historicalDuplicate).has("root-definition")).toBe(true);
     expect(historicalDuplicate).toEqual(before);
+  });
+
+  it("feeds Root/local identities into element generators and reserves sequential results", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "presentation",
+      title: "Presentation",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Definition",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [
+            "table-element",
+            "table-column",
+            "table-header-slot",
+            "table-header-text",
+            "table-row",
+            "table-cell-slot",
+            "table-cell-text",
+          ].map(text),
+        },
+      }],
+      slides: [{
+        id: "slide-1",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        localRootChildren: [{
+          targetContainerId: "root-container",
+          children: [
+            "text-element",
+            "container-element",
+            "image-element",
+            "topics-element",
+            "topic-item",
+            "topic-slot",
+            "topic-text",
+          ].map(text),
+        }],
+      }],
+    });
+    const before = structuredClone(presentation);
+    const originalIds = collectPresentationAuthoringIds(presentation);
+    const usedIds = collectPresentationAuthoringIds(presentation);
+
+    const table = createElement("table", usedIds);
+    const topics = createElement("topics", usedIds);
+    const firstText = createElement("text", usedIds);
+    const secondText = createElement("text", usedIds);
+
+    const tableIds = new Set<string>();
+    if (table.type === "table" && table.mode === "structured") {
+      tableIds.add(table.id);
+      tableIds.add(table.columns[0]!.id);
+      tableIds.add(table.columns[0]!.header.id);
+      tableIds.add(table.columns[0]!.header.children[0]!.id);
+      tableIds.add(table.rows[0]!.id);
+      tableIds.add(table.rows[0]!.cells[0]!.id);
+      tableIds.add(table.rows[0]!.cells[0]!.children[0]!.id);
+    }
+    const topicIds = new Set<string>();
+    if (topics.type === "topics") {
+      topicIds.add(topics.id);
+      topicIds.add(topics.items[0]!.id);
+      topicIds.add(topics.items[0]!.content.id);
+      topicIds.add(topics.items[0]!.content.children[0]!.id);
+    }
+
+    expect(tableIds.size).toBe(7);
+    expect(topicIds.size).toBe(4);
+    expect([...tableIds, ...topicIds, firstText.id, secondText.id].every((id) => !originalIds.has(id))).toBe(true);
+    expect(firstText.id).not.toBe(secondText.id);
+    expect(presentation).toEqual(before);
+  });
+
+  it("uses the full Root/local inventory for recursive element duplication", () => {
+    const presentation = canonicalPresentation();
+    const source: PresentationElement = {
+      id: "source-container",
+      type: "container",
+      hidden: false,
+      children: [
+        {
+          id: "source-table",
+          type: "table",
+          mode: "structured",
+          hidden: false,
+          showHeader: true,
+          columns: [{ id: "source-column", header: { id: "source-header-slot", children: [text("source-header-text")] } }],
+          rows: [{ id: "source-row", cells: [{ id: "source-cell-slot", children: [text("source-cell-text")] }] }],
+        },
+        {
+          id: "source-topics",
+          type: "topics",
+          hidden: false,
+          kind: "unordered",
+          items: [{ id: "source-topic-item", content: { id: "source-topic-slot", children: [text("source-topic-text")] }, children: [] }],
+        },
+      ],
+    };
+    const before = structuredClone(source);
+    const reserved = collectPresentationAuthoringIds(presentation);
+    const duplicate = duplicateElement(source, reserved);
+    const duplicateIds = new Set<string>();
+    collectAuthoringIds(duplicate, duplicateIds);
+
+    expect([...duplicateIds].every((id) => !collectPresentationAuthoringIds(presentation).has(id))).toBe(true);
+    expect(duplicate).not.toEqual(source);
+    expect(source).toEqual(before);
   });
 });
