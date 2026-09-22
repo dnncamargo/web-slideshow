@@ -18,12 +18,25 @@ export type ClipboardPasteDestination =
   | { kind: "container"; id: string }
   | { kind: "content-slot"; id: string };
 
+export interface ClipboardMoveResult {
+  sourceElements: PresentationElement[];
+  receiverElements: PresentationElement[];
+}
+
 export function resolveClipboardPasteDestination(
   elements: readonly PresentationElement[],
   snapshotElementId: string,
   selectedElement: PresentationElement | null,
   selectedContentSlotId: string | null,
+  workspaceRootContainerId: string | null = null,
 ): ClipboardPasteDestination | null {
+  if (
+    (selectedElement !== null && findElementById(elements, selectedElement.id) === null) ||
+    (selectedContentSlotId !== null && findContentSlotById(elements, selectedContentSlotId) === null)
+  ) {
+    return null;
+  }
+
   if (
     selectedElement?.id === snapshotElementId &&
     findElementById(elements, snapshotElementId) !== null
@@ -31,7 +44,9 @@ export function resolveClipboardPasteDestination(
     const location = findElementLocation(elements, snapshotElementId);
     if (location) {
       return location.parentRef.kind === "slide"
-        ? { kind: "slide" }
+        ? workspaceRootContainerId === null
+          ? { kind: "slide" }
+          : { kind: "container", id: workspaceRootContainerId }
         : location.parentRef.kind === "container"
           ? { kind: "container", id: location.parentRef.id }
           : { kind: "content-slot", id: location.parentRef.id };
@@ -52,29 +67,30 @@ export function resolveClipboardPasteDestination(
     return { kind: "content-slot", id: selectedContentSlotId };
   }
 
-  return { kind: "slide" };
+  return workspaceRootContainerId === null
+    ? { kind: "slide" }
+    : { kind: "container", id: workspaceRootContainerId };
 }
 
-export function moveClipboardElement(
+export function moveClipboardElementInElements(
   presentation: Presentation,
-  sourceSlideId: string,
+  sourceElements: PresentationElement[],
+  receiverElements: PresentationElement[],
   sourceElementId: string,
-  receiverSlideIndex: number,
   selectedElement: PresentationElement | null,
   selectedContentSlotId: string | null,
-): Presentation | null {
-  const sourceSlide = presentation.slides.find((slide) => slide.id === sourceSlideId);
-  const receiverSlide = presentation.slides[receiverSlideIndex];
-  if (!sourceSlide || !receiverSlide) return null;
-
-  const sourceLocation = findElementLocation(sourceSlide.elements, sourceElementId);
+  sameOwner: boolean,
+  workspaceRootContainerId: string | null = null,
+): ClipboardMoveResult | null {
+  const sourceLocation = findElementLocation(sourceElements, sourceElementId);
   if (!sourceLocation) return null;
 
   const destination = resolveClipboardPasteDestination(
-    receiverSlide.elements,
+    receiverElements,
     sourceElementId,
     selectedElement,
     selectedContentSlotId,
+    workspaceRootContainerId,
   );
   if (!destination) return null;
 
@@ -88,34 +104,60 @@ export function moveClipboardElement(
   const usedIds = collectPresentationAuthoringIds(presentation);
   const movedElement = duplicateElement(sourceLocation.element, usedIds);
   const nextReceiverElements = destination.kind === "slide"
-    ? [...receiverSlide.elements, movedElement]
+    ? [...receiverElements, movedElement]
     : destination.kind === "container"
-      ? appendElementToContainer(receiverSlide.elements, destination.id, movedElement)
-      : appendElementToContentSlot(receiverSlide.elements, destination.id, movedElement);
+      ? appendElementToContainer(receiverElements, destination.id, movedElement)
+      : appendElementToContentSlot(receiverElements, destination.id, movedElement);
 
-  if (nextReceiverElements === receiverSlide.elements) return null;
+  if (nextReceiverElements === receiverElements) return null;
 
-  const nextSlides = presentation.slides.map((slide, index) => {
-    if (index === receiverSlideIndex) {
-      return { ...slide, elements: nextReceiverElements };
-    }
-    return slide;
-  });
-  const sourceSlideIndex = presentation.slides.findIndex((slide) => slide.id === sourceSlideId);
   const nextSourceElements = removeElementById(
-    sourceSlideIndex === receiverSlideIndex
+    sameOwner
       ? nextReceiverElements
-      : sourceSlide.elements,
+      : sourceElements,
     sourceElementId,
   );
 
-  if (nextSourceElements === sourceSlide.elements) return null;
+  if (nextSourceElements === sourceElements) return null;
 
-  if (sourceSlideIndex === receiverSlideIndex) {
-    nextSlides[receiverSlideIndex] = { ...receiverSlide, elements: nextSourceElements };
-  } else {
-    nextSlides[sourceSlideIndex] = { ...sourceSlide, elements: nextSourceElements };
-  }
+  return {
+    sourceElements: nextSourceElements,
+    receiverElements: sameOwner ? nextSourceElements : nextReceiverElements,
+  };
+}
 
-  return { ...presentation, slides: nextSlides };
+export function moveClipboardElement(
+  presentation: Presentation,
+  sourceSlideId: string,
+  sourceElementId: string,
+  receiverSlideIndex: number,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceSlideIndex = presentation.slides.findIndex((slide) => slide.id === sourceSlideId);
+  const receiverSlide = presentation.slides[receiverSlideIndex];
+  const sourceSlide = presentation.slides[sourceSlideIndex];
+  if (!sourceSlide || !receiverSlide) return null;
+
+  const result = moveClipboardElementInElements(
+    presentation,
+    sourceSlide.elements,
+    receiverSlide.elements,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+    sourceSlideIndex === receiverSlideIndex,
+  );
+  if (!result) return null;
+
+  return {
+    ...presentation,
+    slides: presentation.slides.map((slide, index) =>
+      index === sourceSlideIndex
+        ? { ...slide, elements: result.sourceElements }
+        : index === receiverSlideIndex
+          ? { ...slide, elements: result.receiverElements }
+          : slide,
+    ),
+  };
 }

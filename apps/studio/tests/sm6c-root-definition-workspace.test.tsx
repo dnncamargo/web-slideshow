@@ -264,7 +264,7 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(setSlideNote).not.toHaveBeenCalled();
   });
 
-  it("blocks Delete, Cut, and Paste without changing either canonical tree", async () => {
+  it("allows descendant Cut/Paste while keeping the canonical Root boundary protected", async () => {
     const source = presentation();
     const onSave = vi.fn(async () => {});
     render(source, onSave);
@@ -287,9 +287,10 @@ describe("SM6C Root Definition workspace shell", () => {
       await act(async () => window.dispatchEvent(event));
     }
 
-    expect(save.disabled).toBe(true);
+    expect(save.disabled).toBe(false);
     expect(containerElement.querySelector(".studio-editor-pending-cut")).toBeNull();
-    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text-copy"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="root-image"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="slide-text"]')).toBeNull();
     expect(source.slides).toHaveLength(2);

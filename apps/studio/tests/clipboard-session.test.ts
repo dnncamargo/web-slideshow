@@ -34,9 +34,9 @@ const stateWith = (...entries: ClipboardEntry[]): ClipboardSessionState => ({
 describe("Clipboard session state", () => {
   it("stores only the live source identity and type for a Pending Cut", () => {
     const source = element("source");
-    expect(createPendingClipboardCut(source, "slide-1")).toEqual({
+    expect(createPendingClipboardCut(source, { kind: "slide", slideId: "slide-1" })).toEqual({
       sourceElementId: "source",
-      sourceSlideId: "slide-1",
+      source: { kind: "slide", slideId: "slide-1" },
       elementType: "divider",
     });
   });
