@@ -307,21 +307,23 @@ export function ElementInteractionSection({
 
       {element.link && (
         <>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            disabled={!isAbsoluteHttpHref(canonicalHref ?? "")}
-            onClick={() => {
-              if (
-                canonicalHref !== undefined &&
-                isAbsoluteHttpHref(canonicalHref)
-              ) {
-                onCreateQrFromLink?.(canonicalHref);
-              }
-            }}
-          >
-            <span>{t("inspector.link.createQr")}</span>
-          </button>
+          {onCreateQrFromLink && (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              disabled={!isAbsoluteHttpHref(canonicalHref ?? "")}
+              onClick={() => {
+                if (
+                  canonicalHref !== undefined &&
+                  isAbsoluteHttpHref(canonicalHref)
+                ) {
+                  onCreateQrFromLink(canonicalHref);
+                }
+              }}
+            >
+              <span>{t("inspector.link.createQr")}</span>
+            </button>
+          )}
 
           <button
             type="button"

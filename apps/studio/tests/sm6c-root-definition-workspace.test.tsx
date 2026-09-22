@@ -102,7 +102,7 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(JSON.stringify(source)).not.toContain("root-definition-workspace:");
   });
 
-  it("keeps Root Definition selection and Inspector read-only", () => {
+  it("mounts the normal Inspector for safe Root Definition Text editing", () => {
     const source = presentation();
     render(source);
 
@@ -111,9 +111,94 @@ describe("SM6C Root Definition workspace shell", () => {
     act(() => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
     expect(containerElement.textContent).toContain("root-text");
-    expect(containerElement.querySelector('input[type="text"]')).toBeNull();
-    expect(containerElement.textContent).toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector<HTMLTextAreaElement>("#text-content")).not.toBeNull();
+    expect(containerElement.textContent).not.toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector('button[aria-label="Move up"]')).toBeNull();
+    expect(containerElement.querySelector('button[aria-label="Move down"]')).toBeNull();
     expect(source.slides).toHaveLength(2);
+  });
+
+  it("edits, saves, undoes, redoes, and remounts canonical Root Definition Text", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave);
+
+    const rootText = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    if (!rootText) throw new Error("expected Root Definition text in Canvas");
+    act(() => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const textarea = containerElement.querySelector<HTMLTextAreaElement>("#text-content");
+    if (!textarea) throw new Error("expected Root Definition Text content control");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => {
+      textarea.focus();
+      setter.call(textarea, "Edited root content");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      setter.call(textarea, "Edited root content again");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.blur();
+    });
+
+    expect(textarea.value).toBe("Edited root content again");
+    expect(containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]')?.textContent).toContain("Edited root content again");
+
+    const save = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!save) throw new Error("expected Save action");
+    expect(save.disabled).toBe(false);
+    await act(async () => save.click());
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    const saved = onSave.mock.calls[0]?.[0];
+    if (!saved) throw new Error("expected saved Presentation");
+    expect(saved.rootDefinitions?.[0]?.root.id).toBe("root-container");
+    expect(saved.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Edited root content again" });
+    expect(saved.slides).toEqual(source.slides);
+    expect(saved.slides).toHaveLength(2);
+    expect(JSON.stringify(saved)).not.toContain("root-definition-workspace:");
+    expect(source.slides).toEqual(presentation().slides);
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    expect(containerElement.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("Master content");
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(containerElement.querySelector<HTMLTextAreaElement>("#text-content")?.value).toBe("Edited root content again");
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+
+    const exit = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Exit master editing");
+    if (!exit) throw new Error("expected explicit master exit action");
+    act(() => exit.click());
+    expect(containerElement.querySelector('[data-presentation-id="slide-text"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    render(saved, vi.fn(async () => {}));
+    expect(containerElement.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')?.textContent).toContain("Edited root content again");
+  });
+
+  it("captures discrete Root Definition Text writes on the active target", async () => {
+    render();
+
+    const rootText = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    if (!rootText) throw new Error("expected Root Definition text in Canvas");
+    act(() => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const variant = containerElement.querySelector<HTMLSelectElement>("#text-variant");
+    if (!variant) throw new Error("expected Text variant control");
+    await act(async () => {
+      variant.value = "title";
+      variant.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(variant.value).toBe("title");
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    expect(containerElement.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("body");
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(containerElement.querySelector<HTMLSelectElement>("#text-variant")?.value).toBe("title");
   });
 
   it("locks Slide navigation and destructive workspace actions in Root Definition mode", () => {
@@ -230,6 +315,19 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(rootImage.classList.contains("studio-editor-draggable")).toBe(false);
     expect(containerElement.querySelector("[class*='canvasResizeOverlay']")).toBeNull();
     expect(containerElement.textContent).toContain("root-image");
+    expect(containerElement.textContent).toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector("#image-src")).toBeNull();
+  });
+
+  it("keeps the Root Container Inspector read-only", () => {
+    render();
+
+    const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    if (!rootContainer) throw new Error("expected Root Definition Container in Canvas");
+    act(() => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    expect(containerElement.textContent).toContain("Master content is read-only in this workspace.");
+    expect(containerElement.querySelector("#container-direction")).toBeNull();
   });
 
   it("blocks the existing Tree move action at the Root Definition boundary", async () => {

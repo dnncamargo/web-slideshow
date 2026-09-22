@@ -280,6 +280,7 @@ import { reconcileSelectedElementAfterReplay } from "./editor-history-selection-
 import {
   isRootDefinitionTarget,
   resolveAuthoringTarget,
+  updateAuthoringElements,
   type AuthoringTarget,
 } from "./authoring-target";
 
@@ -335,6 +336,17 @@ interface SelectedElementInfo {
    * of TopicItem/ContentSlot as PresentationElements.
    */
   contentSlotId?: string | null;
+}
+
+function isRootDefinitionGenericInspectorElement(element: PresentationElement): boolean {
+  return element.type === "text"
+    || element.type === "code"
+    || element.type === "plot"
+    || element.type === "terminal"
+    || element.type === "divider"
+    || element.type === "embed"
+    || element.type === "scripted"
+    || element.type === "blocks";
 }
 
 type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
@@ -984,10 +996,11 @@ export function EditorWorkspace({
   );
   const presentation = history.present;
   const authoringIntentRef = useRef<
-    | { type: "continuous"; key: string }
-    | { type: "discrete"; meta: HistoryActionMeta }
+    | { type: "continuous"; key: string; target: AuthoringTarget }
+    | { type: "discrete"; meta: HistoryActionMeta; target: AuthoringTarget }
     | null
   >(null);
+  const authoringTransactionTargetRef = useRef<{ key: string; target: AuthoringTarget } | null>(null);
   const setPresentation = (
     update: Presentation | ((current: Presentation) => Presentation),
   ) => {
@@ -1003,12 +1016,14 @@ export function EditorWorkspace({
   ): void {
     if (rootDefinitionModeRef.current) return;
     dispatchHistory({ type: "transaction-commit" });
+    authoringTransactionTargetRef.current = null;
     dispatchHistory({ type: "commit", meta, update });
   }
 
   function beginPresentationTransaction(key: string, meta: HistoryActionMeta): void {
     if (rootDefinitionModeRef.current) return;
     dispatchHistory({ type: "transaction-begin", key, meta });
+    authoringTransactionTargetRef.current = null;
   }
 
   function updatePresentationTransaction(
@@ -1021,6 +1036,19 @@ export function EditorWorkspace({
 
   function finishPresentationTransaction(key?: string): void {
     dispatchHistory({ type: "transaction-commit", ...(key === undefined ? {} : { key }) });
+    if (
+      key === undefined ||
+      authoringTransactionTargetRef.current?.key === key
+    ) {
+      authoringTransactionTargetRef.current = null;
+    }
+  }
+
+  function beginAuthoringTransaction(key: string, meta: HistoryActionMeta): void {
+    dispatchHistory({ type: "transaction-begin", key, meta });
+    if (authoringTransactionTargetRef.current?.key !== key) {
+      authoringTransactionTargetRef.current = { key, target: authoringTarget };
+    }
   }
 
   function applyTextStyleDefinitionUpdate(
@@ -1066,18 +1094,23 @@ export function EditorWorkspace({
   }
 
   const authoringHistory: AuthoringHistoryContextValue = {
-    begin: beginPresentationTransaction,
+    begin: beginAuthoringTransaction,
     update: (key, callback) => {
       authoringIntentRef.current = {
         type: "continuous",
         key,
+        target: authoringTransactionTargetRef.current?.target ?? authoringTarget,
       };
       try { callback(); } finally { authoringIntentRef.current = null; }
     },
     finish: finishPresentationTransaction,
     discrete: (meta, callback) => {
       finishPresentationTransaction();
-      authoringIntentRef.current = { type: "discrete", meta };
+      authoringIntentRef.current = {
+        type: "discrete",
+        meta,
+        target: authoringTarget,
+      };
       try { callback(); } finally { authoringIntentRef.current = null; }
     },
   };
@@ -1369,6 +1402,8 @@ export function EditorWorkspace({
 
     return findElementById(selectedSlide.elements, selectedElement.id);
   }, [selectedSlide, selectedElement]);
+  const rootDefinitionInspectorReadOnly = rootDefinitionMode
+    && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement));
 
   const currentImageMediaTarget = useMemo<ImageMediaAuthoringTarget | null>(() => {
     if (selectedDocumentElement?.type === "image") {
@@ -1601,7 +1636,10 @@ export function EditorWorkspace({
   }
 
   function undoEditorHistory(): boolean {
-    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.transaction !== undefined) {
+      dispatchHistory({ type: "transaction-commit" });
+      authoringTransactionTargetRef.current = null;
+    }
     if (history.past.length === 0 && history.transaction === undefined) return false;
     const nextState = undoHistory(history);
     dispatchHistory({ type: "undo" });
@@ -1610,7 +1648,10 @@ export function EditorWorkspace({
   }
 
   function redoEditorHistory(): boolean {
-    if (history.transaction !== undefined) dispatchHistory({ type: "transaction-commit" });
+    if (history.transaction !== undefined) {
+      dispatchHistory({ type: "transaction-commit" });
+      authoringTransactionTargetRef.current = null;
+    }
     if (history.future.length === 0 && history.transaction === undefined) return false;
     const nextState = redoHistory(history);
     dispatchHistory({ type: "redo" });
@@ -3246,36 +3287,21 @@ export function EditorWorkspace({
   function updateSelectedElement(
     update: (element: PresentationElement) => PresentationElement,
   ) {
-    if (rootDefinitionMode || !selectedElement) {
+    if (!selectedElement) {
       return;
     }
 
-    const applyUpdate = (current: Presentation): Presentation => ({
-      ...current,
-
-      slides: current.slides.map((slide, index) => {
-        if (index !== selectedSlideIndex) {
-          return slide;
-        }
-
-        return {
-          ...slide,
-
-          elements: updateElementById(
-            slide.elements,
-            selectedElement.id,
-            update,
-          ),
-        };
-      }),
-    });
     const intent = authoringIntentRef.current;
+    const writeTarget = intent?.target ?? authoringTarget;
+    const applyUpdate = (current: Presentation): Presentation =>
+      updateAuthoringElements(current, writeTarget, (elements) =>
+        updateElementById(elements, selectedElement.id, update));
     if (intent?.type === "continuous") {
       dispatchHistory({ type: "transaction-update", key: intent.key, update: applyUpdate });
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update: applyUpdate });
     } else {
-      setPresentation(applyUpdate);
+      dispatchHistory({ type: "untracked", update: applyUpdate });
     }
   }
 
@@ -6010,7 +6036,7 @@ export function EditorWorkspace({
                         <AuthoringHistoryContext.Provider value={authoringHistory}>
                         <ElementInspector
                           element={selectedDocumentElement}
-                          readOnly={rootDefinitionMode}
+                          readOnly={rootDefinitionInspectorReadOnly}
                           onUpdate={updateSelectedElement}
                           plotPreviewControls={plotPreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
@@ -6030,14 +6056,16 @@ export function EditorWorkspace({
                           }}
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
-                          onCreateQrFromLink={createQrFromSelectedLink}
+                          onCreateQrFromLink={rootDefinitionMode ? undefined : createQrFromSelectedLink}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
                           onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
                           layerControls={
-                            selectedElementPosition
+                            selectedDocumentElement.type === "text" && rootDefinitionMode
+                              ? null
+                              : selectedElementPosition
                               ? {
                                   index: selectedElementPosition.index,
                                   count: selectedElementPosition.count,

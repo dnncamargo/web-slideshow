@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   PresentationSchema,
@@ -11,6 +11,7 @@ import {
   resolveAuthoringElements,
   resolveAuthoringSlide,
   resolveCanonicalRootContainerId,
+  updateAuthoringElements,
   type AuthoringTarget,
 } from "../src/features/editor/authoring-target";
 import { reconcileSelectedElementAfterReplay } from "../src/features/editor/editor-history-selection-reconciliation";
@@ -110,6 +111,66 @@ describe("authoring target replacement", () => {
   ])("rejects %s", (_label, elements) => {
     const presentation = makePresentation();
     expect(replaceAuthoringElements(presentation, rootTarget, elements)).toBe(presentation);
+  });
+});
+
+describe("target-aware element updates", () => {
+  it("updates a Slide target and invokes the callback once", () => {
+    const presentation = makePresentation();
+    let calls = 0;
+    const next = updateAuthoringElements(
+      presentation,
+      { kind: "slide", slideIndex: 1 },
+      (elements) => {
+        calls += 1;
+        return [text("slide-2-updated")];
+      },
+    );
+
+    expect(calls).toBe(1);
+    expect(next.slides[1]?.elements).toEqual([text("slide-2-updated")]);
+    expect(next.slides[0]).toBe(presentation.slides[0]);
+    expect(next.rootDefinitions).toBe(presentation.rootDefinitions);
+  });
+
+  it("updates only the requested Root Definition", () => {
+    const presentation = makePresentation();
+    const next = updateAuthoringElements(presentation, rootTarget, (elements) => [
+      container("root-1-container", [
+        ...(elements[0]?.type === "container" ? elements[0].children : []),
+        text("updated"),
+      ]),
+    ]);
+
+    expect(next.rootDefinitions?.[0]?.root.children.at(-1)).toEqual(text("updated"));
+    expect(next.rootDefinitions?.[1]).toBe(presentation.rootDefinitions?.[1]);
+    expect(next.slides).toBe(presentation.slides);
+  });
+
+  it("leaves the original Presentation untouched for unresolved targets", () => {
+    const presentation = makePresentation();
+    const update = vi.fn(() => [text("unexpected")]);
+
+    expect(updateAuthoringElements(presentation, { kind: "root-definition", rootDefinitionId: "missing" }, update)).toBe(presentation);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("returns the original Presentation when the callback returns the same array", () => {
+    const presentation = makePresentation();
+    expect(updateAuthoringElements(presentation, rootTarget, (elements) => elements)).toBe(presentation);
+  });
+
+  it("retains the Root Container invariant through the update helper", () => {
+    const presentation = makePresentation();
+    expect(updateAuthoringElements(presentation, rootTarget, () => [container("changed-root-id")])).toBe(presentation);
+  });
+
+  it("does not persist the synthetic Root Definition workspace Slide", () => {
+    const presentation = makePresentation();
+    const next = updateAuthoringElements(presentation, rootTarget, (elements) => elements);
+
+    expect(JSON.stringify(next)).not.toContain("root-definition-workspace:");
+    expect(next.slides).toBe(presentation.slides);
   });
 });
 
