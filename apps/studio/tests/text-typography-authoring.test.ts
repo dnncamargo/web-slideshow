@@ -37,7 +37,7 @@ describe("effective text typography for authoring", () => {
   it("leaves source-only properties absent when switching styles", () => {
     const source = presentation([
       { id: "source", name: "Source", role: "body", typography: { fontSize: 20, fontStyle: "italic", fontWeight: 500, textAlign: "center" }, style: { color: "#00ff00" }, layout: { marginTop: 10, marginBottom: 12 } },
-      { id: "destination", name: "Destination", role: "body", style: { color: "#0000ff" }, layout: { marginBottom: 30 } },
+      { id: "destination", name: "Destination", role: "body", style: { color: "#0000ff" } },
     ]);
     const original = text({
       variant: "source",
