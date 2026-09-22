@@ -277,6 +277,11 @@ import {
   type HistoryActionMeta,
 } from "./editor-history-state";
 import { reconcileSelectedElementAfterReplay } from "./editor-history-selection-reconciliation";
+import {
+  isRootDefinitionTarget,
+  resolveAuthoringTarget,
+  type AuthoringTarget,
+} from "./authoring-target";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -915,6 +920,7 @@ export function EditorWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository,
   customLibraryFontRepository,
+  initialAuthoringTarget,
 }: {
   initialPresentation?: Presentation;
   onSave?: (presentation: Presentation) => Promise<void>;
@@ -923,6 +929,7 @@ export function EditorWorkspace({
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
+  initialAuthoringTarget?: AuthoringTarget;
 } = {}) {
   const { locale, t } = useStudioI18n();
   const chromeOsNativeSelectCompat = useChromeOsNativeSelectCompat();
@@ -984,6 +991,7 @@ export function EditorWorkspace({
   const setPresentation = (
     update: Presentation | ((current: Presentation) => Presentation),
   ) => {
+    if (rootDefinitionModeRef.current) return;
     dispatchHistory({
       type: "untracked",
       update,
@@ -993,11 +1001,13 @@ export function EditorWorkspace({
     meta: HistoryActionMeta,
     update: (current: Presentation) => Presentation,
   ): void {
+    if (rootDefinitionModeRef.current) return;
     dispatchHistory({ type: "transaction-commit" });
     dispatchHistory({ type: "commit", meta, update });
   }
 
   function beginPresentationTransaction(key: string, meta: HistoryActionMeta): void {
+    if (rootDefinitionModeRef.current) return;
     dispatchHistory({ type: "transaction-begin", key, meta });
   }
 
@@ -1005,6 +1015,7 @@ export function EditorWorkspace({
     key: string,
     update: (current: Presentation) => Presentation,
   ): void {
+    if (rootDefinitionModeRef.current) return;
     dispatchHistory({ type: "transaction-update", key, update });
   }
 
@@ -1092,7 +1103,21 @@ export function EditorWorkspace({
   // BEGIN: SELEÇÃO
   // ==========================================================
 
-  const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [selectedSlideIndex, setSelectedSlideIndex] = useState(() =>
+    initialAuthoringTarget?.kind === "slide" &&
+    initialAuthoringTarget.slideIndex >= 0 &&
+    initialAuthoringTarget.slideIndex < presentation.slides.length
+      ? initialAuthoringTarget.slideIndex
+      : 0,
+  );
+  const [authoringTarget, setAuthoringTarget] = useState<AuthoringTarget>(() =>
+    initialAuthoringTarget && resolveAuthoringTarget(presentation, initialAuthoringTarget)
+      ? initialAuthoringTarget
+      : { kind: "slide", slideIndex: 0 },
+  );
+  const rootDefinitionMode = isRootDefinitionTarget(authoringTarget);
+  const rootDefinitionModeRef = useRef(false);
+  rootDefinitionModeRef.current = rootDefinitionMode;
   const [pickedColors, setPickedColors] = useState<readonly Color[]>([]);
 
   const [selectedElement, setSelectedElement] =
@@ -1246,13 +1271,22 @@ export function EditorWorkspace({
   // ==========================================================
 
   // ==========================================================
-  // BEGIN: SLIDE ATUAL
+  // BEGIN: ACTIVE AUTHORING WORKSPACE
   // ==========================================================
 
-  const selectedSlide = presentation.slides[selectedSlideIndex];
+  const retainedSlideIndex = Math.max(
+    0,
+    Math.min(selectedSlideIndex, Math.max(0, presentation.slides.length - 1)),
+  );
+  const resolvedAuthoringTarget = resolveAuthoringTarget(presentation, authoringTarget);
+  const selectedSlide = resolvedAuthoringTarget?.slide ?? presentation.slides[retainedSlideIndex];
+  const retainedSlide = presentation.slides[retainedSlideIndex];
+  const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
+    ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
+    : undefined;
 
   // ==========================================================
-  // END: SLIDE ATUAL
+  // END: ACTIVE AUTHORING WORKSPACE
   // ==========================================================
 
   // ==========================================================
@@ -1267,9 +1301,55 @@ export function EditorWorkspace({
   const editorNotes = useEditorNotes({
     presentationId: presentation.id,
     notesRepository,
-    selectedSlideId: selectedSlide?.id ?? "",
-    enabled: rightPanelMode === "notes",
+    selectedSlideId: retainedSlide?.id ?? "",
+    enabled: rightPanelMode === "notes" && !rootDefinitionMode,
   });
+
+  useEffect(() => {
+    if (resolvedAuthoringTarget) return;
+    const safeTarget: AuthoringTarget = { kind: "slide", slideIndex: retainedSlideIndex };
+    setAuthoringTarget(safeTarget);
+    setSelectedSlideIndex(retainedSlideIndex);
+    setSelectedElement(null);
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    setRightPanelMode("editor");
+  }, [authoringTarget, presentation, resolvedAuthoringTarget, retainedSlideIndex]);
+
+  useEffect(() => {
+    if (rootDefinitionMode && rightPanelMode !== "editor") {
+      setRightPanelMode("editor");
+    }
+  }, [rootDefinitionMode, rightPanelMode]);
+
+  useEffect(() => {
+    if (rootDefinitionMode) {
+      setSelectedElement(null);
+      setGalleryItemSelection(null);
+      setSelectedTableStructuralNode(null);
+      setPendingElementDeletion(null);
+      setPendingStyleDetach(null);
+      setPendingTextStyleReset(null);
+      setPendingCut(null);
+      closeCanvasMediaEditing();
+      canvasDragRef.current = null;
+      canvasResizeRef.current = null;
+      setCanvasResizeOverlay(null);
+      setCanvasGuides([]);
+      setCanvasGuideBounds(null);
+    }
+  }, [rootDefinitionMode]);
+
+  useEffect(() => {
+    if (!rootDefinitionMode && authoringTarget.kind === "slide" && authoringTarget.slideIndex !== retainedSlideIndex) {
+      setAuthoringTarget({ kind: "slide", slideIndex: retainedSlideIndex });
+    }
+  }, [authoringTarget, retainedSlideIndex, rootDefinitionMode]);
 
   // ==========================================================
   // END: NOTAS PRIVADAS
@@ -1398,6 +1478,9 @@ export function EditorWorkspace({
   }
 
   function cutSelectedElement(): boolean {
+    if (rootDefinitionMode) {
+      return false;
+    }
     if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
       return false;
     }
@@ -1410,6 +1493,9 @@ export function EditorWorkspace({
   }
 
   function pasteClipboardEntry(entryId: string): boolean {
+    if (rootDefinitionMode) {
+      return false;
+    }
     const entry = clipboardSession.entries.find(
       (candidate) => candidate.id === entryId,
     );
@@ -1453,6 +1539,9 @@ export function EditorWorkspace({
   }
 
   function pastePendingCut(): boolean {
+    if (rootDefinitionMode) {
+      return false;
+    }
     if (!pendingCut) return false;
 
     const nextPresentation = moveClipboardElement(
@@ -1491,8 +1580,12 @@ export function EditorWorkspace({
       0,
       Math.min(selectedSlideIndex, Math.max(0, next.slides.length - 1)),
     );
+    const nextTarget = resolveAuthoringTarget(next, authoringTarget)
+      ? authoringTarget
+      : { kind: "slide" as const, slideIndex: nextSlideIndex };
     setSelectedSlideIndex(nextSlideIndex);
-    setSelectedElement((current) => reconcileSelectedElementAfterReplay(current, next, nextSlideIndex));
+    setAuthoringTarget(nextTarget);
+    setSelectedElement((current) => reconcileSelectedElementAfterReplay(current, next, nextTarget));
     setGalleryItemSelection(null);
     setSelectedTableStructuralNode(null);
     setPendingElementDeletion(null);
@@ -1526,6 +1619,9 @@ export function EditorWorkspace({
   }
 
   function requestElementDeletion() {
+    if (rootDefinitionMode) {
+      return;
+    }
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
     }
@@ -1839,7 +1935,7 @@ export function EditorWorkspace({
                   ? documentElement.layout?.position === "absolute"
                   : false;
 
-        if (draggable && !isInsideContainerFitSurface(candidate)) {
+        if (!rootDefinitionMode && draggable && !isInsideContainerFitSurface(candidate)) {
           candidate.classList.add("studio-editor-draggable");
         }
       }
@@ -1859,6 +1955,7 @@ export function EditorWorkspace({
     if (
       !target ||
       !selectedDocumentElement ||
+      rootDefinitionMode ||
       !isCanvasResizable(selectedDocumentElement) ||
       isInsideContainerFitSurface(target)
     ) {
@@ -1883,6 +1980,7 @@ export function EditorWorkspace({
     selectedElement,
     selectedSlide,
     pendingCut,
+    rootDefinitionMode,
   ]);
 
   useEffect(() => {
@@ -2050,10 +2148,33 @@ export function EditorWorkspace({
   // ==========================================================
 
   function selectSlide(index: number) {
+    if (rootDefinitionMode) return;
     finishPresentationTransaction();
     setSelectedSlideIndex(index);
+    setAuthoringTarget({ kind: "slide", slideIndex: index });
 
     setSelectedElement(null);
+  }
+
+  function exitRootDefinitionEditing(): void {
+    if (!rootDefinitionMode) return;
+    finishPresentationTransaction();
+    setSelectedSlideIndex(retainedSlideIndex);
+    setAuthoringTarget({ kind: "slide", slideIndex: retainedSlideIndex });
+    setSelectedElement(null);
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    canvasDragRef.current = null;
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+    setRightPanelMode("editor");
   }
 
   // ==========================================================
@@ -2320,6 +2441,8 @@ export function EditorWorkspace({
       type: selection.type,
       contentSlotId: contentSlotId ?? null,
     });
+
+    if (rootDefinitionMode) return;
 
     const draggable =
       selection.documentElement.type === "container"
@@ -2685,7 +2808,7 @@ export function EditorWorkspace({
     event: ReactPointerEvent<HTMLButtonElement>,
     direction: CanvasResizeDirection,
   ) {
-    if (cropEditingTarget || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
+    if (rootDefinitionMode || cropEditingTarget || !selectedDocumentElement || !canvasResizeOverlay || !selectedSlide) {
       return;
     }
 
@@ -3025,7 +3148,7 @@ export function EditorWorkspace({
   }
 
   function handleFocalPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!canvasFocalOverlay || !focalEditingTarget) {
+    if (rootDefinitionMode || !canvasFocalOverlay || !focalEditingTarget) {
       return;
     }
 
@@ -3123,7 +3246,7 @@ export function EditorWorkspace({
   function updateSelectedElement(
     update: (element: PresentationElement) => PresentationElement,
   ) {
-    if (!selectedElement) {
+    if (rootDefinitionMode || !selectedElement) {
       return;
     }
 
@@ -4396,6 +4519,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addSlide(preset: SlideLayoutPreset) {
+    if (rootDefinitionMode) return;
     const insertionIndex = Math.min(
       selectedSlideIndex + 1,
       presentation.slides.length,
@@ -4438,7 +4562,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function duplicateSelectedSlide() {
-    if (!selectedSlide) {
+    if (rootDefinitionMode || !selectedSlide) {
       return;
     }
 
@@ -4478,7 +4602,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function deleteSelectedSlide() {
-    if (!selectedSlide || presentation.slides.length <= 1) {
+    if (rootDefinitionMode || !selectedSlide || presentation.slides.length <= 1) {
       return;
     }
 
@@ -4533,6 +4657,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function moveSelectedSlide(offset: -1 | 1) {
+    if (rootDefinitionMode) return;
     const targetIndex = selectedSlideIndex + offset;
 
     if (targetIndex < 0 || targetIndex >= presentation.slides.length) {
@@ -5198,7 +5323,9 @@ export function EditorWorkspace({
               type="button"
               className={styles.slideHeaderButton}
               aria-expanded={isSlideLayoutPickerOpen}
+              disabled={rootDefinitionMode}
               onClick={() => {
+                if (rootDefinitionMode) return;
                 setIsSlideLayoutPickerOpen((current) => !current);
               }}
             >
@@ -5215,7 +5342,7 @@ export function EditorWorkspace({
     ========================================================== */}
 
           <div className={styles.slideLayoutPickerSlot}>
-            {isSlideLayoutPickerOpen && (
+            {isSlideLayoutPickerOpen && !rootDefinitionMode && (
               <SlideLayoutPicker
                 value={newSlidePreset}
                 onChange={setNewSlidePreset}
@@ -5240,6 +5367,7 @@ export function EditorWorkspace({
                   className={
                     selected ? styles.slideItemSelected : styles.slideItem
                   }
+                  disabled={rootDefinitionMode}
                   onClick={() => {
                     selectSlide(index);
                   }}
@@ -5263,7 +5391,7 @@ export function EditorWorkspace({
             <button
               type="button"
               className={styles.slideActionButton}
-              disabled={selectedSlideIndex === 0}
+              disabled={rootDefinitionMode || selectedSlideIndex === 0}
               onClick={() => {
                 moveSelectedSlide(-1);
               }}
@@ -5279,7 +5407,7 @@ export function EditorWorkspace({
             <button
               type="button"
               className={styles.slideActionButton}
-              disabled={selectedSlideIndex === presentation.slides.length - 1}
+              disabled={rootDefinitionMode || selectedSlideIndex === presentation.slides.length - 1}
               onClick={() => {
                 moveSelectedSlide(1);
               }}
@@ -5295,6 +5423,7 @@ export function EditorWorkspace({
             <button
               type="button"
               className={styles.slideActionButton}
+              disabled={rootDefinitionMode}
               onClick={duplicateSelectedSlide}
             >
               <span>{t("slides.duplicate")}</span>
@@ -5307,7 +5436,7 @@ export function EditorWorkspace({
             <button
               type="button"
               className={`${styles.slideActionButton} ${styles.slideActionDanger}`}
-              disabled={presentation.slides.length <= 1}
+              disabled={rootDefinitionMode || presentation.slides.length <= 1}
               onClick={deleteSelectedSlide}
             >
               <span>{t("slides.delete")}</span>
@@ -5328,8 +5457,10 @@ export function EditorWorkspace({
 
         <section className={styles.canvasArea}>
           <div className={styles.canvasToolbar}>
-            <span>
-              {t("slides.current", { number: selectedSlideIndex + 1 })}
+            <span data-authoring-target={rootDefinitionMode ? "root-definition" : "slide"}>
+              {rootDefinitionMode && rootDefinition
+                ? t("editor.masterContext", { name: rootDefinition.name })
+                : t("slides.current", { number: selectedSlideIndex + 1 })}
             </span>
 
             <span>
@@ -5347,7 +5478,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "resources"}
+                disabled={rootDefinitionMode}
                 onClick={() => {
+                  if (rootDefinitionMode) return;
                   setRightPanelMode((current) =>
                     current === "resources" ? "editor" : "resources",
                   );
@@ -5364,7 +5497,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "notes"}
+                disabled={rootDefinitionMode}
                 onClick={() => {
+                  if (rootDefinitionMode) return;
                   setRightPanelMode((current) =>
                     current === "notes" ? "editor" : "notes",
                   );
@@ -5374,6 +5509,15 @@ export function EditorWorkspace({
               </button>
 
               <span>{presentation.aspectRatio}</span>
+              {rootDefinitionMode && (
+                <button
+                  type="button"
+                  className={styles.notesToggle}
+                  onClick={exitRootDefinitionEditing}
+                >
+                  {t("editor.exitMasterEditing")}
+                </button>
+              )}
             </span>
           </div>
 
@@ -5705,6 +5849,7 @@ export function EditorWorkspace({
                   }}
                   onSelect={selectClipboardEntry}
                   onPaste={(entryId) => {
+                    if (rootDefinitionMode) return;
                     selectClipboardEntry(entryId);
                     pasteClipboardEntry(entryId);
                   }}
@@ -5780,13 +5925,13 @@ export function EditorWorkspace({
                       });
                     }
                   }}
-                  onMoveElement={moveElementInTree}
-                  onMoveTopicItem={moveTopicItemInTree}
-                  onIndentTopicItem={indentTopicItemInTree}
-                  onOutdentTopicItem={outdentTopicItemInTree}
-                  onMoveGalleryItem={moveGalleryItemInTree}
-                  onGalleryStructureDrop={applyGalleryStructureDrop}
-                  onMoveTableColumn={(tableId, columnId, offset) => commitPresentationAction(
+                  onMoveElement={rootDefinitionMode ? () => {} : moveElementInTree}
+                  onMoveTopicItem={rootDefinitionMode ? () => {} : moveTopicItemInTree}
+                  onIndentTopicItem={rootDefinitionMode ? () => {} : indentTopicItemInTree}
+                  onOutdentTopicItem={rootDefinitionMode ? () => {} : outdentTopicItemInTree}
+                  onMoveGalleryItem={rootDefinitionMode ? () => {} : moveGalleryItemInTree}
+                  onGalleryStructureDrop={rootDefinitionMode ? () => {} : applyGalleryStructureDrop}
+                  onMoveTableColumn={rootDefinitionMode ? () => {} : (tableId, columnId, offset) => commitPresentationAction(
                     {
                       kind: "table.moveColumn",
                       labelKey: "history.element.setting",
@@ -5797,7 +5942,7 @@ export function EditorWorkspace({
                       return slides === current.slides ? current : { ...current, slides };
                     },
                   )}
-                  onMoveTableRow={(tableId, rowId, offset) => commitPresentationAction(
+                  onMoveTableRow={rootDefinitionMode ? () => {} : (tableId, rowId, offset) => commitPresentationAction(
                     {
                       kind: "table.moveRow",
                       labelKey: "history.element.setting",
@@ -5811,7 +5956,9 @@ export function EditorWorkspace({
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
-                   onBrowseElementStyles={() => setRightPanelMode("resources")}
+                   onBrowseElementStyles={() => {
+                     if (!rootDefinitionMode) setRightPanelMode("resources");
+                   }}
                    palette={presentation.palette}
                    fontResources={presentation.resources?.fonts}
                    textStyles={presentation.textStyles}
@@ -5830,7 +5977,7 @@ export function EditorWorkspace({
      BEGIN: ELEMENT CRUD CONTROLS
      ========================================================== */}
 
-                  <ElementCrudControls
+                  {!rootDefinitionMode && <ElementCrudControls
                     selectedElement={selectedDocumentElement}
                     selectedContentSlotId={
                       selectedElement?.contentSlotId ?? null
@@ -5838,7 +5985,7 @@ export function EditorWorkspace({
                     onAdd={addElement}
                     onDuplicate={duplicateSelectedElement}
                     onDelete={requestElementDeletion}
-                  />
+                  />}
 
                   {/* ==========================================================
     END: ELEMENT CRUD CONTROLS
@@ -5863,6 +6010,7 @@ export function EditorWorkspace({
                         <AuthoringHistoryContext.Provider value={authoringHistory}>
                         <ElementInspector
                           element={selectedDocumentElement}
+                          readOnly={rootDefinitionMode}
                           onUpdate={updateSelectedElement}
                           plotPreviewControls={plotPreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
@@ -5915,6 +6063,20 @@ export function EditorWorkspace({
                         </AuthoringHistoryContext.Provider>
                       </PresentationColorPaletteProvider>
                     </PickedColorsProvider>
+                  ) : rootDefinitionMode && rootDefinition ? (
+                    <>
+                      <div className={styles.inspectorGroup}>
+                        <span className={styles.inspectorLabel}>{t("editor.masterContext", { name: rootDefinition.name })}</span>
+                        <strong>{rootDefinition.name}</strong>
+                      </div>
+                      <div className={styles.inspectorGroup}>
+                        <span className={styles.inspectorLabel}>{t("inspector.id")}</span>
+                        <code>{rootDefinition.id}</code>
+                      </div>
+                      <div className={styles.nextStep}>
+                        <span>{t("editor.masterReadOnly")}</span>
+                      </div>
+                    </>
                   ) : (
                     <>
                       {/* =============================================
