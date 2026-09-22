@@ -296,6 +296,24 @@ describe("CP4F1 linked style attachment history", () => {
   });
 
   it("isolates Text, Container, and Topics master edits in one Presentation", async () => {
+    const elementById = (snapshot: Presentation, id: string): PresentationElement => {
+      const visit = (elements: readonly PresentationElement[]): PresentationElement | undefined => {
+        for (const element of elements) {
+          if (element.id === id) return element;
+          if (element.type === "container") {
+            const nested = visit(element.children);
+            if (nested) return nested;
+          }
+        }
+        return undefined;
+      };
+      const found = visit(snapshot.slides[0]?.elements ?? []);
+      if (!found) throw new Error(`Element not found: ${id}`);
+      return found;
+    };
+    const textResource = (snapshot: Presentation) => snapshot.textStyles?.find((style) => style.id === "body");
+    const linkedResource = (snapshot: Presentation, id: string) => snapshot.linkedStyles?.find((style) => style.id === id);
+
     const initial = PresentationSchema.parse({
       schemaVersion: 1,
       id: "cp7-family-isolation",
@@ -328,8 +346,12 @@ describe("CP4F1 linked style attachment history", () => {
     if (!textMaster) throw new Error("Text Style master control was not rendered");
     await act(async () => { changeInput(textMaster, "24"); textMaster.blur(); });
     const afterText = await save(saved);
-    expect(afterText.slides[0]?.elements[1]).toEqual(initial.slides[0]?.elements[1]);
-    expect(afterText.slides[0]?.elements[2]).toEqual(initial.slides[0]?.elements[2]);
+    expect(elementById(afterText, "cp7-family-text")).not.toEqual(elementById(initial, "cp7-family-text"));
+    expect(textResource(afterText)).toHaveProperty("typography.fontSize", 24);
+    expect(elementById(afterText, "cp7-family-container")).toEqual(elementById(initial, "cp7-family-container"));
+    expect(linkedResource(afterText, "cp7-container-style")).toEqual(linkedResource(initial, "cp7-container-style"));
+    expect(elementById(afterText, "cp7-family-topics")).toEqual(elementById(initial, "cp7-family-topics"));
+    expect(linkedResource(afterText, "cp7-topics-style")).toEqual(linkedResource(initial, "cp7-topics-style"));
 
     const containerRow = host.querySelector<HTMLElement>("[data-linked-style-id='cp7-container-style']");
     if (!containerRow) throw new Error("Container Style row was not rendered");
@@ -338,9 +360,13 @@ describe("CP4F1 linked style attachment history", () => {
     if (!containerMaster) throw new Error("Container master control was not rendered");
     await act(async () => { changeInput(containerMaster, "16"); containerMaster.blur(); });
     const afterContainer = await save(saved);
-    expect(afterContainer.slides[0]?.elements[0]).toEqual(afterText.slides[0]?.elements[0]);
-    expect(afterContainer.slides[0]?.elements[2]).toEqual(afterText.slides[0]?.elements[2]);
-    expect(afterContainer.slides[0]?.elements[1]).not.toEqual(afterText.slides[0]?.elements[1]);
+    expect(elementById(afterContainer, "cp7-family-container")).not.toEqual(elementById(afterText, "cp7-family-container"));
+    expect(linkedResource(afterContainer, "cp7-container-style")).not.toEqual(linkedResource(afterText, "cp7-container-style"));
+    expect(linkedResource(afterContainer, "cp7-container-style")).toHaveProperty("layout.marginTop", 16);
+    expect(elementById(afterContainer, "cp7-family-text")).toEqual(elementById(afterText, "cp7-family-text"));
+    expect(textResource(afterContainer)).toEqual(textResource(afterText));
+    expect(elementById(afterContainer, "cp7-family-topics")).toEqual(elementById(afterText, "cp7-family-topics"));
+    expect(linkedResource(afterContainer, "cp7-topics-style")).toEqual(linkedResource(afterText, "cp7-topics-style"));
 
     const topicsRow = host.querySelector<HTMLElement>("[data-linked-style-id='cp7-topics-style']");
     if (!topicsRow) throw new Error("Topics Style row was not rendered");
@@ -349,9 +375,13 @@ describe("CP4F1 linked style attachment history", () => {
     if (!topicsMaster) throw new Error("Topics master control was not rendered");
     await act(async () => { changeInput(topicsMaster, "12"); topicsMaster.blur(); });
     const afterTopics = await save(saved);
-    expect(afterTopics.slides[0]?.elements[0]).toEqual(afterContainer.slides[0]?.elements[0]);
-    expect(afterTopics.slides[0]?.elements[1]).toEqual(afterContainer.slides[0]?.elements[1]);
-    expect(afterTopics.slides[0]?.elements[2]).not.toEqual(afterContainer.slides[0]?.elements[2]);
+    expect(elementById(afterTopics, "cp7-family-topics")).not.toEqual(elementById(afterContainer, "cp7-family-topics"));
+    expect(linkedResource(afterTopics, "cp7-topics-style")).not.toEqual(linkedResource(afterContainer, "cp7-topics-style"));
+    expect(linkedResource(afterTopics, "cp7-topics-style")).toHaveProperty("itemGap", 12);
+    expect(elementById(afterTopics, "cp7-family-text")).toEqual(elementById(afterContainer, "cp7-family-text"));
+    expect(textResource(afterTopics)).toEqual(textResource(afterContainer));
+    expect(elementById(afterTopics, "cp7-family-container")).toEqual(elementById(afterContainer, "cp7-family-container"));
+    expect(linkedResource(afterTopics, "cp7-container-style")).toEqual(linkedResource(afterContainer, "cp7-container-style"));
 
     await undo();
     expect(await save(saved)).toEqual(afterContainer);
