@@ -941,17 +941,17 @@ describe("TopicsInspector", () => {
     expect(container.querySelector("#topics-text-color")?.parentElement?.parentElement?.textContent).not.toContain("Linked");
   });
 
-  it("cycles kind provenance from linked to local and back without detaching", async () => {
+  it("cycles explicit unordered kind provenance from linked to local and back without detaching", async () => {
     mount(topicsElement({ linkedStyleId: "topics-style", kind: undefined }));
-    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "ordered" }] };
+    presentation = { linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "unordered" }] };
     await act(async () => renderInspector());
-    expect(kindSelect().value).toBe("ordered");
+    expect(kindSelect().value).toBe("unordered");
     expect(container.textContent).toContain("Linked");
     await act(async () => {
-      kindSelect().value = "unordered";
+      kindSelect().value = "ordered";
       kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(elementState.kind).toBe("unordered");
+    expect(elementState.kind).toBe("ordered");
     expect(elementState.linkedStyleId).toBe("topics-style");
     expect(container.textContent).toContain("Local override");
     const reset = kindSelect().closest("label")?.querySelector<HTMLButtonElement>("button");
@@ -959,7 +959,7 @@ describe("TopicsInspector", () => {
     await act(async () => reset.click());
     expect(elementState.kind).toBeUndefined();
     expect(elementState.linkedStyleId).toBe("topics-style");
-    expect(kindSelect().value).toBe("ordered");
+    expect(kindSelect().value).toBe("unordered");
     expect(container.textContent).toContain("Linked");
   });
 

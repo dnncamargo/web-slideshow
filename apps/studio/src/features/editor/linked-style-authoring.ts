@@ -351,7 +351,7 @@ function replaceTopicsInSlide(
 }
 
 function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePatch {
-  const kind = topics.kind ?? "unordered";
+  const effectiveKind = topics.kind ?? "unordered";
   const layout = authoredObject(topics.layout);
   const sparseLayout = layout === undefined
     ? undefined
@@ -359,9 +359,9 @@ function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePa
         Object.entries(layout).filter(([key, value]) => !key.startsWith("margin") || !isDefaultTopicsMargin(value)),
       ) as NonNullable<TopicsElement["layout"]>);
   return {
-    ...(kind === "ordered" ? { kind } : {}),
+    ...(topics.kind === undefined ? {} : { kind: topics.kind }),
     ...(sparseLayout === undefined ? {} : { layout: sparseLayout }),
-    ...(topics.rootMarkerStyle === undefined || isDefaultTopicsRootMarker(kind, topics.rootMarkerStyle) ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
+    ...(topics.rootMarkerStyle === undefined || isDefaultTopicsRootMarker(effectiveKind, topics.rootMarkerStyle) ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
     ...(topics.markerColor === undefined ? {} : { markerColor: topics.markerColor }),
     ...(topics.itemGap === undefined || topics.itemGap === TOPICS_ITEM_GAP_DEFAULT_PX ? {} : { itemGap: topics.itemGap }),
   };
@@ -438,7 +438,7 @@ export function updateLinkedTopicsStyle(
   if (current === undefined) return presentation;
   const updated: LinkedTopicsStyle = { ...current };
   if (Object.prototype.hasOwnProperty.call(patch, "kind")) {
-    if (patch.kind === undefined || patch.kind === "unordered") delete updated.kind;
+    if (patch.kind === undefined) delete updated.kind;
     else updated.kind = patch.kind;
   }
   if (Object.prototype.hasOwnProperty.call(patch, "layout")) {

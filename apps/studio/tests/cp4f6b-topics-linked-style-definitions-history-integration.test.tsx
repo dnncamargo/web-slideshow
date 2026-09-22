@@ -449,6 +449,80 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     expect(await save(saved)).toEqual(edited);
   });
 
+  it("propagates an explicit ordered-to-unordered master edit and replays local kind clears", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "unordered", rootMarkerStyle: "circle", items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "ordered", rootMarkerStyle: "decimal", items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "ordered", rootMarkerStyle: "decimal", markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const kind = row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind");
+    if (!kind) throw new Error("Topics kind control was not rendered");
+    await act(async () => setSelectValue(kind, "unordered"));
+    const edited = await save(saved);
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ kind: "unordered" });
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("rootMarkerStyle");
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("kind");
+    expect(edited.slides[0]?.elements[1]).not.toHaveProperty("kind");
+    expect(edited.slides[0]?.elements[0]).not.toHaveProperty("rootMarkerStyle");
+    expect(edited.slides[0]?.elements[1]).not.toHaveProperty("rootMarkerStyle");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
+  it("adds explicit unordered kind ownership and clears linked local kinds", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "ordered", items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "unordered", items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-topics-linked-style-property-chooser] > button")?.click());
+    const option = Array.from(row.querySelectorAll<HTMLButtonElement>("[data-topics-linked-style-property-chooser] button")).find((button) => button.textContent?.trim() === "List type");
+    if (!option) throw new Error("Topics List type Add Property option was not rendered");
+    await act(async () => option.click());
+    const added = await save(saved);
+    expect(added.linkedStyles?.find((style) => style.id === "topics-style")).toHaveProperty("kind", "unordered");
+    expect(added.slides[0]?.elements[0]).not.toHaveProperty("kind");
+    expect(added.slides[0]?.elements[1]).not.toHaveProperty("kind");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(added);
+  });
+
+  it("removes explicit unordered kind ownership and returns linked Topics to the default", async () => {
+    const initial = presentation({
+      slides: [{ id: "slide-1", title: "Slide 1", elements: [
+        { id: "topics-a", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "ordered", items: [] },
+        { id: "topics-b", type: "topics", hidden: false, linkedStyleId: "topics-style", kind: "unordered", items: [] },
+      ] }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "unordered", markerColor: "#ff0000" }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    await act(async () => row.querySelector<HTMLButtonElement>("[data-linked-topics-property='kind'] [data-resource-action='remove']")?.click());
+    const removed = await save(saved);
+    expect(removed.linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("kind");
+    expect(removed.slides[0]?.elements[0]).not.toHaveProperty("kind");
+    expect(removed.slides[0]?.elements[1]).not.toHaveProperty("kind");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(removed);
+  });
+
   it("propagates through a nested Topics hierarchy without changing content or ids", async () => {
     const nestedItems = [{ id: "item", content: { id: "slot", children: [{ id: "text", type: "text" as const, hidden: false, content: "Nested" }] }, children: [{ id: "child", content: { id: "child-slot", children: [] }, children: [] }] }];
     const initial = presentation({

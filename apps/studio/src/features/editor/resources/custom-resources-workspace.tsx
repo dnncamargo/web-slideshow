@@ -529,7 +529,7 @@ function TopicsLinkedStyleEditor({ style, authoringHistory, onUpdate }: { style:
     } else if (property === "rootMarkerStyle") {
       runDefinitionDiscrete(() => onUpdate({ rootMarkerStyle: "disc" }));
     } else if (property === "kind") {
-      runDefinitionDiscrete(() => onUpdate({ kind: "ordered" }));
+      runDefinitionDiscrete(() => onUpdate({ kind: "unordered" }));
     } else {
       runDefinitionDiscrete(() => onUpdate({ markerColor: "#ffffff" }));
     }
@@ -600,7 +600,7 @@ function TopicsLinkedStylePropertyCard({ style, property, authoringHistory, onUp
     const markerOptions = style.kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS;
     control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onDiscrete(() => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined }))}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>;
   } else if (property === "kind") {
-    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => onDiscrete(() => { const kind = event.target.value === "ordered" ? "ordered" : undefined; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); })}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
+    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => onDiscrete(() => { const kind = event.target.value === "ordered" ? "ordered" : "unordered"; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); })}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
   } else {
     control = <ColorControl id={`linked-topics-style-${style.id}-marker-color`} name={label} value={style.markerColor} onChange={(markerColor) => onUpdate({ markerColor })} />;
   }

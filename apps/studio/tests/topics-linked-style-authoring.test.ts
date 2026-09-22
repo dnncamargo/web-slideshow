@@ -39,7 +39,7 @@ describe("Topics Linked Style authoring", () => {
       style: { color: "#445566" }, typography: { fontSize: 24 },
     }));
     const result = createLinkedStyleFromTopics({ ...initial, linkedStyles: [{ id: "topics", name: "Topics", layout: { margin: 4 } }] }, 0, "topics", "Topics");
-    expect(result.linkedStyles).toEqual([{ id: "topics", name: "Topics", layout: { margin: 4 } }, { target: "topics", id: "topics-2", name: "Topics", layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8 }]);
+    expect(result.linkedStyles).toEqual([{ id: "topics", name: "Topics", layout: { margin: 4 } }, { target: "topics", id: "topics-2", name: "Topics", kind: "unordered", layout: { margin: 12 }, rootMarkerStyle: "square", markerColor: "#112233", itemGap: 8 }]);
     expect(selected(result)).toMatchObject({ linkedStyleId: "topics-2", style: { color: "#445566" }, typography: { fontSize: 24 } });
     expect(selected(result)).not.toHaveProperty("layout");
     expect(selected(result)).not.toHaveProperty("rootMarkerStyle");
@@ -70,6 +70,17 @@ describe("Topics Linked Style authoring", () => {
     expect(result.linkedStyles).toEqual([{ target: "topics", id: "ordered", name: "Ordered", kind: "ordered" }]);
     expect(selected(result)).not.toHaveProperty("kind");
     expect(selected(result).items).toEqual(selected(initial).items);
+  });
+
+  it("preserves the distinction between absent and explicit unordered kind when creating a resource", () => {
+    const omitted = presentation(topics({ itemGap: 8, kind: undefined }));
+    const omittedResult = createLinkedStyleFromTopics(omitted, 0, "topics", "Omitted");
+    expect(omittedResult.linkedStyles?.[0]).not.toHaveProperty("kind");
+
+    const explicit = presentation(topics({ itemGap: 8, kind: "unordered" }));
+    const explicitResult = createLinkedStyleFromTopics(explicit, 0, "topics", "Explicit");
+    expect(explicitResult.linkedStyles?.[0]).toHaveProperty("kind", "unordered");
+    expect(selected(explicitResult)).not.toHaveProperty("kind");
   });
 
   it("removes Topics resource properties by absence rather than explicit undefined", () => {
@@ -142,7 +153,7 @@ describe("Topics Linked Style authoring", () => {
       })),
     };
     const updated = updateLinkedTopicsStyle(overridden, "shared", { kind: "unordered" });
-    expect(updated.linkedStyles?.[0]).not.toHaveProperty("kind");
+    expect(updated.linkedStyles?.[0]).toHaveProperty("kind", "unordered");
     expect(resolveLinkedTopicsStyle(updated, selected(updated)).kind).toBe("unordered");
 
     const restored = updateLinkedTopicsStyle(updated, "shared", { kind: "ordered" });
@@ -187,6 +198,22 @@ describe("Topics Linked Style authoring", () => {
     expect(selected(result).items).toEqual(selected(initial).items);
   });
 
+  it("materializes an explicitly unordered master kind on detach and preserves an explicit local kind", () => {
+    const masterOnly = presentation(topics({ linkedStyleId: "shared" }), [
+      { target: "topics", id: "shared", name: "Shared", kind: "unordered", itemGap: 16 },
+    ]);
+    const detachedMaster = detachLinkedTopicsStyle(masterOnly, 0, "topics");
+    expect(selected(detachedMaster)).toMatchObject({ kind: "unordered" });
+    expect(selected(detachedMaster)).not.toHaveProperty("linkedStyleId");
+
+    const local = presentation(topics({ linkedStyleId: "shared", kind: "ordered" }), [
+      { target: "topics", id: "shared", name: "Shared", kind: "unordered", itemGap: 16 },
+    ]);
+    const detachedLocal = detachLinkedTopicsStyle(local, 0, "topics");
+    expect(detachedLocal.slides[0]?.elements[0]).toMatchObject({ kind: "ordered" });
+    expect(detachedLocal.slides[0]?.elements[0]).not.toHaveProperty("linkedStyleId");
+  });
+
   it("counts direct and nested Topics references for protected removal", () => {
     const nested = topics({ linkedStyleId: "nested" });
     const initial = presentation(topics({ linkedStyleId: "root", items: [{ id: "item", content: { id: "content", children: [nested] }, children: [] }] }), [
@@ -227,5 +254,15 @@ describe("Topics Linked Style authoring", () => {
     const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
     expect(selected(switched)).toMatchObject({ linkedStyleId: "destination", kind: "unordered" });
     expect(selected(switched)).not.toHaveProperty("itemGap");
+  });
+
+  it("clears local kind when the destination explicitly owns unordered kind", () => {
+    const initial = presentation(topics({ linkedStyleId: "source", kind: "ordered" }), [
+      { target: "topics", id: "source", name: "Source", kind: "ordered" },
+      { target: "topics", id: "destination", name: "Destination", kind: "unordered", itemGap: 8 },
+    ]);
+    const switched = attachLinkedTopicsStyle(initial, 0, "topics", "destination");
+    expect(selected(switched)).not.toHaveProperty("kind");
+    expect(selected(switched)).toMatchObject({ linkedStyleId: "destination" });
   });
 });

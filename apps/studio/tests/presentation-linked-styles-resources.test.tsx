@@ -496,7 +496,7 @@ describe("Linked Styles Resources contract", () => {
       kind.value = "unordered";
       kind.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: undefined, rootMarkerStyle: "none" });
+    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: "unordered", rootMarkerStyle: "none" });
   });
 
   it("uses unordered fallback for a sparse Topics resource preview", async () => {
