@@ -51,6 +51,20 @@ export function resolveAuthoringElements(
   return definition ? [definition.root] : null;
 }
 
+export function updateAuthoringElements(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  update: (elements: PresentationElement[]) => PresentationElement[],
+): Presentation {
+  const currentElements = resolveAuthoringElements(presentation, target);
+  if (currentElements === null) return presentation;
+
+  const nextElements = update(currentElements);
+  return nextElements === currentElements
+    ? presentation
+    : replaceAuthoringElements(presentation, target, nextElements);
+}
+
 export function resolveAuthoringSlide(
   presentation: Presentation,
   target: AuthoringTarget,
