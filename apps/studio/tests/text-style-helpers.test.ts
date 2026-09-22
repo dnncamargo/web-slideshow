@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PresentationSchema, SYSTEM_TABLE_CELL_TEXT_STYLE_ID, SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, SYSTEM_TOPICS_TEXT_STYLE_ID } from "@web-slideshow/document-schema";
-import { addCustomTextStyle, createTextStyleId, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
+import { addCustomTextStyle, areTextStyleDefinitionsEqualForAuthoring, areTextStyleOwnedPropertyValuesEqual, createTextStyleId, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, propagateTextStyleDefinitionChanges, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
 
 const base = () => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "", elements: [] }] });
 
@@ -28,6 +28,15 @@ describe("presentation typography style authoring", () => {
     expect(body.textStyles).toEqual([{ id: "body", typography: { fontFamily: "Inter" } }]);
     expect(resetFundamentalTextStyleOverride(body, "body")).not.toHaveProperty("textStyles");
     expect(upsertFundamentalTextStyleOverride(base(), "body", { fontFamily: undefined })).not.toHaveProperty("textStyles");
+  });
+
+  it("persists and sparsely clears layout-only fundamental overrides", () => {
+    const withLayout = upsertFundamentalTextStyleOverride(base(), "body", { layout: { marginTop: 10 } });
+    expect(withLayout.textStyles).toEqual([{ id: "body", layout: { marginTop: 10 } }]);
+    const withOtherBags = upsertFundamentalTextStyleOverride(withLayout, "body", { typography: { fontWeight: 500 }, style: { color: "#123456" } });
+    const clearedLayout = upsertFundamentalTextStyleOverride(withOtherBags, "body", { layout: { marginTop: undefined } });
+    expect(clearedLayout.textStyles).toEqual([{ id: "body", style: { color: "#123456" }, typography: { fontWeight: 500 } }]);
+    expect(upsertFundamentalTextStyleOverride(clearedLayout, "body", { typography: { fontWeight: undefined }, style: { color: undefined } })).not.toHaveProperty("textStyles");
   });
 
   it("allocates quote, quote-2, and quote-3 while reserving fundamental IDs", () => {
@@ -97,6 +106,16 @@ describe("presentation typography style authoring", () => {
     expect(PresentationSchema.safeParse(cleared).success).toBe(true);
   });
 
+  it("updates custom layout without reconstructing identity or unrelated bags", () => {
+    const created = addCustomTextStyle(base(), "Quote", "body");
+    const styled = updateCustomTextStyle(created, "quote", { style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginTop: 10, marginBottom: 20 } });
+    expect(styled.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginTop: 10, marginBottom: 20 } });
+    const cleared = updateCustomTextStyle(styled, "quote", { layout: { marginTop: undefined, marginBottom: 20 } });
+    expect(cleared.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 }, layout: { marginBottom: 20 } });
+    const lastCleared = updateCustomTextStyle(cleared, "quote", { layout: { marginBottom: undefined } });
+    expect(lastCleared.textStyles?.[0]).toEqual({ id: "quote", name: "Quote", role: "body", style: { color: "#123456" }, typography: { fontWeight: 500 } });
+  });
+
   it.each(nestedUsageCases)("detects a used style in a nested %s", (_label, nestedElement) => {
     const presentation = PresentationSchema.parse({
       ...addCustomTextStyle(base(), "Quote", "body"),
@@ -152,5 +171,114 @@ describe("presentation typography style authoring", () => {
     ]);
     expect(isTextStyleUsed(presentation, "quote")).toBe(true);
     expect(findTextStyleUsageLocations(presentation, "caption")).toEqual([]);
+  });
+
+  it("propagates only changed owned properties across attached nested text", () => {
+    const before = {
+      id: "body" as const,
+      typography: {
+        fontSize: 20,
+        textAlign: "center" as const,
+        textStroke: { width: 3, color: "#0000ff" },
+      },
+      style: { color: "#ff0000" },
+      layout: { marginTop: 30, marginRight: 12 },
+    };
+    const after = {
+      id: "body" as const,
+      typography: {
+        fontSize: 24,
+        textAlign: "center" as const,
+        textStroke: { width: 2, color: "#00ff00" },
+      },
+      style: { color: "#0000ff" },
+      layout: { marginTop: 40, marginRight: 12 },
+    };
+    const richContent = { type: "rich-text" as const, runs: [{ text: "Keep", marks: { bold: true } }] };
+    const presentation = PresentationSchema.parse({
+      ...base(),
+      textStyles: [after, { id: "quote", name: "Quote", role: "body", typography: { fontSize: 10 } }],
+      slides: [{
+        id: "s",
+        title: "",
+        elements: [
+          {
+            id: "attached",
+            type: "text",
+            hidden: false,
+            variant: "body",
+            content: richContent,
+            typography: { fontSize: 30, textAlign: "right", textStroke: { width: 0, color: "#0000ff" } },
+            style: { color: "#ff0000", background: { color: "#ffff00" }, border: { width: 1, style: "solid", color: "#000000" }, borderRadius: 4, className: "keep" },
+            layout: { margin: 8, marginTop: 50, marginRight: 12, marginBottom: 10, marginLeft: 11, position: "absolute", top: 20 },
+          },
+          {
+            id: "nested",
+            type: "container",
+            hidden: false,
+            children: [{ id: "nested-text", type: "text", hidden: false, variant: "body", content: "Nested", typography: { fontSize: 31 } }],
+          },
+          { id: "other-style", type: "text", hidden: false, variant: "quote", content: "Other", typography: { fontSize: 50 } },
+          { id: "detached", type: "text", hidden: false, variant: "body", styleDetached: true, content: "Detached", typography: { fontSize: 60 } },
+        ],
+      }],
+    });
+
+    const propagated = propagateTextStyleDefinitionChanges(presentation, "body", before, after);
+    const slide = propagated.slides[0]!;
+    const attached = slide.elements[0]!;
+    const nested = (slide.elements[1] as Extract<typeof slide.elements[number], { type: "container" }>).children[0]!;
+
+    expect(attached).toMatchObject({
+      typography: { textAlign: "right" },
+      style: { background: { color: "#ffff00" }, border: { width: 1, style: "solid", color: "#000000" }, borderRadius: 4, className: "keep" },
+      layout: { margin: 8, marginRight: 12, marginBottom: 10, marginLeft: 11, position: "absolute", top: 20 },
+      content: richContent,
+    });
+    expect(attached).not.toHaveProperty("typography.fontSize");
+    expect(attached).not.toHaveProperty("typography.textStroke");
+    expect(attached).not.toHaveProperty("style.color");
+    expect(attached).not.toHaveProperty("layout.marginTop");
+    expect(nested).not.toHaveProperty("typography.fontSize");
+    expect(slide.elements[2]).toEqual(presentation.slides[0]!.elements[2]);
+    expect(slide.elements[3]).toEqual(presentation.slides[0]!.elements[3]);
+  });
+
+  it("treats add, remove, width-zero stroke, and semantic no-op as property-level changes", () => {
+    const before = { id: "body" as const, typography: { fontSize: 20, textStroke: { width: 3, color: "#0000ff" } }, layout: { marginTop: 10 } };
+    const attached = { id: "text", type: "text" as const, hidden: false, variant: "body", content: "Text", typography: { fontSize: 30, textStroke: { width: 0, color: "#0000ff" }, fontWeight: 700 }, layout: { marginTop: 20, marginLeft: 4 } };
+    const basePresentation = PresentationSchema.parse({ ...base(), textStyles: [before], slides: [{ id: "s", title: "", elements: [attached] }] });
+
+    const noOp = { id: "body" as const, typography: { fontSize: 20, textStroke: { width: 3, color: "#0000ff" } }, layout: { marginTop: 10 } };
+    expect(areTextStyleDefinitionsEqualForAuthoring(before, noOp)).toBe(true);
+    expect(propagateTextStyleDefinitionChanges(basePresentation, "body", before, noOp)).toBe(basePresentation);
+    expect(areTextStyleOwnedPropertyValuesEqual({ scope: "typography", property: "textStroke" }, { width: 3, color: { kind: "palette", colorId: "primary" } }, { width: 3, color: { kind: "palette", colorId: "primary" } })).toBe(true);
+
+    const added = { id: "body" as const, typography: { fontSize: 24, textStroke: { width: 3, color: "#0000ff" } }, layout: { marginTop: 30 } };
+    const addedPresentation = propagateTextStyleDefinitionChanges(basePresentation, "body", before, added);
+    expect(addedPresentation.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(addedPresentation.slides[0]!.elements[0]).not.toHaveProperty("layout.marginTop");
+
+    const removed = { id: "body" as const, typography: {}, layout: { marginTop: 10 } };
+    const removedCandidate = PresentationSchema.parse({ ...basePresentation, textStyles: [{ id: "body", layout: { marginTop: 10 } }] });
+    const removedPresentation = propagateTextStyleDefinitionChanges(removedCandidate, "body", before, removed);
+    expect(removedPresentation.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(removedPresentation.slides[0]!.elements[0]).not.toHaveProperty("typography.textStroke");
+    expect(removedPresentation.slides[0]!.elements[0]).toMatchObject({ typography: { fontWeight: 700 }, layout: { marginTop: 20, marginLeft: 4 } });
+  });
+
+  it("propagates custom property removal but not rename or role changes", () => {
+    const withStyle = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { fontSize: 20, textAlign: "center" }, style: { color: "#ff0000" } }],
+      slides: [{ id: "s", title: "", elements: [{ id: "quote-text", type: "text", hidden: false, variant: "quote", content: "Quote", typography: { fontSize: 30, textAlign: "right" }, style: { color: "#0000ff" } }] }],
+    });
+    const before = withStyle.textStyles![0]!;
+    const renamed = updateCustomTextStyle(withStyle, "quote", { name: "Renamed", role: "caption" });
+    expect(propagateTextStyleDefinitionChanges(renamed, "quote", before, renamed.textStyles![0])).toBe(renamed);
+    const removed = updateCustomTextStyle(withStyle, "quote", { typography: { fontSize: undefined, textAlign: "center" } });
+    const propagated = propagateTextStyleDefinitionChanges(removed, "quote", before, removed.textStyles![0]);
+    expect(propagated.slides[0]!.elements[0]).toMatchObject({ typography: { textAlign: "right" }, style: { color: "#0000ff" } });
+    expect(propagated.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
   });
 });

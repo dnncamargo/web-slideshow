@@ -7,6 +7,8 @@ import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../insp
 import type { UpdateElementEffect, UpdateElementTypography } from "../inspector-types";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
+import type { TextStylePropertyInfo } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface CanonicalTextEffectsSectionProps {
   effect: ElementEffect | undefined;
@@ -15,6 +17,13 @@ interface CanonicalTextEffectsSectionProps {
   onUpdateEffect: UpdateElementEffect;
   onUpdateTypography: UpdateElementTypography;
   controlPrefix: string;
+  textStrokeDisabled?: boolean;
+  textStrokeFallback?: TextStroke;
+  textStrokeSource?: TextStylePropertyInfo;
+  onResetTextStroke?: () => void;
+  textDecorationColorFallback?: ElementTypography["textDecorationColor"];
+  textDecorationColorSource?: TextStylePropertyInfo;
+  onResetTextDecorationColor?: () => void;
 }
 
 type ShadowMode = "none" | "outer" | "inset";
@@ -40,11 +49,19 @@ export function CanonicalTextEffectsSection({
   onUpdateEffect,
   onUpdateTypography,
   controlPrefix,
+  textStrokeDisabled = false,
+  textStrokeFallback,
+  textStrokeSource,
+  onResetTextStroke,
+  textDecorationColorFallback,
+  textDecorationColorSource,
+  onResetTextDecorationColor,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : effect.shadow.inset ? "inset" : "outer";
-  const strokeMode = typography?.textStroke === undefined ? "none" : "stroke";
+  const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
+  const strokeMode = effectiveTextStroke === undefined || readAbsoluteNumber(effectiveTextStroke.width) === 0 ? "none" : "stroke";
   const shadow = effect?.shadow;
 
   function runDiscrete(callback: () => void): void {
@@ -62,6 +79,7 @@ export function CanonicalTextEffectsSection({
   }
 
   function runTextStrokeDiscrete(callback: () => void): void {
+    if (textStrokeDisabled) return;
     const meta = {
       kind: "element.setting",
       labelKey: "history.element.setting",
@@ -82,7 +100,8 @@ export function CanonicalTextEffectsSection({
     }));
   }
 
-  function updateNumber(key: string, currentValue: string | number | undefined, value: number | undefined, update: () => void): void {
+  function updateNumber(key: string, currentValue: string | number | undefined, value: number | undefined, update: () => void, disabled = false): void {
+    if (disabled) return;
     const unchanged = value === undefined ? currentValue === undefined : readAbsoluteNumber(currentValue) === value;
     if (unchanged) return;
     const historyKey = `number:${controlPrefix}-${key}`;
@@ -94,7 +113,8 @@ export function CanonicalTextEffectsSection({
     authoringHistory.update(historyKey, update);
   }
 
-  function beginNumberEditing(key: string): void {
+  function beginNumberEditing(key: string, disabled = false): void {
+    if (disabled) return;
     authoringHistory?.begin(`number:${controlPrefix}-${key}`, numberHistoryMeta);
   }
 
@@ -106,20 +126,51 @@ export function CanonicalTextEffectsSection({
           id={`${controlPrefix}-text-stroke-mode`}
           name={getControlName(controlPrefix, "TextStrokeMode")}
           value={strokeMode}
+          disabled={textStrokeDisabled}
           onChange={(event) => {
             const mode = event.target.value === "stroke" ? "stroke" : "none";
             if (mode === strokeMode) return;
-            runTextStrokeDiscrete(() => onUpdateTypography((current) => ({
-              ...current,
-              textStroke: mode === "stroke" ? current?.textStroke ?? defaultTextStroke(textColor) : undefined,
-            })));
+            runTextStrokeDiscrete(() => onUpdateTypography((current) => {
+              const localStroke = current?.textStroke;
+              const inheritedStroke = textStrokeFallback;
+              const baseStroke = localStroke ?? inheritedStroke ?? defaultTextStroke(textColor);
+              if (mode === "none") {
+                return {
+                  ...current,
+                  textStroke: {
+                    ...baseStroke,
+                    width: 0,
+                  },
+                };
+              }
+
+              const inheritedWidth = inheritedStroke === undefined ? "" : readAbsoluteNumber(inheritedStroke.width);
+              const fallbackWidth = typeof inheritedWidth === "number" && inheritedWidth > 0
+                ? inheritedWidth
+                : 1;
+              const width = localStroke !== undefined && readAbsoluteNumber(localStroke.width) === 0
+                ? fallbackWidth
+                : readAbsoluteNumber(baseStroke.width) || 1;
+              return {
+                ...current,
+                textStroke: {
+                  ...baseStroke,
+                  width,
+                },
+              };
+            }));
           }}
         >
           <option value="none">{t("inspector.textStroke.none")}</option>
           <option value="stroke">{t("inspector.textStroke.stroke")}</option>
         </select>
+        <TextStylePropertyMeta
+          source={textStrokeSource?.source}
+          linkedValue={textStrokeSource?.linkedValue}
+          onReset={onResetTextStroke}
+        />
       </label>
-      {typography?.textStroke && (
+      {effectiveTextStroke && (
         <>
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
@@ -130,18 +181,19 @@ export function CanonicalTextEffectsSection({
                   name={getControlName(controlPrefix, "TextStrokeWidth")}
                   type="number"
                   min="0"
-                  value={readAbsoluteNumber(typography.textStroke.width)}
-                  onFocus={() => beginNumberEditing("text-stroke-width")}
-                  onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`)}
+                  value={readAbsoluteNumber(effectiveTextStroke.width)}
+                  disabled={textStrokeDisabled}
+                  onFocus={() => beginNumberEditing("text-stroke-width", textStrokeDisabled)}
+                  onBlur={() => { if (!textStrokeDisabled) authoringHistory?.finish(`number:${controlPrefix}-text-stroke-width`); }}
                   onChange={(event) => {
                     const width = Math.max(0, parseOptionalNumber(event.target.value) ?? 1);
-                    updateNumber("text-stroke-width", typography.textStroke?.width, width, () => onUpdateTypography((current) => ({
+                    updateNumber("text-stroke-width", effectiveTextStroke.width, width, () => onUpdateTypography((current) => ({
                       ...current,
                       textStroke: {
-                        ...(current?.textStroke ?? defaultTextStroke(textColor)),
+                        ...(current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)),
                         width,
                       },
-                    })));
+                    })), textStrokeDisabled);
                   }}
                 />
                 <span>px</span>
@@ -153,12 +205,13 @@ export function CanonicalTextEffectsSection({
             <ColorControl
               id={`${controlPrefix}-text-stroke-color`}
               name={getControlName(controlPrefix, "TextStrokeColor")}
-              value={typography.textStroke.color}
+              value={effectiveTextStroke.color}
+              disabled={textStrokeDisabled}
               onChange={(color) =>
                 onUpdateTypography((current) => ({
                   ...current,
                   textStroke: {
-                    ...(current?.textStroke ?? defaultTextStroke(textColor)),
+                    ...(current?.textStroke ?? textStrokeFallback ?? defaultTextStroke(textColor)),
                     color,
                   },
                 }))
@@ -167,6 +220,21 @@ export function CanonicalTextEffectsSection({
           </label>
         </>
       )}
+      <label className={styles.field}>
+        <span>{t("inspector.textDecorationColor")}</span>
+        <ColorControl
+          id={`${controlPrefix}-text-decoration-color`}
+          name={getControlName(controlPrefix, "TextDecorationColor")}
+          value={typography?.textDecorationColor}
+          effectiveValue={textDecorationColorFallback}
+          onChange={(color) => onUpdateTypography((current) => ({ ...current, textDecorationColor: color }))}
+        />
+        <TextStylePropertyMeta
+          source={textDecorationColorSource?.source}
+          linkedValue={textDecorationColorSource?.linkedValue}
+          onReset={onResetTextDecorationColor}
+        />
+      </label>
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>
         <select

@@ -2,6 +2,7 @@ import type {
   ElementEffect,
   ElementTypography,
   TextElement,
+  TextStyleLayoutProperties,
   TextVisualStyle,
   TextStyleVisualProperties,
 } from "@web-slideshow/document-schema";
@@ -35,24 +36,27 @@ function addLength(
   }
 }
 
-function renderLayout(element: TextElement): string[] {
+function renderLayout(
+  element: TextElement,
+  linkedLayout: TextStyleLayoutProperties | undefined,
+): string[] {
   const layout = element.layout;
   const output: string[] = [];
 
-  if (!layout) {
+  if (!layout && !linkedLayout) {
     return output;
   }
 
-  addStyle(output, "position", layout.position);
-  addLength(output, "top", layout.top);
-  addLength(output, "right", layout.right);
-  addLength(output, "bottom", layout.bottom);
-  addLength(output, "left", layout.left);
-  addLength(output, "margin", layout.margin);
-  addLength(output, "margin-top", layout.marginTop);
-  addLength(output, "margin-right", layout.marginRight);
-  addLength(output, "margin-bottom", layout.marginBottom);
-  addLength(output, "margin-left", layout.marginLeft);
+  addStyle(output, "position", layout?.position);
+  addLength(output, "top", layout?.top);
+  addLength(output, "right", layout?.right);
+  addLength(output, "bottom", layout?.bottom);
+  addLength(output, "left", layout?.left);
+  addLength(output, "margin", layout?.margin ?? linkedLayout?.margin);
+  addLength(output, "margin-top", layout?.marginTop ?? linkedLayout?.marginTop);
+  addLength(output, "margin-right", layout?.marginRight ?? linkedLayout?.marginRight);
+  addLength(output, "margin-bottom", layout?.marginBottom ?? linkedLayout?.marginBottom);
+  addLength(output, "margin-left", layout?.marginLeft ?? linkedLayout?.marginLeft);
 
   return output;
 }
@@ -141,9 +145,10 @@ export function renderCanonicalTextStyle(
   typography: ElementTypography | undefined = element.typography,
   style: TextVisualStyle | TextStyleVisualProperties | undefined = element.style,
   options: CanonicalTextOptions = {},
+  linkedLayout?: TextStyleLayoutProperties,
 ): string {
   return [
-    ...renderLayout(element),
+    ...renderLayout(element, linkedLayout),
     ...renderVisualStyle(style, options),
     ...renderTypography(typography),
     ...renderEffect(element.effect),

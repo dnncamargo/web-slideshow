@@ -170,13 +170,20 @@ describe("Linked Styles Resources contract", () => {
     await openStyle(value);
     const addProperty = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-linked-style-id='gap'] button")).find((button) => button.textContent?.includes("Add property"));
     expect(addProperty).toBeDefined();
+    expect(addProperty?.getAttribute("aria-expanded")).toBe("false");
     await act(async () => addProperty?.click());
     const chooser = host.querySelector("[data-linked-style-property-chooser]")!;
+    expect(addProperty?.getAttribute("aria-expanded")).toBe("true");
+    expect(Array.from(chooser.querySelectorAll("h4")).map((heading) => heading.textContent)).toEqual(["Layout", "Position", "Size", "Spacing", "Appearance", "Effects"]);
     expect(chooser.textContent).toContain("Position");
     expect(chooser.textContent).toContain("Spacing");
     expect(chooser.textContent).toContain("Appearance");
     expect(chooser.textContent).not.toContain("Fit");
     expect(chooser.querySelectorAll("button").length).toBeGreaterThan(0);
+    const gap = Array.from(chooser.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Gap");
+    expect(gap).toBeDefined();
+    await act(async () => gap?.click());
+    expect(chooser.querySelector(".resourceChooser")).toBeNull();
   });
 
   it("keeps Add Property text under translation authority with one leading plus", async () => {
@@ -489,7 +496,7 @@ describe("Linked Styles Resources contract", () => {
       kind.value = "unordered";
       kind.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: undefined, rootMarkerStyle: "none" });
+    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: "unordered", rootMarkerStyle: "none" });
   });
 
   it("uses unordered fallback for a sparse Topics resource preview", async () => {

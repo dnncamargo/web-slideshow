@@ -62,6 +62,16 @@ describe("Text Styles canonical definitions", () => {
     ).toBe(true);
   });
 
+  it("accepts margin-only fundamental and custom styles", () => {
+    expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", layout: { marginTop: 10 } }).success).toBe(true);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", layout: { marginBottom: "2rem" } }).success).toBe(true);
+  });
+
+  it("rejects empty or unsupported Text Style layout", () => {
+    expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", layout: {} }).success).toBe(false);
+    expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", layout: { position: "absolute" } }).success).toBe(false);
+  });
+
   it("accepts sparse R2 visual and typography ownership", () => {
     expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", style: { color: "#ff0000" } }).success).toBe(true);
     expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: { color: { kind: "palette", colorId: "primary" } } }).success).toBe(true);
@@ -233,13 +243,13 @@ describe("Text Styles canonical definitions", () => {
     expect(PresentationSchema.safeParse(presentation(nested)).success).toBe(false);
   });
 
-  it("resolves attached and detached typography with property-level overrides", () => {
+  it("resolves attached typography with local-over-linked precedence", () => {
     const styles = [
-      { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400 } },
+      { id: "body", typography: { fontFamily: "Inter", fontSize: 18, fontWeight: 400, textAlign: "center" } },
       { id: "quote", name: "Quote", role: "body", typography: { fontStyle: "italic" } },
     ];
-    const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontSize: 22, textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#000" } }), styles));
-    expect(resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
+    const linked = PresentationSchema.parse(presentation(text({ variant: "body", typography: { fontSize: 22, textAlign: "left", textStroke: { width: 1, color: "#fff" }, textDecorationColor: "#000" } }), styles));
+    expect(resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>).typography).toMatchObject({ fontFamily: "Inter", fontSize: 22, fontWeight: 400, textAlign: "left", textStroke: { width: 1, color: "#ffffff" }, textDecorationColor: "#000000" });
 
     const detached = PresentationSchema.parse(presentation(text({ variant: "body", styleDetached: true, typography: { fontSize: 22 } }), styles));
     expect(resolveTextStyle(detached, detached.slides[0]!.elements[0] as Extract<typeof detached.slides[0]['elements'][number], { type: 'text' }>).typography).toEqual({ fontSize: 22 });
@@ -250,14 +260,42 @@ describe("Text Styles canonical definitions", () => {
     expect(resolved.typography).not.toHaveProperty("fontFamily");
   });
 
-  it("resolves Text Style visual ownership with local precedence and preserves palette refs", () => {
+  it("resolves only owned Text Style visual properties and preserves palette refs", () => {
     const palette = { colors: [{ id: "primary", name: "Primary", value: "#ff0000" }] };
     const styles = [{ id: "body", style: { color: { kind: "palette", colorId: "primary" } }, typography: { textDecorationColor: { kind: "palette", colorId: "primary" } } }];
-    const linked = PresentationSchema.parse({ ...presentation(text({ style: { color: "#00ff00" }, typography: { textStroke: { width: 2, color: { kind: "palette", colorId: "primary" } } } }), styles), palette });
+    const source = text({ style: { color: "#00ff00", background: { color: "#eeeeee" }, className: "local-text" }, typography: { textStroke: { width: 2, color: { kind: "palette", colorId: "primary" } } } });
+    const linked = PresentationSchema.parse({ ...presentation(source, styles), palette });
+    const before = structuredClone(linked.slides[0]!.elements[0]);
     const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
-    expect(resolved.style.color).toBe("#00ff00");
+    expect(resolved.style).toEqual({ color: "#00ff00" });
     expect(resolved.typography.textDecorationColor).toEqual({ kind: "palette", colorId: "primary" });
     expect(resolved.typography.textStroke?.color).toEqual({ kind: "palette", colorId: "primary" });
+    expect(linked.slides[0]!.elements[0]).toEqual(before);
+  });
+
+  it("keeps local properties when the linked Style omits them", () => {
+    const linked = PresentationSchema.parse(presentation(text({
+      variant: "body",
+      style: { color: "#00ff00", background: { color: "#eeeeee" }, className: "local-text" },
+      typography: { textAlign: "left", fontSize: 22 },
+      layout: { marginTop: 20, marginBottom: 30, position: "absolute", top: 4 },
+    }), [{ id: "body", typography: { fontWeight: 500 }, layout: { marginTop: 10 } }]));
+    const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
+
+    expect(resolved.typography).toMatchObject({ textAlign: "left", fontSize: 22, fontWeight: 500 });
+    expect(resolved.style).toEqual({ color: "#00ff00" });
+    expect(resolved.layout).toEqual({ marginTop: 20, marginBottom: 30 });
+    expect(linked.slides[0]!.elements[0]).toMatchObject({ layout: { position: "absolute", top: 4 } });
+  });
+
+  it("resolves every owned margin field independently", () => {
+    const linked = PresentationSchema.parse(presentation(text({
+      variant: "body",
+      layout: { margin: 20, marginTop: 30, marginBottom: 40 },
+    }), [{ id: "body", layout: { margin: 10, marginTop: 12 } }]));
+    const resolved = resolveTextStyle(linked, linked.slides[0]!.elements[0] as Extract<typeof linked.slides[0]['elements'][number], { type: 'text' }>);
+
+    expect(resolved.layout).toEqual({ margin: 20, marginTop: 30, marginBottom: 40 });
   });
 
   it("round-trips a representative canonical Text Style document without changing its semantics", () => {

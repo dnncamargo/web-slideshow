@@ -13,6 +13,8 @@ import { ColorControl } from "./color-control";
 import { ElementBorderControl } from "./element-border-control";
 import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
+import type { TextStylePropertyInfo } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 type CanonicalTextElement = TextElement;
 
@@ -23,6 +25,10 @@ interface CanonicalTextAppearanceSectionProps {
   onUpdateStyle: UpdateElementVisualStyle;
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
+  effectiveTextColor?: TextVisualStyle["color"];
+  textColorDisabled?: boolean;
+  textColorSource?: TextStylePropertyInfo;
+  onResetTextColor?: () => void;
 }
 
 function readOpacityPercentage(value: number | undefined): number {
@@ -38,6 +44,10 @@ export function CanonicalTextAppearanceSection({
   onUpdateStyle,
   onUpdateEffect,
   controlPrefix,
+  effectiveTextColor,
+  textColorDisabled = false,
+  textColorSource,
+  onResetTextColor,
 }: CanonicalTextAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -62,14 +72,21 @@ export function CanonicalTextAppearanceSection({
           <ColorControl
             id={`${controlPrefix}-color`}
             name={getControlName(controlPrefix, "Color")}
-            value={style?.color}
+            value={textColorDisabled ? undefined : style?.color}
+            effectiveValue={effectiveTextColor}
+            disabled={textColorDisabled}
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }
-            secondaryAction={{
+            secondaryAction={textColorSource === undefined ? {
               label: t("inspector.useThemeDefault"),
               onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
-            }}
+            } : undefined}
+          />
+          <TextStylePropertyMeta
+            source={textColorSource?.source}
+            linkedValue={textColorSource?.linkedValue}
+            onReset={onResetTextColor}
           />
         </label>
       </div>

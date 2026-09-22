@@ -12,6 +12,8 @@ import {
 } from "../inspector-helpers";
 
 import { InspectorSection } from "../inspector-section";
+import type { TextStylePropertyInfo } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 export interface ElementSpacingLayout {
   margin?: Length | undefined;
@@ -21,7 +23,7 @@ export interface ElementSpacingLayout {
   marginLeft?: Length | undefined;
 }
 
-type ElementSpacingField = keyof ElementSpacingLayout;
+export type ElementSpacingField = keyof ElementSpacingLayout;
 
 const ELEMENT_MARGIN_SIDE_FIELDS: readonly (
   | "marginTop"
@@ -57,6 +59,10 @@ interface ElementSpacingSectionProps {
       layout: ElementSpacingLayout | undefined,
     ) => ElementSpacingLayout | undefined,
   ) => void;
+  effectiveLayout?: ElementSpacingLayout;
+  disabledFields?: readonly ElementSpacingField[];
+  textStyleSources?: Partial<Record<ElementSpacingField, TextStylePropertyInfo>>;
+  onResetTextStyleProperty?: (property: ElementSpacingField) => void;
 }
 
 function updateMarginField(
@@ -94,12 +100,20 @@ export function ElementSpacingSection({
   layout,
   controlPrefix,
   onUpdateLayout,
+  effectiveLayout,
+  disabledFields = [],
+  textStyleSources,
+  onResetTextStyleProperty,
 }: ElementSpacingSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const displayedLayout = { ...(layout ?? {}), ...(effectiveLayout ?? {}) };
+  const isDisabled = (field: ElementSpacingField): boolean => disabledFields.includes(field);
+  const propertyInfo = (field: ElementSpacingField) => textStyleSources?.[field];
 
   function updateField(field: ElementSpacingField, value: number | undefined) {
+    if (isDisabled(field)) return;
     if (Object.is(layout?.[field], value)) {
       return;
     }
@@ -127,9 +141,10 @@ export function ElementSpacingSection({
             name={`${controlPrefix}Margin`}
             type="number"
             min="0"
-            value={readAbsoluteNumber(layout?.margin)}
-            onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta)}
-            onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-margin`)}
+            value={readAbsoluteNumber(displayedLayout.margin)}
+            disabled={isDisabled("margin")}
+            onFocus={() => { if (!isDisabled("margin")) authoringHistory?.begin(`number:${controlPrefix}-margin`, numberHistoryMeta); }}
+            onBlur={() => { if (!isDisabled("margin")) authoringHistory?.finish(`number:${controlPrefix}-margin`); }}
             onChange={(event) => {
               updateField("margin", parseOptionalNumber(event.target.value));
             }}
@@ -137,6 +152,7 @@ export function ElementSpacingSection({
 
           <span>px</span>
         </div>
+        <TextStylePropertyMeta source={propertyInfo("margin")?.source} linkedValue={propertyInfo("margin")?.linkedValue} onReset={() => onResetTextStyleProperty?.("margin")} />
       </label>
 
       <details className={styles.spacingDetails}>
@@ -158,9 +174,10 @@ export function ElementSpacingSection({
                     name={`${controlPrefix}Margin${side[0].toUpperCase()}${side.slice(1)}`}
                     type="number"
                     min="0"
-                    value={readAbsoluteNumber(layout?.[field])}
-                    onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta)}
-                    onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`)}
+                    value={readAbsoluteNumber(displayedLayout[field])}
+                    disabled={isDisabled(field)}
+                    onFocus={() => { if (!isDisabled(field)) authoringHistory?.begin(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`, numberHistoryMeta); }}
+                    onBlur={() => { if (!isDisabled(field)) authoringHistory?.finish(`number:${controlPrefix}-${ELEMENT_MARGIN_HISTORY_FIELDS[field]}`); }}
                     onChange={(event) => {
                       updateField(
                         field,
@@ -172,6 +189,7 @@ export function ElementSpacingSection({
 
                   <span>px</span>
                 </div>
+                <TextStylePropertyMeta source={propertyInfo(field)?.source} linkedValue={propertyInfo(field)?.linkedValue} onReset={() => onResetTextStyleProperty?.(field)} />
               </label>
             );
           })}

@@ -5,7 +5,6 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
-  stripLocalTextStyleProperties,
 } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -41,11 +40,19 @@ import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-s
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
+  attachTextStyle as attachTextStyleRelationship,
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
 } from "../text-typography-authoring";
 import { listPresentationTextStyles } from "../text-style-helpers";
 import { useAuthoringHistory } from "../authoring-history-context";
+import {
+  clearLocalTextStyleProperty,
+  getTextStylePropertyInfo,
+  type TextStyleInspectorProperty,
+} from "./text-style-property";
+import type { CoreTypographyProperty } from "./sections/element-typography-control";
+import type { ElementSpacingField } from "./sections/element-spacing-section";
 
 type TextInspectorElement = Extract<PresentationElement, { type: "text" }>;
 
@@ -125,22 +132,58 @@ export function TextInspector({
     caption: t("inspector.caption"),
   };
   const selectedStyle = styleOptions.find(({ id }) => id === element.variant)?.style;
+  const linkedTextStrokeFallback = element.styleDetached === true
+    ? undefined
+    : selectedStyle?.typography?.textStroke;
+  const resolvedTextStyle = presentation
+    ? resolveEffectiveTextStyleForAuthoring(presentation, element)
+    : undefined;
   const selectedStyleName = selectedStyle && "name" in selectedStyle
     ? selectedStyle.name
     : fundamentalLabels[element.variant] ?? element.variant;
+
+  const textStyleSourceFor = (property: TextStyleInspectorProperty) =>
+    getTextStylePropertyInfo(presentation, element, property);
+  const typographyProperties: readonly CoreTypographyProperty[] = [
+    "fontFamily", "fontSize", "fontWeight", "fontStyle", "textAlign", "lineHeight",
+    "letterSpacing", "textTransform", "whiteSpace", "textWrapStyle", "overflowWrap",
+    "textDecorationLine",
+  ];
+  const textStyleSources = presentation && element.styleDetached !== true
+    ? Object.fromEntries(typographyProperties.map((property) => [property, textStyleSourceFor(property)])) as Partial<Record<CoreTypographyProperty, NonNullable<ReturnType<typeof textStyleSourceFor>>>>
+    : undefined;
+  const textStyleLayoutSources = presentation && element.styleDetached !== true
+    ? Object.fromEntries(([
+        "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+      ] as const).map((property) => [property, textStyleSourceFor(property)])) as Partial<Record<ElementSpacingField, NonNullable<ReturnType<typeof textStyleSourceFor>>>>
+    : undefined;
+
+  function resetTextStyleProperty(property: TextStyleInspectorProperty): void {
+    if (element.styleDetached === true) return;
+    const callback = () => onUpdate((current) => current.type === "text"
+      ? clearLocalTextStyleProperty(current, property)
+      : current);
+    if (authoringHistory) {
+      authoringHistory.discrete({
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: `text.style.${property}` },
+      }, callback);
+    } else {
+      callback();
+    }
+  }
 
   function attachTextStyle(variant: TextInspectorElement["variant"]) {
     runStyleRelationship(() => {
       onUpdate((current) => {
         if (current.type !== "text") return current;
-        const { styleDetached: _detached, typography: _ownedTypography, style: _ownedStyle, ...attached } = current;
-        const local = stripLocalTextStyleProperties(current.typography, current.style);
-        return {
-          ...attached,
-          variant,
-          ...(local.style === undefined ? {} : { style: local.style }),
-          ...(local.typography === undefined ? {} : { typography: local.typography }),
-        };
+        return presentation
+          ? attachTextStyleRelationship(presentation, current, variant)
+          : (() => {
+              const { styleDetached: _styleDetached, ...attached } = current;
+              return { ...attached, variant };
+            })();
       });
     });
   }
@@ -201,16 +244,22 @@ export function TextInspector({
         {typographyDefaults && (
           <ElementTypographyFields
             typography={element.typography}
+            effectiveTypography={effectiveTypography}
             effectiveDefaults={typographyDefaults}
             onUpdateTypography={updateTypography}
             controlPrefix="text"
             fontResources={fontResources}
+            textStyleSources={textStyleSources}
+            onResetTextStyleProperty={resetTextStyleProperty}
           />
         )}
       </InspectorSection>
 
-      <ElementSpacingSection
+        <ElementSpacingSection
         layout={element.layout}
+        effectiveLayout={resolvedTextStyle?.layout}
+        textStyleSources={textStyleLayoutSources}
+        onResetTextStyleProperty={resetTextStyleProperty}
         controlPrefix="text"
         onUpdateLayout={(update) => {
           onUpdate((current) =>
@@ -228,11 +277,20 @@ export function TextInspector({
         onUpdateStyle={updateStyle}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
+        effectiveTextColor={resolvedTextStyle?.style?.color}
+        textColorSource={textStyleSourceFor("color")}
+        onResetTextColor={() => resetTextStyleProperty("color")}
       />
 
       <CanonicalTextEffectsSection
         effect={element.effect}
         typography={element.typography}
+        textStrokeFallback={linkedTextStrokeFallback}
+        textStrokeSource={textStyleSourceFor("textStroke")}
+        onResetTextStroke={() => resetTextStyleProperty("textStroke")}
+        textDecorationColorFallback={resolvedTextStyle?.typography?.textDecorationColor}
+        textDecorationColorSource={textStyleSourceFor("textDecorationColor")}
+        onResetTextDecorationColor={() => resetTextStyleProperty("textDecorationColor")}
         textColor={typeof element.style?.color === "string" ? element.style.color : undefined}
         onUpdateEffect={updateEffect}
         onUpdateTypography={updateTypography}

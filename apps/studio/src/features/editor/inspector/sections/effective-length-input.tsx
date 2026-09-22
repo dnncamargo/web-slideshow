@@ -11,6 +11,8 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
+import type { TextStyleInspectorSource } from "../text-style-property";
+import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface EffectiveLengthInputProps {
   id: string;
@@ -27,6 +29,11 @@ interface EffectiveLengthInputProps {
   preserveInheritedUnit?: boolean;
   onChange: (value: Length | undefined) => void;
   onReset: () => void;
+  disabled?: boolean;
+  textStyleSource?: TextStyleInspectorSource;
+  textStyleLinkedValue?: unknown;
+  textStyleFormatValue?: (value: unknown) => string;
+  textStyleOnReset?: () => void;
 }
 
 function getInitialUnit(
@@ -54,6 +61,11 @@ export function EffectiveLengthInput({
   preserveInheritedUnit = false,
   onChange,
   onReset,
+  disabled = false,
+  textStyleSource,
+  textStyleLinkedValue,
+  textStyleFormatValue,
+  textStyleOnReset,
 }: EffectiveLengthInputProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -87,10 +99,12 @@ export function EffectiveLengthInput({
   const inputStep = stepByUnit?.[unit] ?? step;
 
   function beginEditing() {
+    if (disabled) return;
     authoringHistory?.begin(historyKey, historyMeta);
   }
 
   function updateValue(nextValue: Length | undefined) {
+    if (disabled) return;
     if (!authoringHistory) {
       onChange(nextValue);
       return;
@@ -111,9 +125,11 @@ export function EffectiveLengthInput({
           {...(min === undefined ? {} : { min })}
           {...(inputStep === undefined ? {} : { step: inputStep })}
           value={numericValue}
+          disabled={disabled}
           onFocus={beginEditing}
-          onBlur={() => authoringHistory?.finish(historyKey)}
+          onBlur={() => { if (!disabled) authoringHistory?.finish(historyKey); }}
           onChange={(event) => {
+            if (disabled) return;
             const nextValue = event.target.value.trim();
 
             if (nextValue === "") {
@@ -135,7 +151,9 @@ export function EffectiveLengthInput({
           id={`${id}-unit`}
           name={`${name}Unit`}
           value={unit}
+          disabled={disabled}
           onChange={(event) => {
+            if (disabled) return;
             const nextUnit = event.target.value as AuthoringLengthUnit;
 
             if (!units.includes(nextUnit)) {
@@ -177,7 +195,14 @@ export function EffectiveLengthInput({
         </select>
       </div>
 
-      {inherited ? (
+      {textStyleSource === "local" || textStyleSource === "linked" ? (
+        <TextStylePropertyMeta
+          source={textStyleSource}
+          linkedValue={textStyleLinkedValue}
+          formatValue={textStyleFormatValue}
+          onReset={inherited ? undefined : textStyleOnReset ?? onReset}
+        />
+      ) : inherited ? (
         <span className={styles.inheritedValueLabel}>
           {inheritedSource === "linked" ? t("inspector.linkedValue") : t("inspector.default")}
         </span>
@@ -185,8 +210,10 @@ export function EffectiveLengthInput({
         <button
           className={styles.effectiveValueReset}
           type="button"
+          disabled={disabled}
           title={inheritedSource === "linked" ? t("inspector.resetLinkedOverride") : t("inspector.useThemeDefault")}
           onClick={() => {
+            if (disabled) return;
             setUnit(preferredUnit);
             if (!authoringHistory) {
               onReset();

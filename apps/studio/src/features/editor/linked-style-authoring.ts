@@ -1,7 +1,6 @@
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
-  resolveLinkedTopicsStyle,
   type ContainerElement,
   type ContainerLayout,
   type ElementEffect,
@@ -17,6 +16,7 @@ import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
 import { createTextStyleId } from "./text-style-helpers";
+import type { LinkedStyleProperty } from "./linked-style-property-authoring";
 
 type ShareableStyle = Omit<ElementVisualStyle, "className">;
 type PropertyBag = Record<string, unknown>;
@@ -91,6 +91,61 @@ function removeLinkedEffectProperties(localEffect: ElementEffect | undefined, li
   if (linked.opacity !== undefined) delete local.opacity;
   if (linked.shadow !== undefined) delete local.shadow;
   return Object.keys(local).length === 0 ? undefined : next;
+}
+
+/** Clears one canonical linked-container property while preserving all other local fields. */
+export function clearLinkedContainerStyleProperty(
+  container: ContainerElement,
+  property: Exclude<LinkedStyleProperty, "fit">,
+): ContainerElement {
+  const layout = container.layout === undefined
+    ? undefined
+    : { ...container.layout, ...(container.layout.children === undefined ? {} : { children: { ...container.layout.children } }) };
+  const style = container.style === undefined
+    ? undefined
+    : { ...container.style, ...(container.style.background === undefined ? {} : { background: { ...container.style.background } }) };
+  const effect = container.effect === undefined ? undefined : { ...container.effect };
+  const layoutBag = layout as PropertyBag | undefined;
+  const childrenBag = layout?.children as PropertyBag | undefined;
+  const styleBag = style as PropertyBag | undefined;
+  const backgroundBag = style?.background as PropertyBag | undefined;
+  const effectBag = effect as PropertyBag | undefined;
+
+  switch (property) {
+    case "layoutMode": if (childrenBag) delete childrenBag.mode; break;
+    case "direction": if (childrenBag) delete childrenBag.direction; break;
+    case "gap": if (childrenBag) delete childrenBag.gap; break;
+    case "distribution": if (childrenBag) delete childrenBag.distribution; break;
+    case "horizontalAlign": if (childrenBag) delete childrenBag.horizontalAlign; break;
+    case "verticalAlign": if (childrenBag) delete childrenBag.verticalAlign; break;
+    case "overflow": if (layoutBag) delete layoutBag.overflow; break;
+    case "position": if (layoutBag) delete layoutBag.position; break;
+    case "top": case "right": case "bottom": case "left":
+    case "width": case "height": case "padding": case "paddingTop": case "paddingRight":
+    case "paddingBottom": case "paddingLeft": case "margin": case "marginTop":
+    case "marginRight": case "marginBottom": case "marginLeft":
+      if (layoutBag) delete layoutBag[property];
+      break;
+    case "preserveSize": if (layoutBag) delete layoutBag.flexShrink; break;
+    case "color": if (styleBag) delete styleBag.color; break;
+    case "backgroundColor": if (backgroundBag) delete backgroundBag.color; break;
+    case "gradient": if (backgroundBag) delete backgroundBag.gradient; break;
+    case "pattern": if (backgroundBag) delete backgroundBag.pattern; break;
+    case "border": if (styleBag) delete styleBag.border; break;
+    case "borderRadius": if (styleBag) delete styleBag.borderRadius; break;
+    case "opacity": if (effectBag) delete effectBag.opacity; break;
+    case "shadow": if (effectBag) delete effectBag.shadow; break;
+  }
+
+  if (layout?.children && Object.keys(layout.children).length === 0) delete (layoutBag as PropertyBag).children;
+  if (style?.background && Object.keys(style.background).length === 0) delete (styleBag as PropertyBag).background;
+  const { layout: _layout, style: _style, effect: _effect, ...structural } = container;
+  return {
+    ...structural,
+    ...(layout && Object.keys(layout).length > 0 ? { layout } : {}),
+    ...(style && Object.keys(style).length > 0 ? { style } : {}),
+    ...(effect && Object.keys(effect).length > 0 ? { effect } : {}),
+  };
 }
 
 /** Transfers ownership of the linked style's authored canonical properties to it. */
@@ -238,17 +293,47 @@ export function attachLinkedStyle(
 
 type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
 
+export type LinkedTopicsStyleProperty =
+  | "kind" | "position" | "top" | "right" | "bottom" | "left" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"
+  | "itemGap" | "rootMarkerStyle" | "markerColor";
+
+const LINKED_TOPICS_LAYOUT_PROPERTIES = [
+  "position", "top", "right", "bottom", "left", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+] as const;
+
+/** Clears exactly one authored Topics property and prunes only its empty bag. */
+export function clearLinkedTopicsStyleProperty(
+  topics: TopicsElement,
+  property: LinkedTopicsStyleProperty,
+): TopicsElement {
+  const next = { ...topics };
+  if (property === "kind") delete next.kind;
+  else if (property === "rootMarkerStyle") delete next.rootMarkerStyle;
+  else if (property === "markerColor") delete next.markerColor;
+  else if (property === "itemGap") delete next.itemGap;
+  else if (next.layout !== undefined) {
+    const layout = { ...next.layout } as PropertyBag;
+    delete layout[property];
+    if (Object.keys(layout).length === 0) delete next.layout;
+    else next.layout = layout as TopicsElement["layout"];
+  }
+  return next;
+}
+
 function removeLinkedTopicsProperties(topics: TopicsElement, linked: LinkedTopicsStyle): TopicsElement {
-  const { kind: _kind, layout: localLayout, rootMarkerStyle, markerColor, itemGap, ...structural } = topics;
-  const layout = removeLinkedLayoutProperties(localLayout, linked.layout);
-  return {
-    ...structural,
-    ...(layout === undefined ? {} : { layout }),
-    ...(linked.rootMarkerStyle === undefined && rootMarkerStyle !== undefined ? { rootMarkerStyle } : {}),
-    ...(linked.markerColor === undefined && markerColor !== undefined ? { markerColor } : {}),
-    ...(linked.itemGap === undefined && itemGap !== undefined ? { itemGap } : {}),
-    linkedStyleId: linked.id,
-  };
+  let next: TopicsElement = { ...topics, linkedStyleId: linked.id };
+  for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+    if (linked.layout?.[property] !== undefined) next = clearLinkedTopicsStyleProperty(next, property);
+  }
+  if (linked.kind !== undefined) next = clearLinkedTopicsStyleProperty(next, "kind");
+  if (linked.rootMarkerStyle !== undefined) next = clearLinkedTopicsStyleProperty(next, "rootMarkerStyle");
+  if (linked.markerColor !== undefined) next = clearLinkedTopicsStyleProperty(next, "markerColor");
+  if (linked.itemGap !== undefined) next = clearLinkedTopicsStyleProperty(next, "itemGap");
+  const hasLocalInset = (["top", "right", "bottom", "left"] as const).some((property) => next.layout?.[property] !== undefined);
+  if (linked.layout?.position !== undefined && hasLocalInset && next.layout?.position === undefined) {
+    next = { ...next, layout: { ...(next.layout ?? {}), position: "absolute" } as TopicsElement["layout"] };
+  }
+  return next;
 }
 
 function replaceTopicsInSlide(
@@ -266,7 +351,7 @@ function replaceTopicsInSlide(
 }
 
 function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePatch {
-  const kind = topics.kind ?? "unordered";
+  const effectiveKind = topics.kind ?? "unordered";
   const layout = authoredObject(topics.layout);
   const sparseLayout = layout === undefined
     ? undefined
@@ -274,9 +359,9 @@ function topicsLinkedStyleProperties(topics: TopicsElement): LinkedTopicsStylePa
         Object.entries(layout).filter(([key, value]) => !key.startsWith("margin") || !isDefaultTopicsMargin(value)),
       ) as NonNullable<TopicsElement["layout"]>);
   return {
-    ...(kind === "ordered" ? { kind } : {}),
+    ...(topics.kind === undefined ? {} : { kind: topics.kind }),
     ...(sparseLayout === undefined ? {} : { layout: sparseLayout }),
-    ...(topics.rootMarkerStyle === undefined || isDefaultTopicsRootMarker(kind, topics.rootMarkerStyle) ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
+    ...(topics.rootMarkerStyle === undefined || isDefaultTopicsRootMarker(effectiveKind, topics.rootMarkerStyle) ? {} : { rootMarkerStyle: topics.rootMarkerStyle }),
     ...(topics.markerColor === undefined ? {} : { markerColor: topics.markerColor }),
     ...(topics.itemGap === undefined || topics.itemGap === TOPICS_ITEM_GAP_DEFAULT_PX ? {} : { itemGap: topics.itemGap }),
   };
@@ -328,15 +413,18 @@ export function detachLinkedTopicsStyle(
     if (topics.linkedStyleId === undefined) return topics;
     const linked = presentation.linkedStyles?.find((style) => style.id === topics.linkedStyleId);
     if (linked === undefined || !("target" in linked) || linked.target !== "topics") return topics;
-    const resolved = resolveLinkedTopicsStyle(presentation, topics);
     const { linkedStyleId: _linkedStyleId, ...unlinked } = topics;
+    const layout = { ...(topics.layout ?? {}) } as PropertyBag;
+    for (const property of LINKED_TOPICS_LAYOUT_PROPERTIES) {
+      if (topics.layout?.[property] === undefined && linked.layout?.[property] !== undefined) layout[property] = linked.layout[property];
+    }
     return {
       ...unlinked,
-      ...(resolved.kind === "ordered" ? { kind: resolved.kind } : {}),
-      ...(resolved.layout === undefined ? {} : { layout: resolved.layout }),
-      ...(resolved.rootMarkerStyle === undefined ? {} : { rootMarkerStyle: resolved.rootMarkerStyle }),
-      ...(resolved.markerColor === undefined ? {} : { markerColor: resolved.markerColor }),
-      ...(resolved.itemGap === undefined ? {} : { itemGap: resolved.itemGap }),
+      ...(topics.kind === undefined && linked.kind !== undefined ? { kind: linked.kind } : {}),
+      ...(Object.keys(layout).length > 0 ? { layout: layout as TopicsElement["layout"] } : {}),
+      ...(topics.rootMarkerStyle === undefined && linked.rootMarkerStyle !== undefined ? { rootMarkerStyle: linked.rootMarkerStyle } : {}),
+      ...(topics.markerColor === undefined && linked.markerColor !== undefined ? { markerColor: linked.markerColor } : {}),
+      ...(topics.itemGap === undefined && linked.itemGap !== undefined ? { itemGap: linked.itemGap } : {}),
     };
   });
 }
@@ -350,7 +438,7 @@ export function updateLinkedTopicsStyle(
   if (current === undefined) return presentation;
   const updated: LinkedTopicsStyle = { ...current };
   if (Object.prototype.hasOwnProperty.call(patch, "kind")) {
-    if (patch.kind === undefined || patch.kind === "unordered") delete updated.kind;
+    if (patch.kind === undefined) delete updated.kind;
     else updated.kind = patch.kind;
   }
   if (Object.prototype.hasOwnProperty.call(patch, "layout")) {

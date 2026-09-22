@@ -47,7 +47,7 @@ function jsonRoundTrip(presentationValue: ReturnType<typeof presentation>) {
 }
 
 describe("Text Style canonical lifecycle", () => {
-  it("propagates attached fundamental changes, preserves local overrides, and detaches canonically", () => {
+  it("propagates attached fundamental changes, applies ownership, and detaches canonically", () => {
     const attachedText = text({
       variant: "body",
       typography: {

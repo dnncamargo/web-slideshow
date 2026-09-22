@@ -43,6 +43,10 @@ import { ColorControl } from "./sections/color-control";
 import { ElementTypographyControl } from "./sections/element-typography-control";
 import { EffectiveNumberInput } from "./sections/effective-number-input";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
+import { TextStylePropertyMeta } from "./sections/text-style-property-meta";
+import type { TextStylePropertyInfo } from "./text-style-property";
+import { clearLinkedTopicsStyleProperty } from "../linked-style-authoring";
+import { getTopicsShareablePropertySource } from "./linked-style-inspector";
 
 const UNORDERED_MARKER_STYLES: readonly TopicMarkerStyle[] = [
   "disc",
@@ -472,6 +476,27 @@ function addChildTopic(topicItemId: string) {
   const effectiveKind = presentation && element.linkedStyleId !== undefined
     ? resolveLinkedTopicsStyle(presentation, element).kind
     : element.kind ?? "unordered";
+  const resolvedTopics = presentation && element.linkedStyleId !== undefined
+    ? resolveLinkedTopicsStyle(presentation, element)
+    : { kind: effectiveKind, layout: element.layout, rootMarkerStyle: element.rootMarkerStyle, markerColor: element.markerColor, itemGap: element.itemGap };
+  const topicPropertyInfo = (property: Parameters<typeof getTopicsShareablePropertySource>[2]): TextStylePropertyInfo | undefined => {
+    if (presentation === undefined || element.linkedStyleId === undefined) return undefined;
+    return getTopicsShareablePropertySource(presentation, element, property);
+  };
+  const spacingSources: Partial<Record<"margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", TextStylePropertyInfo>> = {
+    margin: topicPropertyInfo("layout.margin"),
+    marginTop: topicPropertyInfo("layout.marginTop"),
+    marginRight: topicPropertyInfo("layout.marginRight"),
+    marginBottom: topicPropertyInfo("layout.marginBottom"),
+    marginLeft: topicPropertyInfo("layout.marginLeft"),
+  };
+  const itemGapSource = topicPropertyInfo("layout.itemGap");
+  const kindSource = topicPropertyInfo("kind");
+  const rootMarkerSource = topicPropertyInfo("rootMarkerStyle");
+  const markerColorSource = topicPropertyInfo("markerColor");
+  const resetLinkedTopicsProperty = (property: Parameters<typeof clearLinkedTopicsStyleProperty>[1]) => {
+    runDiscrete(`topics.${property}`, () => updateCurrentTopics((current) => clearLinkedTopicsStyleProperty(current, property)));
+  };
   const markerStyleOptions = topicMarkerStyleOptions(effectiveKind);
   const linkedTopicsStyles = (presentation?.linkedStyles ?? []).filter(isLinkedTopicsStyle);
   const linkedStyleName = linkedTopicsStyles.find((style) => style.id === element.linkedStyleId)?.name;
@@ -552,11 +577,11 @@ function addChildTopic(topicItemId: string) {
           <span>{t("inspector.topics.add")}</span>
         </button>
 
-        <div className={styles.fieldGrid}>
+          <div className={styles.fieldGrid}>
           <label className={styles.field}>
             <span>{t("inspector.topics.kind")}</span>
 
-            <select
+              <select
               id="topics-kind"
               name="topicsKind"
               value={effectiveKind}
@@ -575,8 +600,9 @@ function addChildTopic(topicItemId: string) {
               </option>
 
               <option value="ordered">{t("inspector.topics.ordered")}</option>
-            </select>
-          </label>
+              </select>
+              <TextStylePropertyMeta source={kindSource?.source} linkedValue={kindSource?.linkedValue} onReset={kindSource?.source === "local" ? () => resetLinkedTopicsProperty("kind") : undefined} />
+            </label>
 
           <div className={styles.field}>
             <span>{t("inspector.topics.itemGap")}</span>
@@ -584,8 +610,8 @@ function addChildTopic(topicItemId: string) {
             <EffectiveNumberInput
               id="topics-item-gap"
               name="topicsItemGap"
-              value={element.itemGap ?? TOPICS_ITEM_GAP_DEFAULT_PX}
-              inherited={element.itemGap === undefined}
+              value={resolvedTopics.itemGap ?? TOPICS_ITEM_GAP_DEFAULT_PX}
+              inherited={itemGapSource === undefined ? element.itemGap === undefined : itemGapSource.source !== "local"}
               unit="px"
               min="0"
               onChange={(value) => {
@@ -594,12 +620,10 @@ function addChildTopic(topicItemId: string) {
                   itemGap: value === "" ? undefined : Number(value),
                 }));
               }}
-              onReset={() => {
-                updateCurrentTopics((current) => ({
-                  ...current,
-                  itemGap: undefined,
-                }));
-              }}
+              onReset={() => resetLinkedTopicsProperty("itemGap")}
+              textStyleSource={itemGapSource?.source}
+              textStyleLinkedValue={itemGapSource?.linkedValue}
+              textStyleOnReset={itemGapSource?.source === "local" ? () => resetLinkedTopicsProperty("itemGap") : undefined}
             />
           </div>
         </div>
@@ -621,7 +645,10 @@ function addChildTopic(topicItemId: string) {
 
       <ElementSpacingSection
         layout={element.layout}
+        effectiveLayout={element.linkedStyleId === undefined ? undefined : resolvedTopics.layout}
         controlPrefix="topics"
+        textStyleSources={spacingSources}
+        onResetTextStyleProperty={(property) => resetLinkedTopicsProperty(property)}
         onUpdateLayout={(update) => {
           updateCurrentTopics((current) => ({
             ...current,
@@ -642,7 +669,7 @@ function addChildTopic(topicItemId: string) {
             <select
               id="topics-marker-style"
               name="topicsMarkerStyle"
-              value={element.rootMarkerStyle ?? ""}
+              value={resolvedTopics.rootMarkerStyle ?? ""}
               onChange={(event) => {
                 const nextRootMarkerStyle =
                   event.target.value === ""
@@ -674,6 +701,7 @@ function addChildTopic(topicItemId: string) {
                 </option>
               ))}
             </select>
+            <TextStylePropertyMeta source={rootMarkerSource?.source} linkedValue={rootMarkerSource?.linkedValue} onReset={rootMarkerSource?.source === "local" ? () => resetLinkedTopicsProperty("rootMarkerStyle") : undefined} />
           </label>
 
           <div className={styles.colorControl}>
@@ -683,15 +711,16 @@ function addChildTopic(topicItemId: string) {
               <ColorControl
                 id="topics-marker-color"
                 name="topicsMarkerColor"
-                value={element.markerColor}
+                value={resolvedTopics.markerColor}
                 onChange={(markerColor) => {
                   updateCurrentTopics((current) => ({
                     ...current,
                     markerColor,
                   }));
                 }}
-                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) }}
+                secondaryAction={element.linkedStyleId === undefined ? { label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
               />
+              <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
             </label>
           </div>
         </div>

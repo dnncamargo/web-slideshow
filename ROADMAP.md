@@ -199,22 +199,26 @@ Permanent P10 invariants include:
 
 References: PRs #69–#71, #85–#105, with later refinement in PRs #125 and #129.
 
-Delivered shared Studio/Library shell, private folders, Custom Library resources, Presentation-local Palette/FontResources/Text Styles, Linked Styles, refined usage/navigation and compact shared resource actions.
+Delivered shared Studio/Library shell, private folders, Custom Library resources, Presentation-local Palette/FontResources/Text Styles, target-aware Linked Styles for Container and Topics, refined usage/navigation and compact shared resource actions. The resource system now provides local-over-master property ownership, Inspector local overrides, master property propagation, and categorized property authoring parity where relevant.
 
-Text Style precedence:
+Style property precedence:
 
 ```text
-Theme role baseline
-→ Text Style
-→ local Text override
+local authored property
+> master Style property
+> Theme / role / element default
 ```
 
-Linked Style precedence:
+Inspector edits the selected element locally; Resources edits the shared master and propagates property ownership to currently linked applicable usages. Master Add/Edit/Remove clears the matching local property while preserving unrelated properties. Attach and destination-owned Switch semantics are distinct from Detach, which preserves effective state by materializing required values locally.
+
+Text content and rich content remain outside Text Style ownership. Linked Styles currently target Container and Topics.
+
+Attach / Switch / Detach semantics:
 
 ```text
-Theme / defaults
-→ Linked Style
-→ local Container override
+Attach: destination-defined properties become linked
+Switch: destination ownership only; omitted properties are not copied from the source
+Detach: relationship removed; effective state preserved locally
 ```
 
 ---

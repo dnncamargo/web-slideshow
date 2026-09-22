@@ -1,8 +1,12 @@
 import { z } from "zod";
 
-import type { ElementTypography } from "./element-properties";
+import type {
+  ElementTypography,
+  TextStyleLayoutProperties,
+} from "./element-properties";
 import type { TextVisualStyle } from "./element-properties";
 import {
+  TextStyleLayoutPropertiesSchema,
   TextStyleTypographyPropertiesSchema,
   TextStyleVisualPropertiesSchema,
 } from "./element-properties";
@@ -40,6 +44,7 @@ const NonEmptyTrimmedStringSchema = z.string().trim().min(1);
 export const FundamentalTextStyleOverrideSchema = z
   .object({
     id: FundamentalTextStyleIdSchema,
+    layout: TextStyleLayoutPropertiesSchema.optional(),
     style: TextStyleVisualPropertiesSchema.optional(),
     typography: TextStyleTypographyPropertiesSchema.optional(),
   })
@@ -51,8 +56,11 @@ export const FundamentalTextStyleOverrideSchema = z
     if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
       context.addIssue({ code: "custom", path: ["typography"], message: "Fundamental text style typography cannot be empty." });
     }
+    if (style.layout !== undefined && Object.values(style.layout).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["layout"], message: "Fundamental text style layout cannot be empty." });
+    }
   })
-  .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined), {
+  .refine((style) => Object.values(style.style ?? {}).some((value) => value !== undefined) || Object.values(style.typography ?? {}).some((value) => value !== undefined) || Object.values(style.layout ?? {}).some((value) => value !== undefined), {
     message: "Fundamental text style override cannot be empty.",
   });
 
@@ -68,6 +76,7 @@ export const CustomTextStyleSchema = z
     ),
     name: NonEmptyTrimmedStringSchema,
     role: TextStyleRoleSchema,
+    layout: TextStyleLayoutPropertiesSchema.optional(),
     style: TextStyleVisualPropertiesSchema.optional(),
     typography: TextStyleTypographyPropertiesSchema.optional(),
   })
@@ -78,6 +87,9 @@ export const CustomTextStyleSchema = z
     }
     if (style.typography !== undefined && Object.values(style.typography).every((value) => value === undefined)) {
       context.addIssue({ code: "custom", path: ["typography"], message: "Custom text style typography cannot be empty." });
+    }
+    if (style.layout !== undefined && Object.values(style.layout).every((value) => value === undefined)) {
+      context.addIssue({ code: "custom", path: ["layout"], message: "Custom text style layout cannot be empty." });
     }
   });
 
@@ -135,19 +147,42 @@ export const TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2 = [
 
 export const TEXT_STYLE_VISUAL_PROPERTY_NAMES = ["color"] as const;
 
+export const TEXT_STYLE_LAYOUT_PROPERTY_NAMES = [
+  "margin",
+  "marginTop",
+  "marginRight",
+  "marginBottom",
+  "marginLeft",
+] as const satisfies readonly (keyof TextStyleLayoutProperties)[];
+
 export function stripLocalTextStyleProperties(
   style: ElementTypography | undefined,
   visualStyle: TextVisualStyle | undefined,
-): { typography: ElementTypography | undefined; style: TextVisualStyle | undefined } {
+  layout: TextStyleLayoutProperties | undefined = undefined,
+  owner: Pick<TextStyle, "typography" | "style" | "layout"> | undefined = undefined,
+): { typography: ElementTypography | undefined; style: TextVisualStyle | undefined; layout: TextStyleLayoutProperties | undefined } {
+  const ownedTypography = owner === undefined
+    ? TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2
+    : TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.filter((property) => owner.typography?.[property] !== undefined);
+  const ownedVisual = owner === undefined
+    ? TEXT_STYLE_VISUAL_PROPERTY_NAMES
+    : TEXT_STYLE_VISUAL_PROPERTY_NAMES.filter((property) => owner.style?.[property] !== undefined);
+  const ownedLayout = owner === undefined
+    ? TEXT_STYLE_LAYOUT_PROPERTY_NAMES
+    : TEXT_STYLE_LAYOUT_PROPERTY_NAMES.filter((property) => owner.layout?.[property] !== undefined);
   const typography = style === undefined ? undefined : Object.fromEntries(
-    Object.entries(style).filter(([property, value]) => !TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.includes(property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]) && value !== undefined),
+    Object.entries(style).filter(([property, value]) => !ownedTypography.includes(property as (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]) && value !== undefined),
   ) as ElementTypography;
   const remainingStyle = visualStyle === undefined ? undefined : Object.fromEntries(
-    Object.entries(visualStyle).filter(([property, value]) => property !== "color" && value !== undefined),
+    Object.entries(visualStyle).filter(([property, value]) => !ownedVisual.includes(property as (typeof TEXT_STYLE_VISUAL_PROPERTY_NAMES)[number]) && value !== undefined),
   );
+  const remainingLayout = layout === undefined ? undefined : Object.fromEntries(
+    Object.entries(layout).filter(([property, value]) => !ownedLayout.includes(property as (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number]) && value !== undefined),
+  ) as TextStyleLayoutProperties;
   return {
     typography: typography && Object.keys(typography).length > 0 ? typography : undefined,
     style: remainingStyle && Object.keys(remainingStyle).length > 0 ? remainingStyle as TextVisualStyle : undefined,
+    layout: remainingLayout && Object.keys(remainingLayout).length > 0 ? remainingLayout : undefined,
   };
 }
 

@@ -393,21 +393,6 @@
   gap: var(--ps-ui-space-7);
 }
 
-.linkedStylePropertyGroup {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.linkedStylePropertyGroupTitle {
-  padding: var(--ps-ui-space-5) var(--ps-ui-space-8) var(--ps-ui-space-3);
-  color: var(--ps-ui-text-muted);
-  font-size: var(--ps-ui-font-size-2xs);
-  font-weight: var(--ps-ui-font-weight-semibold);
-  letter-spacing: var(--ps-ui-letter-spacing-wide);
-  text-transform: var(--ps-ui-text-transform-uppercase);
-}
-
 .resourceUsageLocations {
   display: flex;
   min-width: 0;

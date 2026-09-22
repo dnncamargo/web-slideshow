@@ -131,6 +131,14 @@ export const TextLayoutSchema = PositionedLayoutFieldsSchema
 
 export type TextLayout = z.infer<typeof TextLayoutSchema>;
 
+export const TextStyleLayoutPropertiesSchema = z
+  .object(ElementMarginFields)
+  .strict();
+
+export type TextStyleLayoutProperties = z.infer<
+  typeof TextStyleLayoutPropertiesSchema
+>;
+
 export const ImageLayoutSchema = PositionedLayoutFieldsSchema
   .extend({
     width: LengthSchema.optional(),

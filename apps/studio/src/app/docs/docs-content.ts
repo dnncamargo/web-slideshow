@@ -130,6 +130,33 @@ export const docsGroups: readonly DocsGroup[] = [
               "Uma nova feature deve ser colocada no owner que realmente possui seu estado. Estado transitório de UI não deve migrar para o documento sem necessidade; estado Live não deve virar persistência durável; e detalhes de Firebase não devem virar tipos de domínio.",
             ],
           },
+          {
+            title: "Styles da Presentation",
+            paragraphs: [
+              "Para uma propriedade P pertencente a um Style, a resolução é: propriedade local autorada > propriedade do Style mestre > Theme, role ou default do elemento. A presença ou ausência autorada define ownership; não há timestamp nem metadado persistente de proveniência.",
+            ],
+            code: "local authored P\n> master Style P\n> Theme / role / element default",
+          },
+          {
+            title: "Inspector e Resources",
+            paragraphs: [
+              "O Inspector edita localmente o elemento selecionado e mantém a relação com o Style. Resources edita o Style compartilhado e afeta todos os usos aplicáveis atualmente vinculados. Add, Edit ou Remove da propriedade P pelo master limpa apenas P nos usos vinculados; propriedades não relacionadas permanecem intactas. Em Text, content e rich content estão fora dessa ownership.",
+            ],
+          },
+          {
+            title: "Attach, Switch e Detach",
+            bullets: [
+              "Attach aplica as propriedades definidas pelo destino.",
+              "Switch usa somente a ownership do destino: propriedades definidas pelo destino limpam o local; propriedades omitidas preservam um local existente e deixam uma propriedade ausente continuar no default normal. Um valor não é materializado apenas porque existia no Style de origem.",
+              "Detach remove a relação, preserva os locais existentes e materializa o estado efetivo fornecido pelo master quando necessário para preservar a aparência. Detach não é Switch.",
+            ],
+          },
+          {
+            title: "Linked Styles e Topics",
+            paragraphs: [
+              "Linked Styles são target-aware e atualmente atendem Container e Topics. Eles não implicam suporte para todos os tipos de elemento. Em Topics, kind ausente é uma autoria diferente de kind = unordered; um unordered explícito pode ser propriedade do Linked Topics Style e aparecer como Linked no Inspector.",
+            ],
+          },
         ],
       },
       {
