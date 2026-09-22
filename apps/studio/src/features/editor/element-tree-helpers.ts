@@ -140,11 +140,14 @@ export function getParentTargets(
   slide: Slide,
   selectedElement: PresentationElement,
   t: (key: "tree.container" | "tree.slide") => string,
+  workspaceRootContainerId?: string | null,
 ): ParentTarget[] {
   const excludedIds = new Set<string>();
   collectAuthoringIds(selectedElement, excludedIds);
 
-  const targets: ParentTarget[] = [{ id: null, label: t("tree.slide") }];
+  const targets: ParentTarget[] = workspaceRootContainerId === undefined
+    ? [{ id: null, label: t("tree.slide") }]
+    : [];
   collectParentTargets(slide.elements, excludedIds, targets, t, { value: 0 });
 
   return targets;
@@ -169,6 +172,7 @@ export function resolveTreeDrop(
   elementId: string,
   targetId: string,
   intent: TreeDropIntent,
+  workspaceRootContainerId?: string | null,
 ): MoveElementOptions | null {
   if (elementId === targetId) {
     return null;
@@ -180,6 +184,14 @@ export function resolveTreeDrop(
   const target = findElementById(elements, targetId);
 
   if (!sourcePosition || !targetPosition || !source || !target) {
+    return null;
+  }
+
+  if (
+    workspaceRootContainerId !== undefined &&
+    (elementId === workspaceRootContainerId ||
+      (targetId === workspaceRootContainerId && intent !== "inside"))
+  ) {
     return null;
   }
 

@@ -330,7 +330,7 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(containerElement.querySelector("#container-direction")).toBeNull();
   });
 
-  it("blocks the existing Tree move action at the Root Definition boundary", async () => {
+  it("allows descendant Tree movement while preserving Root Definition ownership", async () => {
     const source = presentation();
     const onSave = vi.fn(async () => {});
     render(source, onSave);
@@ -349,8 +349,7 @@ describe("SM6C Root Definition workspace shell", () => {
     )
       .map((element) => element.dataset.presentationId)
       .filter((id): id is string => id === "root-text" || id === "root-image" || id === "root-text-2");
-    const beforeOrder = rootOrder();
-    expect(beforeOrder).toEqual(["root-text", "root-image", "root-text-2"]);
+    expect(rootOrder()).toEqual(["root-text", "root-image", "root-text-2"]);
 
     const moveDown = containerElement.querySelector<HTMLButtonElement>('button[aria-label="Move down"]');
     if (!moveDown) throw new Error("expected Tree move action");
@@ -360,9 +359,10 @@ describe("SM6C Root Definition workspace shell", () => {
     const save = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Save");
     if (!save) throw new Error("expected Save action");
-    expect(rootOrder()).toEqual(beforeOrder);
-    expect(save.disabled).toBe(true);
-    expect(onSave).not.toHaveBeenCalled();
+    expect(rootOrder()).toEqual(["root-image", "root-text", "root-text-2"]);
+    expect(save.disabled).toBe(false);
+    act(() => save.click());
+    expect(onSave).toHaveBeenCalledTimes(1);
     expect(source.slides).toHaveLength(2);
     expect(source.rootDefinitions?.[0]?.root.children).toHaveLength(3);
   });

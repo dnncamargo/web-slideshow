@@ -313,8 +313,8 @@ export function TopicsInspector({
   topicsAuthoringControls,
   fontResources,
   presentation,
-  onAttachLinkedTopicsStyle = () => {},
-  onDetachLinkedTopicsStyle = () => {},
+  onAttachLinkedTopicsStyle,
+  onDetachLinkedTopicsStyle,
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -500,6 +500,8 @@ function addChildTopic(topicItemId: string) {
   const markerStyleOptions = topicMarkerStyleOptions(effectiveKind);
   const linkedTopicsStyles = (presentation?.linkedStyles ?? []).filter(isLinkedTopicsStyle);
   const linkedStyleName = linkedTopicsStyles.find((style) => style.id === element.linkedStyleId)?.name;
+  const linkedStyleRelationshipEditable =
+    onAttachLinkedTopicsStyle !== undefined && onDetachLinkedTopicsStyle !== undefined;
 
   return (
     <>
@@ -511,9 +513,10 @@ function addChildTopic(topicItemId: string) {
           <select
             id="topics-linked-style"
             value={element.linkedStyleId ?? ""}
+            disabled={!linkedStyleRelationshipEditable}
             onChange={(event) => {
-              if (event.target.value) onAttachLinkedTopicsStyle(event.target.value);
-              else if (element.linkedStyleId !== undefined) onDetachLinkedTopicsStyle();
+              if (event.target.value) onAttachLinkedTopicsStyle?.(event.target.value);
+              else if (element.linkedStyleId !== undefined) onDetachLinkedTopicsStyle?.();
             }}
           >
             <option value="">{t("inspector.noLinkedTopicsStyle")}</option>
@@ -526,7 +529,7 @@ function addChildTopic(topicItemId: string) {
         {element.linkedStyleId !== undefined ? (
           <div className={styles.colorLinkedStatus} role="status">
             <span>{t("inspector.linkedTopicsStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}</span>
-            <button type="button" onClick={onDetachLinkedTopicsStyle}>
+            <button type="button" disabled={!linkedStyleRelationshipEditable} onClick={onDetachLinkedTopicsStyle}>
               {t("inspector.detachLinkedTopicsStyleNamed", { style: linkedStyleName ?? element.linkedStyleId })}
             </button>
           </div>
