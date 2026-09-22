@@ -136,22 +136,39 @@ describe("SM6D3 Root Definition CRUD authoring", () => {
     return new KeyboardEvent("keydown", { key: keyValue, bubbles: true, cancelable: true, ...options });
   }
 
-  it("adds with no selection and with the root selected inside the canonical root", async () => {
-    await mount();
+  it("adds with no selection inside the canonical root and replays history", async () => {
+    const source = presentation();
+    await mount(source);
 
     expect(crud().textContent).toContain("Adds inside the root container.");
     await add("image");
     expect(host.querySelector('[data-presentation-id="root-container"] [data-presentation-id="image-element"]')).not.toBeNull();
-    expect(host.querySelector('[data-authoring-target="slide"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-id="root-container"]')?.getAttribute("data-presentation-id")).toBe("root-container");
+    expect(saveButton().disabled).toBe(false);
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(host.querySelector('[data-presentation-id="image-element"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+    expect(saveButton().disabled).toBe(true);
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(host.querySelector('[data-presentation-id="root-container"] [data-presentation-id="image-element"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-id="root-container"]')?.getAttribute("data-presentation-id")).toBe("root-container");
+    expect(saveButton().disabled).toBe(false);
+
+    await act(async () => button("Exit master editing").click());
+    expect(host.querySelector('[data-presentation-id="slide-text"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-id="root-text"]')).toBeNull();
+    expect(host.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
+  });
+
+  it("keeps root-selected, descendant container, and ordinary descendant insertion semantics", async () => {
+    await mount();
 
     await selectElement("root-container");
     await add("divider");
     expect(host.querySelector('[data-presentation-id="root-container"] [data-presentation-id="divider-element"]')).not.toBeNull();
     expect(host.querySelector('[data-presentation-id="root-container"] > [data-presentation-id="divider-element"]')).not.toBeNull();
-  });
-
-  it("keeps descendant container and ordinary descendant insertion semantics", async () => {
-    await mount();
 
     await selectElement("child-container");
     await add("image");
@@ -162,7 +179,7 @@ describe("SM6D3 Root Definition CRUD authoring", () => {
     const root = host.querySelector('[data-presentation-id="root-container"]');
     const ids = Array.from(root?.querySelectorAll<HTMLElement>(":scope > [data-presentation-id]") ?? [])
       .map((element) => element.dataset.presentationId);
-    expect(ids.indexOf("divider-element")).toBe(ids.indexOf("root-text") + 1);
+    expect(ids.indexOf("divider-element-2")).toBe(ids.indexOf("root-text") + 1);
   });
 
   it("adds Table and Topics with global preparation while retaining Slides", async () => {
@@ -247,11 +264,18 @@ describe("SM6D3 Root Definition CRUD authoring", () => {
     expect(host.querySelector('[data-presentation-id="child-container"]')).toBeNull();
     expect(host.querySelector('[data-presentation-id="root-container"] [data-presentation-id="child-a"]')).not.toBeNull();
     expect(host.querySelector('[data-presentation-id="root-container"] [data-presentation-id="child-b"]')).not.toBeNull();
+    const rootChildren = () => Array.from(
+      host.querySelector<HTMLElement>('[data-presentation-id="root-container"]')
+        ?.querySelectorAll<HTMLElement>(":scope > [data-presentation-id]") ?? [],
+      (element) => element.dataset.presentationId,
+    );
+    expect(rootChildren()).toEqual(["child-a", "child-b", "root-text"]);
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(host.querySelector('[data-presentation-id="child-container"]')).not.toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(host.querySelector('[data-presentation-id="child-container"]')).toBeNull();
     expect(host.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+    expect(rootChildren()).toEqual(["child-a", "child-b", "root-text"]);
   });
 
   it("closes a pending root deletion when exiting the owner before confirmation", async () => {
