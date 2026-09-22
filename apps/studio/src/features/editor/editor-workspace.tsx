@@ -1736,8 +1736,15 @@ export function EditorWorkspace({
     const receiverElements = resolveAuthoringElements(history.present, target);
     const selectedElementAtPaste = selectedDocumentElement;
     const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
+    if (!sourceElements) {
+      setPendingCut(null);
+      return false;
+    }
+    if (!findElementById(sourceElements, pendingCut.sourceElementId)) {
+      setPendingCut(null);
+      return false;
+    }
     if (
-      !sourceElements ||
       !receiverElements ||
       (target.kind === "root-definition" &&
         isProtectedRootContainer(history.present, target, pendingCut.sourceElementId))

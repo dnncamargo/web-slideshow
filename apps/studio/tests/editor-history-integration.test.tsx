@@ -319,6 +319,34 @@ describe("EditorWorkspace history integration", () => {
     expect(Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='slideItem']"), (button) => button.textContent)).toEqual(afterMove);
   });
 
+  it("clears a pending Cut when its source Slide is deleted before Paste", async () => {
+    const source = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')!;
+    await act(async () => source.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(key("x", { ctrlKey: true })));
+    expect(container.querySelector(".studio-editor-pending-cut")).not.toBeNull();
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const deleteSlide = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete")!;
+    await act(async () => deleteSlide.click());
+    expect(container.querySelectorAll("[class*='slideItem']")).toHaveLength(1);
+    // Removing the active source Slide cancels its Cut at the product boundary,
+    // before Paste can observe a stale owner.
+    expect(container.querySelector(".studio-editor-pending-cut")).toBeNull();
+    const receiverBeforePaste = Array.from(
+      container.querySelectorAll<HTMLElement>("[class*='slideCanvas'] [data-presentation-id]"),
+      (element) => element.dataset.presentationId,
+    );
+
+    await act(async () => window.dispatchEvent(key("v", { ctrlKey: true })));
+    expect(Array.from(
+      container.querySelectorAll<HTMLElement>("[class*='slideCanvas'] [data-presentation-id]"),
+      (element) => element.dataset.presentationId,
+    )).toEqual(receiverBeforePaste);
+    await act(async () => buttonByText(container, "History")!.click());
+    expect(container.textContent).not.toContain("Move element");
+  });
+
   it("keeps editable targets native and redoes with the modified shortcut", async () => {
     const image = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')!;
     await act(async () => image.dispatchEvent(new Event("pointerdown", { bubbles: true })));
