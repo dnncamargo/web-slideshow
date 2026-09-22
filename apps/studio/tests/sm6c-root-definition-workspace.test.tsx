@@ -184,24 +184,40 @@ describe("SM6C Root Definition workspace shell", () => {
     const onSave = vi.fn(async () => {});
     render(source, onSave);
 
+    const save = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!save) throw new Error("expected Save action");
+    expect(save.disabled).toBe(true);
+
     const rootText = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
     if (!rootText) throw new Error("expected Root Definition text in Canvas");
     act(() => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
     for (const event of [
       new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }),
+      new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true, cancelable: true }),
       new KeyboardEvent("keydown", { key: "x", ctrlKey: true, bubbles: true, cancelable: true }),
       new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true, cancelable: true }),
     ]) {
       await act(async () => window.dispatchEvent(event));
     }
 
-    expect(onSave).not.toHaveBeenCalled();
+    expect(save.disabled).toBe(true);
+    expect(containerElement.querySelector(".studio-editor-pending-cut")).toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="root-image"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="slide-text"]')).toBeNull();
     expect(source.slides).toHaveLength(2);
     expect(source.rootDefinitions?.[0]?.root.children).toHaveLength(3);
+
+    const exit = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Exit master editing");
+    if (!exit) throw new Error("expected explicit master exit action");
+    act(() => exit.click());
+    expect(containerElement.querySelector('[data-presentation-id="slide-text"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).toBeNull();
+    expect(containerElement.textContent).not.toContain("Master content");
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("selects Root Definition geometry without exposing drag or resize affordances", () => {
@@ -230,11 +246,24 @@ describe("SM6C Root Definition workspace shell", () => {
     if (!rootText) throw new Error("expected Root Definition text in Canvas");
     act(() => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
+    const rootOrder = () => Array.from(
+      containerElement.querySelectorAll<HTMLElement>("[class*='slideCanvas'] [data-presentation-id]"),
+    )
+      .map((element) => element.dataset.presentationId)
+      .filter((id): id is string => id === "root-text" || id === "root-image" || id === "root-text-2");
+    const beforeOrder = rootOrder();
+    expect(beforeOrder).toEqual(["root-text", "root-image", "root-text-2"]);
+
     const moveDown = containerElement.querySelector<HTMLButtonElement>('button[aria-label="Move down"]');
     if (!moveDown) throw new Error("expected Tree move action");
     expect(moveDown.disabled).toBe(false);
     act(() => moveDown.click());
 
+    const save = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!save) throw new Error("expected Save action");
+    expect(rootOrder()).toEqual(beforeOrder);
+    expect(save.disabled).toBe(true);
     expect(onSave).not.toHaveBeenCalled();
     expect(source.slides).toHaveLength(2);
     expect(source.rootDefinitions?.[0]?.root.children).toHaveLength(3);
