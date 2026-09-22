@@ -149,6 +149,7 @@ export const docsGroups: readonly DocsGroup[] = [
               "Attach aplica as propriedades definidas pelo destino.",
               "Switch usa somente a ownership do destino: propriedades definidas pelo destino limpam o local; propriedades omitidas preservam um local existente e deixam uma propriedade ausente continuar no default normal. Um valor não é materializado apenas porque existia no Style de origem.",
               "Detach remove a relação, preserva os locais existentes e materializa o estado efetivo fornecido pelo master quando necessário para preservar a aparência. Detach não é Switch.",
+              "Essas regras descrevem relações de Text Styles e Linked Styles. Remover a aplicação explícita de uma Root Definition é diferente: não materializa a árvore master no Slide; o Slide volta ao defaultRootDefinitionId e, sem default, ao modo sem Root.",
             ],
           },
           {
@@ -186,11 +187,11 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "presentation-schema",
         title: "Presentation",
         summary:
-          "A raiz canônica permanece em schemaVersion 1 e contém identidade, recursos, estilos e slides.",
+          "A raiz canônica permanece em schemaVersion 1 e contém identidade, recursos, estilos, Root Definitions e slides.",
         sections: [
           {
             title: "Shape raiz",
-            code: "Presentation\n├── schemaVersion: 1\n├── id\n├── title\n├── description\n├── aspectRatio\n├── resources?\n├── palette?\n├── textStyles?\n├── linkedStyles?\n└── slides[]",
+            code: "Presentation\n├── schemaVersion: 1\n├── id\n├── title\n├── description\n├── aspectRatio\n├── resources?\n├── palette?\n├── textStyles?\n├── linkedStyles?\n├── rootDefinitions?\n├── defaultRootDefinitionId?\n└── slides[]",
           },
           {
             title: "Contrato",
@@ -229,6 +230,51 @@ export const docsGroups: readonly DocsGroup[] = [
             title: "Não canônicos",
             paragraphs: [
               "chart e textbox não pertencem à union canônica atual. Composição visual deve reutilizar os tipos existentes em vez de inventar tipos de conteúdo redundantes.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "root-definitions",
+        title: "Root Definitions",
+        summary:
+          "Root Definitions normalizam estruturalmente a Presentation: persistem uma base compartilhada por referência e a materializam por cópia apenas para editar e apresentar.",
+        sections: [
+          {
+            title: "Papel arquitetural",
+            paragraphs: [
+              "Uma Presentation pode conter múltiplas Root Definitions, mas cada Slide resolve no máximo uma Root Definition efetiva. A resolução é slide.rootDefinitionId ?? presentation.defaultRootDefinitionId ?? nenhuma Root.",
+              "A árvore da Root Definition pertence à própria definição. Um Slide que a utiliza não persiste uma cópia da árvore master em slide.elements; a composição efetiva é materializada em memória para autoria e playback.",
+            ],
+            code: "Slide explicit Root\n  ?? Presentation default Root\n  ?? no Root",
+          },
+          {
+            title: "Ownership estrutural",
+            bullets: [
+              "Containers e demais elementos da Root Definition continuam master-owned; suas propriedades não se misturam com as propriedades locais do Slide.",
+              "Permitir filhos locais é uma autorização estrutural explícita. localChildTargetIds identifica os Containers master autorizados; por default não há receiver autorizado.",
+              "Quando um Container master autoriza filhos locais, cada Slide pode possuir seus próprios filhos direcionados a ele em localRootChildren. Esses filhos continuam slide-owned e usam o fluxo normal de autoria atual.",
+              "O ambiente de layout do Container master continua valendo para os filhos locais. Por exemplo, um receiver master com alinhamento vertical organiza os filhos locais do Slide nesse ambiente sem transferir o ownership do Container ao Slide.",
+            ],
+          },
+          {
+            title: "Unlink de Root não é Detach de Style",
+            paragraphs: [
+              "Text Styles e Linked Styles são relações de estilo. Seu Detach pode materializar valores efetivos no elemento local para preservar a aparência.",
+              "Root Definition é uma relação estrutural no nível do Slide. Remover a referência explícita apenas volta à resolução normal de Root: defaultRootDefinitionId quando existir, ou nenhuma Root quando não existir default. A árvore master nunca é copiada para slide.elements como efeito do unlink.",
+            ],
+            code: "Style detach: reference → local effective values\nRoot unlink: explicit Root → default Root → no Root",
+          },
+          {
+            title: "Custom Resources no workspace de Root",
+            paragraphs: [
+              "Custom Resources faz parte do workspace de autoria de Root Definition. A restrição correta é por ownership da operação, não por estar ou não em modo Root.",
+            ],
+            bullets: [
+              "Palette, Fonts e definições de Text Style e Linked Style são Presentation-global e podem ser usadas enquanto uma Root Definition está ativa.",
+              "Attach, usage, navigation, detach e create-from-selected devem escrever na árvore canônica dona do elemento, seja Slide ou Root Definition.",
+              "Ações que ainda tenham implementação tecnicamente Slide-only devem permanecer indisponíveis no Root até se tornarem owner-aware; isso não constitui uma proibição de produto para Custom Resources.",
+              "O Apply de Element Style da Custom Library continua condicionado a uma implementação owner-aware; o contrato atual baseado em Slide não deve ser liberado no Root por simples remoção de guard.",
             ],
           },
         ],
