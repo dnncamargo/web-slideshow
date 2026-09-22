@@ -37,6 +37,8 @@ import type { TableStructuralSelection } from "./table-tree-helpers";
 interface ElementInspectorProps {
   element: PresentationElement;
 
+  readOnly?: boolean;
+
   onUpdate: ElementInspectorUpdate;
 
   plotPreviewControls?: PlotPreviewControls;
@@ -272,6 +274,7 @@ function ElementTypeInspector({
 
 export function ElementInspector({
   element,
+  readOnly = false,
   onUpdate,
   plotPreviewControls,
   onContainerFitModeChange,
@@ -302,6 +305,24 @@ export function ElementInspector({
   onCreateQrFromLink,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
+
+  if (readOnly) {
+    return (
+      <>
+        <div className={styles.inspectorGroup}>
+          <span className={styles.inspectorLabel}>{t("inspector.element")}</span>
+          <strong>{t(ELEMENT_TYPE_MESSAGE_KEYS[element.type])}</strong>
+        </div>
+        <div className={styles.inspectorGroup}>
+          <span className={styles.inspectorLabel}>{t("inspector.id")}</span>
+          <code>{element.id}</code>
+        </div>
+        <div className={styles.nextStep}>
+          <span>{t("editor.masterReadOnly")}</span>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
