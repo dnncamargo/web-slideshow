@@ -17,19 +17,11 @@ interface SlideLayoutPickerProps {
 
   onCreate: () => void;
 
-  creationKind?: CreationKind;
-
-  onCreationKindChange?: (kind: CreationKind) => void;
-
-  rootDefinitionName?: string;
-
-  onRootDefinitionNameChange?: (name: string) => void;
+  onCreateRoot: () => void;
 
   error?: string | null;
 
 }
-
-export type CreationKind = "slide" | "root-definition";
 
 // ============================================================
 // END: SLIDE LAYOUT PICKER PROPS
@@ -189,15 +181,10 @@ export function SlideLayoutPicker({
   value,
   onChange,
   onCreate,
-  creationKind = "slide",
-  onCreationKindChange,
-  rootDefinitionName = "",
-  onRootDefinitionNameChange,
+  onCreateRoot,
   error = null,
 }: SlideLayoutPickerProps) {
   const { t } = useStudioI18n();
-  const isRootDefinition = creationKind === "root-definition";
-  const canCreate = !isRootDefinition || rootDefinitionName.trim().length > 0;
 
   return (
     <div className={styles.layoutPicker}>
@@ -208,43 +195,6 @@ export function SlideLayoutPicker({
       <div className={styles.layoutPickerHeader}>
         <span>{t("slides.chooseLayout")}</span>
       </div>
-
-      <fieldset className={styles.creationTypeFieldset}>
-        <legend>{t("creation.type")}</legend>
-        <label className={styles.creationTypeOption}>
-          <input
-            type="radio"
-            name="creation-kind"
-            value="slide"
-            checked={creationKind === "slide"}
-            onChange={() => onCreationKindChange?.("slide")}
-          />
-          <span>{t("creation.slide")}</span>
-        </label>
-        <label className={styles.creationTypeOption}>
-          <input
-            type="radio"
-            name="creation-kind"
-            value="root-definition"
-            checked={isRootDefinition}
-            onChange={() => onCreationKindChange?.("root-definition")}
-          />
-          <span>{t("creation.rootDefinition")}</span>
-        </label>
-      </fieldset>
-
-      {isRootDefinition && (
-        <label className={styles.creationNameField}>
-          <span>{t("creation.name")}</span>
-          <input
-            type="text"
-            value={rootDefinitionName}
-            aria-label={t("creation.rootDefinitionName")}
-            placeholder={t("creation.rootDefinitionName")}
-            onChange={(event) => onRootDefinitionNameChange?.(event.target.value)}
-          />
-        </label>
-      )}
 
       {error && <div className={styles.creationError} role="alert">{error}</div>}
 
@@ -282,6 +232,16 @@ export function SlideLayoutPicker({
             </button>
           );
         })}
+
+        <button
+          type="button"
+          className={styles.layoutRootDefinition}
+          data-layout-action="root-definition"
+          onClick={onCreateRoot}
+        >
+          <strong>{t("creation.rootDefinition")}</strong>
+          <span>{t("creation.rootDefinitionDescription")}</span>
+        </button>
       </div>
       {/* ==========================================================
     BEGIN: PICKER ACTIONS
@@ -291,10 +251,9 @@ export function SlideLayoutPicker({
         <button
           type="button"
           className={styles.layoutCreateButton}
-          disabled={!canCreate}
           onClick={onCreate}
         >
-          <span>{isRootDefinition ? t("creation.createRootDefinition") : t("slides.create")}</span>
+          <span>{t("slides.create")}</span>
         </button>
       </div>
 

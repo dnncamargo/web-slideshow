@@ -186,6 +186,26 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(JSON.stringify(source)).not.toContain("root-definition-workspace:");
   });
 
+  it("places the master exit immediately before Custom Resources and keeps both actions operational", async () => {
+    render();
+
+    const toolbar = containerElement.querySelector<HTMLElement>("[class*='canvasToolbarRight']");
+    if (!toolbar) throw new Error("expected canvas toolbar actions");
+    const actionLabels = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .map((button) => button.textContent?.trim());
+    expect(actionLabels.slice(0, 3)).toEqual(["Exit master editing", "Custom Resources", "Notes"]);
+
+    const resources = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    const exit = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Exit master editing");
+    if (!resources || !exit) throw new Error("expected master toolbar actions");
+    await act(async () => resources.click());
+    expect(containerElement.textContent).toContain("Root Definitions");
+    await act(async () => exit.click());
+    expect(containerElement.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
+  });
+
   it("mounts the normal Inspector for safe Root Definition Text editing", () => {
     const source = presentation();
     render(source);
@@ -227,6 +247,21 @@ describe("SM6C Root Definition workspace shell", () => {
     await redo();
     const redone = await save(onSave);
     expect(redone.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+  });
+
+  it("uses the canonical Inspector checkbox pattern for the Root receiver", async () => {
+    render();
+
+    const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    if (!rootContainer) throw new Error("expected Root Container in Canvas");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const checkbox = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!checkbox) throw new Error("expected receiver checkbox");
+    expect(checkbox.parentElement?.className).toContain("checkboxRow");
+    expect(checkbox.closest("[class*='field']")).toBeNull();
+    expect(checkbox.parentElement?.textContent).toContain("Allow local Slide content");
+    expect(containerElement.textContent).toContain("Slides using this Root Definition may place local content inside this Container.");
   });
 
   it("scopes blocked receiver feedback to the attempted Container", async () => {

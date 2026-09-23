@@ -175,6 +175,10 @@ describe("Root Definition lifecycle operations", () => {
         id: "root-definition-root",
         type: "container",
         hidden: false,
+        layout: {
+          width: "100%",
+          height: "100%",
+        },
         children: [],
       });
     } else {

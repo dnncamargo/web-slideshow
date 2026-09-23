@@ -131,25 +131,22 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     expect(initial.slides).toEqual(presentation().slides);
   });
 
-  it("reopens a Root created through New from This Presentation", async () => {
+  it("reopens a Root created through the layout picker from This Presentation", async () => {
     const saved: Presentation[] = [];
     await mount(presentation(), saved);
     const newButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("New slide"));
     if (!newButton) throw new Error("New button not found");
     await act(async () => newButton.click());
-    await act(async () => container.querySelector<HTMLInputElement>('input[value="root-definition"]')?.click());
-    await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="Root Definition name"]') && changeInput(container.querySelector<HTMLInputElement>('input[aria-label="Root Definition name"]')!, "Reopen me"));
-    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Full"))?.click());
-    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Create Root Definition")?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-layout-action="root-definition"]')?.click());
     await save();
-    const createdId = saved.at(-1)?.rootDefinitions?.find((definition) => definition.name === "Reopen me")?.id;
+    const createdId = saved.at(-1)?.rootDefinitions?.at(-1)?.id;
     expect(createdId).toBeTruthy();
 
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Exit master editing"))?.click());
     await openResources();
     await openRootDefinitions();
     await act(async () => row(createdId!).querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
-    expect(container.textContent).toContain("Master slide · Reopen me");
+    expect(container.textContent).toContain("Master slide · Root Definition 1");
   });
 
   it("renames a Root through lifecycle history and preserves its ID and tree", async () => {

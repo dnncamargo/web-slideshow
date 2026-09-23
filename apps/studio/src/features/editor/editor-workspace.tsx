@@ -330,7 +330,7 @@ import type {
 // BEGIN: SLIDE LAYOUT PICKER
 // ============================================================
 
-import { SlideLayoutPicker, type CreationKind } from "./slide-layout-picker";
+import { SlideLayoutPicker } from "./slide-layout-picker";
 import { updatePresentationTitle } from "./presentation-title";
 
 type RootLocalContentTargetError = {
@@ -1344,10 +1344,6 @@ export function EditorWorkspace({
 
   const [newSlidePreset, setNewSlidePreset] =
     useState<SlideLayoutPreset>("blank");
-
-  const [creationKind, setCreationKind] = useState<CreationKind>("slide");
-
-  const [newRootDefinitionName, setNewRootDefinitionName] = useState("");
 
   const [creationError, setCreationError] = useState<string | null>(null);
   const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
@@ -4958,7 +4954,18 @@ export function EditorWorkspace({
   // END: CREATE SLIDE FROM PRESET
   // ==========================================================
 
-  function addRootDefinition(preset: SlideLayoutPreset, name: string) {
+  function addRootDefinition(preset: SlideLayoutPreset) {
+    const rootDefinitionBaseName = t("creation.rootDefinition");
+    const existingNames = new Set(
+      (presentation.rootDefinitions ?? []).map((definition) => definition.name.trim()),
+    );
+    let ordinal = 1;
+    let name = `${rootDefinitionBaseName} ${ordinal}`;
+    while (existingNames.has(name)) {
+      ordinal += 1;
+      name = `${rootDefinitionBaseName} ${ordinal}`;
+    }
+
     const result = createRootDefinitionFromPreset(presentation, preset, name);
     if (!result.ok) {
       setCreationError(
@@ -4977,8 +4984,6 @@ export function EditorWorkspace({
     setSelectedElement(null);
     setCreationError(null);
     setIsSlideLayoutPickerOpen(false);
-    setCreationKind("slide");
-    setNewRootDefinitionName("");
   }
 
   function renamePresentationRootDefinition(rootDefinitionId: string, name: string) {
@@ -5060,16 +5065,13 @@ export function EditorWorkspace({
     setRootLocalContentTargetError(null);
   }
 
-  function createOwnerFromPicker() {
-    if (creationKind === "root-definition") {
-      addRootDefinition(newSlidePreset, newRootDefinitionName);
-      return;
-    }
-
+  function createSlideFromPicker() {
     addSlide(newSlidePreset);
-    setCreationKind("slide");
-    setNewRootDefinitionName("");
     setCreationError(null);
+  }
+
+  function createRootFromPicker() {
+    addRootDefinition("blank");
   }
   // ==========================================================
   // BEGIN: DUPLICATE SLIDE
@@ -5899,8 +5901,6 @@ export function EditorWorkspace({
                 setCreationError(null);
                 setIsSlideLayoutPickerOpen((current) => {
                   if (current) return false;
-                  setCreationKind("slide");
-                  setNewRootDefinitionName("");
                   return true;
                 });
               }}
@@ -5922,17 +5922,8 @@ export function EditorWorkspace({
               <SlideLayoutPicker
                 value={newSlidePreset}
                 onChange={setNewSlidePreset}
-                onCreate={createOwnerFromPicker}
-                creationKind={creationKind}
-                onCreationKindChange={(kind) => {
-                  setCreationKind(kind);
-                  setCreationError(null);
-                }}
-                rootDefinitionName={newRootDefinitionName}
-                onRootDefinitionNameChange={(name) => {
-                  setNewRootDefinitionName(name);
-                  setCreationError(null);
-                }}
+                onCreate={createSlideFromPicker}
+                onCreateRoot={createRootFromPicker}
                 error={creationError}
               />
             )}
@@ -6055,6 +6046,16 @@ export function EditorWorkspace({
             </span>
 
             <span className={styles.canvasToolbarRight}>
+              {rootDefinitionMode && (
+                <button
+                  type="button"
+                  className={`${styles.notesToggle} ${styles.notesToggleActive} ${styles.masterExitAction}`}
+                  onClick={exitRootDefinitionEditing}
+                >
+                  {t("editor.exitMasterEditing")}
+                </button>
+              )}
+
               <button
                 type="button"
                 className={
@@ -6093,15 +6094,6 @@ export function EditorWorkspace({
               </button>
 
               <span>{presentation.aspectRatio}</span>
-              {rootDefinitionMode && (
-                <button
-                  type="button"
-                  className={styles.notesToggle}
-                  onClick={exitRootDefinitionEditing}
-                >
-                  {t("editor.exitMasterEditing")}
-                </button>
-              )}
             </span>
           </div>
 
