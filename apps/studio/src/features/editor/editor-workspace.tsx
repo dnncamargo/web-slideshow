@@ -209,7 +209,7 @@ import {
 } from "./slide-operations";
 
 import type { SlideLayoutPreset } from "./slide-operations";
-import { createRootDefinitionFromPreset } from "./root-definition-lifecycle";
+import { createRootDefinitionFromPreset, deleteRootDefinition, renameRootDefinition } from "./root-definition-lifecycle";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -2463,6 +2463,27 @@ export function EditorWorkspace({
     finishPresentationTransaction();
     setSelectedSlideIndex(retainedSlideIndex);
     setAuthoringTarget({ kind: "slide", slideIndex: retainedSlideIndex });
+    setSelectedElement(null);
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    clearCanvasDragPreview();
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+    setRightPanelMode("editor");
+  }
+
+  function openRootDefinition(rootDefinitionId: string): void {
+    const definition = presentation.rootDefinitions?.find((candidate) => candidate.id === rootDefinitionId);
+    if (!definition) return;
+    finishPresentationTransaction();
+    setAuthoringTarget({ kind: "root-definition", rootDefinitionId });
     setSelectedElement(null);
     setGalleryItemSelection(null);
     setSelectedTableStructuralNode(null);
@@ -4925,6 +4946,32 @@ export function EditorWorkspace({
     setNewRootDefinitionName("");
   }
 
+  function renamePresentationRootDefinition(rootDefinitionId: string, name: string) {
+    const result = renameRootDefinition(presentation, rootDefinitionId, name);
+    if (!result.ok) return result.reason;
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.rename", labelKey: "history.rootDefinition.rename" },
+      (current) => {
+        const currentResult = renameRootDefinition(current, rootDefinitionId, name);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    return null;
+  }
+
+  function deletePresentationRootDefinition(rootDefinitionId: string) {
+    const result = deleteRootDefinition(presentation, rootDefinitionId);
+    if (!result.ok) return result.reason;
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.delete", labelKey: "history.rootDefinition.delete" },
+      (current) => {
+        const currentResult = deleteRootDefinition(current, rootDefinitionId);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    return null;
+  }
+
   function createOwnerFromPicker() {
     if (creationKind === "root-definition") {
       addRootDefinition(newSlidePreset, newRootDefinitionName);
@@ -6237,8 +6284,12 @@ export function EditorWorkspace({
              onSelectTextStyleElement={selectTextStyleElement}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
-             selectedElement={selectedDocumentElement}
-             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
+            selectedElement={selectedDocumentElement}
+            activeRootDefinitionId={authoringTarget.kind === "root-definition" ? authoringTarget.rootDefinitionId : undefined}
+            onOpenRootDefinition={openRootDefinition}
+            onRenameRootDefinition={renamePresentationRootDefinition}
+            onDeleteRootDefinition={deletePresentationRootDefinition}
+            onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
