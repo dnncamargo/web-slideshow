@@ -178,13 +178,12 @@ import { PresentationColorPaletteProvider } from "./inspector/sections/presentat
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 import {
-  detachLinkedStyle,
   attachLinkedContainerStyleToElement,
   detachLinkedContainerStyleFromElement,
   attachLinkedTopicsStyleToElement,
   detachLinkedTopicsStyleFromElement,
-  createLinkedStyleFromContainer,
-  createLinkedStyleFromTopics,
+  createLinkedStyleFromContainerElement,
+  createLinkedStyleFromTopicsElement,
   canCreateLinkedStyleFromContainer,
   canCreateLinkedStyleFromTopics,
   updateLinkedTopicsStyle,
@@ -809,7 +808,7 @@ interface PendingStyleDetach {
   kind: "text-style" | "linked-style";
   styleId: string;
   styleName: string;
-  slideIndex: number;
+  target: AuthoringTarget;
   elementId: string;
 }
 
@@ -4034,22 +4033,19 @@ export function EditorWorkspace({
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const textId = selectedDocumentElement.id;
-    const slideIndex = selectedSlideIndex;
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
-      (current) => {
-        const slide = current.slides[slideIndex];
-        if (!slide) return current;
-        const text = findElementById(slide.elements, textId);
+      (current, currentTarget) => {
+        const elements = resolveAuthoringElements(current, currentTarget);
+        const text = elements ? findElementById(elements, textId) : undefined;
         if (text?.type !== "text") return current;
         const created = createTextStyleFromText(current, text, trimmedName);
         if (!created) return current;
-        return {
-          ...created.presentation,
-          slides: current.slides.map((candidate, index) => index === slideIndex
-            ? { ...candidate, elements: updateElementById(candidate.elements, textId, () => created.text) }
-            : candidate),
-        };
+        return updateAuthoringElements(created.presentation, currentTarget, (currentElements) =>
+          updateElementById(currentElements, textId, (element) => element.type === "text" ? created.text : element),
+        );
       },
     );
   }
@@ -4111,32 +4107,35 @@ export function EditorWorkspace({
     if (!name.trim()) return;
     if (selectedDocumentElement?.type !== "container" && selectedDocumentElement?.type !== "topics") return;
 
-    const slideIndex = selectedSlideIndex;
+    const target = authoringTarget;
     const elementId = selectedDocumentElement.id;
     const expectedType = selectedDocumentElement.type;
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "linkedStyle.createFromElement",
         labelKey: "history.element.setting",
         labelParams: { setting: "linkedStyle.createFromElement" },
       },
-      (current) => {
-        const slide = current.slides[slideIndex];
-        if (!slide) return current;
-
-        const currentElement = findElementById(slide.elements, elementId);
+      (current, currentTarget) => {
+        const elements = resolveAuthoringElements(current, currentTarget);
+        const currentElement = elements ? findElementById(elements, elementId) : undefined;
         if (!currentElement || currentElement.type !== expectedType) return current;
 
         if (expectedType === "container") {
           if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
-          const candidate = createLinkedStyleFromContainer(current, slideIndex, elementId, name);
-          return candidate === current ? current : candidate;
+          const candidate = createLinkedStyleFromContainerElement(current, currentElement, name);
+          return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+            updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
+          );
         }
 
         if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
-        const candidate = createLinkedStyleFromTopics(current, slideIndex, elementId, name);
-        return candidate === current ? current : candidate;
+        const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
+        return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+          updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element),
+        );
       },
     );
   }
@@ -4232,56 +4231,56 @@ export function EditorWorkspace({
   }
 
   function requestTextStyleDetach(styleId: string, styleName: string, location: TextStyleUsageLocation): void {
-    if (location.target.kind !== "slide") return;
-    setPendingStyleDetach({ kind: "text-style", styleId, styleName, slideIndex: location.target.slideIndex, elementId: location.elementId });
+    setPendingStyleDetach({ kind: "text-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
-  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleContainerLocation): void {
-    setPendingStyleDetach({ kind: "linked-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleUsageLocation): void {
+    setPendingStyleDetach({ kind: "linked-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
   function confirmStyleDetach(): void {
     const pending = pendingStyleDetach;
     if (!pending) return;
     if (pending.kind === "text-style") {
-      commitPresentationAction(
+      commitAuthoringAction(
+        pending.target,
         {
           kind: "element.setting",
           labelKey: "history.element.setting",
           labelParams: { setting: "text.style" },
         },
-        (current) => {
-          const slide = current.slides[pending.slideIndex];
-          if (!slide) return current;
+        (current, target) => {
+          const elements = resolveAuthoringElements(current, target);
+          if (!elements) return current;
           if (!listPresentationTextStyles(current).some(({ id }) => id === pending.styleId)) return current;
-          const target = findElementById(slide.elements, pending.elementId);
-          if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
-          const elements = updateElementById(
-            slide.elements,
+          const element = findElementById(elements, pending.elementId);
+          if (element?.type !== "text" || element.variant !== pending.styleId || element.styleDetached === true) return current;
+          const nextElements = updateElementById(
+            elements,
             pending.elementId,
             (element) => element.type === "text" ? detachTextStyle(current, element) : element,
           );
-          if (elements === slide.elements) return current;
-          return {
-            ...current,
-            slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements } : candidate),
-          };
+          return nextElements === elements ? current : replaceAuthoringElements(current, target, nextElements);
         },
       );
     } else {
-      commitPresentationAction(
+      commitAuthoringAction(
+        pending.target,
         {
           kind: "element.setting",
           labelKey: "history.element.setting",
           labelParams: { setting: "container.linkedStyle" },
         },
-        (current) => {
-          const slide = current.slides[pending.slideIndex];
-          if (!slide) return current;
-          const target = findElementById(slide.elements, pending.elementId);
-          if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
-          if (!current.linkedStyles?.some((style) => style.id === pending.styleId)) return current;
-          return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
+        (current, target) => {
+          const elements = resolveAuthoringElements(current, target);
+          const element = elements ? findElementById(elements, pending.elementId) : undefined;
+          if (element?.type !== "container" || element.linkedStyleId !== pending.styleId) return current;
+          const linkedStyle = current.linkedStyles?.find((style) => style.id === pending.styleId);
+          if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
+          const detached = detachLinkedContainerStyleFromElement(current, element);
+          if (detached === null || !elements) return current;
+          const nextElements = updateElementById(elements, pending.elementId, (candidate) => candidate.type === "container" ? detached : candidate);
+          return nextElements === elements ? current : replaceAuthoringElements(current, target, nextElements);
         },
       );
     }
