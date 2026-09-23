@@ -32,6 +32,7 @@ import {
 
 import {
   PresentationSchema,
+  materializeSlide,
   addPresentationPaletteColor as addPaletteEntry,
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
@@ -209,6 +210,13 @@ import {
 } from "./slide-operations";
 
 import type { SlideLayoutPreset } from "./slide-operations";
+import {
+  createRootDefinitionFromPreset,
+  deleteRootDefinition,
+  renameRootDefinition,
+  setSlideRootDefinition,
+  type RootDefinitionLifecycleFailure,
+} from "./root-definition-lifecycle";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -289,6 +297,7 @@ import {
   updateAuthoringElements,
   type AuthoringTarget,
 } from "./authoring-target";
+import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -321,8 +330,14 @@ import type {
 // BEGIN: SLIDE LAYOUT PICKER
 // ============================================================
 
-import { SlideLayoutPicker } from "./slide-layout-picker";
+import { SlideLayoutPicker, type CreationKind } from "./slide-layout-picker";
 import { updatePresentationTitle } from "./presentation-title";
+
+type RootLocalContentTargetError = {
+  rootDefinitionId: string;
+  containerId: string;
+  reason: RootDefinitionLifecycleFailure;
+};
 
 // ============================================================
 // END: SLIDE LAYOUT PICKER
@@ -1321,7 +1336,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   // ==========================================================
-  // BEGIN: NEW SLIDE PRESET
+  // BEGIN: NEW OWNER CREATION
   //
   // Estado exclusivamente do Editor.
   // Não faz parte do documento.
@@ -1330,8 +1345,31 @@ export function EditorWorkspace({
   const [newSlidePreset, setNewSlidePreset] =
     useState<SlideLayoutPreset>("blank");
 
+  const [creationKind, setCreationKind] = useState<CreationKind>("slide");
+
+  const [newRootDefinitionName, setNewRootDefinitionName] = useState("");
+
+  const [creationError, setCreationError] = useState<string | null>(null);
+  const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
+  const [rootLocalContentTargetError, setRootLocalContentTargetError] = useState<RootLocalContentTargetError | null>(null);
+
+  useEffect(() => {
+    setRootLocalContentTargetError((current) => {
+      if (
+        current === null ||
+        authoringTarget.kind !== "root-definition" ||
+        current.rootDefinitionId !== authoringTarget.rootDefinitionId ||
+        selectedElement?.type !== "container" ||
+        current.containerId !== selectedElement.id
+      ) {
+        return null;
+      }
+      return current;
+    });
+  }, [authoringTarget, selectedElement]);
+
   // ==========================================================
-  // END: NEW SLIDE PRESET
+  // END: NEW OWNER CREATION
   // ==========================================================
 
   // ==========================================================
@@ -2058,13 +2096,17 @@ export function EditorWorkspace({
   // O Editor usa o mesmo renderer do Player.
   // ==========================================================
 
-  const renderedSlide = useMemo(() => {
-    if (!selectedSlide) {
-      return "";
-    }
+  const renderedSlideModel = useMemo(() => {
+    if (!selectedSlide) return undefined;
+    return authoringTarget.kind === "slide"
+      ? materializeSlide(presentation, selectedSlide).slide
+      : selectedSlide;
+  }, [authoringTarget.kind, selectedSlide, presentation]);
 
-    return renderSlide(selectedSlide, { presentation });
-  }, [selectedSlide, presentation]);
+  const renderedSlide = useMemo(
+    () => renderedSlideModel ? renderSlide(renderedSlideModel, { presentation }) : "",
+    [renderedSlideModel, presentation],
+  );
 
   const renderedSlideHtml = useMemo(
     () => ({ __html: renderedSlide }),
@@ -2126,17 +2168,17 @@ export function EditorWorkspace({
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
-    if (canvas && selectedSlide !== undefined) {
+    if (canvas && renderedSlideModel !== undefined) {
       hydrateRendererRuntime(canvas, {
         plotAnimations: {
-          slide: selectedSlide,
+          slide: renderedSlideModel,
           autoplay: false,
         },
       });
     } else if (canvas) {
       hydrateRendererRuntime(canvas);
     }
-  }, [canvasGeometry, renderedSlide, selectedSlide]);
+  }, [canvasGeometry, renderedSlide, renderedSlideModel]);
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
@@ -2456,6 +2498,27 @@ export function EditorWorkspace({
     finishPresentationTransaction();
     setSelectedSlideIndex(retainedSlideIndex);
     setAuthoringTarget({ kind: "slide", slideIndex: retainedSlideIndex });
+    setSelectedElement(null);
+    setGalleryItemSelection(null);
+    setSelectedTableStructuralNode(null);
+    setPendingElementDeletion(null);
+    setPendingStyleDetach(null);
+    setPendingTextStyleReset(null);
+    setPendingCut(null);
+    closeCanvasMediaEditing();
+    clearCanvasDragPreview();
+    canvasResizeRef.current = null;
+    setCanvasResizeOverlay(null);
+    setCanvasGuides([]);
+    setCanvasGuideBounds(null);
+    setRightPanelMode("editor");
+  }
+
+  function openRootDefinition(rootDefinitionId: string): void {
+    const definition = presentation.rootDefinitions?.find((candidate) => candidate.id === rootDefinitionId);
+    if (!definition) return;
+    finishPresentationTransaction();
+    setAuthoringTarget({ kind: "root-definition", rootDefinitionId });
     setSelectedElement(null);
     setGalleryItemSelection(null);
     setSelectedTableStructuralNode(null);
@@ -4859,7 +4922,6 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addSlide(preset: SlideLayoutPreset) {
-    if (rootDefinitionMode) return;
     const insertionIndex = Math.min(
       selectedSlideIndex + 1,
       presentation.slides.length,
@@ -4868,7 +4930,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const newSlide = createSlideFromPreset(preset, usedIds);
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       { kind: "slide.add", labelKey: "history.slide.add" },
       (current) => ({
         ...current,
@@ -4877,6 +4939,7 @@ export function EditorWorkspace({
     );
 
     setSelectedSlideIndex(insertionIndex);
+    setAuthoringTarget({ kind: "slide", slideIndex: insertionIndex });
 
     setSelectedElement(null);
 
@@ -4894,6 +4957,120 @@ export function EditorWorkspace({
   // ==========================================================
   // END: CREATE SLIDE FROM PRESET
   // ==========================================================
+
+  function addRootDefinition(preset: SlideLayoutPreset, name: string) {
+    const result = createRootDefinitionFromPreset(presentation, preset, name);
+    if (!result.ok) {
+      setCreationError(
+        result.reason === "invalid-name"
+          ? t("creation.invalidName")
+          : t("creation.invalidResult"),
+      );
+      return;
+    }
+
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.add", labelKey: "history.rootDefinition.add" },
+      () => result.presentation,
+    );
+    setAuthoringTarget({ kind: "root-definition", rootDefinitionId: result.value });
+    setSelectedElement(null);
+    setCreationError(null);
+    setIsSlideLayoutPickerOpen(false);
+    setCreationKind("slide");
+    setNewRootDefinitionName("");
+  }
+
+  function renamePresentationRootDefinition(rootDefinitionId: string, name: string) {
+    const result = renameRootDefinition(presentation, rootDefinitionId, name);
+    if (!result.ok) return result.reason;
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.rename", labelKey: "history.rootDefinition.rename" },
+      (current) => {
+        const currentResult = renameRootDefinition(current, rootDefinitionId, name);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    return null;
+  }
+
+  function deletePresentationRootDefinition(rootDefinitionId: string) {
+    const result = deleteRootDefinition(presentation, rootDefinitionId);
+    if (!result.ok) return result.reason;
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.delete", labelKey: "history.rootDefinition.delete" },
+      (current) => {
+        const currentResult = deleteRootDefinition(current, rootDefinitionId);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    return null;
+  }
+
+  function changeSlideRootDefinition(rootDefinitionId: string): void {
+    const nextRootDefinitionId = rootDefinitionId || undefined;
+    const result = setSlideRootDefinition(presentation, selectedSlide.id, nextRootDefinitionId);
+    if (!result.ok) {
+      setSlideRootDefinitionError(result.reason);
+      return;
+    }
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.assign", labelKey: "history.rootDefinition.assign" },
+      (current) => {
+        const currentResult = setSlideRootDefinition(current, selectedSlide.id, nextRootDefinitionId);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    setSlideRootDefinitionError(null);
+  }
+
+  function changeRootLocalContentTarget(containerId: string, allowed: boolean): void {
+    if (authoringTarget.kind !== "root-definition") return;
+    const rootDefinitionId = authoringTarget.rootDefinitionId;
+    const result = setRootDefinitionLocalChildTarget(
+      presentation,
+      rootDefinitionId,
+      containerId,
+      allowed,
+    );
+    if (!result.ok) {
+      setRootLocalContentTargetError({
+        rootDefinitionId,
+        containerId,
+        reason: result.reason,
+      });
+      return;
+    }
+
+    commitPresentationGlobalAction(
+      {
+        kind: "rootDefinition.localContentTarget",
+        labelKey: "history.rootDefinition.localContentTarget",
+      },
+      (current) => {
+        const currentResult = setRootDefinitionLocalChildTarget(
+          current,
+          rootDefinitionId,
+          containerId,
+          allowed,
+        );
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    setRootLocalContentTargetError(null);
+  }
+
+  function createOwnerFromPicker() {
+    if (creationKind === "root-definition") {
+      addRootDefinition(newSlidePreset, newRootDefinitionName);
+      return;
+    }
+
+    addSlide(newSlidePreset);
+    setCreationKind("slide");
+    setNewRootDefinitionName("");
+    setCreationError(null);
+  }
   // ==========================================================
   // BEGIN: DUPLICATE SLIDE
   //
@@ -5718,10 +5895,14 @@ export function EditorWorkspace({
               type="button"
               className={styles.slideHeaderButton}
               aria-expanded={isSlideLayoutPickerOpen}
-              disabled={rootDefinitionMode}
               onClick={() => {
-                if (rootDefinitionMode) return;
-                setIsSlideLayoutPickerOpen((current) => !current);
+                setCreationError(null);
+                setIsSlideLayoutPickerOpen((current) => {
+                  if (current) return false;
+                  setCreationKind("slide");
+                  setNewRootDefinitionName("");
+                  return true;
+                });
               }}
             >
               <span>
@@ -5737,13 +5918,22 @@ export function EditorWorkspace({
     ========================================================== */}
 
           <div className={styles.slideLayoutPickerSlot}>
-            {isSlideLayoutPickerOpen && !rootDefinitionMode && (
+            {isSlideLayoutPickerOpen && (
               <SlideLayoutPicker
                 value={newSlidePreset}
                 onChange={setNewSlidePreset}
-                onCreate={() => {
-                  addSlide(newSlidePreset);
+                onCreate={createOwnerFromPicker}
+                creationKind={creationKind}
+                onCreationKindChange={(kind) => {
+                  setCreationKind(kind);
+                  setCreationError(null);
                 }}
+                rootDefinitionName={newRootDefinitionName}
+                onRootDefinitionNameChange={(name) => {
+                  setNewRootDefinitionName(name);
+                  setCreationError(null);
+                }}
+                error={creationError}
               />
             )}
           </div>
@@ -6182,8 +6372,12 @@ export function EditorWorkspace({
              onSelectTextStyleElement={selectTextStyleElement}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
-             selectedElement={selectedDocumentElement}
-             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
+            selectedElement={selectedDocumentElement}
+            activeRootDefinitionId={authoringTarget.kind === "root-definition" ? authoringTarget.rootDefinitionId : undefined}
+            onOpenRootDefinition={openRootDefinition}
+            onRenameRootDefinition={renamePresentationRootDefinition}
+            onDeleteRootDefinition={deletePresentationRootDefinition}
+            onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}
              resourceSections={resourceSections}
              onResourceSectionChange={(id, open) => setResourceSections((current) => ({ ...current, [id]: open }))}
            />
@@ -6441,6 +6635,19 @@ export function EditorWorkspace({
                               ? undefined
                               : createQrFromSelectedLink
                           }
+                          rootLocalContentReceiver={
+                            rootDefinitionMode && selectedDocumentElement.type === "container"
+                              ? {
+                                  allowed: (rootDefinition?.localChildTargetIds ?? []).includes(selectedDocumentElement.id),
+                                  onChange: (allowed) => changeRootLocalContentTarget(selectedDocumentElement.id, allowed),
+                                  feedback: rootLocalContentTargetError?.rootDefinitionId === authoringTarget.rootDefinitionId &&
+                                    rootLocalContentTargetError.containerId === selectedDocumentElement.id &&
+                                    rootLocalContentTargetError.reason === "in-use"
+                                    ? t("inspector.rootLocalContentInUse")
+                                    : null,
+                                }
+                              : undefined
+                          }
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
@@ -6517,6 +6724,28 @@ export function EditorWorkspace({
                           }}
                           onBlur={() => finishPresentationTransaction(`slide:${selectedSlide.id}:title`)}
                         />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span>{t("inspector.rootDefinition")}</span>
+                        <select
+                          data-slide-root-definition
+                          value={selectedSlide.rootDefinitionId ?? ""}
+                          onChange={(event) => changeSlideRootDefinition(event.target.value)}
+                        >
+                          <option value="">
+                            {presentation.defaultRootDefinitionId
+                              ? t("inspector.usePresentationDefault", {
+                                  name: presentation.rootDefinitions?.find((definition) => definition.id === presentation.defaultRootDefinitionId)?.name ?? presentation.defaultRootDefinitionId,
+                                })
+                              : t("inspector.noRootDefinition")}
+                          </option>
+                          {(presentation.rootDefinitions ?? []).map((definition) => (
+                            <option key={definition.id} value={definition.id}>{definition.name}</option>
+                          ))}
+                        </select>
+                        {slideRootDefinitionError === "incompatible" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionIncompatible")}</span> : null}
+                        {slideRootDefinitionError === "root-not-found" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionUnavailable")}</span> : null}
                       </label>
 
                       {/* ===========================================

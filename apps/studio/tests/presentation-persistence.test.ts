@@ -11,6 +11,7 @@ import {
 } from "@web-slideshow/firebase";
 
 import {
+  assertValidPresentationForPersistence,
   estimatePresentationBytes,
   extractPresentationSummary,
   parsePersistedPresentation,
@@ -43,29 +44,38 @@ function rootDefinitionPresentation(): Presentation {
     ...basePresentation(),
     id: "pres-root-definition",
     rootDefinitions: [{
-      id: "master-foreign",
-      name: "Shared master",
+      id: "root-definition-a",
+      name: "Shared Layout",
       root: {
-        id: "master-root",
+        id: "root-container-a",
         type: "container",
         children: [{
-          id: "master-content",
+          id: "root-text-a",
+          type: "text",
+          content: "Shared Root Text",
+        }, {
+          id: "root-receiver-a",
           type: "container",
-          children: [{ id: "master-text", type: "text", content: "Shared" }],
+          children: [],
         }],
       },
-      localChildTargetIds: ["master-content"],
+      localChildTargetIds: ["root-receiver-a"],
     }],
-    defaultRootDefinitionId: "master-foreign",
-    slides: [{
-      id: "slide-root",
-      rootDefinitionId: "master-foreign",
-      elements: [],
-      localRootChildren: [{
-        targetContainerId: "master-content",
-        children: [{ id: "local-text", type: "text", content: "Local" }],
-      }],
-    }],
+    slides: [
+      {
+        id: "slide-ordinary",
+        elements: [{ id: "ordinary-text", type: "text", content: "Ordinary slide" }],
+      },
+      {
+        id: "slide-root",
+        rootDefinitionId: "root-definition-a",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "root-receiver-a",
+          children: [{ id: "local-text-a", type: "text", content: "Local" }],
+        }],
+      },
+    ],
   });
 }
 
@@ -97,6 +107,7 @@ function buildLargePresentation(byteTarget: number): Presentation {
 describe("presentation persistence helpers", () => {
   it("preserves referential Root Definitions through the draft persistence boundary", () => {
     const source = rootDefinitionPresentation();
+    expect(() => assertValidPresentationForPersistence(source)).not.toThrow();
     const persisted = makeFirestoreSafePresentation(source);
     const recovered = parsePersistedPresentation({
       presentationJson: JSON.stringify(persisted),
@@ -104,9 +115,13 @@ describe("presentation persistence helpers", () => {
 
     expect(recovered).toEqual(source);
     expect(persisted).toHaveProperty("rootDefinitions", source.rootDefinitions);
-    expect(persisted).toHaveProperty("defaultRootDefinitionId", "master-foreign");
-    expect(persisted).toHaveProperty("slides.0.localRootChildren");
-    expect(persisted).not.toHaveProperty("master");
+    expect(persisted).toHaveProperty("slides.1.rootDefinitionId", "root-definition-a");
+    expect(persisted).toHaveProperty("slides.1.localRootChildren");
+    expect(persisted).toHaveProperty("slides.1.elements", []);
+    expect(persisted).not.toHaveProperty("slides.1.master");
+    const bytes = estimatePresentationBytes(source);
+    expect(bytes).toBeGreaterThan(0);
+    expect(bytes).toBe(estimatePresentationBytes(structuredClone(source)));
   });
 
   it("preserves a complete presentation through safe serialization", () => {

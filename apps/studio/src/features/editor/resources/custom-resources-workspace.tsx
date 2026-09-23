@@ -6,9 +6,11 @@ import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypograph
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@web-slideshow/ui";
 
+import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
 import { LiteralColorInput } from "@/features/editor/color/literal-color-input";
 import { InspectorSection } from "@/features/editor/inspector/inspector-section";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import type { CustomLibraryPaletteDraft } from "@/features/custom-library/custom-library-palette";
 import type { CustomLibraryItemDraft } from "@/features/custom-library/custom-library-item";
 import {
@@ -39,6 +41,7 @@ import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canU
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { findContainerLinkedStyleUsageLocations, findLinkedStyleUsageLocations, findMatchingContainersForLinkedStyle, type LinkedStyleUsageLocation } from "../linked-style-bulk-authoring";
 import type { AuthoringTarget } from "../authoring-target";
+import type { RootDefinitionLifecycleFailure } from "../root-definition-lifecycle";
 
 import styles from "./custom-resources-workspace.module.css";
 
@@ -59,6 +62,10 @@ interface CustomResourcesWorkspaceProps {
   isPresentationFontInUse: (family: string) => boolean;
   presentationTextStyles?: readonly TextStyle[];
   presentation?: Presentation;
+  activeRootDefinitionId?: string;
+  onOpenRootDefinition?: (rootDefinitionId: string) => void;
+  onRenameRootDefinition?: (rootDefinitionId: string, name: string) => RootDefinitionLifecycleFailure | null;
+  onDeleteRootDefinition?: (rootDefinitionId: string) => RootDefinitionLifecycleFailure | null;
   authoringHistory?: AuthoringHistoryContextValue | null;
   onUpdateFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption", patch: TextStylePatch) => void;
   onResetFundamentalTextStyle?: (id: "title" | "subtitle" | "body" | "caption") => void;
@@ -186,6 +193,10 @@ export function CustomResourcesWorkspace({
   onRequestDetachLinkedStyle = () => undefined,
   onRequestDetachTextStyleElement = () => undefined,
   selectedElement = null,
+  activeRootDefinitionId,
+  onOpenRootDefinition = () => undefined,
+  onRenameRootDefinition = () => null,
+  onDeleteRootDefinition = () => null,
   onCreateLinkedStyleFromSelected = () => undefined,
   resourceSections = {},
   onResourceSectionChange = () => undefined,
@@ -204,6 +215,8 @@ export function CustomResourcesWorkspace({
   const [fontFeedback, setFontFeedback] = useState<{ kind: CustomLibraryFontAddKind; family: string; count: number } | null>(null);
   const [editingStyleId, setEditingStyleId] = useState<string | null>(null);
   const [addingStyle, setAddingStyle] = useState(false);
+  const [pendingRootDefinitionDelete, setPendingRootDefinitionDelete] = useState<{ id: string; name: string } | null>(null);
+  const [rootDefinitionFeedback, setRootDefinitionFeedback] = useState<{ id: string; reason: RootDefinitionLifecycleFailure } | null>(null);
 
   const loadPalettes = useCallback(() => {
     const requestRevision = requestRevisionRef.current + 1;
@@ -335,6 +348,32 @@ export function CustomResourcesWorkspace({
                 </AuthoringHistoryContext.Provider>
               </InspectorSection>
             </PresentationColorPaletteProvider>
+            <InspectorSection title={t("customResources.rootDefinitions")} count={presentation?.rootDefinitions?.length ?? 0} open={resourceSections.rootDefinitions} onOpenChange={(open) => onResourceSectionChange("rootDefinitions", open)}>
+              {presentation?.rootDefinitions?.length ? (
+                <div className={styles.localFontList} data-root-definitions>
+                  {presentation.rootDefinitions.map((definition) => {
+                    const referenced = presentation.defaultRootDefinitionId === definition.id
+                      || presentation.slides.some((slide) => slide.rootDefinitionId === definition.id);
+                    return <RootDefinitionResourceRow
+                      key={definition.id}
+                      id={definition.id}
+                      name={definition.name}
+                      active={activeRootDefinitionId === definition.id}
+                      referenced={referenced}
+                      feedback={rootDefinitionFeedback?.id === definition.id ? rootDefinitionFeedback.reason : null}
+                      onOpen={() => { setRootDefinitionFeedback(null); onOpenRootDefinition(definition.id); }}
+                      onRename={(name) => {
+                        const reason = onRenameRootDefinition(definition.id, name);
+                        setRootDefinitionFeedback(reason ? { id: definition.id, reason } : null);
+                      }}
+                      onDelete={() => setPendingRootDefinitionDelete({ id: definition.id, name: definition.name })}
+                      onClearFeedback={() => setRootDefinitionFeedback(null)}
+                      t={t}
+                    />;
+                  })}
+                </div>
+              ) : <p className={styles.status}>{t("customResources.noRootDefinitions")}</p>}
+            </InspectorSection>
             <InspectorSection title={t("customResources.presentationPalette")} open={resourceSections.presentationPalette} onOpenChange={(open) => onResourceSectionChange("presentationPalette", open)}>
             {presentationColors.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationColors")}</p> : null}
             <div className={styles.localColorList} data-presentation-palette>
@@ -373,8 +412,87 @@ export function CustomResourcesWorkspace({
           </div>
         </section>
       </div>
+      {pendingRootDefinitionDelete ? <DangerConfirmDialog
+        title={t("customResources.deleteRootDefinitionTitle")}
+        message={t("customResources.deleteRootDefinitionConfirm", { name: pendingRootDefinitionDelete.name })}
+        confirmLabel={t("customResources.confirmDelete")}
+        cancelLabel={t("elementCrud.cancel")}
+        onCancel={() => setPendingRootDefinitionDelete(null)}
+        onConfirm={() => {
+          const reason = onDeleteRootDefinition(pendingRootDefinitionDelete.id);
+          if (reason) {
+            setRootDefinitionFeedback({ id: pendingRootDefinitionDelete.id, reason });
+          } else {
+            setPendingRootDefinitionDelete(null);
+          }
+        }}
+      /> : null}
     </aside>
   );
+}
+
+function RootDefinitionResourceRow({
+  id,
+  name,
+  active,
+  referenced,
+  feedback,
+  onOpen,
+  onRename,
+  onDelete,
+  onClearFeedback,
+  t,
+}: {
+  id: string;
+  name: string;
+  active: boolean;
+  referenced: boolean;
+  feedback: RootDefinitionLifecycleFailure | null;
+  onOpen: () => void;
+  onRename: (name: string) => void;
+  onDelete: () => void;
+  onClearFeedback: () => void;
+  t: StudioTranslate;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  useEffect(() => {
+    setDraft(name);
+    setEditing(false);
+  }, [id, name]);
+
+  function commitRename(): void {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    onRename(trimmed);
+    setEditing(false);
+  }
+
+  return <div className={styles.resourceItem} data-root-definition-id={id} data-active={active ? "true" : "false"}>
+    <div className={styles.resourceItemDetails}>
+      {editing ? <input
+        className={styles.rootDefinitionNameInput}
+        aria-label={t("customResources.renameRootDefinition")}
+        value={draft}
+        onChange={(event) => { setDraft(event.target.value); onClearFeedback(); }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") { event.preventDefault(); commitRename(); }
+          if (event.key === "Escape") { setDraft(name); setEditing(false); onClearFeedback(); }
+        }}
+      /> : <strong>{name}</strong>}
+      {active ? <span className={styles.resourceItemMeta}>{t("customResources.current")}</span> : null}
+      {feedback === "referenced" ? <span className={styles.status} role="alert">{t("customResources.rootDefinitionInUse")}</span> : null}
+      {feedback === "invalid-name" ? <span className={styles.status} role="alert">{t("creation.invalidName")}</span> : null}
+    </div>
+    <div className={styles.resourceActionRow}>
+      <button type="button" className={styles.resourceAction} data-root-definition-action="open" onClick={onOpen}>{t("customResources.openRootDefinition")}</button>
+      {editing ? <>
+        <button type="button" className={styles.resourceAction} data-root-definition-action="save-rename" disabled={!draft.trim()} onClick={commitRename}>{t("topbar.save")}</button>
+        <button type="button" className={styles.resourceAction} data-root-definition-action="cancel-rename" onClick={() => { setDraft(name); setEditing(false); onClearFeedback(); }}>{t("elementCrud.cancel")}</button>
+      </> : <button type="button" className={styles.resourceAction} data-root-definition-action="rename" onClick={() => { setDraft(name); setEditing(true); onClearFeedback(); }}>{t("customResources.renameRootDefinition")}</button>}
+      <button type="button" className={styles.resourceAction} data-root-definition-action="delete" disabled={referenced} onClick={onDelete}>{t("customResources.delete")}</button>
+    </div>
+  </div>;
 }
 
 function LinkedStylesWorkspace({

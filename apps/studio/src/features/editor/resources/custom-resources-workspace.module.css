@@ -48,6 +48,24 @@
   font-size: var(--ps-ui-font-size-sm);
 }
 
+.resourceItem[data-root-definition-id][data-active="true"] {
+  border-left: var(--ps-ui-border-width-default) solid var(--ps-ui-semantic-accent);
+  padding-left: var(--ps-ui-space-6);
+}
+
+.rootDefinitionNameInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ps-ui-control-compact-height);
+  padding: 0 var(--ps-ui-space-8);
+  border: var(--ps-ui-border-width-default) solid var(--ps-ui-border-input);
+  border-radius: var(--ps-ui-radius-input);
+  background: var(--ps-ui-background-input);
+  color: var(--ps-ui-text-secondary);
+  font: inherit;
+}
+
 .resourceItem strong {
   min-width: 0;
   overflow: hidden;

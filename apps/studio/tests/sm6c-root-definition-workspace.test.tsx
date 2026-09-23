@@ -202,6 +202,71 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(source.slides).toHaveLength(2);
   });
 
+  it("authorizes the selected Root Container as a local-content receiver with global Undo/Redo", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave);
+
+    const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    if (!rootContainer) throw new Error("expected Root Container in Canvas");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const receiver = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!receiver) throw new Error("expected Root local-content receiver control");
+    expect(receiver.checked).toBe(false);
+
+    await act(async () => receiver.click());
+    expect(receiver.checked).toBe(true);
+    const enabled = await save(onSave);
+    expect(enabled.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+    expect(enabled.rootDefinitions?.[0]?.root).toEqual(source.rootDefinitions?.[0]?.root);
+
+    await undo();
+    const undone = await save(onSave);
+    expect(undone.rootDefinitions?.[0]).not.toHaveProperty("localChildTargetIds");
+    await redo();
+    const redone = await save(onSave);
+    expect(redone.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+  });
+
+  it("scopes blocked receiver feedback to the attempted Container", async () => {
+    const source = PresentationSchema.parse({
+      ...presentation(),
+      defaultRootDefinitionId: "root-1",
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        localChildTargetIds: ["root-container"],
+        root: container("root-container", [container("root-child")]),
+      }],
+      slides: [{
+        id: "slide-1",
+        title: "Retained",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "root-container", children: [text("local-child")] }],
+      }],
+    });
+    const before = structuredClone(source);
+    render(source);
+
+    const receiver = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    const otherContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-child"]');
+    if (!receiver || !otherContainer) throw new Error("expected both Root Containers in Canvas");
+
+    await act(async () => receiver.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const checkbox = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!checkbox) throw new Error("expected receiver checkbox");
+    expect(checkbox.checked).toBe(true);
+    await act(async () => checkbox.click());
+    expect(containerElement.textContent).toContain("already receives local Slide content");
+    expect(checkbox.checked).toBe(true);
+
+    await act(async () => otherContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(containerElement.textContent).not.toContain("already receives local Slide content");
+    expect(containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]")?.checked).toBe(false);
+    expect(source).toEqual(before);
+  });
+
   it("edits, saves, undoes, redoes, and remounts canonical Root Definition Text", async () => {
     const source = presentation();
     const onSave = vi.fn(async (_saved: Presentation) => {});
@@ -293,7 +358,7 @@ describe("SM6C Root Definition workspace shell", () => {
       .find((button) => button.textContent?.includes("Retained"));
     expect(retainedSlide?.disabled).toBe(true);
     const newSlide = containerElement.querySelector<HTMLButtonElement>("button[aria-expanded]");
-    expect(newSlide?.disabled).toBe(true);
+    expect(newSlide?.disabled).toBe(false);
     expect(containerElement.textContent).not.toContain("Duplicate element");
 
     act(() => retainedSlide?.click());

@@ -1,44 +1,15 @@
 import type {
-  ContainerElement,
   PresentationElement,
   Slide,
-  TextElement,
   TopicItem,
 } from "@web-slideshow/document-schema";
+import {
+  buildPresetStructure,
+  createUniqueId,
+  type SlideLayoutPreset,
+} from "./preset-structure";
 
-
-// ============================================================
-// BEGIN: GERAÇÃO DE ID ÚNICO
-//
-// Exemplos:
-//
-// slide
-// slide-2
-// slide-3
-//
-// editor-slide-1-copy
-// editor-slide-1-copy-2
-// ============================================================
-
-function createUniqueId(
-  baseId: string,
-  usedIds: Set<string>,
-): string {
-  let id = baseId;
-  let suffix = 2;
-
-  while (usedIds.has(id)) {
-    id = `${baseId}-${suffix}`;
-    suffix += 1;
-  }
-
-  usedIds.add(id);
-  return id;
-}
-
-// ============================================================
-// END: GERAÇÃO DE ID ÚNICO
-// ============================================================
+export type { SlideLayoutPreset } from "./preset-structure";
 
 
 // ============================================================
@@ -366,16 +337,6 @@ function cloneContentSlotElementsRenewingBlocksOnly(
 // Não armazenamos "preset: two-columns" no documento.
 // ============================================================
 
-export type SlideLayoutPreset =
-  | "blank"
-  | "full"
-  | "centered"
-  | "title-content"
-  | "two-columns"
-  | "three-columns"
-  | "title-two-columns";
-
-
 // ============================================================
 // BEGIN: CREATE SLIDE FROM PRESET
 // ============================================================
@@ -391,197 +352,16 @@ export function createSlideFromPreset(
     );
 
 
-  // ----------------------------------------------------------
-  // Cria IDs de elementos derivados do slide, mas ainda
-  // garantindo unicidade global.
-  // ----------------------------------------------------------
+  const root = buildPresetStructure(preset, slideId, usedIds);
 
-  function elementId(
-    name: string,
-  ): string {
-    const id =
-      createUniqueId(
-        `${slideId}-${name}`,
-        usedIds,
-      );
-
-
-    return id;
-  }
-
-
-  function buildSlide(elements: PresentationElement[]): Slide {
-    return {
-      id: slideId,
-      title: "Untitled slide",
-      summary: "",
-      speakerNotes: "",
-      background: { color: "#0b1020" },
-      elements,
-    };
-  }
-
-  function container(
-    name: string,
-    layout: NonNullable<ContainerElement["layout"]>,
-    children: PresentationElement[] = [],
-    style?: ContainerElement["style"],
-  ): ContainerElement {
-    return {
-      id: elementId(name),
-      type: "container",
-      hidden: false,
-      layout,
-      ...(style === undefined ? {} : { style }),
-      children,
-    };
-  }
-
-  const text = (name: string, content: string): TextElement => ({
-    id: elementId(name),
-    type: "text",
-    hidden: false,
-    variant: "title",
-    content,
-  });
-
-  switch (preset) {
-    case "blank":
-      return buildSlide([]);
-
-    case "full":
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 56,
-          children: { direction: "column", gap: 24, horizontalAlign: "stretch", verticalAlign: "stretch" },
-        }, [
-          text("title", "Slide title"),
-          container("content", {
-            width: "100%",
-            height: "100%",
-            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-          }, [
-            {
-              id: elementId("content-body"),
-              type: "text",
-              hidden: false,
-              variant: "body",
-              content: "Add your content here.",
-            },
-          ]),
-        ]),
-      ]);
-
-    case "centered":
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 64,
-          children: { direction: "column", gap: 20, horizontalAlign: "center", verticalAlign: "center" },
-        }, [
-          text("title", "Centered slide"),
-          container("content", {
-            width: "70%",
-            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-          }, [
-            {
-              id: elementId("content-body"),
-              type: "text",
-              hidden: false,
-              variant: "body",
-              content: "Add your content here.",
-            },
-          ]),
-        ]),
-      ]);
-
-    case "title-content":
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 56,
-          children: { direction: "column", gap: 32, horizontalAlign: "center", verticalAlign: "center" },
-        }, [
-          text("title", "Slide title"),
-          container("content", {
-            width: "90%",
-            height: "68%",
-            padding: 32,
-            children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-          }, [
-            {
-              id: elementId("body"),
-              type: "text",
-              hidden: false,
-              variant: "body",
-              content: "Add your content here.",
-            },
-          ], { background: { color: "rgba(15, 23, 42, 0.45)" } }),
-        ]),
-      ]);
-
-    case "two-columns": {
-      const column = (name: string): ContainerElement => container(name, {
-        width: "47%",
-        height: "82%",
-        padding: 24,
-        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 48,
-          children: { direction: "row", gap: 32, horizontalAlign: "center", verticalAlign: "center" },
-        }, [column("left"), column("right")]),
-      ]);
-    }
-
-    case "three-columns": {
-      const column = (name: string): ContainerElement => container(name, {
-        width: "30%",
-        height: "82%",
-        padding: 20,
-        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 48,
-          children: { direction: "row", gap: 24, horizontalAlign: "center", verticalAlign: "center" },
-        }, [column("column-1"), column("column-2"), column("column-3")]),
-      ]);
-    }
-
-    case "title-two-columns": {
-      const column = (name: string): ContainerElement => container(name, {
-        width: "48%",
-        height: "100%",
-        padding: 24,
-        children: { direction: "column", gap: 16, horizontalAlign: "center", verticalAlign: "center" },
-      }, [], { background: { color: "rgba(15, 23, 42, 0.45)" } });
-      return buildSlide([
-        container("root", {
-          width: "100%",
-          height: "100%",
-          padding: 48,
-          children: { direction: "column", gap: 28, horizontalAlign: "center", verticalAlign: "center" },
-        }, [
-          text("title", "Slide title"),
-          container("columns", {
-            width: "94%",
-            height: "70%",
-            children: { direction: "row", gap: 28, horizontalAlign: "center", verticalAlign: "center" },
-          }, [column("left"), column("right")]),
-        ]),
-      ]);
-    }
-  }
+  return {
+    id: slideId,
+    title: "Untitled slide",
+    summary: "",
+    speakerNotes: "",
+    background: { color: "#0b1020" },
+    elements: root === null ? [] : [root],
+  };
 }
 
 // ============================================================

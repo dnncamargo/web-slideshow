@@ -94,6 +94,47 @@ function canonicalContainerPresentation(): Presentation {
   });
 }
 
+function representativeRootPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "pres-root-a",
+    title: "Root Definition A",
+    description: "",
+    aspectRatio: "16:9",
+    rootDefinitions: [{
+      id: "root-a",
+      name: "Root Definition A",
+      root: {
+        id: "root-a-container",
+        type: "container",
+        children: [
+          { id: "root-a-text", type: "text", content: "Master text" },
+          { id: "root-a-gallery", type: "gallery", items: [{ src: "/master.png", alt: "Master" }] },
+          { id: "root-a-scripted", type: "scripted", title: "Master scripted", html: "", css: "", script: "", ports: [{ id: "action", label: "Action", kind: "action" }] },
+          { id: "root-a-receiver", type: "container", children: [] },
+        ],
+      },
+      localChildTargetIds: ["root-a-receiver"],
+    }],
+    slides: [
+      { id: "slide-ordinary", elements: [{ id: "ordinary-text", type: "text", content: "Ordinary" }] },
+      {
+        id: "slide-root-a",
+        rootDefinitionId: "root-a",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "root-a-receiver",
+          children: [
+            { id: "local-text", type: "text", content: "Local text" },
+            { id: "local-gallery", type: "gallery", items: [{ src: "/local.png", alt: "Local" }] },
+            { id: "local-scripted", type: "scripted", title: "Local scripted", html: "", css: "", script: "", ports: [{ id: "action", label: "Action", kind: "action" }] },
+          ],
+        }],
+      },
+    ],
+  });
+}
+
 function pointerDoc(currentVersionId = "version-current") {
   return {
     exists: () => true,
@@ -399,6 +440,69 @@ describe("published presentation loader via pointer", () => {
       "versions",
       "version-container",
     );
+  });
+
+  it("loads the exact canonical Root-backed Presentation before projection", async () => {
+    setViteEnv(true);
+    defaultAppMocks();
+
+    const presentation = representativeRootPresentation();
+    const before = structuredClone(presentation);
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-root"))
+      .mockResolvedValueOnce(versionDoc(presentation));
+
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    const result = await loadPublishedPresentation("publication-root");
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      throw new Error("Expected the Root-backed published presentation to load.");
+    }
+    expect(result.presentation).toEqual(presentation);
+    expect(result.presentation.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-a-receiver"]);
+    expect(result.presentation.slides[1]).toMatchObject({
+      rootDefinitionId: "root-a",
+      elements: [],
+      localRootChildren: [{ targetContainerId: "root-a-receiver" }],
+    });
+    expect(presentation).toEqual(before);
+  });
+
+  it.each([
+    "dangling slide Root Definition",
+    "dangling local target",
+    "dangling default Root Definition",
+  ])("returns error for a published %s relationship", async (kind) => {
+    setViteEnv(true);
+    defaultAppMocks();
+
+    const malformed = structuredClone(representativeRootPresentation()) as {
+      defaultRootDefinitionId?: string;
+      rootDefinitions: Array<{ localChildTargetIds?: string[] }>;
+      slides: Array<{ rootDefinitionId?: string; localRootChildren?: Array<{ targetContainerId: string; children: unknown[] }> }>;
+    };
+    if (kind === "dangling slide Root Definition") {
+      malformed.slides[1]!.rootDefinitionId = "missing-root";
+    } else if (kind === "dangling local target") {
+      malformed.slides[1]!.localRootChildren = [{ targetContainerId: "missing-target", children: [] }];
+    } else {
+      malformed.defaultRootDefinitionId = "missing-default-root";
+      delete malformed.slides[1]!.rootDefinitionId;
+    }
+
+    mocks.doc
+      .mockReturnValueOnce({ id: "pointer-ref" })
+      .mockReturnValueOnce({ id: "version-ref" });
+    mocks.getDoc
+      .mockResolvedValueOnce(pointerDoc("version-invalid-root"))
+      .mockResolvedValueOnce(versionDoc(malformed));
+
+    const { loadPublishedPresentation } = await import("../src/published-presentation-loader");
+    await expect(loadPublishedPresentation("publication-invalid-root")).resolves.toEqual({ kind: "error" });
   });
 });
 

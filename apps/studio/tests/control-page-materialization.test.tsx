@@ -76,6 +76,8 @@ describe("ControlPage Root Definition projection boundary", () => {
     const plot = mocks.plot.mock.calls[0]?.[0];
     const action = mocks.action.mock.calls[0]?.[0];
     const state = mocks.state.mock.calls[0]?.[0];
+    const livePresentation = (mocks.presentationState as { livePresentation: Presentation }).livePresentation;
+    const liveBefore = structuredClone(livePresentation);
     expect(gallery.effectiveSlide).toBe(plot.effectiveSlide);
     expect(gallery.effectiveSlide).toBe(action.effectiveSlide);
     expect(gallery.effectiveSlide).toBe(state.effectiveSlide);
@@ -83,6 +85,11 @@ describe("ControlPage Root Definition projection boundary", () => {
     const ids: string[] = [];
     visitSlideElements(gallery.effectiveSlide, (element) => ids.push(element.id));
     expect(ids).toContain("live-master-gallery");
+    expect(ids).toContain("live-master-script");
+    expect(ids).toContain("live-master-local-gallery");
+    expect(ids).toContain("live-master-local-script");
+    expect(livePresentation.slides[0]?.elements).toEqual([]);
+    expect(livePresentation).toEqual(liveBefore);
     expect(ids).not.toContain("staged-master-gallery");
     expect(gallery.desiredPageId).toBe("page-a");
     const presenterState = (mocks.presenter.mock.calls[0]?.[0] as { presentationState: { presentation: Presentation; livePresentation: Presentation } }).presentationState;

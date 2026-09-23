@@ -152,34 +152,45 @@ function nullableTablePresentation() {
   });
 }
 
-function rootDefinitionPresentation(): Presentation {
+function rootDefinitionPresentation(includeLocalRootChildren = true): Presentation {
   return PresentationSchema.parse({
     ...presentation(),
     id: "pres-root-definition",
     rootDefinitions: [{
-      id: "master-foreign",
-      name: "Shared master",
+      id: "root-definition-a",
+      name: "Shared Layout",
       root: {
-        id: "master-root",
+        id: "root-container-a",
         type: "container",
         children: [{
-          id: "master-content",
+          id: "root-text-a",
+          type: "text",
+          content: "Shared Root Text",
+        }, {
+          id: "root-receiver-a",
           type: "container",
-          children: [{ id: "master-text", type: "text", content: "Shared" }],
+          children: [],
         }],
       },
-      localChildTargetIds: ["master-content"],
+      localChildTargetIds: ["root-receiver-a"],
     }],
-    defaultRootDefinitionId: "master-foreign",
-    slides: [{
-      id: "slide-root",
-      rootDefinitionId: "master-foreign",
-      elements: [],
-      localRootChildren: [{
-        targetContainerId: "master-content",
-        children: [{ id: "local-text", type: "text", content: "Local" }],
-      }],
-    }],
+    slides: [
+      {
+        id: "slide-ordinary",
+        elements: [{ id: "ordinary-text", type: "text", content: "Ordinary slide" }],
+      },
+      {
+        id: "slide-root",
+        rootDefinitionId: "root-definition-a",
+        elements: [],
+        ...(includeLocalRootChildren ? {
+          localRootChildren: [{
+            targetContainerId: "root-receiver-a",
+            children: [{ id: "local-text-a", type: "text", content: "Local" }],
+          }],
+        } : {}),
+      },
+    ],
   });
 }
 
@@ -291,33 +302,63 @@ describe("Firestore Presentation codec", () => {
     expect(record.presentationJson).toContain('"kind":"palette"');
   });
 
-  it("round-trips a referential Root Definition through the generic presentationJson codec", () => {
+  it("round-trips the lifecycle Root Definition through the generic presentationJson codec", () => {
     const source = rootDefinitionPresentation();
     const record = encodePresentationForFirestore(source);
-    const withoutRootDefinitions = PresentationSchema.parse({
-      ...source,
-      rootDefinitions: undefined,
-      defaultRootDefinitionId: undefined,
-      slides: [{ id: "slide-root", elements: [] }],
-    });
+    const encoded = JSON.parse(record.presentationJson) as {
+      schemaVersion: number;
+      rootDefinitions?: Presentation["rootDefinitions"];
+      defaultRootDefinitionId?: string;
+      slides: Array<{
+        rootDefinitionId?: string;
+        elements: unknown[];
+        localRootChildren?: unknown[];
+      }>;
+    };
+    const associatedSlide = encoded.slides[1];
 
     expect(Object.keys(record)).toEqual(["presentationJson"]);
     expect(decodePresentationFromFirestore(record)).toEqual(source);
-    expect(JSON.parse(record.presentationJson)).toMatchObject({
-      rootDefinitions: source.rootDefinitions,
-      defaultRootDefinitionId: "master-foreign",
-      slides: [{
-        rootDefinitionId: "master-foreign",
-        elements: [],
-        localRootChildren: [{ targetContainerId: "master-content" }],
-      }],
+    expect(encoded.schemaVersion).toBe(1);
+    expect(encoded.rootDefinitions).toEqual(source.rootDefinitions);
+    expect(encoded.rootDefinitions?.[0]?.name).toBe("Shared Layout");
+    expect(encoded.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-receiver-a"]);
+    expect(associatedSlide).toMatchObject({
+      rootDefinitionId: "root-definition-a",
+      elements: [],
+      localRootChildren: [{ targetContainerId: "root-receiver-a" }],
+    });
+    expect(associatedSlide?.elements).toEqual([]);
+    const encodedRoot = encoded.rootDefinitions?.[0]?.root;
+    expect(encodedRoot).toMatchObject({ id: "root-container-a" });
+    expect(encodedRoot?.children.find((child) => child.id === "root-text-a")).toMatchObject({
+      content: "Shared Root Text",
     });
     expect(new TextEncoder().encode(record.presentationJson).byteLength).toBeGreaterThan(0);
-    expect(new TextEncoder().encode(record.presentationJson).byteLength).toBeGreaterThan(
-      new TextEncoder().encode(
-        encodePresentationForFirestore(withoutRootDefinitions).presentationJson,
-      ).byteLength,
-    );
+  });
+
+  it("preserves a lifecycle Root Definition without local children", () => {
+    const source = rootDefinitionPresentation(false);
+    const record = encodePresentationForFirestore(source);
+    const encoded = JSON.parse(record.presentationJson) as {
+      slides: Array<{ localRootChildren?: unknown }>;
+    };
+
+    expect(decodePresentationFromFirestore(record)).toEqual(source);
+    expect(encoded.slides[1]).not.toHaveProperty("localRootChildren");
+  });
+
+  it("rejects persisted dangling Root relationships at the canonical schema boundary", () => {
+    const encoded = JSON.parse(
+      encodePresentationForFirestore(rootDefinitionPresentation()).presentationJson,
+    ) as {
+      slides: Array<{ rootDefinitionId?: string }>;
+    };
+    encoded.slides[1]!.rootDefinitionId = "missing-root-definition";
+
+    expect(() => decodePresentationFromFirestore({
+      presentationJson: JSON.stringify(encoded),
+    })).toThrow();
   });
 
   it("shows referential Root Definition payload reduction without enforcing a savings threshold", () => {
