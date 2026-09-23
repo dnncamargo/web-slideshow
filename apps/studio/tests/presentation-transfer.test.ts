@@ -213,8 +213,8 @@ function rootDefinitionPresentation(): Presentation {
     ...source,
     title: "Root Definition normalization",
     rootDefinitions: [{
-      id: "foreign-master",
-      name: "Foreign master",
+      id: "root-definition-a",
+      name: "Shared Layout",
       root: {
         id: "master-root-copy",
         type: "container",
@@ -285,10 +285,12 @@ function rootDefinitionPresentation(): Presentation {
       },
       localChildTargetIds: ["master-target-copy"],
     }],
-    defaultRootDefinitionId: "foreign-master",
     slides: [{
-      id: "foreign-slide",
-      rootDefinitionId: "foreign-master",
+      ...source.slides[0]!,
+      id: "slide-ordinary",
+    }, {
+      id: "slide-root",
+      rootDefinitionId: "root-definition-a",
       elements: [],
       localRootChildren: [{
         targetContainerId: "master-target-copy",
@@ -342,10 +344,10 @@ describe("canonical presentation transfer", () => {
 
     expect(PresentationSchema.parse(exported)).toEqual(source);
     expect(exported).toMatchObject({
-      defaultRootDefinitionId: "foreign-master",
-      rootDefinitions: [{ id: "foreign-master" }],
-      slides: [{
-        rootDefinitionId: "foreign-master",
+      schemaVersion: 1,
+      rootDefinitions: [{ id: "root-definition-a", name: "Shared Layout" }],
+      slides: [{ elements: expect.any(Array) }, {
+        rootDefinitionId: "root-definition-a",
         elements: [],
         localRootChildren: [{ targetContainerId: "master-target-copy" }],
       }],
@@ -354,11 +356,12 @@ describe("canonical presentation transfer", () => {
 
   it("regenerates Root Definition identities and remaps typed master targets during import", () => {
     const source = rootDefinitionPresentation();
+    const before = structuredClone(source);
     const imported = prepareImportedPresentation(source, "presentation-new");
     const sourceDefinition = source.rootDefinitions?.[0];
     const importedDefinition = imported.rootDefinitions?.[0];
-    const sourceSlide = source.slides[0];
-    const importedSlide = imported.slides[0];
+    const sourceSlide = source.slides[1];
+    const importedSlide = imported.slides[1];
 
     if (!sourceDefinition || !importedDefinition || !sourceSlide || !importedSlide) {
       throw new Error("Expected Root Definition fixture.");
@@ -371,8 +374,10 @@ describe("canonical presentation transfer", () => {
     );
 
     expect(importedDefinition.id).toBe("root-definition-1");
-    expect(imported.defaultRootDefinitionId).toBe(importedDefinition.id);
+    expect(importedDefinition.name).toBe("Shared Layout");
+    expect(imported.defaultRootDefinitionId).toBeUndefined();
     expect(importedSlide.rootDefinitionId).toBe(importedDefinition.id);
+    expect(importedSlide.rootDefinitionId).not.toBe(sourceSlide.rootDefinitionId);
     expect(importedStructuralIds).toHaveLength(sourceStructuralIds.length);
     sourceStructuralIds.forEach((id) => {
       expect(importedStructuralIds).not.toContain(id);
@@ -382,7 +387,9 @@ describe("canonical presentation transfer", () => {
     const newTargetId = structuralIdMap.get("master-target-copy");
     expect(newTargetId).toBeDefined();
     expect(importedDefinition.localChildTargetIds).toEqual([newTargetId]);
+    expect(importedDefinition.localChildTargetIds).not.toContain("master-target-copy");
     expect(importedSlide.localRootChildren?.[0]?.targetContainerId).toBe(newTargetId);
+    expect(importedSlide.localRootChildren?.[0]?.targetContainerId).not.toBe("master-target-copy");
     expect(importedSlide.elements).toEqual([]);
 
     const importedRoot = importedDefinition.root;
@@ -400,11 +407,33 @@ describe("canonical presentation transfer", () => {
     }
 
     const localText = importedSlide.localRootChildren?.[0]?.children[0];
-    expect(localText).toMatchObject({
-      type: "text",
-      id: "text-5",
-      variant: "text-style-1",
+    expect(localText).toMatchObject({ type: "text", variant: "text-style-1" });
+    expect(localText?.id).not.toBe("local-text-copy");
+    expect(PresentationSchema.safeParse(imported).success).toBe(true);
+    expect(source).toEqual(before);
+
+    const normalizedFirst = normalizeImportedPresentation(source);
+    const normalizedSecond = normalizeImportedPresentation(source);
+    expect(normalizedFirst).toEqual(normalizedSecond);
+  });
+
+  it("remaps a compatible default Root Definition reference during import", () => {
+    const source = rootDefinitionPresentation();
+    const rootSlide = source.slides[1];
+    if (!rootSlide) throw new Error("Expected Root Definition fixture slide.");
+
+    const defaultedSource = PresentationSchema.parse({
+      ...source,
+      defaultRootDefinitionId: "root-definition-a",
+      slides: [{ ...rootSlide, rootDefinitionId: undefined }],
     });
+    const imported = prepareImportedPresentation(defaultedSource, "presentation-default-new");
+    const importedDefinition = imported.rootDefinitions?.[0];
+
+    expect(importedDefinition).toBeDefined();
+    expect(imported.defaultRootDefinitionId).toBe(importedDefinition?.id);
+    expect(imported.defaultRootDefinitionId).not.toBe("root-definition-a");
+    expect(imported.slides[0]?.rootDefinitionId).toBeUndefined();
     expect(PresentationSchema.safeParse(imported).success).toBe(true);
   });
 

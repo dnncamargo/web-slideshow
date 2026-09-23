@@ -68,7 +68,9 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
-          onSave={async (snapshot) => saved.push(structuredClone(snapshot))}
+          onSave={async (snapshot) => {
+            saved.push(structuredClone(snapshot));
+          }}
         />
       </StudioI18nProvider>,
     ));

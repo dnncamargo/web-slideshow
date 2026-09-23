@@ -30,7 +30,10 @@ import type {
   TopicsElement,
 } from "@web-slideshow/document-schema";
 import { PresentationSchema } from "@web-slideshow/document-schema";
-import { encodePresentationForFirestore } from "@web-slideshow/firebase";
+import {
+  decodePresentationFromFirestore,
+  encodePresentationForFirestore,
+} from "@web-slideshow/firebase";
 
 import { createBlankPresentation } from "../src/features/persistence/presentation-repository-instance";
 import { FirestorePresentationRepository } from "../src/features/persistence/firestore-presentation-repository";
@@ -42,6 +45,7 @@ import {
   serverTimestamp,
   runTransaction,
   doc,
+  getDoc,
 } from "firebase/firestore";
 import { getFirebaseFirestore } from "../src/features/persistence/firebase-client";
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
@@ -53,6 +57,7 @@ const mockedIncrement = vi.mocked(increment);
 const mockedServerTimestamp = vi.mocked(serverTimestamp);
 const mockedRunTransaction = vi.mocked(runTransaction);
 const mockedDoc = vi.mocked(doc);
+const mockedGetDoc = vi.mocked(getDoc);
 const mockedGetFirestore = vi.mocked(getFirebaseFirestore);
 const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 
@@ -142,6 +147,42 @@ function nestedContainerPresentation(depth: number): Presentation {
   });
 }
 
+function rootDefinitionPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...createBlankPresentation("pres-root-definition"),
+    rootDefinitions: [{
+      id: "root-definition-a",
+      name: "Shared Layout",
+      root: {
+        id: "root-container-a",
+        type: "container",
+        children: [{
+          id: "root-text-a",
+          type: "text",
+          content: "Shared Root Text",
+        }, {
+          id: "root-receiver-a",
+          type: "container",
+          children: [],
+        }],
+      },
+      localChildTargetIds: ["root-receiver-a"],
+    }],
+    slides: [{
+      id: "slide-ordinary",
+      elements: [{ id: "ordinary-text", type: "text", content: "Ordinary slide" }],
+    }, {
+      id: "slide-root",
+      rootDefinitionId: "root-definition-a",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "root-receiver-a",
+        children: [{ id: "local-text-a", type: "text", content: "Local" }],
+      }],
+    }],
+  });
+}
+
 describe("draft revision persistence wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,6 +230,44 @@ describe("draft revision persistence wiring", () => {
     expect(payload?.draftRevision).toEqual({ __increment: 1 });
     expect(payload).not.toHaveProperty("publication");
     expect(payload).not.toHaveProperty("createdAt");
+  });
+
+  it("saves a Root-backed draft as the exact canonical presentationJson", async () => {
+    const presentation = rootDefinitionPresentation();
+
+    await repository.savePresentation(presentation);
+
+    const payload = mockedUpdateDoc.mock.calls[0]?.[1] as unknown as {
+      presentationJson?: string;
+    };
+    const expectedJson = encodePresentationForFirestore(presentation).presentationJson;
+
+    expect(payload.presentationJson).toBe(expectedJson);
+    expect(decodePresentationFromFirestore({ presentationJson: payload.presentationJson })).toEqual(
+      presentation,
+    );
+
+    const persisted = JSON.parse(payload.presentationJson ?? "{}") as {
+      rootDefinitions?: unknown[];
+      slides?: Array<{ elements?: unknown[]; rootDefinitionId?: string }>;
+    };
+    expect(persisted.rootDefinitions).toHaveLength(1);
+    expect(persisted.slides?.[1]).toMatchObject({
+      rootDefinitionId: "root-definition-a",
+      elements: [],
+    });
+  });
+
+  it("loads a Root-backed draft through the canonical persistence boundary", async () => {
+    const presentation = rootDefinitionPresentation();
+    mockedGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        presentationJson: encodePresentationForFirestore(presentation).presentationJson,
+      }),
+    } as never);
+
+    await expect(repository.getPresentation(presentation.id)).resolves.toEqual(presentation);
   });
 
   it("rejects invalid runtime presentation state before updateDoc", async () => {
