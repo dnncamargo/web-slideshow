@@ -1,0 +1,135 @@
+import {
+  PresentationSchema,
+  type Presentation,
+  type RootDefinition,
+} from "@web-slideshow/document-schema";
+
+import { createRootPresetContainer, createUniqueId, type SlideLayoutPreset } from "./preset-structure";
+import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
+
+export type RootDefinitionLifecycleFailure =
+  | "not-found"
+  | "invalid-name"
+  | "referenced"
+  | "no-op"
+  | "invalid-result";
+
+export type RootDefinitionLifecycleOutcome<T = undefined> =
+  | {
+      readonly ok: true;
+      readonly presentation: Presentation;
+      readonly value: T;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: RootDefinitionLifecycleFailure;
+    };
+
+function invalidResult<T>(): RootDefinitionLifecycleOutcome<T> {
+  return { ok: false, reason: "invalid-result" };
+}
+
+function validated<T>(
+  presentation: Presentation,
+  value: T,
+): RootDefinitionLifecycleOutcome<T> {
+  return PresentationSchema.safeParse(presentation).success
+    ? { ok: true, presentation, value }
+    : invalidResult<T>();
+}
+
+function findRootDefinition(
+  presentation: Presentation,
+  rootDefinitionId: string,
+): { definition: RootDefinition; index: number } | null {
+  const definitions = presentation.rootDefinitions ?? [];
+  const index = definitions.findIndex((definition) => definition.id === rootDefinitionId);
+  const definition = index >= 0 ? definitions[index] : undefined;
+  return definition === undefined ? null : { definition, index };
+}
+
+/** Creates one independent canonical Root Definition from a shared preset tree. */
+export function createRootDefinitionFromPreset(
+  presentation: Presentation,
+  preset: SlideLayoutPreset,
+  name: string,
+): RootDefinitionLifecycleOutcome<string> {
+  const trimmedName = name.trim();
+  if (trimmedName.length === 0) {
+    return { ok: false, reason: "invalid-name" };
+  }
+
+  const usedIds = collectPresentationAuthoringIds(presentation);
+  const rootDefinitionId = createUniqueId("root-definition", usedIds);
+  const root: RootDefinition["root"] = createRootPresetContainer(
+    preset,
+    rootDefinitionId,
+    usedIds,
+  );
+  const rootDefinition: RootDefinition = {
+    id: rootDefinitionId,
+    name: trimmedName,
+    root,
+  };
+  const rootDefinitions = [
+    ...(presentation.rootDefinitions ?? []),
+    rootDefinition,
+  ];
+
+  return validated(
+    { ...presentation, rootDefinitions },
+    rootDefinitionId,
+  );
+}
+
+/** Renames an existing Root Definition without changing its tree or references. */
+export function renameRootDefinition(
+  presentation: Presentation,
+  rootDefinitionId: string,
+  name: string,
+): RootDefinitionLifecycleOutcome {
+  const found = findRootDefinition(presentation, rootDefinitionId);
+  if (found === null) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length === 0) {
+    return { ok: false, reason: "invalid-name" };
+  }
+  if (trimmedName === found.definition.name) {
+    return { ok: false, reason: "no-op" };
+  }
+
+  const rootDefinitions = (presentation.rootDefinitions ?? []).map((definition, index) =>
+    index === found.index ? { ...definition, name: trimmedName } : definition,
+  );
+
+  return validated({ ...presentation, rootDefinitions }, undefined);
+}
+
+/** Deletes an unused Root Definition and leaves all references untouched. */
+export function deleteRootDefinition(
+  presentation: Presentation,
+  rootDefinitionId: string,
+): RootDefinitionLifecycleOutcome {
+  const found = findRootDefinition(presentation, rootDefinitionId);
+  if (found === null) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  const isReferenced = presentation.defaultRootDefinitionId === rootDefinitionId
+    || presentation.slides.some((slide) => slide.rootDefinitionId === rootDefinitionId);
+  if (isReferenced) {
+    return { ok: false, reason: "referenced" };
+  }
+
+  const remaining = (presentation.rootDefinitions ?? []).filter(
+    (definition) => definition.id !== rootDefinitionId,
+  );
+  const nextPresentation: Presentation = remaining.length === 0
+    ? (({ rootDefinitions: _rootDefinitions, ...withoutRootDefinitions }) => withoutRootDefinitions)(presentation)
+    : { ...presentation, rootDefinitions: remaining };
+
+  return validated(nextPresentation, undefined);
+}
