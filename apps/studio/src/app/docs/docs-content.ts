@@ -238,41 +238,59 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "root-definitions",
         title: "Root Definitions",
         summary:
-          "Root Definitions normalizam estruturalmente a Presentation: persistem uma base compartilhada por referência e a materializam por cópia apenas para editar e apresentar.",
+          "Root Definitions existem para normalizar estruturalmente a Presentation e reduzir repetição persistida. O objetivo é manter menor a árvore canônica em JSON/Firebase e permitir reutilização estável de uma base estrutural sem copiar a mesma árvore para cada Slide.",
         sections: [
           {
-            title: "Papel arquitetural",
+            title: "Objetivo de produto e liberdade arquitetural",
             paragraphs: [
-              "Uma Presentation pode conter múltiplas Root Definitions, mas cada Slide resolve no máximo uma Root Definition efetiva. A resolução é slide.rootDefinitionId ?? presentation.defaultRootDefinitionId ?? nenhuma Root.",
-              "A árvore da Root Definition pertence à própria definição. Um Slide que a utiliza não persiste uma cópia da árvore master em slide.elements; a composição efetiva é materializada em memória para autoria e playback.",
+              "O requisito de produto é reduzir repetição estrutural e o tamanho da árvore persistida, tanto no JSON quanto no Firebase, mantendo autoria, publicação e playback estáveis. A forma interna exata de representar uma Root Definition é uma decisão arquitetural, não uma exigência de produto.",
+              "A implementação atual usa rootDefinitions separadas dos Slides e resolve uma Root efetiva por referência. Essa forma pode ser mantida ou revisada se uma auditoria demonstrar que outro modelo é mais simples, seguro e estável, desde que continue evitando duplicação persistida da árvore master e preserve identidade, History, referências e compatibilidade.",
+              "Da mesma forma, copiar, projetar, combinar ou materializar a árvore para autoria/Player é detalhe de implementação. O produto não exige uma técnica específica de materialização; a decisão deve favorecer estabilidade e menor complexidade sem reintroduzir repetição no documento persistido.",
+            ],
+          },
+          {
+            title: "Fluxo de autoria congelado",
+            paragraphs: [
+              "Para o usuário, criar uma Root Definition pertence ao mesmo fluxo de criação usado por um Slide normal: no comando de criação escolhe-se Slide ou Root Definition e reutilizam-se os mesmos layouts/presets aplicáveis.",
+              "A Root Definition é editada no mesmo workspace do Editor. Canvas, Inspector, Elements/Selector, Clipboard e History não formam uma segunda experiência nem um segundo editor; apenas operam sobre outro owner.",
+              "A Root Definition pode receber nome e ser reaberta posteriormente em Custom Styles/Custom Resources → This Presentation → Root Definitions. Uma Presentation pode possuir múltiplas Root Definitions.",
+              "Um Slide normal é criado normalmente e depois pode ser associado a uma Root Definition existente. A associação é estrutural; não deve exigir copiar a árvore compartilhada para slide.elements.",
+            ],
+          },
+          {
+            title: "Estado arquitetural atual",
+            paragraphs: [
+              "No contrato canônico atual, uma Presentation pode conter múltiplas Root Definitions e cada Slide resolve no máximo uma Root Definition efetiva. A resolução atual é slide.rootDefinitionId ?? presentation.defaultRootDefinitionId ?? nenhuma Root.",
+              "Hoje a árvore compartilhada fica em rootDefinitions, o Slide Root-backed não persiste uma cópia dessa árvore em slide.elements e materializeSlide produz a projeção efetiva usada por superfícies de runtime. Essas são características da implementação atual e não devem ser confundidas com uma obrigação de produto de que Root Definition jamais possa compartilhar primitivas internas com Slide.",
             ],
             code: "Slide explicit Root\n  ?? Presentation default Root\n  ?? no Root",
           },
           {
             title: "Ownership estrutural",
             bullets: [
-              "Containers e demais elementos da Root Definition continuam master-owned; suas propriedades não se misturam com as propriedades locais do Slide.",
-              "Permitir filhos locais é uma autorização estrutural explícita. localChildTargetIds identifica os Containers master autorizados; por default não há receiver autorizado.",
-              "Quando um Container master autoriza filhos locais, cada Slide pode possuir seus próprios filhos direcionados a ele em localRootChildren. Esses filhos continuam slide-owned e usam o fluxo normal de autoria atual.",
-              "O ambiente de layout do Container master continua valendo para os filhos locais. Por exemplo, um receiver master com alinhamento vertical organiza os filhos locais do Slide nesse ambiente sem transferir o ownership do Container ao Slide.",
+              "Containers e demais elementos da Root Definition continuam master-owned no modelo atual; suas propriedades não se misturam com propriedades locais do Slide.",
+              "Permitir conteúdo local é uma autorização estrutural explícita da própria Root. localChildTargetIds identifica os Containers master autorizados a receber conteúdo local do Slide; por default não há receiver autorizado.",
+              "A autorização de um Container como receiver pertence à edição da Root Definition. A autoria dos filhos locais de cada Slide continua sendo um problema separado e não deve ser implementada implicitamente apenas por expor essa autorização.",
+              "Quando houver conteúdo local persistido, ele permanece slide-owned e usa o ambiente de layout do Container master sem transferir o ownership desse Container ao Slide.",
             ],
           },
           {
             title: "Unlink de Root não é Detach de Style",
             paragraphs: [
               "Text Styles e Linked Styles são relações de estilo. Seu Detach pode materializar valores efetivos no elemento local para preservar a aparência.",
-              "Root Definition é uma relação estrutural no nível do Slide. Remover a referência explícita apenas volta à resolução normal de Root: defaultRootDefinitionId quando existir, ou nenhuma Root quando não existir default. A árvore master nunca é copiada para slide.elements como efeito do unlink.",
+              "No contrato atual, remover a referência explícita de Root não materializa a árvore master no Slide; a resolução volta ao defaultRootDefinitionId quando existir ou a nenhuma Root quando não existir default.",
             ],
             code: "Style detach: reference → local effective values\nRoot unlink: explicit Root → default Root → no Root",
           },
           {
             title: "Custom Resources no workspace de Root",
             paragraphs: [
-              "Custom Resources faz parte do workspace de autoria de Root Definition. A restrição correta é por ownership da operação, não por estar ou não em modo Root.",
+              "Custom Resources faz parte do mesmo workspace de autoria da Root Definition. A restrição correta é por ownership da operação, não por estar ou não em modo Root.",
             ],
             bullets: [
               "Palette, Fonts e definições de Text Style e Linked Style são Presentation-global e podem ser usadas enquanto uma Root Definition está ativa.",
               "Attach, usage, navigation, detach e create-from-selected devem escrever na árvore canônica dona do elemento, seja Slide ou Root Definition.",
+              "This Presentation deve ser a superfície para reencontrar e abrir Root Definitions existentes sem criar um segundo editor ou uma segunda arquitetura de autoria.",
               "Ações que ainda tenham implementação tecnicamente Slide-only devem permanecer indisponíveis no Root até se tornarem owner-aware; isso não constitui uma proibição de produto para Custom Resources.",
               "O Apply de Element Style da Custom Library continua condicionado a uma implementação owner-aware; o contrato atual baseado em Slide não deve ser liberado no Root por simples remoção de guard.",
             ],
