@@ -31,6 +31,7 @@ const HISTORY_LABEL_KEYS = [
   "history.number.change",
   "history.number.reset",
   "history.presentation.rename",
+  "history.rootDefinition.add",
   "history.slide.add",
   "history.slide.delete",
   "history.slide.duplicate",

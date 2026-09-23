@@ -209,6 +209,7 @@ import {
 } from "./slide-operations";
 
 import type { SlideLayoutPreset } from "./slide-operations";
+import { createRootDefinitionFromPreset } from "./root-definition-lifecycle";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -321,7 +322,7 @@ import type {
 // BEGIN: SLIDE LAYOUT PICKER
 // ============================================================
 
-import { SlideLayoutPicker } from "./slide-layout-picker";
+import { SlideLayoutPicker, type CreationKind } from "./slide-layout-picker";
 import { updatePresentationTitle } from "./presentation-title";
 
 // ============================================================
@@ -1321,7 +1322,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   // ==========================================================
-  // BEGIN: NEW SLIDE PRESET
+  // BEGIN: NEW OWNER CREATION
   //
   // Estado exclusivamente do Editor.
   // Não faz parte do documento.
@@ -1330,8 +1331,14 @@ export function EditorWorkspace({
   const [newSlidePreset, setNewSlidePreset] =
     useState<SlideLayoutPreset>("blank");
 
+  const [creationKind, setCreationKind] = useState<CreationKind>("slide");
+
+  const [newRootDefinitionName, setNewRootDefinitionName] = useState("");
+
+  const [creationError, setCreationError] = useState<string | null>(null);
+
   // ==========================================================
-  // END: NEW SLIDE PRESET
+  // END: NEW OWNER CREATION
   // ==========================================================
 
   // ==========================================================
@@ -4859,7 +4866,6 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addSlide(preset: SlideLayoutPreset) {
-    if (rootDefinitionMode) return;
     const insertionIndex = Math.min(
       selectedSlideIndex + 1,
       presentation.slides.length,
@@ -4868,7 +4874,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const newSlide = createSlideFromPreset(preset, usedIds);
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       { kind: "slide.add", labelKey: "history.slide.add" },
       (current) => ({
         ...current,
@@ -4877,6 +4883,7 @@ export function EditorWorkspace({
     );
 
     setSelectedSlideIndex(insertionIndex);
+    setAuthoringTarget({ kind: "slide", slideIndex: insertionIndex });
 
     setSelectedElement(null);
 
@@ -4894,6 +4901,41 @@ export function EditorWorkspace({
   // ==========================================================
   // END: CREATE SLIDE FROM PRESET
   // ==========================================================
+
+  function addRootDefinition(preset: SlideLayoutPreset, name: string) {
+    const result = createRootDefinitionFromPreset(presentation, preset, name);
+    if (!result.ok) {
+      setCreationError(
+        result.reason === "invalid-name"
+          ? t("creation.invalidName")
+          : t("creation.invalidResult"),
+      );
+      return;
+    }
+
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.add", labelKey: "history.rootDefinition.add" },
+      () => result.presentation,
+    );
+    setAuthoringTarget({ kind: "root-definition", rootDefinitionId: result.value });
+    setSelectedElement(null);
+    setCreationError(null);
+    setIsSlideLayoutPickerOpen(false);
+    setCreationKind("slide");
+    setNewRootDefinitionName("");
+  }
+
+  function createOwnerFromPicker() {
+    if (creationKind === "root-definition") {
+      addRootDefinition(newSlidePreset, newRootDefinitionName);
+      return;
+    }
+
+    addSlide(newSlidePreset);
+    setCreationKind("slide");
+    setNewRootDefinitionName("");
+    setCreationError(null);
+  }
   // ==========================================================
   // BEGIN: DUPLICATE SLIDE
   //
@@ -5718,10 +5760,14 @@ export function EditorWorkspace({
               type="button"
               className={styles.slideHeaderButton}
               aria-expanded={isSlideLayoutPickerOpen}
-              disabled={rootDefinitionMode}
               onClick={() => {
-                if (rootDefinitionMode) return;
-                setIsSlideLayoutPickerOpen((current) => !current);
+                setCreationError(null);
+                setIsSlideLayoutPickerOpen((current) => {
+                  if (current) return false;
+                  setCreationKind("slide");
+                  setNewRootDefinitionName("");
+                  return true;
+                });
               }}
             >
               <span>
@@ -5737,13 +5783,22 @@ export function EditorWorkspace({
     ========================================================== */}
 
           <div className={styles.slideLayoutPickerSlot}>
-            {isSlideLayoutPickerOpen && !rootDefinitionMode && (
+            {isSlideLayoutPickerOpen && (
               <SlideLayoutPicker
                 value={newSlidePreset}
                 onChange={setNewSlidePreset}
-                onCreate={() => {
-                  addSlide(newSlidePreset);
+                onCreate={createOwnerFromPicker}
+                creationKind={creationKind}
+                onCreationKindChange={(kind) => {
+                  setCreationKind(kind);
+                  setCreationError(null);
                 }}
+                rootDefinitionName={newRootDefinitionName}
+                onRootDefinitionNameChange={(name) => {
+                  setNewRootDefinitionName(name);
+                  setCreationError(null);
+                }}
+                error={creationError}
               />
             )}
           </div>

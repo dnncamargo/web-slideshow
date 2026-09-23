@@ -293,7 +293,7 @@ describe("SM6C Root Definition workspace shell", () => {
       .find((button) => button.textContent?.includes("Retained"));
     expect(retainedSlide?.disabled).toBe(true);
     const newSlide = containerElement.querySelector<HTMLButtonElement>("button[aria-expanded]");
-    expect(newSlide?.disabled).toBe(true);
+    expect(newSlide?.disabled).toBe(false);
     expect(containerElement.textContent).not.toContain("Duplicate element");
 
     act(() => retainedSlide?.click());

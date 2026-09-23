@@ -72,6 +72,15 @@ const englishMessages = {
   "slides.current": "Slide {number}",
   "slides.emptyPresentation": "Presentation has no slides.",
 
+  "creation.type": "Type",
+  "creation.slide": "Slide",
+  "creation.rootDefinition": "Root Definition",
+  "creation.name": "Name",
+  "creation.rootDefinitionName": "Root Definition name",
+  "creation.createRootDefinition": "Create Root Definition",
+  "creation.invalidName": "Enter a name to create the Root Definition.",
+  "creation.invalidResult": "Could not create the Root Definition.",
+
   "canvas.noElementSelected": "No element selected",
 
   "editor.scrollTabsEarlier": "Scroll editor tabs left",
@@ -96,6 +105,7 @@ const englishMessages = {
   "history.slide.duplicate": "Duplicate slide",
   "history.slide.move": "Move slide",
   "history.slide.rename": "Rename slide",
+  "history.rootDefinition.add": "Create Root Definition",
   "history.element.add": "Add {elementType}",
   "history.element.delete": "Delete {elementType}",
   "history.element.deleteContainerPreserveChildren": "Delete container, keep children",
@@ -1224,6 +1234,15 @@ const portugueseMessages = {
   "slides.current": "Slide {number}",
   "slides.emptyPresentation": "A apresentação não possui slides.",
 
+  "creation.type": "Tipo",
+  "creation.slide": "Slide",
+  "creation.rootDefinition": "Definição raiz",
+  "creation.name": "Nome",
+  "creation.rootDefinitionName": "Nome da definição raiz",
+  "creation.createRootDefinition": "Criar definição raiz",
+  "creation.invalidName": "Digite um nome para criar a definição raiz.",
+  "creation.invalidResult": "Não foi possível criar a definição raiz.",
+
   "canvas.noElementSelected": "Nenhum elemento selecionado",
 
   "editor.scrollTabsEarlier": "Rolar abas do editor para a esquerda",
@@ -1248,6 +1267,7 @@ const portugueseMessages = {
   "history.slide.duplicate": "Duplicar slide",
   "history.slide.move": "Mover slide",
   "history.slide.rename": "Renomear slide",
+  "history.rootDefinition.add": "Criar definição raiz",
   "history.element.add": "Adicionar {elementType}",
   "history.element.delete": "Excluir {elementType}",
   "history.element.deleteContainerPreserveChildren": "Excluir contêiner, manter elementos filhos",
