@@ -102,6 +102,10 @@ describe("CP4F12A HistoryPanel", () => {
         labelKey: "history.element.setting",
         labelParams: { setting: "customLibrary.apply" },
       },
+      { kind: "rootDefinition.add", labelKey: "history.rootDefinition.add" },
+      { kind: "rootDefinition.rename", labelKey: "history.rootDefinition.rename" },
+      { kind: "rootDefinition.delete", labelKey: "history.rootDefinition.delete" },
+      { kind: "rootDefinition.assign", labelKey: "history.rootDefinition.assign" },
     ];
     const futureActions: HistoryActionMeta[] = [
       { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: "text" } },
@@ -119,6 +123,10 @@ describe("CP4F12A HistoryPanel", () => {
     const sections = Array.from(container.querySelectorAll<HTMLElement>("section"));
     expect(sections.map((section) => section.getAttribute("aria-label"))).toEqual(["Applied", "Redo"]);
     expect(Array.from(sections[0]!.querySelectorAll("li"), (item) => item.textContent)).toEqual([
+      "Change Root Definition",
+      "Delete Root Definition",
+      "Rename Root Definition",
+      "Create Root Definition",
       "Change: Custom library apply",
       "Change: Palette definition",
       "Change: Canvas drag",
