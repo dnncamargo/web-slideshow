@@ -612,7 +612,7 @@ The unavailable Android interactive display remains an explicit release gate, no
 
 # Recent completed refinement ✅
 
-The following current-state work is complete and merged:
+The following current-state work is complete at its recorded closure point:
 
 - **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
