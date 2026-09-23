@@ -1,5 +1,7 @@
 import {
   PresentationSchema,
+  findRootDefinitionContainers,
+  listRootDefinitionStructuralIds,
   type Presentation,
   type RootDefinition,
 } from "@web-slideshow/document-schema";
@@ -14,6 +16,9 @@ export type RootDefinitionLifecycleFailure =
   | "invalid-name"
   | "referenced"
   | "incompatible"
+  | "container-not-found"
+  | "not-container"
+  | "in-use"
   | "no-op"
   | "invalid-result";
 
@@ -49,6 +54,55 @@ function findRootDefinition(
   const index = definitions.findIndex((definition) => definition.id === rootDefinitionId);
   const definition = index >= 0 ? definitions[index] : undefined;
   return definition === undefined ? null : { definition, index };
+}
+
+export function resolveEffectiveRootDefinitionId(
+  presentation: Presentation,
+  slide: Presentation["slides"][number],
+): string | undefined {
+  return slide.rootDefinitionId ?? presentation.defaultRootDefinitionId;
+}
+
+/** Authorizes one Container in a Root Definition to receive future local Slide content. */
+export function setRootDefinitionLocalChildTarget(
+  presentation: Presentation,
+  rootDefinitionId: string,
+  containerId: string,
+  allowed: boolean,
+): RootDefinitionLifecycleOutcome {
+  const found = findRootDefinition(presentation, rootDefinitionId);
+  if (found === null) return { ok: false, reason: "root-not-found" };
+
+  const containers = findRootDefinitionContainers(found.definition.root);
+  if (!containers.has(containerId)) {
+    return listRootDefinitionStructuralIds(found.definition.root).includes(containerId)
+      ? { ok: false, reason: "not-container" }
+      : { ok: false, reason: "container-not-found" };
+  }
+
+  const currentTargets = found.definition.localChildTargetIds ?? [];
+  const currentlyAllowed = currentTargets.includes(containerId);
+  if (currentlyAllowed === allowed) return { ok: false, reason: "no-op" };
+
+  if (!allowed) {
+    const inUse = presentation.slides.some((slide) =>
+      resolveEffectiveRootDefinitionId(presentation, slide) === rootDefinitionId
+      && (slide.localRootChildren ?? []).some((local) => local.targetContainerId === containerId),
+    );
+    if (inUse) return { ok: false, reason: "in-use" };
+  }
+
+  const nextTargets = allowed
+    ? [...currentTargets, containerId]
+    : currentTargets.filter((targetId) => targetId !== containerId);
+  const nextDefinition = nextTargets.length === 0
+    ? (({ localChildTargetIds: _targets, ...withoutTargets }) => withoutTargets)(found.definition)
+    : { ...found.definition, localChildTargetIds: nextTargets };
+  const rootDefinitions = (presentation.rootDefinitions ?? []).map((definition, index) =>
+    index === found.index ? nextDefinition : definition,
+  );
+
+  return validated({ ...presentation, rootDefinitions }, undefined);
 }
 
 /** Creates one independent canonical Root Definition from a shared preset tree. */

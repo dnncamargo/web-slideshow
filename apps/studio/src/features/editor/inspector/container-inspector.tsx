@@ -23,6 +23,7 @@ import { ContainerPositionSection } from "./sections/container-position-section"
 import { ElementInteractionSection } from "./sections/element-interaction-section";
 import { ContainerLinkedStyleSection } from "./sections/container-linked-style-section";
 import type { CreateQrCodeFromLink } from "./inspector-types";
+import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 interface ContainerInspectorProps {
   element: ContainerElement;
@@ -46,6 +47,12 @@ interface ContainerInspectorProps {
   } | null;
 
   onCreateQrFromLink?: CreateQrCodeFromLink;
+
+  rootLocalContentReceiver?: {
+    allowed: boolean;
+    onChange: (allowed: boolean) => void;
+    feedback?: string | null;
+  };
 }
 
 // ============================================================
@@ -62,7 +69,9 @@ export function ContainerInspector({
   parent = null,
   layerControls = null,
   onCreateQrFromLink,
+  rootLocalContentReceiver,
 }: ContainerInspectorProps) {
+  const { t } = useStudioI18n();
   const effective = presentation === undefined || !("slides" in presentation)
     ? element
     : { ...element, ...resolveLinkedContainerStyle(presentation, element) };
@@ -88,6 +97,31 @@ export function ContainerInspector({
         onAttach={onAttachLinkedStyle}
         onDetach={onDetachLinkedStyle}
       />
+
+      {rootLocalContentReceiver ? (
+        <div className={styles.inspectorGroup}>
+          <label className={styles.field}>
+            <span className={styles.inspectorLabel}>{t("inspector.rootLocalContent")}</span>
+            <span>
+              <input
+                type="checkbox"
+                data-root-local-content-receiver
+                checked={rootLocalContentReceiver.allowed}
+                onChange={(event) => rootLocalContentReceiver.onChange(event.target.checked)}
+              />{" "}
+              {t("inspector.allowLocalSlideContent")}
+            </span>
+          </label>
+          <span className={styles.status}>
+            {t("inspector.rootLocalContentDescription")}
+          </span>
+          {rootLocalContentReceiver.feedback ? (
+            <span className={styles.status} role="alert">
+              {rootLocalContentReceiver.feedback}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <ContainerLayoutSection
         element={effective}

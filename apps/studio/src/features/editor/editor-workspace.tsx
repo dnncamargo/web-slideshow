@@ -291,6 +291,7 @@ import {
   updateAuthoringElements,
   type AuthoringTarget,
 } from "./authoring-target";
+import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -1338,6 +1339,7 @@ export function EditorWorkspace({
 
   const [creationError, setCreationError] = useState<string | null>(null);
   const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
+  const [rootLocalContentTargetError, setRootLocalContentTargetError] = useState<string | null>(null);
 
   // ==========================================================
   // END: NEW OWNER CREATION
@@ -4995,6 +4997,38 @@ export function EditorWorkspace({
     setSlideRootDefinitionError(null);
   }
 
+  function changeRootLocalContentTarget(containerId: string, allowed: boolean): void {
+    if (authoringTarget.kind !== "root-definition") return;
+    const rootDefinitionId = authoringTarget.rootDefinitionId;
+    const result = setRootDefinitionLocalChildTarget(
+      presentation,
+      rootDefinitionId,
+      containerId,
+      allowed,
+    );
+    if (!result.ok) {
+      setRootLocalContentTargetError(result.reason);
+      return;
+    }
+
+    commitPresentationGlobalAction(
+      {
+        kind: "rootDefinition.localContentTarget",
+        labelKey: "history.rootDefinition.localContentTarget",
+      },
+      (current) => {
+        const currentResult = setRootDefinitionLocalChildTarget(
+          current,
+          rootDefinitionId,
+          containerId,
+          allowed,
+        );
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    setRootLocalContentTargetError(null);
+  }
+
   function createOwnerFromPicker() {
     if (creationKind === "root-definition") {
       addRootDefinition(newSlidePreset, newRootDefinitionName);
@@ -6569,6 +6603,17 @@ export function EditorWorkspace({
                             )
                               ? undefined
                               : createQrFromSelectedLink
+                          }
+                          rootLocalContentReceiver={
+                            rootDefinitionMode && selectedDocumentElement.type === "container"
+                              ? {
+                                  allowed: (rootDefinition?.localChildTargetIds ?? []).includes(selectedDocumentElement.id),
+                                  onChange: (allowed) => changeRootLocalContentTarget(selectedDocumentElement.id, allowed),
+                                  feedback: rootLocalContentTargetError === "in-use"
+                                    ? t("inspector.rootLocalContentInUse")
+                                    : null,
+                                }
+                              : undefined
                           }
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}

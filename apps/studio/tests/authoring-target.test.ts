@@ -112,6 +112,58 @@ describe("authoring target replacement", () => {
     const presentation = makePresentation();
     expect(replaceAuthoringElements(presentation, rootTarget, elements)).toBe(presentation);
   });
+
+  it("prunes unused receiver IDs when a Root subtree is removed", () => {
+    const base = makePresentation();
+    const presentation = PresentationSchema.parse({
+      ...base,
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Root One",
+        localChildTargetIds: ["root-1-container", "nested"],
+        root: container("root-1-container", [container("nested")]),
+      }, base.rootDefinitions?.[1]],
+    });
+    const next = replaceAuthoringElements(presentation, rootTarget, [container("root-1-container")]);
+    expect(next.rootDefinitions?.[0]?.root).toEqual(container("root-1-container"));
+    expect(next.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-1-container"]);
+    expect(PresentationSchema.safeParse(next).success).toBe(true);
+  });
+
+  it.each(["direct target", "ancestor target"] as const)("blocks removal of an in-use receiver (%s)", (caseName) => {
+    const base = makePresentation();
+    const root = caseName === "direct target"
+      ? container("root-1-container", [container("nested")])
+      : container("root-1-container", [container("parent", [container("nested")])]);
+    const source = PresentationSchema.parse({
+      ...base,
+      rootDefinitions: [{ id: "root-1", name: "Root One", localChildTargetIds: ["nested"], root }, base.rootDefinitions?.[1]],
+      defaultRootDefinitionId: "root-1",
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [], localRootChildren: [{ targetContainerId: "nested", children: [text("local")] }] }],
+    });
+    const before = structuredClone(source);
+    const replacement = caseName === "direct target"
+      ? container("root-1-container")
+      : container("root-1-container", [container("parent")]);
+    expect(replaceAuthoringElements(source, rootTarget, [replacement])).toBe(source);
+    expect(source).toEqual(before);
+  });
+
+  it("preserves surviving authorized descendants when deleting an unused parent", () => {
+    const base = makePresentation();
+    const source = PresentationSchema.parse({
+      ...base,
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Root One",
+        localChildTargetIds: ["parent", "survivor"],
+        root: container("root-1-container", [container("parent", [text("child")]), container("survivor")]),
+      }, base.rootDefinitions?.[1]],
+    });
+    const next = replaceAuthoringElements(source, rootTarget, [container("root-1-container", [container("survivor")])]);
+    expect(next.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["survivor"]);
+    expect(next.rootDefinitions?.[0]?.root.children).toEqual([container("survivor")]);
+  });
 });
 
 describe("target-aware element updates", () => {

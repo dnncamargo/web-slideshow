@@ -35,6 +35,7 @@ const HISTORY_LABEL_KEYS = [
   "history.rootDefinition.rename",
   "history.rootDefinition.delete",
   "history.rootDefinition.assign",
+  "history.rootDefinition.localContentTarget",
   "history.slide.add",
   "history.slide.delete",
   "history.slide.duplicate",

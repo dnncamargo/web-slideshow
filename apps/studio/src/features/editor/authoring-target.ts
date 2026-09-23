@@ -3,6 +3,11 @@ import type {
   PresentationElement,
   Slide,
 } from "@web-slideshow/document-schema";
+import {
+  PresentationSchema,
+  findRootDefinitionContainers,
+} from "@web-slideshow/document-schema";
+import { resolveEffectiveRootDefinitionId } from "./root-definition-lifecycle";
 
 export type AuthoringTarget =
   | {
@@ -127,12 +132,34 @@ export function replaceAuthoringElements(
     return presentation;
   }
 
-  return {
+  const currentTargets = definition.localChildTargetIds ?? [];
+  const nextContainers = findRootDefinitionContainers(nextRoot);
+  const removedTargets = currentTargets.filter((containerId) => !nextContainers.has(containerId));
+  const removesUsedTarget = removedTargets.some((containerId) =>
+    presentation.slides.some((slide) =>
+      resolveEffectiveRootDefinitionId(presentation, slide) === definition.id
+      && (slide.localRootChildren ?? []).some((local) => local.targetContainerId === containerId),
+    ),
+  );
+  if (removesUsedTarget) return presentation;
+
+  const nextDefinition = currentTargets.length === 0 || removedTargets.length === 0
+    ? { ...definition, root: nextRoot }
+    : currentTargets.filter((containerId) => nextContainers.has(containerId)).length === 0
+      ? (({ localChildTargetIds: _targets, ...withoutTargets }) => ({ ...withoutTargets, root: nextRoot }))(definition)
+      : {
+          ...definition,
+          root: nextRoot,
+          localChildTargetIds: currentTargets.filter((containerId) => nextContainers.has(containerId)),
+        };
+
+  const candidate = {
     ...presentation,
     rootDefinitions: definitions?.map((current, index) =>
-      index === definitionIndex ? { ...current, root: nextRoot } : current,
+      index === definitionIndex ? nextDefinition : current,
     ),
   };
+  return PresentationSchema.safeParse(candidate).success ? candidate : presentation;
 }
 
 export function resolveCanonicalRootContainerId(

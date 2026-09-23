@@ -106,6 +106,7 @@ describe("CP4F12A HistoryPanel", () => {
       { kind: "rootDefinition.rename", labelKey: "history.rootDefinition.rename" },
       { kind: "rootDefinition.delete", labelKey: "history.rootDefinition.delete" },
       { kind: "rootDefinition.assign", labelKey: "history.rootDefinition.assign" },
+      { kind: "rootDefinition.localContentTarget", labelKey: "history.rootDefinition.localContentTarget" },
     ];
     const futureActions: HistoryActionMeta[] = [
       { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: "text" } },
@@ -123,6 +124,7 @@ describe("CP4F12A HistoryPanel", () => {
     const sections = Array.from(container.querySelectorAll<HTMLElement>("section"));
     expect(sections.map((section) => section.getAttribute("aria-label"))).toEqual(["Applied", "Redo"]);
     expect(Array.from(sections[0]!.querySelectorAll("li"), (item) => item.textContent)).toEqual([
+      "Change local content receiver",
       "Change Root Definition",
       "Delete Root Definition",
       "Rename Root Definition",

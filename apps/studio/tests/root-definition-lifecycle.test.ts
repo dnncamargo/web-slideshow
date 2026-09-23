@@ -14,6 +14,7 @@ import {
   createRootDefinitionFromPreset,
   deleteRootDefinition,
   renameRootDefinition,
+  setRootDefinitionLocalChildTarget,
   setSlideRootDefinition,
 } from "../src/features/editor/root-definition-lifecycle";
 
@@ -78,6 +79,76 @@ function targetedDefinition(id: string, target: string): RootDefinition {
 }
 
 describe("Root Definition lifecycle operations", () => {
+  it("enables and disables canonical and nested Container receivers", () => {
+    const source = presentation({
+      rootDefinitions: [{
+        id: "root-a",
+        name: "A",
+        root: {
+          id: "root-a-container",
+          type: "container",
+          hidden: false,
+          children: [{ id: "nested", type: "container", hidden: false, children: [] }],
+        },
+      }],
+    });
+
+    const enabledRoot = setRootDefinitionLocalChildTarget(source, "root-a", "root-a-container", true);
+    expect(enabledRoot.ok).toBe(true);
+    if (!enabledRoot.ok) return;
+    expect(enabledRoot.presentation.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-a-container"]);
+
+    const enabledNested = setRootDefinitionLocalChildTarget(enabledRoot.presentation, "root-a", "nested", true);
+    expect(enabledNested.ok).toBe(true);
+    if (!enabledNested.ok) return;
+    expect(enabledNested.presentation.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-a-container", "nested"]);
+
+    const disabled = setRootDefinitionLocalChildTarget(enabledNested.presentation, "root-a", "root-a-container", false);
+    expect(disabled.ok).toBe(true);
+    if (!disabled.ok) return;
+    expect(disabled.presentation.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["nested"]);
+    expect(PresentationSchema.safeParse(disabled.presentation).success).toBe(true);
+  });
+
+  it.each([
+    ["missing Root", "missing", "root-a-container", "root-not-found"],
+    ["missing Container", "root-a", "missing", "container-not-found"],
+    ["non-Container", "root-a", "root-a-text", "not-container"],
+  ] as const)("rejects %s without mutation", (_label, rootId, containerId, reason) => {
+    const source = presentation({
+      rootDefinitions: [{
+        id: "root-a",
+        name: "A",
+        root: { id: "root-a-container", type: "container", hidden: false, children: [{ id: "root-a-text", type: "text", hidden: false, variant: "body", content: "Text" }] },
+      }],
+    });
+    const before = structuredClone(source);
+    expect(setRootDefinitionLocalChildTarget(source, rootId, containerId, true)).toEqual({ ok: false, reason });
+    expect(source).toEqual(before);
+  });
+
+  it("reports no-op authorization changes and blocks disabling an inherited in-use receiver", () => {
+    const source = presentation({
+      rootDefinitions: [targetedDefinition("root-a", "target")],
+      defaultRootDefinitionId: "root-a",
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [], localRootChildren: [{ targetContainerId: "target", children: [{ id: "local", type: "text", hidden: false, variant: "body", content: "Keep" }] }] }],
+    });
+    expect(setRootDefinitionLocalChildTarget(source, "root-a", "target", true)).toEqual({ ok: false, reason: "no-op" });
+    const before = structuredClone(source);
+    expect(setRootDefinitionLocalChildTarget(source, "root-a", "target", false)).toEqual({ ok: false, reason: "in-use" });
+    expect(source).toEqual(before);
+  });
+
+  it("does not mutate the input while normalizing the final authorization away", () => {
+    const source = presentation({ rootDefinitions: [targetedDefinition("root-a", "target")] });
+    const before = structuredClone(source);
+    const result = setRootDefinitionLocalChildTarget(source, "root-a", "target", false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.presentation.rootDefinitions?.[0]).not.toHaveProperty("localChildTargetIds");
+    expect(source).toEqual(before);
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
   it.each(presets)("creates a valid independent %s Root Definition", (preset) => {
     const source = presentation();
     const before = structuredClone(source);

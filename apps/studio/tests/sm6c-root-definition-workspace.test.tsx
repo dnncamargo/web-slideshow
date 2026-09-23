@@ -202,6 +202,33 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(source.slides).toHaveLength(2);
   });
 
+  it("authorizes the selected Root Container as a local-content receiver with global Undo/Redo", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave);
+
+    const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    if (!rootContainer) throw new Error("expected Root Container in Canvas");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const receiver = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!receiver) throw new Error("expected Root local-content receiver control");
+    expect(receiver.checked).toBe(false);
+
+    await act(async () => receiver.click());
+    expect(receiver.checked).toBe(true);
+    const enabled = await save(onSave);
+    expect(enabled.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+    expect(enabled.rootDefinitions?.[0]?.root).toEqual(source.rootDefinitions?.[0]?.root);
+
+    await undo();
+    const undone = await save(onSave);
+    expect(undone.rootDefinitions?.[0]).not.toHaveProperty("localChildTargetIds");
+    await redo();
+    const redone = await save(onSave);
+    expect(redone.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+  });
+
   it("edits, saves, undoes, redoes, and remounts canonical Root Definition Text", async () => {
     const source = presentation();
     const onSave = vi.fn(async (_saved: Presentation) => {});

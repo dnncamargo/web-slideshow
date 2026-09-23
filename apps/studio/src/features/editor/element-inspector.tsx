@@ -96,6 +96,12 @@ interface ElementInspectorProps {
   onGalleryItemIndexChange?: (index: number | null) => void;
 
   onCreateQrFromLink?: CreateQrCodeFromLink;
+
+  rootLocalContentReceiver?: {
+    allowed: boolean;
+    onChange: (allowed: boolean) => void;
+    feedback?: string | null;
+  };
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -137,6 +143,7 @@ function ElementTypeInspector({
   galleryItemIndex,
   onGalleryItemIndexChange,
   onCreateQrFromLink,
+  rootLocalContentReceiver,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -151,6 +158,7 @@ function ElementTypeInspector({
           parent={parent}
           layerControls={layerControls}
           onCreateQrFromLink={onCreateQrFromLink}
+          rootLocalContentReceiver={rootLocalContentReceiver}
         />
       );
 
@@ -303,6 +311,7 @@ export function ElementInspector({
   galleryItemIndex,
   onGalleryItemIndexChange,
   onCreateQrFromLink,
+  rootLocalContentReceiver,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
 
@@ -384,6 +393,7 @@ export function ElementInspector({
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
         onCreateQrFromLink={onCreateQrFromLink}
+        rootLocalContentReceiver={rootLocalContentReceiver}
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
