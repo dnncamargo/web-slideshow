@@ -618,6 +618,7 @@ The following current-state work is complete and merged:
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
 - **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy generation remains a separate, unchanged source of future `-copy` genealogy.
+- **Root Definitions / structural normalization** — SM6E1–SM6E3. The canonical `rootDefinitions` collection, shared preset structural primitive, same-workspace lifecycle, This Presentation browser/management, Slide association, receiver authorization, structural safety, History, persistence, import/export, publish, Player, Control, Library-thumbnail and renderer acceptance are complete. `schemaVersion` remains literally `1`; authoring actual Slide-owned local children remains future work.
 
 These completions do not change `schemaVersion`, the Presentation schema, persistence format, publication model, or Player/Studio boundaries.
 
@@ -637,7 +638,6 @@ Watch already follows Player-applied state. Viewer presence/count/nickname and r
 
 Deferred candidates include:
 
-- **Structural deduplication / Presentation-local structural masters** — audit repeated canonical trees, ownership, references and editor/runtime consequences before making a product decision; the architecture and names are not frozen;
 - **complete audit** — cross-cutting integrity audit, including canonical/global ID uniqueness and other issues intentionally kept out of feature-specific checkpoints;
 - **AI Converter** — convert external/source content into the existing canonical Presentation rather than introducing a second document model;
 - **Player hardening with local history/continuity** — stronger local recovery/history behavior without replacing immutable publication and Live ownership;
@@ -686,9 +686,10 @@ P12   UX / Properties refinement                            ✅
        Topics structural refinement (#152)                  ✅
        Embed viewport + stable Control preview (#154)       ✅
        Editor History / Undo-Redo                            ✅
+       Root Definitions / structural normalization            ✅
 
 NEXT:
-  Next work area: Structural deduplication / Presentation-local structural masters — audit first
+  TBD — pending product decision
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -696,7 +697,6 @@ RELEASE GATE STILL PENDING:
 FUTURE / DEFERRED:
   P14 bounded Diagnostics expansion
   P15 Audience / Watch expansion
-  Structural deduplication / Presentation-local structural masters — audit first
   complete audit
   AI Converter
   Player hardening with local history/continuity

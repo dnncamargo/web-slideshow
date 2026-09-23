@@ -161,6 +161,14 @@ JSON.parse
 
 Imported structural IDs are regenerated with short, type-aware diagnostic prefixes, so copy genealogy does not carry forward. Typed Text Style and Linked Style references are remapped; reserved/system identities and authored Scripted port IDs remain stable. Arbitrary authored strings are never searched or replaced. Normalization changes technical identity, not authored content or semantic structure. There is no transfer envelope, hidden compatibility schema or automatic migration layer.
 
+## Root Definitions
+
+Root Definitions provide structural normalization: they reduce repeated canonical structure and JSON/Firestore payload duplication, make reusable structural and aesthetic bases possible, and centralize edits to repeated structure. They are similar in purpose to CSS reuse, but own PresentationElement structure rather than only style properties.
+
+The canonical model keeps `rootDefinitions` in the Presentation and associates a Slide by `rootDefinitionId` (falling back to `defaultRootDefinitionId`). A Root is created from the shared New → Slide | Root Definition flow, edited in the same Editor workspace, and managed through Custom Resources → This Presentation → Root Definitions. Slides expose the association in the Slide Inspector.
+
+Root Definitions may authorize master Container receivers through `localChildTargetIds`; this is distinct from Slide-owned `localRootChildren`, whose authoring is not yet implemented. Runtime consumers materialize the effective tree without changing the referential canonical document. Draft persistence stores the complete canonical Presentation as `presentationJson`; import/export remaps Root identities and typed references deterministically, and publish/runtime preserve the referential model. `schemaVersion` remains literally `1`.
+
 ## Instance branding and deployment
 
 For local development, configure the instance with:
@@ -504,7 +512,8 @@ Published archived Presentation deletion (#170)    ✅
 Container preserve-children deletion (#171)       ✅
 Historical identity cleanup (#172)                ✅
 Import-time ID normalization (#173)                ✅
-Next work area: Structural deduplication / Presentation-local structural masters — audit first
+Root Definitions / structural normalization              ✅
+Next work area: TBD — pending product decision
 ```
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes structural deduplication / Presentation-local structural masters, a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
