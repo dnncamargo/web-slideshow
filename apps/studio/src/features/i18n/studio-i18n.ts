@@ -82,6 +82,11 @@ const englishMessages = {
   "creation.invalidResult": "Could not create the Root Definition.",
 
   "canvas.noElementSelected": "No element selected",
+  "inspector.rootDefinition": "Root Definition",
+  "inspector.noRootDefinition": "No Root Definition",
+  "inspector.usePresentationDefault": "Use Presentation default — {name}",
+  "inspector.rootDefinitionIncompatible": "This Slide has local root content and cannot use this Root Definition.",
+  "inspector.rootDefinitionUnavailable": "The selected Root Definition is unavailable.",
 
   "editor.scrollTabsEarlier": "Scroll editor tabs left",
   "editor.scrollTabsLater": "Scroll editor tabs right",
@@ -108,6 +113,7 @@ const englishMessages = {
   "history.rootDefinition.add": "Create Root Definition",
   "history.rootDefinition.rename": "Rename Root Definition",
   "history.rootDefinition.delete": "Delete Root Definition",
+  "history.rootDefinition.assign": "Change Root Definition",
   "history.element.add": "Add {elementType}",
   "history.element.delete": "Delete {elementType}",
   "history.element.deleteContainerPreserveChildren": "Delete container, keep children",
@@ -1254,6 +1260,11 @@ const portugueseMessages = {
   "creation.invalidResult": "Não foi possível criar a definição raiz.",
 
   "canvas.noElementSelected": "Nenhum elemento selecionado",
+  "inspector.rootDefinition": "Definição raiz",
+  "inspector.noRootDefinition": "Nenhuma definição raiz",
+  "inspector.usePresentationDefault": "Usar o padrão da apresentação — {name}",
+  "inspector.rootDefinitionIncompatible": "Este slide possui conteúdo raiz local e não pode usar esta definição raiz.",
+  "inspector.rootDefinitionUnavailable": "A definição raiz selecionada não está disponível.",
 
   "editor.scrollTabsEarlier": "Rolar abas do editor para a esquerda",
   "editor.scrollTabsLater": "Rolar abas do editor para a direita",
@@ -1280,6 +1291,7 @@ const portugueseMessages = {
   "history.rootDefinition.add": "Criar definição raiz",
   "history.rootDefinition.rename": "Renomear definição raiz",
   "history.rootDefinition.delete": "Excluir definição raiz",
+  "history.rootDefinition.assign": "Alterar definição raiz",
   "history.element.add": "Adicionar {elementType}",
   "history.element.delete": "Excluir {elementType}",
   "history.element.deleteContainerPreserveChildren": "Excluir contêiner, manter elementos filhos",

@@ -9,8 +9,11 @@ import { collectPresentationAuthoringIds } from "./presentation-authoring-trees"
 
 export type RootDefinitionLifecycleFailure =
   | "not-found"
+  | "slide-not-found"
+  | "root-not-found"
   | "invalid-name"
   | "referenced"
+  | "incompatible"
   | "no-op"
   | "invalid-result";
 
@@ -132,4 +135,33 @@ export function deleteRootDefinition(
     : { ...presentation, rootDefinitions: remaining };
 
   return validated(nextPresentation, undefined);
+}
+
+/** Assigns or clears a Slide's explicit Root Definition reference without materializing content. */
+export function setSlideRootDefinition(
+  presentation: Presentation,
+  slideId: string,
+  rootDefinitionId: string | undefined,
+): RootDefinitionLifecycleOutcome {
+  const slide = presentation.slides.find((candidate) => candidate.id === slideId);
+  if (!slide) return { ok: false, reason: "slide-not-found" };
+  if (rootDefinitionId !== undefined && !findRootDefinition(presentation, rootDefinitionId)) {
+    return { ok: false, reason: "root-not-found" };
+  }
+  if (slide.rootDefinitionId === rootDefinitionId) {
+    return { ok: false, reason: "no-op" };
+  }
+
+  const slides = presentation.slides.map((candidate) => {
+    if (candidate.id !== slideId) return candidate;
+    if (rootDefinitionId === undefined) {
+      const { rootDefinitionId: _rootDefinitionId, ...withoutRootDefinition } = candidate;
+      return withoutRootDefinition;
+    }
+    return { ...candidate, rootDefinitionId };
+  });
+  const candidate = { ...presentation, slides };
+  return PresentationSchema.safeParse(candidate).success
+    ? { ok: true, presentation: candidate, value: undefined }
+    : { ok: false, reason: "incompatible" };
 }

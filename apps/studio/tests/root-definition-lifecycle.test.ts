@@ -14,6 +14,7 @@ import {
   createRootDefinitionFromPreset,
   deleteRootDefinition,
   renameRootDefinition,
+  setSlideRootDefinition,
 } from "../src/features/editor/root-definition-lifecycle";
 
 const presets: SlideLayoutPreset[] = [
@@ -60,6 +61,20 @@ function presentation(
     slides: [{ id: "slide-1", elements: [] }],
     ...overrides,
   });
+}
+
+function targetedDefinition(id: string, target: string): RootDefinition {
+  return {
+    id,
+    name: id,
+    root: {
+      id: `${id}-root`,
+      type: "container",
+      hidden: false,
+      children: [{ id: target, type: "container", hidden: false, children: [] }],
+    },
+    localChildTargetIds: [target],
+  };
 }
 
 describe("Root Definition lifecycle operations", () => {
@@ -260,5 +275,77 @@ describe("Root Definition lifecycle operations", () => {
     expect(created).not.toBe(later);
     expect(created?.children[0]).not.toBe(later.children[0]);
     expect(source).toEqual(presentation());
+  });
+
+  it("attaches a Root to a blank Slide without materializing or mutating input", () => {
+    const source = presentation({ rootDefinitions: [definition("root-a", "A", "full")] });
+    const before = structuredClone(source);
+    const result = setSlideRootDefinition(source, "slide-1", "root-a");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.presentation.slides[0]).toMatchObject({ id: "slide-1", rootDefinitionId: "root-a", elements: [] });
+    expect(result.presentation.slides[0]).not.toHaveProperty("localRootChildren");
+    expect(result.presentation.rootDefinitions).toEqual(source.rootDefinitions);
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+    expect(source).toEqual(before);
+  });
+
+  it.each([
+    ["unknown Slide", "missing", "root-a", "slide-not-found"],
+    ["unknown Root", "slide-1", "missing", "root-not-found"],
+  ] as const)("rejects %s without mutation", (_name, slideId, rootId, reason) => {
+    const source = presentation({ rootDefinitions: [definition("root-a")] });
+    const before = structuredClone(source);
+    expect(setSlideRootDefinition(source, slideId, rootId)).toEqual({ ok: false, reason });
+    expect(source).toEqual(before);
+  });
+
+  it("reports an explicit-value no-op", () => {
+    const source = presentation({ rootDefinitions: [definition("root-a")], slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [] }] });
+    expect(setSlideRootDefinition(source, "slide-1", "root-a")).toEqual({ ok: false, reason: "no-op" });
+  });
+
+  it("rejects populated Slides without losing content or creating History state", () => {
+    const source = presentation({
+      rootDefinitions: [definition("root-a")],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Keep me" }] }],
+    });
+    const before = structuredClone(source);
+    expect(setSlideRootDefinition(source, "slide-1", "root-a")).toEqual({ ok: false, reason: "incompatible" });
+    expect(source).toEqual(before);
+  });
+
+  it("switches compatible local children and blocks incompatible targets", () => {
+    const source = presentation({
+      rootDefinitions: [targetedDefinition("root-a", "shared-target"), targetedDefinition("root-b", "shared-target"), targetedDefinition("root-c", "other-target")],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [], localRootChildren: [{ targetContainerId: "shared-target", children: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Local" }] }] }],
+    });
+    const switched = setSlideRootDefinition(source, "slide-1", "root-b");
+    expect(switched.ok).toBe(true);
+    if (!switched.ok) return;
+    expect(switched.presentation.slides[0]?.rootDefinitionId).toBe("root-b");
+    expect(switched.presentation.slides[0]?.localRootChildren).toEqual(source.slides[0]?.localRootChildren);
+    expect(setSlideRootDefinition(source, "slide-1", "root-c")).toEqual({ ok: false, reason: "incompatible" });
+    expect(source.slides[0]?.rootDefinitionId).toBe("root-a");
+  });
+
+  it("unlinks to the Presentation default and rejects orphaned local children", () => {
+    const withDefault = presentation({
+      rootDefinitions: [targetedDefinition("root-a", "shared-target"), targetedDefinition("root-b", "shared-target")],
+      defaultRootDefinitionId: "root-b",
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [], localRootChildren: [{ targetContainerId: "shared-target", children: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Local" }] }] }],
+    });
+    const result = setSlideRootDefinition(withDefault, "slide-1", undefined);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.presentation.slides[0]).not.toHaveProperty("rootDefinitionId");
+    expect(result.presentation.slides[0]?.localRootChildren).toEqual(withDefault.slides[0]?.localRootChildren);
+
+    const noDefault = presentation({
+      rootDefinitions: [targetedDefinition("root-a", "shared-target")],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [], localRootChildren: [{ targetContainerId: "shared-target", children: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Local" }] }] }],
+    });
+    expect(setSlideRootDefinition(noDefault, "slide-1", undefined)).toEqual({ ok: false, reason: "incompatible" });
   });
 });

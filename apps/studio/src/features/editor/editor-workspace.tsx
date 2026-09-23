@@ -32,6 +32,7 @@ import {
 
 import {
   PresentationSchema,
+  materializeSlide,
   addPresentationPaletteColor as addPaletteEntry,
   removePresentationPaletteColor as removePaletteEntry,
   renamePresentationPaletteColor as renamePaletteEntry,
@@ -209,7 +210,7 @@ import {
 } from "./slide-operations";
 
 import type { SlideLayoutPreset } from "./slide-operations";
-import { createRootDefinitionFromPreset, deleteRootDefinition, renameRootDefinition } from "./root-definition-lifecycle";
+import { createRootDefinitionFromPreset, deleteRootDefinition, renameRootDefinition, setSlideRootDefinition } from "./root-definition-lifecycle";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -1336,6 +1337,7 @@ export function EditorWorkspace({
   const [newRootDefinitionName, setNewRootDefinitionName] = useState("");
 
   const [creationError, setCreationError] = useState<string | null>(null);
+  const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
 
   // ==========================================================
   // END: NEW OWNER CREATION
@@ -2065,13 +2067,17 @@ export function EditorWorkspace({
   // O Editor usa o mesmo renderer do Player.
   // ==========================================================
 
-  const renderedSlide = useMemo(() => {
-    if (!selectedSlide) {
-      return "";
-    }
+  const renderedSlideModel = useMemo(() => {
+    if (!selectedSlide) return undefined;
+    return authoringTarget.kind === "slide"
+      ? materializeSlide(presentation, selectedSlide).slide
+      : selectedSlide;
+  }, [authoringTarget.kind, selectedSlide, presentation]);
 
-    return renderSlide(selectedSlide, { presentation });
-  }, [selectedSlide, presentation]);
+  const renderedSlide = useMemo(
+    () => renderedSlideModel ? renderSlide(renderedSlideModel, { presentation }) : "",
+    [renderedSlideModel, presentation],
+  );
 
   const renderedSlideHtml = useMemo(
     () => ({ __html: renderedSlide }),
@@ -2133,17 +2139,17 @@ export function EditorWorkspace({
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
-    if (canvas && selectedSlide !== undefined) {
+    if (canvas && renderedSlideModel !== undefined) {
       hydrateRendererRuntime(canvas, {
         plotAnimations: {
-          slide: selectedSlide,
+          slide: renderedSlideModel,
           autoplay: false,
         },
       });
     } else if (canvas) {
       hydrateRendererRuntime(canvas);
     }
-  }, [canvasGeometry, renderedSlide, selectedSlide]);
+  }, [canvasGeometry, renderedSlide, renderedSlideModel]);
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
@@ -4972,6 +4978,23 @@ export function EditorWorkspace({
     return null;
   }
 
+  function changeSlideRootDefinition(rootDefinitionId: string): void {
+    const nextRootDefinitionId = rootDefinitionId || undefined;
+    const result = setSlideRootDefinition(presentation, selectedSlide.id, nextRootDefinitionId);
+    if (!result.ok) {
+      setSlideRootDefinitionError(result.reason);
+      return;
+    }
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.assign", labelKey: "history.rootDefinition.assign" },
+      (current) => {
+        const currentResult = setSlideRootDefinition(current, selectedSlide.id, nextRootDefinitionId);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    setSlideRootDefinitionError(null);
+  }
+
   function createOwnerFromPicker() {
     if (creationKind === "root-definition") {
       addRootDefinition(newSlidePreset, newRootDefinitionName);
@@ -6623,6 +6646,28 @@ export function EditorWorkspace({
                           }}
                           onBlur={() => finishPresentationTransaction(`slide:${selectedSlide.id}:title`)}
                         />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span>{t("inspector.rootDefinition")}</span>
+                        <select
+                          data-slide-root-definition
+                          value={selectedSlide.rootDefinitionId ?? ""}
+                          onChange={(event) => changeSlideRootDefinition(event.target.value)}
+                        >
+                          <option value="">
+                            {presentation.defaultRootDefinitionId
+                              ? t("inspector.usePresentationDefault", {
+                                  name: presentation.rootDefinitions?.find((definition) => definition.id === presentation.defaultRootDefinitionId)?.name ?? presentation.defaultRootDefinitionId,
+                                })
+                              : t("inspector.noRootDefinition")}
+                          </option>
+                          {(presentation.rootDefinitions ?? []).map((definition) => (
+                            <option key={definition.id} value={definition.id}>{definition.name}</option>
+                          ))}
+                        </select>
+                        {slideRootDefinitionError === "incompatible" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionIncompatible")}</span> : null}
+                        {slideRootDefinitionError === "root-not-found" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionUnavailable")}</span> : null}
                       </label>
 
                       {/* ===========================================
