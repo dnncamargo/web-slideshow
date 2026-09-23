@@ -3,16 +3,29 @@ import {
   type ContainerElement,
   type LinkedContainerStyle,
   type Presentation,
+  type PresentationElement,
 } from "@web-slideshow/document-schema";
 
 import { updateElementById } from "./element-tree";
 import { visitContainers, visitElements } from "./element-hierarchy";
 import { adoptLinkedContainerStyle } from "./linked-style-authoring";
+import { forEachNavigablePresentationAuthoringTree, updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
+import type { AuthoringTarget } from "./authoring-target";
 
 type PropertyBag = Record<string, unknown>;
 
-export type LinkedStyleContainerLocation = {
-  slideIndex: number;
+type CanonicalTreeOwnerLocation =
+  | { slideIndex: number }
+  | { slideIndex: number; localRootChildrenIndex: number }
+  | { rootDefinitionId: string };
+
+export type LinkedStyleContainerLocation =
+  | { slideIndex: number; elementId: string }
+  | { slideIndex: number; localRootChildrenIndex: number; elementId: string }
+  | { rootDefinitionId: string; elementId: string };
+
+export type LinkedStyleUsageLocation = {
+  target: AuthoringTarget;
   elementId: string;
 };
 
@@ -67,11 +80,26 @@ function matchesLinkedContainerStyle(container: ContainerElement, linked: Linked
     (linked.effect?.shadow === undefined || (container.effect?.shadow !== undefined && valuesEqual(container.effect.shadow, linked.effect.shadow)));
 }
 
+function forEachCanonicalTree(
+  presentation: Presentation,
+  visit: (elements: readonly PresentationElement[], location: CanonicalTreeOwnerLocation) => void,
+): void {
+  presentation.slides.forEach((slide, slideIndex) => {
+    visit(slide.elements, { slideIndex });
+    slide.localRootChildren?.forEach((entry, localRootChildrenIndex) => {
+      visit(entry.children, { slideIndex, localRootChildrenIndex });
+    });
+  });
+  presentation.rootDefinitions?.forEach((rootDefinition) => {
+    visit([rootDefinition.root], { rootDefinitionId: rootDefinition.id });
+  });
+}
+
 function locationsFor(presentation: Presentation, predicate: (container: ContainerElement) => boolean): LinkedStyleContainerLocation[] {
   const locations: LinkedStyleContainerLocation[] = [];
-  presentation.slides.forEach((slide, slideIndex) => {
-    visitContainers(slide.elements, (container) => {
-      if (predicate(container)) locations.push({ slideIndex, elementId: container.id });
+  forEachCanonicalTree(presentation, (elements, owner) => {
+    visitContainers(elements, (container) => {
+      if (predicate(container)) locations.push({ ...owner, elementId: container.id });
     });
   });
   return locations;
@@ -89,10 +117,41 @@ export function findContainersLinkedToStyle(presentation: Presentation, linkedSt
 /** Finds all supported Linked Style references through the canonical hierarchy traversal. */
 export function findElementsLinkedToStyle(presentation: Presentation, linkedStyleId: string): LinkedStyleContainerLocation[] {
   const locations: LinkedStyleContainerLocation[] = [];
-  presentation.slides.forEach((slide, slideIndex) => {
-    visitElements(slide.elements, (element) => {
+  forEachCanonicalTree(presentation, (elements, owner) => {
+    visitElements(elements, (element) => {
       if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
-        locations.push({ slideIndex, elementId: element.id });
+        locations.push({ ...owner, elementId: element.id });
+      }
+    });
+  });
+  return locations;
+}
+
+export function findContainerLinkedStyleUsageLocations(
+  presentation: Presentation,
+  linkedStyleId: string,
+): LinkedStyleUsageLocation[] {
+  const locations: LinkedStyleUsageLocation[] = [];
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitContainers(elements, (container) => {
+      if (container.linkedStyleId === linkedStyleId) {
+        locations.push({ target, elementId: container.id });
+      }
+    });
+  });
+  return locations;
+}
+
+/** Finds owner-aware Resources usages for both Container and Topics Linked Styles. */
+export function findLinkedStyleUsageLocations(
+  presentation: Presentation,
+  linkedStyleId: string,
+): LinkedStyleUsageLocation[] {
+  const locations: LinkedStyleUsageLocation[] = [];
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitElements(elements, (element) => {
+      if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
+        locations.push({ target, elementId: element.id });
       }
     });
   });
@@ -104,19 +163,17 @@ export function attachLinkedStyleToMatchingContainers(presentation: Presentation
   if (linked === undefined) return { presentation, attachedLocations: [] };
   const attachedLocations = findMatchingContainersForLinkedStyle(presentation, linkedStyleId);
   if (attachedLocations.length === 0) return { presentation, attachedLocations };
-  const idsBySlide = new Map<number, Set<string>>();
-  for (const location of attachedLocations) {
-    const ids = idsBySlide.get(location.slideIndex) ?? new Set<string>();
-    ids.add(location.elementId);
-    idsBySlide.set(location.slideIndex, ids);
-  }
-  const result = PresentationSchema.parse({
-    ...presentation,
-    slides: presentation.slides.map((slide, slideIndex) => {
-      const ids = idsBySlide.get(slideIndex);
-      if (ids === undefined) return slide;
-      return { ...slide, elements: Array.from(ids).reduce((elements, id) => updateElementById(elements, id, (element) => element.type === "container" && matchesLinkedContainerStyle(element, linked) ? adoptLinkedContainerStyle(element, linked) : element), slide.elements) };
-    }),
+  const candidate = updatePresentationAuthoringTrees(presentation, (elements) => {
+    const matchingIds: string[] = [];
+    visitContainers(elements, (container) => {
+      if (matchesLinkedContainerStyle(container, linked)) matchingIds.push(container.id);
+    });
+    return matchingIds.reduce(
+      (current, id) => updateElementById(current, id, (element) => element.type === "container" && matchesLinkedContainerStyle(element, linked) ? adoptLinkedContainerStyle(element, linked) : element),
+      elements as PresentationElement[],
+    );
   });
+  const parsed = PresentationSchema.safeParse(candidate);
+  const result = parsed.success ? parsed.data : presentation;
   return { presentation: result, attachedLocations };
 }

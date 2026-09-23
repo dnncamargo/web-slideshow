@@ -230,19 +230,19 @@ export function canCreateLinkedStyleFromContainer(container: ContainerElement): 
   ].some((value) => value !== undefined);
 }
 
-export function createLinkedStyleFromContainer(
+export interface CreatedLinkedContainerStyleFromElement {
+  presentation: Presentation;
+  element: ContainerElement;
+}
+
+/** Creates the canonical Container linked-style definition and relationship for one element. */
+export function createLinkedStyleFromContainerElement(
   presentation: Presentation,
-  slideIndex: number,
-  containerId: string,
+  container: ContainerElement,
   name: string,
-): Presentation {
+): CreatedLinkedContainerStyleFromElement | null {
   const trimmedName = name.trim();
-  if (!trimmedName) return presentation;
-  const element = presentation.slides[slideIndex] === undefined
-    ? undefined
-    : findElementById(presentation.slides[slideIndex]!.elements, containerId);
-  const container = element?.type === "container" ? element : undefined;
-  if (container === undefined || !canCreateLinkedStyleFromContainer(container)) return presentation;
+  if (!trimmedName || !canCreateLinkedStyleFromContainer(container)) return null;
 
   const layout = authoredObject(container.layout);
   const style = shareableStyle(container.style);
@@ -257,27 +257,50 @@ export function createLinkedStyleFromContainer(
     ...(typography === undefined ? {} : { typography }),
     ...(effect === undefined ? {} : { effect }),
   };
+  const {
+    layout: _layout,
+    style: localStyle,
+    typography: _typography,
+    effect: _effect,
+    ...structural
+  } = container;
+
+  return {
+    presentation: PresentationSchema.parse({
+      ...presentation,
+      linkedStyles: [...(presentation.linkedStyles ?? []), linkedStyle],
+    }),
+    element: {
+      ...structural,
+      linkedStyleId: id,
+      ...(localStyle?.className === undefined
+        ? {}
+        : { style: { className: localStyle.className } }),
+    },
+  };
+}
+
+export function createLinkedStyleFromContainer(
+  presentation: Presentation,
+  slideIndex: number,
+  containerId: string,
+  name: string,
+): Presentation {
+  const trimmedName = name.trim();
+  if (!trimmedName) return presentation;
+  const element = presentation.slides[slideIndex] === undefined
+    ? undefined
+    : findElementById(presentation.slides[slideIndex]!.elements, containerId);
+  const container = element?.type === "container" ? element : undefined;
+  if (container === undefined) return presentation;
+  const created = createLinkedStyleFromContainerElement(presentation, container, trimmedName);
+  if (created === null) return presentation;
 
   return replaceContainerInSlide(
-    { ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), linkedStyle] },
+    created.presentation,
     slideIndex,
     containerId,
-    (current) => {
-      const {
-        layout: _layout,
-        style: localStyle,
-        typography: _typography,
-        effect: _effect,
-        ...structural
-      } = current;
-      return {
-        ...structural,
-        linkedStyleId: id,
-        ...(localStyle?.className === undefined
-          ? {}
-          : { style: { className: localStyle.className } }),
-      };
-    },
+    () => created.element,
   );
 }
 
@@ -382,6 +405,33 @@ export function canCreateLinkedStyleFromTopics(topics: TopicsElement): boolean {
   return topics.linkedStyleId === undefined && Object.keys(topicsLinkedStyleProperties(topics)).length > 0;
 }
 
+export interface CreatedLinkedTopicsStyleFromElement {
+  presentation: Presentation;
+  element: TopicsElement;
+}
+
+/** Creates the canonical Topics linked-style definition and relationship for one element. */
+export function createLinkedStyleFromTopicsElement(
+  presentation: Presentation,
+  topics: TopicsElement,
+  name: string,
+): CreatedLinkedTopicsStyleFromElement | null {
+  const trimmedName = name.trim();
+  if (!trimmedName || !canCreateLinkedStyleFromTopics(topics)) return null;
+
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const linkedStyle: LinkedTopicsStyle = { target: "topics", id, name: trimmedName, ...topicsLinkedStyleProperties(topics) };
+  const { kind: _kind, layout: _layout, rootMarkerStyle: _rootMarkerStyle, markerColor: _markerColor, itemGap: _itemGap, linkedStyleId: _linkedStyleId, ...local } = topics;
+
+  return {
+    presentation: PresentationSchema.parse({
+      ...presentation,
+      linkedStyles: [...(presentation.linkedStyles ?? []), linkedStyle],
+    }),
+    element: { ...local, linkedStyleId: id },
+  };
+}
+
 export function createLinkedStyleFromTopics(
   presentation: Presentation,
   slideIndex: number,
@@ -390,17 +440,14 @@ export function createLinkedStyleFromTopics(
 ): Presentation {
   const trimmedName = name.trim();
   const element = presentation.slides[slideIndex] === undefined ? undefined : findElementById(presentation.slides[slideIndex]!.elements, topicsId);
-  if (!trimmedName || element?.type !== "topics" || !canCreateLinkedStyleFromTopics(element)) return presentation;
-  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
-  const linkedStyle: LinkedTopicsStyle = { target: "topics", id, name: trimmedName, ...topicsLinkedStyleProperties(element) };
+  if (element?.type !== "topics") return presentation;
+  const created = createLinkedStyleFromTopicsElement(presentation, element, trimmedName);
+  if (created === null) return presentation;
   return replaceTopicsInSlide(
-    { ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), linkedStyle] },
+    created.presentation,
     slideIndex,
     topicsId,
-    (current) => {
-      const { kind: _kind, layout: _layout, rootMarkerStyle: _rootMarkerStyle, markerColor: _markerColor, itemGap: _itemGap, linkedStyleId: _linkedStyleId, ...local } = current;
-      return { ...local, linkedStyleId: id };
-    },
+    () => created.element,
   );
 }
 

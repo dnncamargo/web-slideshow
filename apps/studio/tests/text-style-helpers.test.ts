@@ -134,7 +134,7 @@ describe("presentation typography style authoring", () => {
         { id: "topics", type: "topics", hidden: false, kind: "unordered", items: [{ id: "item", content: { id: "slot", children: [detachedTopicText, attachedTopicText] }, children: [] }] },
       ] }],
     });
-    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ slideIndex: 0, elementId: "attached-topic" }]);
+    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ target: { kind: "slide", slideIndex: 0 }, elementId: "attached-topic" }]);
     expect(isTextStyleUsed(presentation, "body")).toBe(true);
     const onlyDetached = PresentationSchema.parse({ ...presentation, slides: [{ ...presentation.slides[0]!, elements: [detachedTopicText] }] });
     expect(findTextStyleUsageLocations(onlyDetached, "body")).toEqual([]);
@@ -221,11 +221,33 @@ describe("presentation typography style authoring", () => {
       ],
     });
     expect(findTextStyleUsageLocations(presentation, "quote")).toEqual([
-      { slideIndex: 0, elementId: "quote-text" },
-      { slideIndex: 0, elementId: "nested-quote" },
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "quote-text" },
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "nested-quote" },
     ]);
     expect(isTextStyleUsed(presentation, "quote")).toBe(true);
     expect(findTextStyleUsageLocations(presentation, "caption")).toEqual([]);
+  });
+
+  it("projects matching Text Style usage from a canonical Root Definition", () => {
+    const presentation = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      slides: [{ id: "s", title: "", elements: [{ id: "slide-quote", type: "text", hidden: false, variant: "quote", content: "Slide" }] }],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [{ id: "root-quote", type: "text", hidden: false, variant: "quote", content: "Root" }],
+        },
+      }],
+    });
+
+    expect(findTextStyleUsageLocations(presentation, "quote")).toEqual([
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "slide-quote" },
+      { target: { kind: "root-definition", rootDefinitionId: "root-1" }, elementId: "root-quote" },
+    ]);
   });
 
   it("propagates only changed owned properties across attached nested text", () => {
@@ -335,5 +357,52 @@ describe("presentation typography style authoring", () => {
     const propagated = propagateTextStyleDefinitionChanges(removed, "quote", before, removed.textStyles![0]);
     expect(propagated.slides[0]!.elements[0]).toMatchObject({ typography: { textAlign: "right" }, style: { color: "#0000ff" } });
     expect(propagated.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+  });
+
+  it("propagates changed ownership through Slide, Root, and local-root-child trees", () => {
+    const before = { id: "body" as const, typography: { fontSize: 20 } };
+    const after = { id: "body" as const, typography: { fontSize: 24 } };
+    const attached = (id: string) => ({
+      id,
+      type: "text" as const,
+      hidden: false,
+      variant: "body",
+      content: id,
+      typography: { fontSize: 30, fontWeight: 700 },
+      style: { color: "#123456" },
+    });
+    const detached = { ...attached("detached"), styleDetached: true as const };
+    const presentation = PresentationSchema.parse({
+      ...base(),
+      textStyles: [after],
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root",
+        localChildTargetIds: ["root"],
+        root: { id: "root", type: "container", hidden: false, children: [attached("root-text")] },
+      }],
+      slides: [{
+        id: "slide",
+        title: "",
+        elements: [attached("slide-text")],
+      }, {
+        id: "root-slide",
+        title: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        localRootChildren: [{ targetContainerId: "root", children: [attached("local-text"), detached] }],
+      }],
+    });
+
+    const propagated = propagateTextStyleDefinitionChanges(presentation, "body", before, after);
+    const slideText = propagated.slides[0]!.elements[0]!;
+    const localText = propagated.slides[1]!.localRootChildren![0]!.children[0]!;
+    const rootText = propagated.rootDefinitions![0]!.root.children[0]!;
+
+    for (const element of [slideText, localText, rootText]) {
+      expect(element).not.toHaveProperty("typography.fontSize");
+      expect(element).toMatchObject({ typography: { fontWeight: 700 }, style: { color: "#123456" } });
+    }
+    expect(propagated.slides[1]!.localRootChildren![0]!.children[1]).toEqual(detached);
   });
 });

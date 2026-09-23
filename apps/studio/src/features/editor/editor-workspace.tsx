@@ -166,7 +166,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
-import { findElementLocation, type ElementParentRef } from "./element-hierarchy";
+import { findElementLocation, visitElements, type ElementParentRef } from "./element-hierarchy";
 import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
@@ -178,13 +178,12 @@ import { PresentationColorPaletteProvider } from "./inspector/sections/presentat
 import { PickedColorsProvider } from "./inspector/sections/picked-colors-provider";
 import { addPickedColor, removePickedColor } from "./inspector/sections/picked-colors-helpers";
 import {
-  detachLinkedStyle,
   attachLinkedContainerStyleToElement,
   detachLinkedContainerStyleFromElement,
   attachLinkedTopicsStyleToElement,
   detachLinkedTopicsStyleFromElement,
-  createLinkedStyleFromContainer,
-  createLinkedStyleFromTopics,
+  createLinkedStyleFromContainerElement,
+  createLinkedStyleFromTopicsElement,
   canCreateLinkedStyleFromContainer,
   canCreateLinkedStyleFromTopics,
   updateLinkedTopicsStyle,
@@ -195,8 +194,9 @@ import {
   clearLinkedTopicsStyleProperty,
   type LinkedTopicsStyleProperty,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, findElementsLinkedToStyle, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
 import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -615,6 +615,23 @@ function changedLinkedContainerStyleProperties(
     ));
 }
 
+function updateCanonicalElements(
+  presentation: ReturnType<typeof PresentationSchema.parse>,
+  matches: (element: PresentationElement) => boolean,
+  update: (element: PresentationElement) => PresentationElement,
+): ReturnType<typeof PresentationSchema.parse> {
+  return updatePresentationAuthoringTrees(presentation, (elements) => {
+    const matchingIds: string[] = [];
+    visitElements(elements, (element) => {
+      if (matches(element)) matchingIds.push(element.id);
+    });
+    return matchingIds.reduce(
+      (current, id) => updateElementById(current, id, update),
+      elements as PresentationElement[],
+    );
+  });
+}
+
 function propagateLinkedContainerStyleDefinitionChanges(
   presentation: ReturnType<typeof PresentationSchema.parse>,
   linkedStyleId: string,
@@ -623,19 +640,13 @@ function propagateLinkedContainerStyleDefinitionChanges(
 ): ReturnType<typeof PresentationSchema.parse> {
   const changedProperties = changedLinkedContainerStyleProperties(before, after);
   if (changedProperties.length === 0) return presentation;
-  let next = presentation;
-  for (const { slideIndex, elementId } of findContainersLinkedToStyle(presentation, linkedStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
-      if (element.type !== "container" || element.linkedStyleId !== linkedStyleId) return element;
-      return changedProperties.reduce((current, property) => clearLinkedContainerStyleProperty(current, property), element);
-    });
-    if (elements !== slide.elements) {
-      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
-    }
-  }
-  return next;
+  return updateCanonicalElements(
+    presentation,
+    (element) => element.type === "container" && element.linkedStyleId === linkedStyleId,
+    (element) => element.type !== "container"
+      ? element
+      : changedProperties.reduce((current, property) => clearLinkedContainerStyleProperty(current, property), element),
+  );
 }
 
 function areLinkedTopicsStyleColorsEqual(
@@ -720,19 +731,13 @@ function propagateLinkedTopicsStyleDefinitionChanges(
 ): ReturnType<typeof PresentationSchema.parse> {
   const changedProperties = changedLinkedTopicsStyleProperties(before, after);
   if (changedProperties.length === 0) return presentation;
-  let next = presentation;
-  for (const { slideIndex, elementId } of findElementsLinkedToStyle(presentation, linkedStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
-      if (element.type !== "topics" || element.linkedStyleId !== linkedStyleId) return element;
-      return changedProperties.reduce((current, property) => clearLinkedTopicsStyleProperty(current, property), element);
-    });
-    if (elements !== slide.elements) {
-      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
-    }
-  }
-  return next;
+  return updateCanonicalElements(
+    presentation,
+    (element) => element.type === "topics" && element.linkedStyleId === linkedStyleId,
+    (element) => element.type !== "topics"
+      ? element
+      : changedProperties.reduce((current, property) => clearLinkedTopicsStyleProperty(current, property), element),
+  );
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
@@ -788,6 +793,13 @@ interface PendingQrSelection {
   beforePresentation: Presentation;
 }
 
+interface PendingResourceSelection {
+  target: AuthoringTarget;
+  elementId: string;
+  elementType: "text" | "container";
+  styleId: string;
+}
+
 function areAuthoringTargetsEqual(
   left: AuthoringTarget,
   right: AuthoringTarget,
@@ -802,7 +814,7 @@ interface PendingStyleDetach {
   kind: "text-style" | "linked-style";
   styleId: string;
   styleName: string;
-  slideIndex: number;
+  target: AuthoringTarget;
   elementId: string;
 }
 
@@ -1065,6 +1077,15 @@ export function EditorWorkspace({
     dispatchHistory({ type: "commit", meta, update });
   }
 
+  function commitPresentationGlobalAction(
+    meta: HistoryActionMeta,
+    update: (current: Presentation) => Presentation,
+  ): void {
+    dispatchHistory({ type: "transaction-commit" });
+    authoringTransactionTargetRef.current = null;
+    dispatchHistory({ type: "commit", meta, update });
+  }
+
   function commitAuthoringAction(
     target: AuthoringTarget,
     meta: HistoryActionMeta,
@@ -1120,7 +1141,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -1134,7 +1155,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -1148,7 +1169,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -1215,6 +1236,7 @@ export function EditorWorkspace({
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
   const pendingQrSelectionRef = useRef<PendingQrSelection | null>(null);
+  const pendingResourceSelectionRef = useRef<PendingResourceSelection | null>(null);
   const [galleryItemSelection, setGalleryItemSelection] =
     useState<GalleryItemSelection | null>(null);
   const [selectedTableStructuralNode, setSelectedTableStructuralNode] =
@@ -1442,7 +1464,7 @@ export function EditorWorkspace({
   }, [authoringTarget, presentation, resolvedAuthoringTarget, retainedSlideIndex]);
 
   useEffect(() => {
-    if (rootDefinitionMode && rightPanelMode !== "editor") {
+    if (rootDefinitionMode && rightPanelMode === "notes") {
       setRightPanelMode("editor");
     }
   }, [rootDefinitionMode, rightPanelMode]);
@@ -1478,6 +1500,24 @@ export function EditorWorkspace({
       setCanvasGuideBounds(null);
     }
   }, [rootDefinitionMode]);
+
+  useEffect(() => {
+    const pending = pendingResourceSelectionRef.current;
+    if (!pending) return;
+    if (!areAuthoringTargetsEqual(authoringTarget, pending.target)) {
+      pendingResourceSelectionRef.current = null;
+      return;
+    }
+
+    const elements = resolveAuthoringElements(presentation, pending.target);
+    const element = elements ? findElementById(elements, pending.elementId) : null;
+    const valid = pending.elementType === "text"
+      ? element?.type === "text" && element.variant === pending.styleId && element.styleDetached !== true
+      : element?.type === "container" && element.linkedStyleId === pending.styleId;
+    pendingResourceSelectionRef.current = null;
+    if (!valid || !element) return;
+    setSelectedElement({ id: element.id, type: pending.elementType });
+  }, [authoringTarget, presentation]);
 
   useEffect(() => {
     if (!pendingElementDeletion) return;
@@ -3838,7 +3878,7 @@ export function EditorWorkspace({
   // ==========================================================
 
   function addNamedPresentationPaletteColor(name: string, color: Color) {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.add",
         labelKey: "history.element.setting",
@@ -3852,7 +3892,7 @@ export function EditorWorkspace({
   }
 
   function removePresentationPaletteColor(colorId: string) {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.remove",
         labelKey: "history.element.setting",
@@ -3896,7 +3936,7 @@ export function EditorWorkspace({
   function addCustomLibraryPalette(palette: CustomLibraryPaletteDraft): CustomLibraryPaletteAddOutcome {
     const result = addCustomLibraryPaletteToPresentation(presentation, palette);
     if (!result.ok) return { ok: false, reason: result.reason };
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "palette.import",
         labelKey: "history.element.setting",
@@ -3916,7 +3956,7 @@ export function EditorWorkspace({
       return { kind: result.kind, addedFaces: 0 };
     }
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "font.import",
         labelKey: "history.element.setting",
@@ -3937,7 +3977,7 @@ export function EditorWorkspace({
     if (!fontResource) return "not-found";
     if (presentationUsesFontFamily(presentation, fontResource.family)) return "in-use";
 
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "font.remove",
         labelKey: "history.element.setting",
@@ -3999,22 +4039,19 @@ export function EditorWorkspace({
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const textId = selectedDocumentElement.id;
-    const slideIndex = selectedSlideIndex;
-    commitPresentationAction(
+    const target = authoringTarget;
+    commitAuthoringAction(
+      target,
       { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
-      (current) => {
-        const slide = current.slides[slideIndex];
-        if (!slide) return current;
-        const text = findElementById(slide.elements, textId);
+      (current, currentTarget) => {
+        const elements = resolveAuthoringElements(current, currentTarget);
+        const text = elements ? findElementById(elements, textId) : undefined;
         if (text?.type !== "text") return current;
         const created = createTextStyleFromText(current, text, trimmedName);
         if (!created) return current;
-        return {
-          ...created.presentation,
-          slides: current.slides.map((candidate, index) => index === slideIndex
-            ? { ...candidate, elements: updateElementById(candidate.elements, textId, () => created.text) }
-            : candidate),
-        };
+        return updateAuthoringElements(created.presentation, currentTarget, (currentElements) =>
+          updateElementById(currentElements, textId, (element) => element.type === "text" ? created.text : element),
+        );
       },
     );
   }
@@ -4076,32 +4113,35 @@ export function EditorWorkspace({
     if (!name.trim()) return;
     if (selectedDocumentElement?.type !== "container" && selectedDocumentElement?.type !== "topics") return;
 
-    const slideIndex = selectedSlideIndex;
+    const target = authoringTarget;
     const elementId = selectedDocumentElement.id;
     const expectedType = selectedDocumentElement.type;
 
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "linkedStyle.createFromElement",
         labelKey: "history.element.setting",
         labelParams: { setting: "linkedStyle.createFromElement" },
       },
-      (current) => {
-        const slide = current.slides[slideIndex];
-        if (!slide) return current;
-
-        const currentElement = findElementById(slide.elements, elementId);
+      (current, currentTarget) => {
+        const elements = resolveAuthoringElements(current, currentTarget);
+        const currentElement = elements ? findElementById(elements, elementId) : undefined;
         if (!currentElement || currentElement.type !== expectedType) return current;
 
         if (expectedType === "container") {
           if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
-          const candidate = createLinkedStyleFromContainer(current, slideIndex, elementId, name);
-          return candidate === current ? current : candidate;
+          const candidate = createLinkedStyleFromContainerElement(current, currentElement, name);
+          return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+            updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
+          );
         }
 
         if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
-        const candidate = createLinkedStyleFromTopics(current, slideIndex, elementId, name);
-        return candidate === current ? current : candidate;
+        const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
+        return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+          updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element),
+        );
       },
     );
   }
@@ -4153,7 +4193,7 @@ export function EditorWorkspace({
     );
   }
   function attachLinkedStyleMatches(id: string): void {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "linkedStyle.attachMatches",
         labelKey: "history.element.setting",
@@ -4168,74 +4208,85 @@ export function EditorWorkspace({
       },
     );
   }
-  function selectLinkedStyleContainer(location: LinkedStyleContainerLocation): void {
-    const slide = presentation.slides[location.slideIndex];
-    if (slide === undefined) return;
-    const element = findElementById(slide.elements, location.elementId);
-    if (element?.type !== "container" || element.linkedStyleId === undefined) return;
-    setSelectedSlideIndex(location.slideIndex);
+  function selectLinkedStyleContainer(location: LinkedStyleUsageLocation, linkedStyleId: string): void {
+    const elements = resolveAuthoringElements(presentation, location.target);
+    const element = elements ? findElementById(elements, location.elementId) : null;
+    if (element?.type !== "container" || element.linkedStyleId !== linkedStyleId) return;
+    if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
+    if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
+      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "container", styleId: linkedStyleId };
+      setAuthoringTarget(location.target);
+      setSelectedElement(null);
+      return;
+    }
     setSelectedElement({ id: element.id, type: "container" });
   }
 
-  function selectTextStyleElement(location: TextStyleUsageLocation): void {
-    const slide = presentation.slides[location.slideIndex];
-    if (slide === undefined) return;
-    const element = findElementById(slide.elements, location.elementId);
-    if (element?.type !== "text" || element.variant === undefined) return;
-    setSelectedSlideIndex(location.slideIndex);
+  function selectTextStyleElement(location: TextStyleUsageLocation, styleId: string): void {
+    const elements = resolveAuthoringElements(presentation, location.target);
+    const element = elements ? findElementById(elements, location.elementId) : null;
+    if (element?.type !== "text" || element.variant !== styleId || element.styleDetached === true) return;
+    if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
+    if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
+      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "text", styleId };
+      setAuthoringTarget(location.target);
+      setSelectedElement(null);
+      return;
+    }
     setSelectedElement({ id: element.id, type: "text" });
   }
 
   function requestTextStyleDetach(styleId: string, styleName: string, location: TextStyleUsageLocation): void {
-    setPendingStyleDetach({ kind: "text-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+    setPendingStyleDetach({ kind: "text-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
-  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleContainerLocation): void {
-    setPendingStyleDetach({ kind: "linked-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleUsageLocation): void {
+    setPendingStyleDetach({ kind: "linked-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
   function confirmStyleDetach(): void {
     const pending = pendingStyleDetach;
     if (!pending) return;
     if (pending.kind === "text-style") {
-      commitPresentationAction(
+      commitAuthoringAction(
+        pending.target,
         {
           kind: "element.setting",
           labelKey: "history.element.setting",
           labelParams: { setting: "text.style" },
         },
-        (current) => {
-          const slide = current.slides[pending.slideIndex];
-          if (!slide) return current;
+        (current, target) => {
+          const elements = resolveAuthoringElements(current, target);
+          if (!elements) return current;
           if (!listPresentationTextStyles(current).some(({ id }) => id === pending.styleId)) return current;
-          const target = findElementById(slide.elements, pending.elementId);
-          if (target?.type !== "text" || target.variant !== pending.styleId || target.styleDetached === true) return current;
-          const elements = updateElementById(
-            slide.elements,
+          const element = findElementById(elements, pending.elementId);
+          if (element?.type !== "text" || element.variant !== pending.styleId || element.styleDetached === true) return current;
+          const nextElements = updateElementById(
+            elements,
             pending.elementId,
             (element) => element.type === "text" ? detachTextStyle(current, element) : element,
           );
-          if (elements === slide.elements) return current;
-          return {
-            ...current,
-            slides: current.slides.map((candidate, index) => index === pending.slideIndex ? { ...candidate, elements } : candidate),
-          };
+          return nextElements === elements ? current : replaceAuthoringElements(current, target, nextElements);
         },
       );
     } else {
-      commitPresentationAction(
+      commitAuthoringAction(
+        pending.target,
         {
           kind: "element.setting",
           labelKey: "history.element.setting",
           labelParams: { setting: "container.linkedStyle" },
         },
-        (current) => {
-          const slide = current.slides[pending.slideIndex];
-          if (!slide) return current;
-          const target = findElementById(slide.elements, pending.elementId);
-          if (target?.type !== "container" || target.linkedStyleId !== pending.styleId) return current;
-          if (!current.linkedStyles?.some((style) => style.id === pending.styleId)) return current;
-          return detachLinkedStyle(current, pending.slideIndex, pending.elementId);
+        (current, target) => {
+          const elements = resolveAuthoringElements(current, target);
+          const element = elements ? findElementById(elements, pending.elementId) : undefined;
+          if (element?.type !== "container" || element.linkedStyleId !== pending.styleId) return current;
+          const linkedStyle = current.linkedStyles?.find((style) => style.id === pending.styleId);
+          if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
+          const detached = detachLinkedContainerStyleFromElement(current, element);
+          if (detached === null || !elements) return current;
+          const nextElements = updateElementById(elements, pending.elementId, (candidate) => candidate.type === "container" ? detached : candidate);
+          return nextElements === elements ? current : replaceAuthoringElements(current, target, nextElements);
         },
       );
     }
@@ -5822,9 +5873,8 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "resources"}
-                disabled={rootDefinitionMode}
+                disabled={false}
                 onClick={() => {
-                  if (rootDefinitionMode) return;
                   setRightPanelMode((current) =>
                     current === "resources" ? "editor" : "resources",
                   );
@@ -6104,6 +6154,7 @@ export function EditorWorkspace({
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
             onApplyElementStyle={applyCustomLibraryItem}
+            allowElementStyleApply={!rootDefinitionMode}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}

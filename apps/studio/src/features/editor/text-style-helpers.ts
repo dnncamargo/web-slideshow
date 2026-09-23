@@ -21,7 +21,8 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { someElement, updateElementById, visitElements } from "./element-hierarchy";
-import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
+import { forEachNavigablePresentationAuthoringTree, forEachPresentationAuthoringTree, updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
+import type { AuthoringTarget } from "./authoring-target";
 
 export type TextStyleOwnedProperty =
   | { scope: "typography"; property: (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number] }
@@ -29,7 +30,7 @@ export type TextStyleOwnedProperty =
   | { scope: "layout"; property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number] };
 
 export type TextStyleUsageLocation = {
-  slideIndex: number;
+  target: AuthoringTarget;
   elementId: string;
 };
 
@@ -347,11 +348,14 @@ export function propagateTextStyleDefinitionChanges(
   if (changedProperties.length === 0) return presentation;
 
   const owner = buildChangedTextStyleOwner(before, after, changedProperties);
-  let next = presentation;
-  for (const { slideIndex, elementId } of findTextStyleUsageLocations(presentation, textStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
+  return updatePresentationAuthoringTrees(presentation, (elements) => {
+    const usageIds: string[] = [];
+    visitElements(elements, (element) => {
+      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
+        usageIds.push(element.id);
+      }
+    });
+    return usageIds.reduce((current, elementId) => updateElementById(current, elementId, (element) => {
       if (element.type !== "text" || element.variant !== textStyleId || element.styleDetached === true) return element;
       const hasLocalChangedProperty = changedProperties.some((property) =>
         property.scope === "typography"
@@ -370,14 +374,8 @@ export function propagateTextStyleDefinitionChanges(
       if (cleared.layout === undefined) delete nextElement.layout;
       else nextElement.layout = cleared.layout;
       return nextElement;
-    });
-    if (elements === slide.elements) continue;
-    next = {
-      ...next,
-      slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate),
-    };
-  }
-  return next;
+    }), elements);
+  });
 }
 
 export function isTextStyleUsed(presentation: Presentation, id: string): boolean {
@@ -396,10 +394,10 @@ export function findTextStyleUsageLocations(
   textStyleId: string,
 ): TextStyleUsageLocation[] {
   const locations: TextStyleUsageLocation[] = [];
-  presentation.slides.forEach((slide, slideIndex) => {
-    visitElements(slide.elements, (element) => {
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitElements(elements, (element) => {
       if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
-        locations.push({ slideIndex, elementId: element.id });
+        locations.push({ target, elementId: element.id });
       }
     });
   });

@@ -157,4 +157,39 @@ describe("linked style bulk authoring", () => {
     const card = getContainer(result, 0, "card");
     expect(resolveLinkedContainerStyle(result, card)).toMatchObject({ layout: { children: { gap: 16 }, padding: 24 }, style: { borderRadius: 12 } });
   });
+
+  it("matches and attaches across Slide, local-root-child, and Root trees without changing nonmatches", () => {
+    const localMatch = container("local-match", { layout: { children: { gap: 16 }, margin: 9 } });
+    const rootMatch = container("root-match", { layout: { children: { gap: 16 }, margin: 8 } });
+    const localNonmatch = container("local-nonmatch", { layout: { children: { gap: 12 } } });
+    const document = PresentationSchema.parse({
+      ...presentation([container("slide-match", { layout: { children: { gap: 16 }, margin: 7 } }), container("slide-nonmatch", { layout: { children: { gap: 12 } } })], [linked("gap", { layout: { children: { gap: 16 } } })]),
+      rootDefinitions: [{ id: "root-definition", name: "Root", localChildTargetIds: ["root"], root: { id: "root", type: "container", hidden: false, children: [rootMatch] } }],
+      slides: [{
+        id: "slide-0",
+        title: "One",
+        elements: [container("slide-match", { layout: { children: { gap: 16 }, margin: 7 } }), container("slide-nonmatch", { layout: { children: { gap: 12 } } })],
+      }, {
+        id: "slide-1",
+        title: "Root",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        localRootChildren: [{ targetContainerId: "root", children: [localMatch, localNonmatch] }],
+      }],
+    });
+
+    expect(findMatchingContainersForLinkedStyle(document, "gap")).toEqual([
+      { slideIndex: 0, elementId: "slide-match" },
+      { slideIndex: 1, localRootChildrenIndex: 0, elementId: "local-match" },
+      { rootDefinitionId: "root-definition", elementId: "root-match" },
+    ]);
+
+    const result = attachLinkedStyleToMatchingContainers(document, "gap");
+    expect(result.attachedLocations).toHaveLength(3);
+    expect(result.presentation.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "gap", layout: { margin: 7 } });
+    expect(result.presentation.slides[1]!.localRootChildren![0]!.children[0]).toMatchObject({ linkedStyleId: "gap", layout: { margin: 9 } });
+    expect(result.presentation.rootDefinitions![0]!.root.children[0]).toMatchObject({ linkedStyleId: "gap", layout: { margin: 8 } });
+    expect(result.presentation.slides[0]!.elements[1]).toEqual(document.slides[0]!.elements[1]);
+    expect(result.presentation.slides[1]!.localRootChildren![0]!.children[1]).toEqual(localNonmatch);
+  });
 });

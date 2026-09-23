@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema, type LinkedContainerStyle, type LinkedTopicsStyle, type PresentationElement } from "@web-slideshow/document-schema";
 import { createLinkedStyleFromContainer, createLinkedStyleFromTopics, updateLinkedTopicsStyle } from "../src/features/editor/linked-style-authoring";
+import type { LinkedStyleUsageLocation } from "../src/features/editor/linked-style-bulk-authoring";
 import { createLinkedStylePreviewContainer, CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { paletteColorCssVariableName } from "@web-slideshow/renderer";
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
@@ -29,7 +30,7 @@ describe("Linked Styles Resources contract", () => {
   let host: HTMLDivElement;
   afterEach(async () => { if (root) await act(async () => root?.unmount()); host?.remove(); root = undefined; host = undefined!; });
 
-  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: { slideIndex: number; elementId: string }) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined, selectedElement: PresentationElement | null = null, onCreateFromSelected: (name: string) => void = () => undefined, onUpdateLinkedTopicsStyle: (id: string, patch: LinkedTopicsStylePatch) => void = () => undefined, onRemoveLinkedStyle: (id: string) => void = () => undefined) {
+  async function render(value = makePresentation(), onUpdateLinkedStyle: (id: string, patch: LinkedStylePatch) => void = () => undefined, locale: "en" | "pt-BR" = "en", onRequestDetachLinkedStyle: (id: string, name: string, location: LinkedStyleUsageLocation) => void = () => undefined, onRenameLinkedStyle: (id: string, name: string) => void = () => undefined, selectedElement: PresentationElement | null = null, onCreateFromSelected: (name: string) => void = () => undefined, onUpdateLinkedTopicsStyle: (id: string, patch: LinkedTopicsStylePatch) => void = () => undefined, onRemoveLinkedStyle: (id: string) => void = () => undefined) {
     if (root) await act(async () => root?.unmount());
     host?.remove();
     host = document.createElement("div"); document.body.append(host); root = createRoot(host);
@@ -107,7 +108,7 @@ describe("Linked Styles Resources contract", () => {
     expect(x?.getAttribute("aria-label")).toBe("Detach this element from Gap");
     expect(request).not.toHaveBeenCalled();
     await act(async () => x?.click());
-    expect(request).toHaveBeenCalledWith("gap", "Gap", { slideIndex: 0, elementId: "linked" });
+    expect(request).toHaveBeenCalledWith("gap", "Gap", { target: { kind: "slide", slideIndex: 0 }, elementId: "linked" });
   });
 
   it("renames a Linked Style through the existing update boundary", async () => {
