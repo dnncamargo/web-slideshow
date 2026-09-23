@@ -8,11 +8,18 @@ import {
 import { updateElementById } from "./element-tree";
 import { visitContainers, visitElements } from "./element-hierarchy";
 import { adoptLinkedContainerStyle } from "./linked-style-authoring";
+import { forEachNavigablePresentationAuthoringTree } from "./presentation-authoring-trees";
+import type { AuthoringTarget } from "./authoring-target";
 
 type PropertyBag = Record<string, unknown>;
 
 export type LinkedStyleContainerLocation = {
   slideIndex: number;
+  elementId: string;
+};
+
+export type LinkedStyleUsageLocation = {
+  target: AuthoringTarget;
   elementId: string;
 };
 
@@ -67,6 +74,7 @@ function matchesLinkedContainerStyle(container: ContainerElement, linked: Linked
     (linked.effect?.shadow === undefined || (container.effect?.shadow !== undefined && valuesEqual(container.effect.shadow, linked.effect.shadow)));
 }
 
+// Matching and bulk attachment retain their Slide-only contract until SM6D7B4.
 function locationsFor(presentation: Presentation, predicate: (container: ContainerElement) => boolean): LinkedStyleContainerLocation[] {
   const locations: LinkedStyleContainerLocation[] = [];
   presentation.slides.forEach((slide, slideIndex) => {
@@ -93,6 +101,37 @@ export function findElementsLinkedToStyle(presentation: Presentation, linkedStyl
     visitElements(slide.elements, (element) => {
       if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
         locations.push({ slideIndex, elementId: element.id });
+      }
+    });
+  });
+  return locations;
+}
+
+export function findContainerLinkedStyleUsageLocations(
+  presentation: Presentation,
+  linkedStyleId: string,
+): LinkedStyleUsageLocation[] {
+  const locations: LinkedStyleUsageLocation[] = [];
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitContainers(elements, (container) => {
+      if (container.linkedStyleId === linkedStyleId) {
+        locations.push({ target, elementId: container.id });
+      }
+    });
+  });
+  return locations;
+}
+
+/** Finds owner-aware Resources usages for both Container and Topics Linked Styles. */
+export function findLinkedStyleUsageLocations(
+  presentation: Presentation,
+  linkedStyleId: string,
+): LinkedStyleUsageLocation[] {
+  const locations: LinkedStyleUsageLocation[] = [];
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitElements(elements, (element) => {
+      if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
+        locations.push({ target, elementId: element.id });
       }
     });
   });

@@ -195,7 +195,7 @@ import {
   clearLinkedTopicsStyleProperty,
   type LinkedTopicsStyleProperty,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, findElementsLinkedToStyle, type LinkedStyleContainerLocation } from "./linked-style-bulk-authoring";
+import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, findElementsLinkedToStyle, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
 import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
 
 // ============================================================
@@ -788,6 +788,13 @@ interface PendingQrSelection {
   beforePresentation: Presentation;
 }
 
+interface PendingResourceSelection {
+  target: AuthoringTarget;
+  elementId: string;
+  elementType: "text" | "container";
+  styleId: string;
+}
+
 function areAuthoringTargetsEqual(
   left: AuthoringTarget,
   right: AuthoringTarget,
@@ -1224,6 +1231,7 @@ export function EditorWorkspace({
   const [selectedElement, setSelectedElement] =
     useState<SelectedElementInfo | null>(null);
   const pendingQrSelectionRef = useRef<PendingQrSelection | null>(null);
+  const pendingResourceSelectionRef = useRef<PendingResourceSelection | null>(null);
   const [galleryItemSelection, setGalleryItemSelection] =
     useState<GalleryItemSelection | null>(null);
   const [selectedTableStructuralNode, setSelectedTableStructuralNode] =
@@ -1487,6 +1495,24 @@ export function EditorWorkspace({
       setCanvasGuideBounds(null);
     }
   }, [rootDefinitionMode]);
+
+  useEffect(() => {
+    const pending = pendingResourceSelectionRef.current;
+    if (!pending) return;
+    if (!areAuthoringTargetsEqual(authoringTarget, pending.target)) {
+      pendingResourceSelectionRef.current = null;
+      return;
+    }
+
+    const elements = resolveAuthoringElements(presentation, pending.target);
+    const element = elements ? findElementById(elements, pending.elementId) : null;
+    const valid = pending.elementType === "text"
+      ? element?.type === "text" && element.variant === pending.styleId && element.styleDetached !== true
+      : element?.type === "container" && element.linkedStyleId === pending.styleId;
+    pendingResourceSelectionRef.current = null;
+    if (!valid || !element) return;
+    setSelectedElement({ id: element.id, type: pending.elementType });
+  }, [authoringTarget, presentation]);
 
   useEffect(() => {
     if (!pendingElementDeletion) return;
@@ -4177,26 +4203,37 @@ export function EditorWorkspace({
       },
     );
   }
-  function selectLinkedStyleContainer(location: LinkedStyleContainerLocation): void {
-    const slide = presentation.slides[location.slideIndex];
-    if (slide === undefined) return;
-    const element = findElementById(slide.elements, location.elementId);
-    if (element?.type !== "container" || element.linkedStyleId === undefined) return;
-    setSelectedSlideIndex(location.slideIndex);
+  function selectLinkedStyleContainer(location: LinkedStyleUsageLocation, linkedStyleId: string): void {
+    const elements = resolveAuthoringElements(presentation, location.target);
+    const element = elements ? findElementById(elements, location.elementId) : null;
+    if (element?.type !== "container" || element.linkedStyleId !== linkedStyleId) return;
+    if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
+    if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
+      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "container", styleId: linkedStyleId };
+      setAuthoringTarget(location.target);
+      setSelectedElement(null);
+      return;
+    }
     setSelectedElement({ id: element.id, type: "container" });
   }
 
-  function selectTextStyleElement(location: TextStyleUsageLocation): void {
-    const slide = presentation.slides[location.slideIndex];
-    if (slide === undefined) return;
-    const element = findElementById(slide.elements, location.elementId);
-    if (element?.type !== "text" || element.variant === undefined) return;
-    setSelectedSlideIndex(location.slideIndex);
+  function selectTextStyleElement(location: TextStyleUsageLocation, styleId: string): void {
+    const elements = resolveAuthoringElements(presentation, location.target);
+    const element = elements ? findElementById(elements, location.elementId) : null;
+    if (element?.type !== "text" || element.variant !== styleId || element.styleDetached === true) return;
+    if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
+    if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
+      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "text", styleId };
+      setAuthoringTarget(location.target);
+      setSelectedElement(null);
+      return;
+    }
     setSelectedElement({ id: element.id, type: "text" });
   }
 
   function requestTextStyleDetach(styleId: string, styleName: string, location: TextStyleUsageLocation): void {
-    setPendingStyleDetach({ kind: "text-style", styleId, styleName, slideIndex: location.slideIndex, elementId: location.elementId });
+    if (location.target.kind !== "slide") return;
+    setPendingStyleDetach({ kind: "text-style", styleId, styleName, slideIndex: location.target.slideIndex, elementId: location.elementId });
   }
 
   function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleContainerLocation): void {

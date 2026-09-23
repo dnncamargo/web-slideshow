@@ -4,10 +4,33 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { collectAuthoringIds } from "./element-hierarchy";
+import type { AuthoringTarget } from "./authoring-target";
 
 export type PresentationAuthoringTreeVisitor = (
   elements: readonly PresentationElement[],
 ) => void;
+
+export type NavigablePresentationAuthoringTreeVisitor = (
+  elements: readonly PresentationElement[],
+  target: AuthoringTarget,
+) => void;
+
+/** Visits only the canonical owner trees currently exposed by AuthoringTarget. */
+export function forEachNavigablePresentationAuthoringTree(
+  presentation: Presentation,
+  visit: NavigablePresentationAuthoringTreeVisitor,
+): void {
+  presentation.slides.forEach((slide, slideIndex) => {
+    visit(slide.elements, { kind: "slide", slideIndex });
+  });
+
+  for (const rootDefinition of presentation.rootDefinitions ?? []) {
+    visit([rootDefinition.root], {
+      kind: "root-definition",
+      rootDefinitionId: rootDefinition.id,
+    });
+  }
+}
 
 /** Visits each persisted PresentationElement ownership tree exactly once. */
 export function forEachPresentationAuthoringTree(

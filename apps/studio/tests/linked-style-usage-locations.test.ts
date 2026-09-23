@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PresentationSchema } from "@web-slideshow/document-schema";
 
-import { findElementsLinkedToStyle } from "../src/features/editor/linked-style-bulk-authoring";
+import { findContainerLinkedStyleUsageLocations, findElementsLinkedToStyle, findLinkedStyleUsageLocations } from "../src/features/editor/linked-style-bulk-authoring";
 
 describe("Linked Style usage locations", () => {
   it("finds direct and nested Container and Topics references by linkedStyleId", () => {
@@ -40,5 +40,37 @@ describe("Linked Style usage locations", () => {
       { slideIndex: 0, elementId: "unrelated" },
     ]);
     expect(findElementsLinkedToStyle(presentation, "Shared")).toEqual([]);
+  });
+
+  it("finds owner-aware Container and Topics usages in Root Definitions", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-root",
+      title: "P",
+      slides: [{ id: "s", title: "S", elements: [
+        { id: "slide-container", type: "container" as const, hidden: false, linkedStyleId: "container-style", children: [] },
+        { id: "slide-topics", type: "topics" as const, hidden: false, kind: "unordered" as const, linkedStyleId: "topics-style", items: [] },
+      ] }],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        root: { id: "root-container", type: "container" as const, hidden: false, linkedStyleId: "container-style", children: [
+          { id: "root-topics", type: "topics" as const, hidden: false, kind: "unordered" as const, linkedStyleId: "topics-style", items: [] },
+        ] },
+      }],
+      linkedStyles: [
+        { id: "container-style", name: "Container", layout: { margin: 4 } },
+        { target: "topics" as const, id: "topics-style", name: "Topics", itemGap: 4 },
+      ],
+    });
+
+    expect(findContainerLinkedStyleUsageLocations(presentation, "container-style")).toEqual([
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "slide-container" },
+      { target: { kind: "root-definition", rootDefinitionId: "root-1" }, elementId: "root-container" },
+    ]);
+    expect(findLinkedStyleUsageLocations(presentation, "topics-style")).toEqual([
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "slide-topics" },
+      { target: { kind: "root-definition", rootDefinitionId: "root-1" }, elementId: "root-topics" },
+    ]);
   });
 });

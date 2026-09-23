@@ -9,6 +9,7 @@ import { CustomResourcesWorkspace } from "../src/features/editor/resources/custo
 import { findElementById, updateElementById } from "../src/features/editor/element-tree";
 import { createTextStyleFromText, detachTextStyle } from "../src/features/editor/text-typography-authoring";
 import { addCustomTextStyle, isTextStyleUsed, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride } from "../src/features/editor/text-style-helpers";
+import type { TextStyleUsageLocation } from "../src/features/editor/text-style-helpers";
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -50,7 +51,7 @@ function Harness({
   presentationRef?: { current: Presentation | undefined };
   paletteColors?: readonly PresentationPaletteColor[];
   presentationFonts?: readonly FontResource[];
-  onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void;
+  onSelectTextStyleElement?: (location: TextStyleUsageLocation, styleId: string) => void;
   selectedElement?: PresentationElement | null;
   includePresentation?: boolean;
 }) {
@@ -89,10 +90,12 @@ function Harness({
     isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
     onSelectTextStyleElement={onSelectTextStyleElement}
     onRequestDetachTextStyleElement={(styleId, _styleName, location) => setPresentation((current) => {
-      const slide = current.slides[location.slideIndex];
+      if (location.target.kind !== "slide") return current;
+      const slideIndex = location.target.slideIndex;
+      const slide = current.slides[slideIndex];
       const target = slide ? findElementById(slide.elements, location.elementId) : null;
       if (target?.type !== "text" || target.variant !== styleId || target.styleDetached === true || !slide) return current;
-      return { ...current, slides: current.slides.map((candidate, index) => index === location.slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, location.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
+      return { ...current, slides: current.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements: updateElementById(candidate.elements, location.elementId, (element) => element.type === "text" ? detachTextStyle(current, element) : element) } : candidate) };
     })}
     selectedElement={selectedElement}
   />;
@@ -108,7 +111,7 @@ describe("Custom Resources Text Styles", () => {
     root = undefined;
   });
 
-async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: { slideIndex: number; elementId: string }) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont], selectedElement: PresentationElement | null = null, includePresentation = false): Promise<void> {
+async function render(initial?: Presentation, presentationRef?: { current: Presentation | undefined }, paletteColors?: readonly PresentationPaletteColor[], onSelectTextStyleElement?: (location: TextStyleUsageLocation, styleId: string) => void, locale: "en" | "pt-BR" = "en", presentationFonts: readonly FontResource[] = [presentationFont], selectedElement: PresentationElement | null = null, includePresentation = false): Promise<void> {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);

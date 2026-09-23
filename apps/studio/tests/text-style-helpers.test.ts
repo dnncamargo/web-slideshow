@@ -134,7 +134,7 @@ describe("presentation typography style authoring", () => {
         { id: "topics", type: "topics", hidden: false, kind: "unordered", items: [{ id: "item", content: { id: "slot", children: [detachedTopicText, attachedTopicText] }, children: [] }] },
       ] }],
     });
-    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ slideIndex: 0, elementId: "attached-topic" }]);
+    expect(findTextStyleUsageLocations(presentation, "body")).toEqual([{ target: { kind: "slide", slideIndex: 0 }, elementId: "attached-topic" }]);
     expect(isTextStyleUsed(presentation, "body")).toBe(true);
     const onlyDetached = PresentationSchema.parse({ ...presentation, slides: [{ ...presentation.slides[0]!, elements: [detachedTopicText] }] });
     expect(findTextStyleUsageLocations(onlyDetached, "body")).toEqual([]);
@@ -221,11 +221,33 @@ describe("presentation typography style authoring", () => {
       ],
     });
     expect(findTextStyleUsageLocations(presentation, "quote")).toEqual([
-      { slideIndex: 0, elementId: "quote-text" },
-      { slideIndex: 0, elementId: "nested-quote" },
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "quote-text" },
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "nested-quote" },
     ]);
     expect(isTextStyleUsed(presentation, "quote")).toBe(true);
     expect(findTextStyleUsageLocations(presentation, "caption")).toEqual([]);
+  });
+
+  it("projects matching Text Style usage from a canonical Root Definition", () => {
+    const presentation = PresentationSchema.parse({
+      ...addCustomTextStyle(base(), "Quote", "body"),
+      slides: [{ id: "s", title: "", elements: [{ id: "slide-quote", type: "text", hidden: false, variant: "quote", content: "Slide" }] }],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [{ id: "root-quote", type: "text", hidden: false, variant: "quote", content: "Root" }],
+        },
+      }],
+    });
+
+    expect(findTextStyleUsageLocations(presentation, "quote")).toEqual([
+      { target: { kind: "slide", slideIndex: 0 }, elementId: "slide-quote" },
+      { target: { kind: "root-definition", rootDefinitionId: "root-1" }, elementId: "root-quote" },
+    ]);
   });
 
   it("propagates only changed owned properties across attached nested text", () => {

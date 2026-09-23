@@ -21,7 +21,8 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { someElement, updateElementById, visitElements } from "./element-hierarchy";
-import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
+import { forEachNavigablePresentationAuthoringTree, forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
+import type { AuthoringTarget } from "./authoring-target";
 
 export type TextStyleOwnedProperty =
   | { scope: "typography"; property: (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number] }
@@ -29,6 +30,11 @@ export type TextStyleOwnedProperty =
   | { scope: "layout"; property: (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number] };
 
 export type TextStyleUsageLocation = {
+  target: AuthoringTarget;
+  elementId: string;
+};
+
+type SlideTextStyleUsageLocation = {
   slideIndex: number;
   elementId: string;
 };
@@ -348,7 +354,7 @@ export function propagateTextStyleDefinitionChanges(
 
   const owner = buildChangedTextStyleOwner(before, after, changedProperties);
   let next = presentation;
-  for (const { slideIndex, elementId } of findTextStyleUsageLocations(presentation, textStyleId)) {
+  for (const { slideIndex, elementId } of findSlideTextStyleUsageLocations(presentation, textStyleId)) {
     const slide = next.slides[slideIndex];
     if (slide === undefined) continue;
     const elements = updateElementById(slide.elements, elementId, (element) => {
@@ -396,6 +402,22 @@ export function findTextStyleUsageLocations(
   textStyleId: string,
 ): TextStyleUsageLocation[] {
   const locations: TextStyleUsageLocation[] = [];
+  forEachNavigablePresentationAuthoringTree(presentation, (elements, target) => {
+    visitElements(elements, (element) => {
+      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
+        locations.push({ target, elementId: element.id });
+      }
+    });
+  });
+  return locations;
+}
+
+// Definition propagation remains intentionally Slide-only until SM6D7B4.
+function findSlideTextStyleUsageLocations(
+  presentation: Presentation,
+  textStyleId: string,
+): SlideTextStyleUsageLocation[] {
+  const locations: SlideTextStyleUsageLocation[] = [];
   presentation.slides.forEach((slide, slideIndex) => {
     visitElements(slide.elements, (element) => {
       if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
