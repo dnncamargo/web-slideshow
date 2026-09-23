@@ -31,6 +31,13 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+  if (!setter) throw new Error("expected HTMLTextAreaElement.value setter");
+  setter.call(textarea, value);
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
     .find((candidate) => candidate.textContent?.includes(text));
@@ -45,7 +52,7 @@ function exactButtonByText(container: HTMLElement, text: string): HTMLButtonElem
   return button;
 }
 
-describe("SM6D Slide and Root Definition creation flow", () => {
+describe("SM6E1D Slide and Root Definition creation flow", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -141,6 +148,37 @@ describe("SM6D Slide and Root Definition creation flow", () => {
 
     await act(async () => exactButtonByText(container, "History").click());
     expect(container.textContent).toContain("Create Root Definition");
+  });
+
+  it("makes a newly created Root immediately editable through the normal Inspector", async () => {
+    const initial = presentation();
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+    await openNew();
+    await chooseRoot("  Editable master  ", "Full");
+
+    const createdTitle = container.querySelector<HTMLElement>('[data-presentation-id="root-definition-title"]');
+    expect(createdTitle).not.toBeNull();
+    await act(async () => createdTitle?.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const textContent = container.querySelector<HTMLTextAreaElement>("#text-content");
+    expect(textContent?.value).toBe("Slide title");
+    expect(textContent).not.toBeNull();
+    await act(async () => changeTextarea(textContent!, "Edited Root title"));
+    await save();
+
+    const snapshot = saved.at(-1);
+    const created = snapshot?.rootDefinitions?.[0];
+    expect(created?.name).toBe("Editable master");
+    expect(created?.root.children[0]).toMatchObject({
+      id: "root-definition-title",
+      type: "text",
+      content: "Edited Root title",
+    });
+    expect(snapshot?.slides).toEqual(initial.slides);
+    expect(snapshot?.slides.some((slide) =>
+      slide.elements.some((element) => element.id === "root-definition-title"),
+    )).toBe(false);
   });
 
   it("creates a blank Root, then undo removes it and redo restores the document", async () => {
