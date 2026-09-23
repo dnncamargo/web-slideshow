@@ -229,6 +229,44 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(redone.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
   });
 
+  it("scopes blocked receiver feedback to the attempted Container", async () => {
+    const source = PresentationSchema.parse({
+      ...presentation(),
+      defaultRootDefinitionId: "root-1",
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        localChildTargetIds: ["root-container"],
+        root: container("root-container", [container("root-child")]),
+      }],
+      slides: [{
+        id: "slide-1",
+        title: "Retained",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "root-container", children: [text("local-child")] }],
+      }],
+    });
+    const before = structuredClone(source);
+    render(source);
+
+    const receiver = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    const otherContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-child"]');
+    if (!receiver || !otherContainer) throw new Error("expected both Root Containers in Canvas");
+
+    await act(async () => receiver.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const checkbox = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!checkbox) throw new Error("expected receiver checkbox");
+    expect(checkbox.checked).toBe(true);
+    await act(async () => checkbox.click());
+    expect(containerElement.textContent).toContain("already receives local Slide content");
+    expect(checkbox.checked).toBe(true);
+
+    await act(async () => otherContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(containerElement.textContent).not.toContain("already receives local Slide content");
+    expect(containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]")?.checked).toBe(false);
+    expect(source).toEqual(before);
+  });
+
   it("edits, saves, undoes, redoes, and remounts canonical Root Definition Text", async () => {
     const source = presentation();
     const onSave = vi.fn(async (_saved: Presentation) => {});

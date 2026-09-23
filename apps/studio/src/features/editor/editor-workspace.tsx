@@ -210,7 +210,13 @@ import {
 } from "./slide-operations";
 
 import type { SlideLayoutPreset } from "./slide-operations";
-import { createRootDefinitionFromPreset, deleteRootDefinition, renameRootDefinition, setSlideRootDefinition } from "./root-definition-lifecycle";
+import {
+  createRootDefinitionFromPreset,
+  deleteRootDefinition,
+  renameRootDefinition,
+  setSlideRootDefinition,
+  type RootDefinitionLifecycleFailure,
+} from "./root-definition-lifecycle";
 
 // ============================================================
 // END: SLIDE OPERATIONS
@@ -326,6 +332,12 @@ import type {
 
 import { SlideLayoutPicker, type CreationKind } from "./slide-layout-picker";
 import { updatePresentationTitle } from "./presentation-title";
+
+type RootLocalContentTargetError = {
+  rootDefinitionId: string;
+  containerId: string;
+  reason: RootDefinitionLifecycleFailure;
+};
 
 // ============================================================
 // END: SLIDE LAYOUT PICKER
@@ -1339,7 +1351,22 @@ export function EditorWorkspace({
 
   const [creationError, setCreationError] = useState<string | null>(null);
   const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
-  const [rootLocalContentTargetError, setRootLocalContentTargetError] = useState<string | null>(null);
+  const [rootLocalContentTargetError, setRootLocalContentTargetError] = useState<RootLocalContentTargetError | null>(null);
+
+  useEffect(() => {
+    setRootLocalContentTargetError((current) => {
+      if (
+        current === null ||
+        authoringTarget.kind !== "root-definition" ||
+        current.rootDefinitionId !== authoringTarget.rootDefinitionId ||
+        selectedElement?.type !== "container" ||
+        current.containerId !== selectedElement.id
+      ) {
+        return null;
+      }
+      return current;
+    });
+  }, [authoringTarget, selectedElement]);
 
   // ==========================================================
   // END: NEW OWNER CREATION
@@ -5007,7 +5034,11 @@ export function EditorWorkspace({
       allowed,
     );
     if (!result.ok) {
-      setRootLocalContentTargetError(result.reason);
+      setRootLocalContentTargetError({
+        rootDefinitionId,
+        containerId,
+        reason: result.reason,
+      });
       return;
     }
 
@@ -6609,7 +6640,9 @@ export function EditorWorkspace({
                               ? {
                                   allowed: (rootDefinition?.localChildTargetIds ?? []).includes(selectedDocumentElement.id),
                                   onChange: (allowed) => changeRootLocalContentTarget(selectedDocumentElement.id, allowed),
-                                  feedback: rootLocalContentTargetError === "in-use"
+                                  feedback: rootLocalContentTargetError?.rootDefinitionId === authoringTarget.rootDefinitionId &&
+                                    rootLocalContentTargetError.containerId === selectedDocumentElement.id &&
+                                    rootLocalContentTargetError.reason === "in-use"
                                     ? t("inspector.rootLocalContentInUse")
                                     : null,
                                 }
