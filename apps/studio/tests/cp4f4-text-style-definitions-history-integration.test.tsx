@@ -62,11 +62,12 @@ describe("CP4F4 Text Style definition history", () => {
     document.body.innerHTML = "";
   });
 
-  async function renderWorkspace(initial: Presentation): Promise<void> {
+  async function renderWorkspace(initial: Presentation, initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
+          initialAuthoringTarget={initialAuthoringTarget}
           customLibraryPaletteRepository={repositories}
           customLibraryFontRepository={repositories}
           onSave={async (snapshot) => { saved.push(structuredClone(snapshot)); }}
@@ -470,5 +471,72 @@ describe("CP4F4 Text Style definition history", () => {
     expect(row("quote").querySelector("[data-text-style-property='color']")).toBeNull();
     await redo();
     expect(row("quote").querySelector("[data-text-style-property='color']")).not.toBeNull();
+  });
+
+  it("commits Text Style propagation across Slide, Root, and local-root-child owners in Root mode", async () => {
+    const attached = (id: string, fontSize: number) => ({
+      id,
+      type: "text" as const,
+      hidden: false,
+      variant: "body",
+      content: id,
+      typography: { fontSize, textAlign: "right" as const },
+    });
+    const detached = {
+      ...attached("detached-text", 60),
+      styleDetached: true as const,
+      typography: { fontSize: 60, textAlign: "left" as const },
+    };
+    const initial = basePresentation({
+      textStyles: [{ id: "body", typography: { fontSize: 20 } }],
+      slides: [
+        {
+          id: "slide-1",
+          title: "Slide 1",
+          elements: [attached("slide-text", 30)],
+        },
+        {
+          id: "slide-2",
+          title: "Root-backed slide",
+          elements: [],
+          rootDefinitionId: "root-1",
+          localRootChildren: [{ targetContainerId: "root-container", children: [attached("local-text", 40), detached] }],
+        },
+      ],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        localChildTargetIds: ["root-container"],
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: [attached("root-text", 50)],
+        },
+      }],
+    });
+    const initialSnapshot = structuredClone(initial);
+
+    await renderWorkspace(initial, { kind: "root-definition", rootDefinitionId: "root-1" });
+    expect(host.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
+    const body = await openRow("body");
+    const fontSize = body.querySelector<HTMLInputElement>("#text-style-body-font-size");
+    if (!fontSize) throw new Error("Text Style font size input was not rendered");
+    await act(async () => { fontSize.focus(); setInputValue(fontSize, "24"); fontSize.blur(); });
+
+    const changed = await save();
+    expect(changed.textStyles).toEqual([{ id: "body", typography: { fontSize: 24 } }]);
+    expect(changed.slides[0]!.elements[0]).toMatchObject({ typography: { textAlign: "right" } });
+    expect(changed.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
+    expect(changed.slides[1]!.localRootChildren![0]!.children[0]).toMatchObject({ typography: { textAlign: "right" } });
+    expect(changed.slides[1]!.localRootChildren![0]!.children[0]).not.toHaveProperty("typography.fontSize");
+    expect(changed.rootDefinitions![0]!.root.children[0]).toMatchObject({ typography: { textAlign: "right" } });
+    expect(changed.rootDefinitions![0]!.root.children[0]).not.toHaveProperty("typography.fontSize");
+    expect(changed.slides[1]!.localRootChildren![0]!.children[1]).toEqual(initialSnapshot.slides[1]!.localRootChildren![0]!.children[1]);
+
+    await undo();
+    expect(await save()).toEqual(initialSnapshot);
+    await redo();
+    expect(await save()).toEqual(changed);
   });
 });
