@@ -5,6 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PresentationSchema, type Presentation, type PresentationElement } from "@web-slideshow/document-schema";
+import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
+import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
+import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
+import type { CustomLibraryRepository } from "../src/features/custom-library/custom-library-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { reconcileSelectedElementAfterReplay } from "../src/features/editor/editor-history-selection-reconciliation";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -55,6 +59,56 @@ function presentation(): Presentation {
   });
 }
 
+const paletteRecord: CustomLibraryPaletteRecord = {
+  id: "library-warm",
+  palette: {
+    name: "Warm palette",
+    colors: [{ name: "Accent", value: "#facc15" }],
+  },
+};
+
+const fontRecord: CustomLibraryFontRecord = {
+  id: "library-inter",
+  font: {
+    family: "Inter",
+    faces: [{
+      weight: 400,
+      style: "normal",
+      subset: "latin",
+      source: { type: "url", url: "https://example.com/inter.woff2" },
+    }],
+  },
+};
+
+function paletteRepository(records: CustomLibraryPaletteRecord[] = [paletteRecord]): CustomLibraryPaletteRepository {
+  return {
+    savePalette: async () => "unused",
+    updatePalette: async () => undefined,
+    listPalettes: async () => records,
+    getPalette: async () => null,
+    deletePalette: async () => undefined,
+  };
+}
+
+function fontRepository(records: CustomLibraryFontRecord[] = [fontRecord]): CustomLibraryFontRepository {
+  return {
+    saveFont: async () => "unused",
+    updateFont: async () => undefined,
+    listFonts: async () => records,
+    getFont: async () => null,
+    deleteFont: async () => undefined,
+  };
+}
+
+function elementStyleRepository(): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
+  return {
+    saveItem: async () => "unused",
+    listItems: vi.fn(async () => []),
+    getItem: async () => null,
+    deleteItem: async () => undefined,
+  };
+}
+
 describe("SM6C Root Definition workspace shell", () => {
   let containerElement: HTMLDivElement;
   let root: Root;
@@ -74,6 +128,11 @@ describe("SM6C Root Definition workspace shell", () => {
     initialPresentation = presentation(),
     onSave = vi.fn(),
     notesRepository?: PresentationNotesRepository,
+    resources?: {
+      paletteRepository?: CustomLibraryPaletteRepository;
+      fontRepository?: CustomLibraryFontRepository;
+      elementStyleRepository?: CustomLibraryRepository;
+    },
   ): void {
     act(() => {
       root.render(
@@ -83,10 +142,35 @@ describe("SM6C Root Definition workspace shell", () => {
             initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
             onSave={onSave}
             notesRepository={notesRepository}
+            customLibraryPaletteRepository={resources?.paletteRepository}
+            customLibraryFontRepository={resources?.fontRepository}
+            customLibraryRepository={resources?.elementStyleRepository}
           />
         </StudioI18nProvider>,
       );
     });
+  }
+
+  async function flushResources(): Promise<void> {
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  }
+
+  async function save(onSave: ReturnType<typeof vi.fn>): Promise<Presentation> {
+    const saveButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!saveButton) throw new Error("expected Save action");
+    await act(async () => saveButton.click());
+    const saved = onSave.mock.calls.at(-1)?.[0] as Presentation | undefined;
+    if (!saved) throw new Error("expected saved Presentation");
+    return structuredClone(saved);
+  }
+
+  async function undo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+  }
+
+  async function redo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
   }
 
   it("renders the existing Root Definition projection without adding a Slide", () => {
@@ -264,6 +348,126 @@ describe("SM6C Root Definition workspace shell", () => {
       "root-definition-workspace:root-1",
     );
     expect(setSlideNote).not.toHaveBeenCalled();
+  });
+
+  it("commits a Root Presentation palette mutation with exact Undo/Redo", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave);
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+
+    const addColor = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add to Presentation");
+    if (!addColor) throw new Error("expected Presentation palette add action");
+    await act(async () => addColor.click());
+
+    const name = containerElement.querySelector<HTMLInputElement>("[data-presentation-color-name-input]");
+    if (!name) throw new Error("expected Presentation palette name input");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("expected HTMLInputElement.value setter");
+    await act(async () => {
+      setter.call(name, "Root Accent");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      name.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const add = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Add");
+    if (!add) throw new Error("expected Presentation palette commit action");
+    await act(async () => add.click());
+
+    const changed = await save(onSave);
+    expect(changed.palette?.colors.map(({ name: colorName }) => colorName)).toContain("Root Accent");
+    expect(changed.slides).toEqual(source.slides);
+    expect(changed.rootDefinitions).toEqual(source.rootDefinitions);
+
+    await undo();
+    expect(await save(onSave)).toEqual(source);
+    await redo();
+    expect(await save(onSave)).toEqual(changed);
+  });
+
+  it("imports a Root Custom Library Palette without mutating the retained Slide", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave, undefined, { paletteRepository: paletteRepository() });
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+    const addPalette = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add palette");
+    if (!addPalette) throw new Error("expected Custom Library palette action");
+    await act(async () => addPalette.click());
+    await flushResources();
+
+    const importPalette = containerElement.querySelector<HTMLButtonElement>("[aria-label='Add Warm palette']");
+    if (!importPalette) throw new Error("expected Custom Library palette import action");
+    await act(async () => importPalette.click());
+
+    const changed = await save(onSave);
+    expect(changed.palette?.colors).toHaveLength(1);
+    expect(changed.palette?.colors[0]?.name).toBe("Accent");
+    expect(changed.slides).toEqual(source.slides);
+    expect(changed.rootDefinitions).toEqual(source.rootDefinitions);
+
+    await undo();
+    expect(await save(onSave)).toEqual(source);
+    await redo();
+    expect(await save(onSave)).toEqual(changed);
+  });
+
+  it("imports a Root Custom Library Font with exact Undo/Redo and retained Slide safety", async () => {
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave, undefined, { fontRepository: fontRepository() });
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+    const addFont = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add font");
+    if (!addFont) throw new Error("expected Custom Library font action");
+    await act(async () => addFont.click());
+    await flushResources();
+
+    const importFont = containerElement.querySelector<HTMLButtonElement>("[aria-label='Add Inter']");
+    if (!importFont) throw new Error("expected Custom Library font import action");
+    await act(async () => importFont.click());
+
+    const changed = await save(onSave);
+    expect(changed.resources?.fonts?.map(({ family }) => family)).toEqual(["Inter"]);
+    expect(changed.slides).toEqual(source.slides);
+    expect(changed.rootDefinitions).toEqual(source.rootDefinitions);
+
+    await undo();
+    expect(await save(onSave)).toEqual(source);
+    await redo();
+    expect(await save(onSave)).toEqual(changed);
+  });
+
+  it("blocks the Root Element Style workflow at its actual Resources control", async () => {
+    const repository = elementStyleRepository();
+    render(presentation(), vi.fn(), undefined, { elementStyleRepository: repository });
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+
+    const browse = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add saved element");
+    if (!browse) throw new Error("expected Element Style browse control");
+    expect(browse.disabled).toBe(true);
+    await act(async () => browse.click());
+    expect(repository.listItems).not.toHaveBeenCalled();
+    expect(containerElement.querySelector("[data-custom-library-apply]")).toBeNull();
   });
 
   it("allows descendant Cut/Paste while keeping the canonical Root boundary protected", async () => {
