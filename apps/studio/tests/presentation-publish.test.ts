@@ -136,6 +136,59 @@ function canonicalContainerPresentation() {
   });
 }
 
+function representativeRootPresentation() {
+  return PresentationSchema.parse({
+    ...createBlankPresentation("pres-1"),
+    rootDefinitions: [{
+      id: "root-a",
+      name: "Root Definition A",
+      root: {
+        id: "root-a-container",
+        type: "container",
+        children: [
+          { id: "root-a-text", type: "text", content: "Master text" },
+          { id: "root-a-gallery", type: "gallery", items: [{ src: "/master.png", alt: "Master" }] },
+          {
+            id: "root-a-scripted",
+            type: "scripted",
+            title: "Master scripted",
+            html: "",
+            css: "",
+            script: "",
+            ports: [{ id: "action", label: "Action", kind: "action" }],
+          },
+          { id: "root-a-receiver", type: "container", children: [] },
+        ],
+      },
+      localChildTargetIds: ["root-a-receiver"],
+    }],
+    slides: [
+      { id: "slide-ordinary", elements: [{ id: "ordinary-text", type: "text", content: "Ordinary" }] },
+      {
+        id: "slide-root-a",
+        rootDefinitionId: "root-a",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "root-a-receiver",
+          children: [
+            { id: "local-text", type: "text", content: "Local text" },
+            { id: "local-gallery", type: "gallery", items: [{ src: "/local.png", alt: "Local" }] },
+            {
+              id: "local-scripted",
+              type: "scripted",
+              title: "Local scripted",
+              html: "",
+              css: "",
+              script: "",
+              ports: [{ id: "action", label: "Action", kind: "action" }],
+            },
+          ],
+        }],
+      },
+    ],
+  });
+}
+
 describe("transactional presentation publishing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -437,34 +490,10 @@ describe("transactional presentation publishing", () => {
   });
 
   it("publishes referential Root Definitions unchanged in the immutable version", async () => {
-    const presentation = PresentationSchema.parse({
-      ...createBlankPresentation("pres-1"),
-      rootDefinitions: [{
-        id: "master-foreign",
-        name: "Shared master",
-        root: {
-          id: "master-root",
-          type: "container",
-          children: [{
-            id: "master-content",
-            type: "container",
-            children: [{ id: "master-text", type: "text", content: "Shared" }],
-          }],
-        },
-        localChildTargetIds: ["master-content"],
-      }],
-      defaultRootDefinitionId: "master-foreign",
-      slides: [{
-        id: "slide-root",
-        rootDefinitionId: "master-foreign",
-        elements: [],
-        localRootChildren: [{
-          targetContainerId: "master-content",
-          children: [{ id: "local-text", type: "text", content: "Local" }],
-        }],
-      }],
-    });
-    const transaction = setupTransaction(draftData({ presentation }));
+    const presentation = representativeRootPresentation();
+    const before = structuredClone(presentation);
+    const draft = draftData({ presentation });
+    const transaction = setupTransaction(draft);
     mocks.doc
       .mockReturnValueOnce({ id: "private-draft" })
       .mockReturnValueOnce({ id: "publication-root" })
@@ -474,12 +503,33 @@ describe("transactional presentation publishing", () => {
     await repository.publishPresentation("pres-1");
 
     const versionPayload = transaction.set.mock.calls[0]?.[1] as {
-      presentationJson: string;
-    };
+        presentationJson: string;
+      };
+    expect(Object.keys(versionPayload).sort()).toEqual([
+      "presentationId",
+      "presentationJson",
+      "publishedAt",
+      "publishedRevision",
+    ]);
+    expect(versionPayload.presentationJson).toBe(draft.presentationJson);
     expect(JSON.parse(versionPayload.presentationJson)).toEqual(presentation);
     expect(JSON.parse(versionPayload.presentationJson)).toMatchObject({
-      slides: [{ elements: [], localRootChildren: [{ targetContainerId: "master-content" }] }],
+      schemaVersion: 1,
+      rootDefinitions: [{
+        id: "root-a",
+        localChildTargetIds: ["root-a-receiver"],
+      }],
+      slides: [
+        { id: "slide-ordinary" },
+        {
+          id: "slide-root-a",
+          rootDefinitionId: "root-a",
+          elements: [],
+          localRootChildren: [{ targetContainerId: "root-a-receiver" }],
+        },
+      ],
     });
+    expect(presentation).toEqual(before);
   });
 
   it("rejects publication when the draft canonical id differs from its path", async () => {

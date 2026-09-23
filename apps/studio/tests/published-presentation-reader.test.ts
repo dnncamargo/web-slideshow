@@ -48,6 +48,43 @@ function snapshot(exists: boolean, data: unknown) {
   };
 }
 
+function representativeRootPresentation() {
+  return PresentationSchema.parse({
+    ...createBlankPresentation("pres-1"),
+    rootDefinitions: [{
+      id: "root-a",
+      name: "Root Definition A",
+      root: {
+        id: "root-a-container",
+        type: "container",
+        children: [
+          { id: "root-a-text", type: "text", content: "Master text" },
+          { id: "root-a-gallery", type: "gallery", items: [{ src: "/master.png", alt: "Master" }] },
+          { id: "root-a-scripted", type: "scripted", title: "Master scripted", html: "", css: "", script: "", ports: [{ id: "action", label: "Action", kind: "action" }] },
+          { id: "root-a-receiver", type: "container", children: [] },
+        ],
+      },
+      localChildTargetIds: ["root-a-receiver"],
+    }],
+    slides: [
+      { id: "slide-ordinary", elements: [{ id: "ordinary-text", type: "text", content: "Ordinary" }] },
+      {
+        id: "slide-root-a",
+        rootDefinitionId: "root-a",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "root-a-receiver",
+          children: [
+            { id: "local-text", type: "text", content: "Local text" },
+            { id: "local-gallery", type: "gallery", items: [{ src: "/local.png", alt: "Local" }] },
+            { id: "local-scripted", type: "scripted", title: "Local scripted", html: "", css: "", script: "", ports: [{ id: "action", label: "Action", kind: "action" }] },
+          ],
+        }],
+      },
+    ],
+  });
+}
+
 describe("published presentation reader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -146,6 +183,23 @@ describe("published presentation reader", () => {
     const result = await reader.getVersion("publication-1", "version-9");
 
     expect(result).toEqual(presentation);
+  });
+
+  it("returns the exact canonical Root-backed Presentation without materializing it", async () => {
+    const presentation = representativeRootPresentation();
+    const before = structuredClone(presentation);
+    mocks.getDoc.mockResolvedValue(snapshot(true, versionData(presentation)));
+
+    const result = await reader.getVersion("publication-1", "version-root");
+
+    expect(result).toEqual(presentation);
+    expect(result?.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-a-receiver"]);
+    expect(result?.slides[1]).toMatchObject({
+      rootDefinitionId: "root-a",
+      elements: [],
+      localRootChildren: [{ targetContainerId: "root-a-receiver" }],
+    });
+    expect(presentation).toEqual(before);
   });
 
   it.each([
@@ -321,6 +375,16 @@ describe("published presentation reader", () => {
     await expect(
       reader.getVersion("publication-1", "version-9"),
     ).rejects.toThrow();
+  });
+
+  it("fails closed for a published dangling Root Definition relationship", async () => {
+    const malformed = structuredClone(representativeRootPresentation()) as {
+      slides: Array<{ rootDefinitionId?: string }>;
+    };
+    malformed.slides[1]!.rootDefinitionId = "missing-root";
+    mocks.getDoc.mockResolvedValue(snapshot(true, versionData(malformed)));
+
+    await expect(reader.getVersion("publication-1", "version-invalid-root")).rejects.toThrow();
   });
 
   it("does not return a non-object version document as a Presentation", async () => {

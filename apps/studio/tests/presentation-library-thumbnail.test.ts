@@ -107,6 +107,7 @@ describe("deriveThumbnailPreview", () => {
     const raw = makePresentation({ slides: [makeSlide("slide-1", [])] }) as Record<string, unknown>;
     raw.rootDefinitions = [makeRootDefinition("default", "Default master")];
     raw.defaultRootDefinitionId = "default";
+    const before = structuredClone(raw);
 
     const preview = deriveThumbnailPreview(raw);
 
@@ -115,6 +116,7 @@ describe("deriveThumbnailPreview", () => {
     expect(preview?.firstSlide.elements[0]).toMatchObject({ id: "default-root", type: "container" });
     expect((preview?.firstSlide.elements[0] as { children: Array<{ id: string; content?: string }> }).children[0])
       .toMatchObject({ id: "default-master-text", content: "Default master" });
+    expect(raw).toEqual(before);
     expect((raw.slides as Array<Record<string, unknown>>)[0]?.elements).toEqual([]);
   });
 
@@ -151,6 +153,7 @@ describe("deriveThumbnailPreview", () => {
       localChildTargetIds: ["default-target"],
     })];
     raw.defaultRootDefinitionId = "default";
+    const before = structuredClone(raw);
 
     const preview = deriveThumbnailPreview(raw);
     const root = preview?.firstSlide.elements[0] as { children: Array<{ id: string; children?: Array<{ id: string }> }> } | undefined;
@@ -160,6 +163,7 @@ describe("deriveThumbnailPreview", () => {
       "default-target",
     ]);
     expect(root?.children[1]?.children?.map((child) => child.id)).toEqual(["local-text"]);
+    expect(raw).toEqual(before);
   });
 
   it("retains linked style owner context for a linked first-slide Container", () => {

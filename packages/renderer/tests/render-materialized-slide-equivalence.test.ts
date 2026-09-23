@@ -311,6 +311,7 @@ describe("materialized slide renderer equivalence", () => {
       container("root", [text("master-text")]),
       [{ targetContainerId: "root", children: [text("local-text")] }],
     );
+    const referentialBefore = structuredClone(referential);
     const { legacyHtml, materializedHtml, materialized } = renderEquivalent(legacy, referential);
     const identityMarkers = (html: string): string[] =>
       [...html.matchAll(/data-presentation-id="([^"]+)"/g)].map((match) => match[1] ?? "");
@@ -322,5 +323,6 @@ describe("materialized slide renderer equivalence", () => {
     expect(materializedHtml).not.toMatch(/rootDefinition|localRootChildren|ownershipByStructuralId/);
     expect(materialized.slide).not.toHaveProperty("rootDefinitionId");
     expect(materialized.slide).not.toHaveProperty("localRootChildren");
+    expect(referential).toEqual(referentialBefore);
   });
 });
