@@ -166,7 +166,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
-import { findElementLocation, type ElementParentRef } from "./element-hierarchy";
+import { findElementLocation, visitElements, type ElementParentRef } from "./element-hierarchy";
 import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
@@ -194,8 +194,9 @@ import {
   clearLinkedTopicsStyleProperty,
   type LinkedTopicsStyleProperty,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, findContainersLinkedToStyle, findElementsLinkedToStyle, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
+import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
 import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 
 // ============================================================
 // BEGIN: SLIDE OPERATIONS
@@ -614,6 +615,23 @@ function changedLinkedContainerStyleProperties(
     ));
 }
 
+function updateCanonicalElements(
+  presentation: ReturnType<typeof PresentationSchema.parse>,
+  matches: (element: PresentationElement) => boolean,
+  update: (element: PresentationElement) => PresentationElement,
+): ReturnType<typeof PresentationSchema.parse> {
+  return updatePresentationAuthoringTrees(presentation, (elements) => {
+    const matchingIds: string[] = [];
+    visitElements(elements, (element) => {
+      if (matches(element)) matchingIds.push(element.id);
+    });
+    return matchingIds.reduce(
+      (current, id) => updateElementById(current, id, update),
+      elements as PresentationElement[],
+    );
+  });
+}
+
 function propagateLinkedContainerStyleDefinitionChanges(
   presentation: ReturnType<typeof PresentationSchema.parse>,
   linkedStyleId: string,
@@ -622,19 +640,13 @@ function propagateLinkedContainerStyleDefinitionChanges(
 ): ReturnType<typeof PresentationSchema.parse> {
   const changedProperties = changedLinkedContainerStyleProperties(before, after);
   if (changedProperties.length === 0) return presentation;
-  let next = presentation;
-  for (const { slideIndex, elementId } of findContainersLinkedToStyle(presentation, linkedStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
-      if (element.type !== "container" || element.linkedStyleId !== linkedStyleId) return element;
-      return changedProperties.reduce((current, property) => clearLinkedContainerStyleProperty(current, property), element);
-    });
-    if (elements !== slide.elements) {
-      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
-    }
-  }
-  return next;
+  return updateCanonicalElements(
+    presentation,
+    (element) => element.type === "container" && element.linkedStyleId === linkedStyleId,
+    (element) => element.type !== "container"
+      ? element
+      : changedProperties.reduce((current, property) => clearLinkedContainerStyleProperty(current, property), element),
+  );
 }
 
 function areLinkedTopicsStyleColorsEqual(
@@ -719,19 +731,13 @@ function propagateLinkedTopicsStyleDefinitionChanges(
 ): ReturnType<typeof PresentationSchema.parse> {
   const changedProperties = changedLinkedTopicsStyleProperties(before, after);
   if (changedProperties.length === 0) return presentation;
-  let next = presentation;
-  for (const { slideIndex, elementId } of findElementsLinkedToStyle(presentation, linkedStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
-      if (element.type !== "topics" || element.linkedStyleId !== linkedStyleId) return element;
-      return changedProperties.reduce((current, property) => clearLinkedTopicsStyleProperty(current, property), element);
-    });
-    if (elements !== slide.elements) {
-      next = { ...next, slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate) };
-    }
-  }
-  return next;
+  return updateCanonicalElements(
+    presentation,
+    (element) => element.type === "topics" && element.linkedStyleId === linkedStyleId,
+    (element) => element.type !== "topics"
+      ? element
+      : changedProperties.reduce((current, property) => clearLinkedTopicsStyleProperty(current, property), element),
+  );
 }
 
 function findCanvasElementById(canvas: HTMLElement, id: string): HTMLElement | null {
@@ -1135,7 +1141,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -1149,7 +1155,7 @@ export function EditorWorkspace({
     } else if (intent?.type === "discrete") {
       dispatchHistory({ type: "commit", meta: intent.meta, update });
     } else {
-      commitPresentationAction(fallbackMeta, update);
+      commitPresentationGlobalAction(fallbackMeta, update);
     }
   }
 
@@ -4187,7 +4193,7 @@ export function EditorWorkspace({
     );
   }
   function attachLinkedStyleMatches(id: string): void {
-    commitPresentationAction(
+    commitPresentationGlobalAction(
       {
         kind: "linkedStyle.attachMatches",
         labelKey: "history.element.setting",

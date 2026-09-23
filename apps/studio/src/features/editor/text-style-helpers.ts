@@ -21,7 +21,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { someElement, updateElementById, visitElements } from "./element-hierarchy";
-import { forEachNavigablePresentationAuthoringTree, forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
+import { forEachNavigablePresentationAuthoringTree, forEachPresentationAuthoringTree, updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 import type { AuthoringTarget } from "./authoring-target";
 
 export type TextStyleOwnedProperty =
@@ -31,11 +31,6 @@ export type TextStyleOwnedProperty =
 
 export type TextStyleUsageLocation = {
   target: AuthoringTarget;
-  elementId: string;
-};
-
-type SlideTextStyleUsageLocation = {
-  slideIndex: number;
   elementId: string;
 };
 
@@ -353,11 +348,14 @@ export function propagateTextStyleDefinitionChanges(
   if (changedProperties.length === 0) return presentation;
 
   const owner = buildChangedTextStyleOwner(before, after, changedProperties);
-  let next = presentation;
-  for (const { slideIndex, elementId } of findSlideTextStyleUsageLocations(presentation, textStyleId)) {
-    const slide = next.slides[slideIndex];
-    if (slide === undefined) continue;
-    const elements = updateElementById(slide.elements, elementId, (element) => {
+  return updatePresentationAuthoringTrees(presentation, (elements) => {
+    const usageIds: string[] = [];
+    visitElements(elements, (element) => {
+      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
+        usageIds.push(element.id);
+      }
+    });
+    return usageIds.reduce((current, elementId) => updateElementById(current, elementId, (element) => {
       if (element.type !== "text" || element.variant !== textStyleId || element.styleDetached === true) return element;
       const hasLocalChangedProperty = changedProperties.some((property) =>
         property.scope === "typography"
@@ -376,14 +374,8 @@ export function propagateTextStyleDefinitionChanges(
       if (cleared.layout === undefined) delete nextElement.layout;
       else nextElement.layout = cleared.layout;
       return nextElement;
-    });
-    if (elements === slide.elements) continue;
-    next = {
-      ...next,
-      slides: next.slides.map((candidate, index) => index === slideIndex ? { ...candidate, elements } : candidate),
-    };
-  }
-  return next;
+    }), elements);
+  });
 }
 
 export function isTextStyleUsed(presentation: Presentation, id: string): boolean {
@@ -406,22 +398,6 @@ export function findTextStyleUsageLocations(
     visitElements(elements, (element) => {
       if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
         locations.push({ target, elementId: element.id });
-      }
-    });
-  });
-  return locations;
-}
-
-// Definition propagation remains intentionally Slide-only until SM6D7B4.
-function findSlideTextStyleUsageLocations(
-  presentation: Presentation,
-  textStyleId: string,
-): SlideTextStyleUsageLocation[] {
-  const locations: SlideTextStyleUsageLocation[] = [];
-  presentation.slides.forEach((slide, slideIndex) => {
-    visitElements(slide.elements, (element) => {
-      if (element.type === "text" && element.variant === textStyleId && element.styleDetached !== true) {
-        locations.push({ slideIndex, elementId: element.id });
       }
     });
   });

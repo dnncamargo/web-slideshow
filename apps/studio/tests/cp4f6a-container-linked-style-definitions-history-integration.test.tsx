@@ -57,11 +57,12 @@ describe("CP4F6A Container Linked Style definition history", () => {
     document.body.innerHTML = "";
   });
 
-  async function renderWorkspace(initial: Presentation, saved?: Presentation[]): Promise<void> {
+  async function renderWorkspace(initial: Presentation, saved?: Presentation[], initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
+          initialAuthoringTarget={initialAuthoringTarget}
           customLibraryPaletteRepository={repositories}
           customLibraryFontRepository={repositories}
           {...(saved === undefined ? {} : { onSave: async (snapshot: Presentation) => { saved.push(structuredClone(snapshot)); } })}
@@ -696,5 +697,36 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(await save(saved)).toEqual(added);
     await redo();
     expect(await save(saved)).toEqual(detached);
+  });
+
+  it("propagates a Container definition edit through Slide, Root, and local-root-child owners", async () => {
+    const initial = presentation({
+      slides: [
+        { id: "slide-1", title: "Slide 1", elements: [{ id: "slide-container", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 20 }, marginBottom: 30 }, children: [] }] },
+        { id: "slide-2", title: "Root slide", elements: [], rootDefinitionId: "root-1", localRootChildren: [{ targetContainerId: "root-container", children: [{ id: "local-container", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 40 }, marginBottom: 31 }, children: [] }] }] },
+      ],
+      linkedStyles: [{ id: "style-1", name: "One", layout: { children: { gap: 8 } } }],
+      rootDefinitions: [{ id: "root-1", name: "Root", localChildTargetIds: ["root-container"], root: { id: "root-container", type: "container", hidden: false, children: [{ id: "root-container-child", type: "container", hidden: false, linkedStyleId: "style-1", layout: { children: { gap: 60 }, marginBottom: 32 }, children: [] }] } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved, { kind: "root-definition", rootDefinitionId: "root-1" });
+    const row = await openRow("style-1");
+    const gap = row.querySelector<HTMLInputElement>("[data-linked-style-property='gap'] input[type='number']");
+    if (!gap) throw new Error("Container gap input was not rendered");
+    await act(async () => { gap.focus(); setInputValue(gap, "16"); gap.blur(); });
+    const changed = await save(saved);
+    const slideContainer = changed.slides[0]!.elements[0]!;
+    const localContainer = changed.slides[1]!.localRootChildren![0]!.children[0]!;
+    const rootContainer = changed.rootDefinitions![0]!.root.children[0]!;
+    for (const element of [slideContainer, localContainer, rootContainer]) {
+      expect(element).not.toHaveProperty("layout.children.gap");
+    }
+    expect(slideContainer).toHaveProperty("layout.marginBottom", 30);
+    expect(localContainer).toHaveProperty("layout.marginBottom", 31);
+    expect(rootContainer).toHaveProperty("layout.marginBottom", 32);
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
   });
 });

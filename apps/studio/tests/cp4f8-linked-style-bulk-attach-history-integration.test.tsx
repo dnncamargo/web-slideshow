@@ -50,15 +50,22 @@ function container(id: string, overrides: Partial<ContainerElement> = {}): Conta
   };
 }
 
-type SlideInput = { id: string; title: string; elements: PresentationElement[] };
+type SlideInput = {
+  id: string;
+  title: string;
+  elements: PresentationElement[];
+  rootDefinitionId?: string;
+  localRootChildren?: Presentation["slides"][number]["localRootChildren"];
+};
 
-function presentation(slides: SlideInput[]): Presentation {
+function presentation(slides: SlideInput[], extras: Record<string, unknown> = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4f8-linked-style-bulk-attach-history",
     title: "CP4F8 linked style bulk attach history",
     slides,
     linkedStyles: [TARGET_STYLE, OTHER_STYLE],
+    ...extras,
   });
 }
 
@@ -93,6 +100,22 @@ function elementFrom(document: Presentation, id: string): PresentationElement {
   throw new Error(`Element was not found: ${id}`);
 }
 
+function canonicalElementFrom(document: Presentation, id: string): PresentationElement {
+  const slideTrees = document.slides.flatMap((slide) => [
+    slide.elements,
+    ...(slide.localRootChildren ?? []).map((entry) => entry.children),
+  ]);
+  for (const elements of slideTrees) {
+    const element = findElement(elements, id);
+    if (element) return element;
+  }
+  for (const definition of document.rootDefinitions ?? []) {
+    const element = findElement([definition.root], id);
+    if (element) return element;
+  }
+  throw new Error(`Canonical element was not found: ${id}`);
+}
+
 describe("CP4F8 linked style bulk attach history", () => {
   let host: HTMLDivElement;
   let root: Root;
@@ -108,11 +131,12 @@ describe("CP4F8 linked style bulk attach history", () => {
     document.body.innerHTML = "";
   });
 
-  async function mount(initial: Presentation, saved: Presentation[]): Promise<void> {
+  async function mount(initial: Presentation, saved: Presentation[], initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
+          initialAuthoringTarget={initialAuthoringTarget}
           onSave={async (snapshot) => { saved.push(structuredClone(snapshot)); }}
           customLibraryPaletteRepository={repositories}
           customLibraryFontRepository={repositories}
@@ -257,5 +281,43 @@ describe("CP4F8 linked style bulk attach history", () => {
     expect(await save(saved)).toEqual(afterDefinition);
     await redo();
     expect(await save(saved)).toEqual(afterBulk);
+  });
+
+  it("attaches every canonical match and keeps one exact history action in Root mode", async () => {
+    const initial = presentation([
+      { id: "slide-1", title: "Slide 1", elements: [container("root-mode-slide-match")] },
+      {
+        id: "slide-2",
+        title: "Root-backed slide",
+        elements: [],
+        rootDefinitionId: "root-1",
+        localRootChildren: [{ targetContainerId: "root-container", children: [container("root-mode-local-match")] }],
+      },
+    ], {
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Root",
+        localChildTargetIds: ["root-container"],
+        root: { id: "root-container", type: "container", hidden: false, children: [container("root-mode-root-match")] },
+      }],
+    });
+    const initialSnapshot = structuredClone(initial);
+    const saved: Presentation[] = [];
+
+    await mount(initial, saved, { kind: "root-definition", rootDefinitionId: "root-1" });
+    expect(host.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
+    const row = await openLinkedStyleRow();
+    expect(attachButton(row).textContent).toContain("3");
+    await act(async () => attachButton(row).click());
+
+    const postBulk = await save(saved);
+    for (const id of ["root-mode-slide-match", "root-mode-local-match", "root-mode-root-match"]) {
+      expect(canonicalElementFrom(postBulk, id)).toMatchObject({ linkedStyleId: TARGET_STYLE_ID });
+    }
+
+    await undo();
+    expect(await save(saved)).toEqual(initialSnapshot);
+    await redo();
+    expect(await save(saved)).toEqual(postBulk);
   });
 });

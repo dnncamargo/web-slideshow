@@ -358,4 +358,51 @@ describe("presentation typography style authoring", () => {
     expect(propagated.slides[0]!.elements[0]).toMatchObject({ typography: { textAlign: "right" }, style: { color: "#0000ff" } });
     expect(propagated.slides[0]!.elements[0]).not.toHaveProperty("typography.fontSize");
   });
+
+  it("propagates changed ownership through Slide, Root, and local-root-child trees", () => {
+    const before = { id: "body" as const, typography: { fontSize: 20 } };
+    const after = { id: "body" as const, typography: { fontSize: 24 } };
+    const attached = (id: string) => ({
+      id,
+      type: "text" as const,
+      hidden: false,
+      variant: "body",
+      content: id,
+      typography: { fontSize: 30, fontWeight: 700 },
+      style: { color: "#123456" },
+    });
+    const detached = { ...attached("detached"), styleDetached: true as const };
+    const presentation = PresentationSchema.parse({
+      ...base(),
+      textStyles: [after],
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root",
+        localChildTargetIds: ["root"],
+        root: { id: "root", type: "container", hidden: false, children: [attached("root-text")] },
+      }],
+      slides: [{
+        id: "slide",
+        title: "",
+        elements: [attached("slide-text")],
+      }, {
+        id: "root-slide",
+        title: "",
+        elements: [],
+        rootDefinitionId: "root-definition",
+        localRootChildren: [{ targetContainerId: "root", children: [attached("local-text"), detached] }],
+      }],
+    });
+
+    const propagated = propagateTextStyleDefinitionChanges(presentation, "body", before, after);
+    const slideText = propagated.slides[0]!.elements[0]!;
+    const localText = propagated.slides[1]!.localRootChildren![0]!.children[0]!;
+    const rootText = propagated.rootDefinitions![0]!.root.children[0]!;
+
+    for (const element of [slideText, localText, rootText]) {
+      expect(element).not.toHaveProperty("typography.fontSize");
+      expect(element).toMatchObject({ typography: { fontWeight: 700 }, style: { color: "#123456" } });
+    }
+    expect(propagated.slides[1]!.localRootChildren![0]!.children[1]).toEqual(detached);
+  });
 });

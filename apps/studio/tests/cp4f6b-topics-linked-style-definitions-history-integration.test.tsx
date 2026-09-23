@@ -58,11 +58,12 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     document.body.innerHTML = "";
   });
 
-  async function renderWorkspace(initial: Presentation, saved?: Presentation[]): Promise<void> {
+  async function renderWorkspace(initial: Presentation, saved?: Presentation[], initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
+          initialAuthoringTarget={initialAuthoringTarget}
           customLibraryPaletteRepository={repositories}
           customLibraryFontRepository={repositories}
           {...(saved === undefined ? {} : { onSave: async (snapshot: Presentation) => { saved.push(structuredClone(snapshot)); } })}
@@ -690,5 +691,35 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     await act(async () => { itemGap.focus(); setInputValue(itemGap, "8"); itemGap.blur(); });
     const noop = await save(saved);
     expect(noop.slides[0]?.elements[0]).toHaveProperty("itemGap", 20);
+  });
+
+  it("propagates a Topics definition edit through Slide, Root, and local-root-child owners", async () => {
+    const initial = presentation({
+      slides: [
+        { id: "slide-1", title: "Slide 1", elements: [{ id: "slide-topics", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 20, markerColor: "#111111", items: [] }] },
+        { id: "slide-2", title: "Root slide", elements: [], rootDefinitionId: "root-1", localRootChildren: [{ targetContainerId: "root-container", children: [{ id: "local-topics", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 40, markerColor: "#222222", items: [] }] }] },
+      ],
+      rootDefinitions: [{ id: "root-1", name: "Root", localChildTargetIds: ["root-container"], root: { id: "root-container", type: "container", hidden: false, children: [{ id: "root-topics", type: "topics", hidden: false, linkedStyleId: "topics-style", itemGap: 60, markerColor: "#333333", items: [] }] } }],
+    });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved, { kind: "root-definition", rootDefinitionId: "root-1" });
+    const row = await openRow();
+    const itemGap = row.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-item-gap");
+    if (!itemGap) throw new Error("Topics itemGap input was not rendered");
+    await act(async () => { itemGap.focus(); setInputValue(itemGap, "12"); itemGap.blur(); });
+    const changed = await save(saved);
+    const slideTopics = changed.slides[0]!.elements[0]!;
+    const localTopics = changed.slides[1]!.localRootChildren![0]!.children[0]!;
+    const rootTopics = changed.rootDefinitions![0]!.root.children[0]!;
+    for (const element of [slideTopics, localTopics, rootTopics]) {
+      expect(element).not.toHaveProperty("itemGap");
+    }
+    expect(slideTopics).toHaveProperty("markerColor", "#111111");
+    expect(localTopics).toHaveProperty("markerColor", "#222222");
+    expect(rootTopics).toHaveProperty("markerColor", "#333333");
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(changed);
   });
 });
