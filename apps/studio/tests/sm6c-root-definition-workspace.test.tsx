@@ -702,6 +702,12 @@ describe("SM6C Root Definition workspace shell", () => {
     const redone = await save(onSave);
     expect(redone.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Styled master content" });
     expect(redone.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    render(redone, vi.fn(async () => {}), undefined, { elementStyleRepository: appliedRepository });
+    expect(containerElement.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')?.textContent).toContain("Styled master content");
   });
 
   it("disables Root Element Style browsing until a master element is selected", async () => {

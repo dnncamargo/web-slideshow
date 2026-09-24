@@ -279,7 +279,15 @@ describe("SM6E1F Slide Root association", () => {
     expect(saved.at(-1)?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Local content" });
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
     await save();
-    expect(saved.at(-1)?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Styled local content" });
+    const redone = saved.at(-1);
+    expect(redone?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Styled local content" });
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await mount(redone, [], { kind: "slide", slideIndex: 0 }, repository);
+    expect(container.querySelector('[data-presentation-id="local-text"]')?.textContent).toContain("Styled local content");
+    expect(redone?.slides[0]?.elements).toEqual([]);
+    expect(redone?.rootDefinitions).toEqual(source.rootDefinitions);
   });
 
   it("blocks Element Styles for Root master content on a Root-backed Slide", async () => {
