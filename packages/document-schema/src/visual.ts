@@ -100,7 +100,7 @@ const BackgroundPatternImageSchema =
     )
     .superRefine((image, context) => {
       if (
-        /\b(?:url|image-set|cross-fade|element|paint|var)\s*\(|@\s*import\b/i.test(
+        /\b(?:url|image-set|cross-fade|element|paint)\s*\(|@\s*import\b/i.test(
           image,
         )
       ) {
@@ -108,6 +108,26 @@ const BackgroundPatternImageSchema =
           code: "custom",
           message:
             "Background pattern image must use CSS gradients only.",
+        });
+
+        return;
+      }
+
+      const variableFunctions =
+        image.match(/\bvar\s*\([^)]*\)/gi) ?? [];
+
+      if (
+        variableFunctions.some(
+          (variable) =>
+            !/^var\s*\(\s*--presentation-pattern-color-[1-4]\s*\)$/.test(
+              variable,
+            ),
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Background pattern image must use controlled color variables only.",
         });
 
         return;
@@ -188,6 +208,41 @@ const BackgroundPatternValueSchema =
     "Background pattern CSS values cannot be empty.",
   );
 
+const BackgroundPatternColorVariablePattern =
+  /\bvar\s*\(\s*--presentation-pattern-color-([1-4])\s*\)/g;
+
+function referencedPatternColorSlots(image: string): number[] {
+  const slots: number[] = [];
+  let match: RegExpExecArray | null;
+
+  BackgroundPatternColorVariablePattern.lastIndex = 0;
+  while ((match = BackgroundPatternColorVariablePattern.exec(image)) !== null) {
+    const slot = match[1];
+    if (slot !== undefined) {
+      slots.push(Number(slot));
+    }
+  }
+
+  return slots;
+}
+
+function patternImageContainsColor(image: string, color: string): boolean {
+  const normalizedImage = image.toLowerCase();
+  const normalizedColor = color.toLowerCase();
+
+  if (normalizedImage.includes(normalizedColor)) {
+    return true;
+  }
+
+  const expandedHex = /^#([0-9a-f])\1([0-9a-f])\2([0-9a-f])\3$/i.exec(
+    normalizedColor,
+  );
+
+  return expandedHex !== null && normalizedImage.includes(
+    `#${expandedHex[1]}${expandedHex[2]}${expandedHex[3]}`,
+  );
+}
+
 export const BackgroundPatternRepeatSchema =
   z.enum([
     "repeat",
@@ -199,17 +254,85 @@ export const BackgroundPatternRepeatSchema =
   ]);
 
 export const BackgroundPatternSchema =
-  z.object({
-    image: BackgroundPatternImageSchema,
+  z
+    .object({
+      image: BackgroundPatternImageSchema,
 
-    size: BackgroundPatternValueSchema.optional(),
+      size: BackgroundPatternValueSchema.optional(),
 
-    position: BackgroundPatternValueSchema.optional(),
+      position: BackgroundPatternValueSchema.optional(),
 
-    repeat: BackgroundPatternRepeatSchema.optional(),
+      repeat: BackgroundPatternRepeatSchema.optional(),
 
-    opacity: z.number().min(0).max(1).optional(),
-  });
+      opacity: z.number().min(0).max(1).optional(),
+
+      colors: z.array(ColorValueSchema).min(1).max(4).optional(),
+
+      rotation: z.number().finite().min(-360).max(360).optional(),
+    })
+    .superRefine((pattern, context) => {
+      const referencedSlots = new Set(
+        referencedPatternColorSlots(pattern.image),
+      );
+
+      if (referencedSlots.size === 0) {
+        if (pattern.colors !== undefined) {
+          context.addIssue({
+            code: "custom",
+            path: ["colors"],
+            message:
+              "Background pattern colors must be referenced by the image.",
+          });
+        }
+
+        return;
+      }
+
+      const highestReferencedSlot = Math.max(...referencedSlots);
+
+      for (let slot = 1; slot <= highestReferencedSlot; slot += 1) {
+        if (!referencedSlots.has(slot)) {
+          context.addIssue({
+            code: "custom",
+            path: ["image"],
+            message:
+              "Background pattern color slots must be contiguous from 1.",
+          });
+          break;
+        }
+      }
+
+      if (
+        pattern.colors === undefined ||
+        pattern.colors.length !== highestReferencedSlot
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["colors"],
+          message:
+            "Background pattern colors must exactly match referenced slots.",
+        });
+      }
+
+      if (pattern.colors !== undefined) {
+        const literalColors = pattern.colors.filter(
+          (color): color is string => typeof color === "string",
+        );
+
+        if (
+          literalColors.some((color) =>
+            patternImageContainsColor(pattern.image, color),
+          )
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["image"],
+            message:
+              "Parameterized background pattern colors must be authored in colors.",
+          });
+        }
+      }
+    });
 
 export type BackgroundPattern =
   z.infer<typeof BackgroundPatternSchema>;

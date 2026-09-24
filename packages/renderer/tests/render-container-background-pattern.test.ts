@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BackgroundPattern } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
+import { renderBackgroundPattern } from "../src/render-background-pattern";
 
 import {
   createContainerElement,
@@ -38,6 +39,57 @@ describe("Container background patterns", () => {
     expect(rootTag(html)).toContain("isolation:isolate");
     expect(rootTag(html)).toContain("position:relative");
     expect(html).toContain("z-index:-1");
+  });
+
+  it("renders controlled literal and Palette Pattern color variables in order", () => {
+    const styles = renderBackgroundPattern({
+      image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-color-2))",
+      colors: ["#111", { kind: "palette", colorId: "accent" }],
+    });
+
+    expect(styles).toBe(
+      "--presentation-pattern-color-1:#111;" +
+        "--presentation-pattern-color-2:var(--ps-palette-0061006300630065006e0074);" +
+        "background-image:linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-color-2))",
+    );
+  });
+
+  it("keeps zero rotation output identical to absent rotation", () => {
+    const withoutRotation = renderElement(createContainerElement({
+      style: { background: { pattern: { image: PATTERN_IMAGE } } },
+    }));
+    const withZeroRotation = renderElement(createContainerElement({
+      style: { background: { pattern: { image: PATTERN_IMAGE, rotation: 0 } } },
+    }));
+
+    expect(withZeroRotation).toBe(withoutRotation);
+    expect(withZeroRotation).not.toContain("presentation-container-background-pattern-paint");
+  });
+
+  it("rotates only an oversized renderer-owned Pattern paint inside a clipping surface", () => {
+    const html = renderElement(createContainerElement({
+      style: {
+        borderRadius: 16,
+        background: {
+          pattern: {
+            image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+            colors: ["#111"],
+            rotation: 45,
+          },
+        },
+      },
+      children: [createTextElement({ id: "content" })],
+    }));
+
+    expect(rootTag(html)).not.toContain("overflow:hidden");
+    expect(html).toContain('class="presentation-container-background-pattern"');
+    expect(html).toContain("overflow:hidden");
+    expect(html).toContain("inset:-100vmax");
+    expect(html).toContain("transform:rotate(45deg)");
+    expect(html).toContain("pointer-events:none");
+    expect(html).toContain("border-radius:inherit");
+    expect(html).toContain('data-presentation-id="content"');
+    expect(html).not.toContain('data-presentation-type="container" style="overflow:hidden');
   });
 
   it.each(
@@ -157,6 +209,38 @@ describe("Container background patterns", () => {
     expect(html.indexOf("z-index:100")).toBeGreaterThan(
       html.indexOf("presentation-container-background-pattern"),
     );
+  });
+
+  it("preserves linked Pattern colors and rotation through resolution", () => {
+    const html = renderElement(
+      createContainerElement({ linkedStyleId: "pattern-style" }),
+      {
+        presentation: {
+          schemaVersion: 1,
+          id: "presentation",
+          title: "Presentation",
+          description: "",
+          aspectRatio: "16:9",
+          linkedStyles: [{
+            id: "pattern-style",
+            name: "Pattern style",
+            style: {
+              background: {
+                pattern: {
+                  image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+                  colors: ["#111"],
+                  rotation: -30,
+                },
+              },
+            },
+          }],
+          slides: [],
+        },
+      },
+    );
+
+    expect(html).toContain("--presentation-pattern-color-1:#111");
+    expect(html).toContain("transform:rotate(-30deg)");
   });
 
   it("keeps unpatterned Container output unchanged", () => {

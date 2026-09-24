@@ -1,4 +1,5 @@
 import type {
+  BackgroundPattern,
   ContainerElement,
   ElementLink,
   PresentationElement,
@@ -336,6 +337,31 @@ function renderLinkSurface(link: ElementLink): string {
   return `<a ${attributes.join(" ")}></a>`;
 }
 
+function renderPatternLayer(pattern: BackgroundPattern): string {
+  const baseStyles =
+    "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;";
+
+  if (pattern.rotation === undefined || pattern.rotation === 0) {
+    return `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+      baseStyles + renderBackgroundPattern(pattern),
+    )}"></div>`;
+  }
+
+  const paintStyles =
+    "position:absolute;inset:-100vmax;pointer-events:none;" +
+    renderBackgroundPattern(pattern);
+
+  return (
+    `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+      baseStyles + "overflow:hidden;",
+    )}">` +
+    `<div class="presentation-container-background-pattern-paint" aria-hidden="true" style="${escapeHtml(
+      paintStyles,
+    )}"></div>` +
+    "</div>"
+  );
+}
+
 export function renderContainer(
   element: ContainerElement,
   renderChild: RenderChild,
@@ -408,12 +434,7 @@ export function renderContainer(
 
   const tag = getTagName(element.role);
   const pattern = renderedElement.style?.background?.pattern;
-  const patternLayer = pattern
-    ? `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
-        "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
-          renderBackgroundPattern(pattern),
-      )}"></div>`
-    : "";
+  const patternLayer = pattern ? renderPatternLayer(pattern) : "";
   const children = element.children
     .map((child, index) => {
       const rendered = renderChild(child);
