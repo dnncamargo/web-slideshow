@@ -36,7 +36,7 @@ describe("editor UI foundation", () => {
     act(() => {
       root.render(
         <StudioI18nProvider>
-          <SlideLayoutPicker value="blank" onChange={vi.fn()} onCreate={onCreate} />
+          <SlideLayoutPicker value="blank" onChange={vi.fn()} onCreate={onCreate} onCreateRoot={vi.fn()} />
         </StudioI18nProvider>,
       );
     });

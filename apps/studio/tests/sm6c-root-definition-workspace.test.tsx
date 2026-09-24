@@ -8,7 +8,10 @@ import { PresentationSchema, type Presentation, type PresentationElement } from 
 import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
-import type { CustomLibraryRepository } from "../src/features/custom-library/custom-library-repository";
+import type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../src/features/custom-library/custom-library-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { reconcileSelectedElementAfterReplay } from "../src/features/editor/editor-history-selection-reconciliation";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -100,10 +103,10 @@ function fontRepository(records: CustomLibraryFontRecord[] = [fontRecord]): Cust
   };
 }
 
-function elementStyleRepository(): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
+function elementStyleRepository(items: CustomLibraryItemRecord[] = []): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
   return {
     saveItem: async () => "unused",
-    listItems: vi.fn(async () => []),
+    listItems: vi.fn(async () => items),
     getItem: async () => null,
     deleteItem: async () => undefined,
   };
@@ -133,13 +136,14 @@ describe("SM6C Root Definition workspace shell", () => {
       fontRepository?: CustomLibraryFontRepository;
       elementStyleRepository?: CustomLibraryRepository;
     },
+    initialAuthoringTarget: AuthoringTarget = { kind: "root-definition", rootDefinitionId: "root-1" },
   ): void {
     act(() => {
       root.render(
         <StudioI18nProvider>
           <EditorWorkspace
             initialPresentation={initialPresentation}
-            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+            initialAuthoringTarget={initialAuthoringTarget}
             onSave={onSave}
             notesRepository={notesRepository}
             customLibraryPaletteRepository={resources?.paletteRepository}
@@ -186,6 +190,26 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(JSON.stringify(source)).not.toContain("root-definition-workspace:");
   });
 
+  it("places the master exit immediately before Custom Resources and keeps both actions operational", async () => {
+    render();
+
+    const toolbar = containerElement.querySelector<HTMLElement>("[class*='canvasToolbarRight']");
+    if (!toolbar) throw new Error("expected canvas toolbar actions");
+    const actionLabels = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .map((button) => button.textContent?.trim());
+    expect(actionLabels.slice(0, 3)).toEqual(["Exit master editing", "Custom Resources", "Notes"]);
+
+    const resources = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    const exit = Array.from(toolbar.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Exit master editing");
+    if (!resources || !exit) throw new Error("expected master toolbar actions");
+    await act(async () => resources.click());
+    expect(containerElement.textContent).toContain("Root Definitions");
+    await act(async () => exit.click());
+    expect(containerElement.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
+  });
+
   it("mounts the normal Inspector for safe Root Definition Text editing", () => {
     const source = presentation();
     render(source);
@@ -227,6 +251,21 @@ describe("SM6C Root Definition workspace shell", () => {
     await redo();
     const redone = await save(onSave);
     expect(redone.rootDefinitions?.[0]?.localChildTargetIds).toEqual(["root-container"]);
+  });
+
+  it("uses the canonical Inspector checkbox pattern for the Root receiver", async () => {
+    render();
+
+    const rootContainer = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-container"]');
+    if (!rootContainer) throw new Error("expected Root Container in Canvas");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const checkbox = containerElement.querySelector<HTMLInputElement>("[data-root-local-content-receiver]");
+    if (!checkbox) throw new Error("expected receiver checkbox");
+    expect(checkbox.parentElement?.className).toContain("checkboxRow");
+    expect(checkbox.closest("[class*='field']")).toBeNull();
+    expect(checkbox.parentElement?.textContent).toContain("Allow local Slide content");
+    expect(containerElement.textContent).toContain("Slides using this Root Definition may place local content inside this Container.");
   });
 
   it("scopes blocked receiver feedback to the attempted Container", async () => {
@@ -327,6 +366,74 @@ describe("SM6C Root Definition workspace shell", () => {
     render(saved, vi.fn(async () => {}));
     expect(containerElement.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="root-text"]')?.textContent).toContain("Edited root content again");
+  });
+
+  it("authors local content through the effective Slide tree without writing slide.elements", async () => {
+    const source = PresentationSchema.parse({
+      ...presentation(),
+      slides: [{ id: "slide-1", title: "Root slide", elements: [], rootDefinitionId: "root-1" }, ...presentation().slides.slice(1)],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        localChildTargetIds: ["root-container"],
+        root: container("root-container", [text("root-text")]),
+      }],
+    });
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave, undefined, undefined, { kind: "slide", slideIndex: 0 });
+
+    const add = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add");
+    if (!add) throw new Error("expected Add action");
+    expect(add.disabled).toBe(true);
+
+    const rootContainer = Array.from(containerElement.querySelectorAll<HTMLElement>('[data-presentation-id="root-container"]')).at(-1);
+    if (!rootContainer) throw new Error("expected projected root container");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const enabledAdd = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add");
+    if (!enabledAdd) throw new Error("expected Add action after selecting receiver");
+    expect(enabledAdd.disabled).toBe(false);
+    await act(async () => enabledAdd.click());
+
+    const saveButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!saveButton) throw new Error("expected Save action");
+    await act(async () => saveButton.click());
+    const saved = onSave.mock.calls.at(-1)?.[0] as Presentation | undefined;
+    if (!saved) throw new Error("expected saved Presentation");
+    expect(saved.slides[0]!.elements).toEqual([]);
+    expect(saved.slides[0]!.localRootChildren?.[0]?.targetContainerId).toBe("root-container");
+    expect(saved.slides[0]!.localRootChildren?.[0]?.children).toHaveLength(1);
+
+    const localId = saved.slides[0]!.localRootChildren?.[0]?.children[0]?.id;
+    if (!localId) throw new Error("expected saved local element");
+    const localNode = containerElement.querySelector<HTMLElement>(`[data-presentation-id="${localId}"]`);
+    if (!localNode) throw new Error("expected local element in Canvas");
+    await act(async () => localNode.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = containerElement.querySelector<HTMLTextAreaElement>("#text-content");
+    if (!textarea) throw new Error("expected local Text inspector");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(textarea, "Edited local content");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.blur();
+    });
+    const edited = await save(onSave);
+    expect(edited.slides[0]!.elements).toEqual([]);
+    expect(edited.slides[0]!.localRootChildren?.[0]?.children[0]).toMatchObject({ content: "Edited local content" });
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    expect(onSave).toHaveBeenCalled();
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(containerElement.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    render(edited, vi.fn(async () => {}), undefined, undefined, { kind: "slide", slideIndex: 0 });
+    expect(containerElement.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+    expect(containerElement.textContent).toContain("Edited local content");
+    expect(edited.slides[0]!.elements).toEqual([]);
   });
 
   it("captures discrete Root Definition Text writes on the active target", async () => {
@@ -517,9 +624,39 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(await save(onSave)).toEqual(changed);
   });
 
-  it("blocks the Root Element Style workflow at its actual Resources control", async () => {
-    const repository = elementStyleRepository();
-    render(presentation(), vi.fn(), undefined, { elementStyleRepository: repository });
+  it("applies an Element Style to the editable Root tree through Resources", async () => {
+    const item: CustomLibraryItemRecord = {
+      id: "root-element-style",
+      item: {
+        name: "Root text style",
+        root: {
+          type: "text",
+          properties: [
+            { path: "content", value: "Styled master content" },
+            { path: "typography.fontFamily", value: "Root Sans" },
+          ],
+        },
+        dependencies: {
+          fonts: [{
+            family: "Root Sans",
+            faces: [{
+              weight: 400,
+              style: "normal",
+              subset: "latin",
+              source: { type: "url", url: "https://example.com/root-sans.woff2", format: "woff2" },
+            }],
+          }],
+        },
+      },
+    };
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    const appliedRepository = elementStyleRepository([item]);
+    render(source, onSave, undefined, { elementStyleRepository: appliedRepository });
+
+    const rootText = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    if (!rootText) throw new Error("expected Root Definition text in Canvas");
+    await act(async () => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
     const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Custom Resources");
@@ -529,10 +666,80 @@ describe("SM6C Root Definition workspace shell", () => {
     const browse = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "+ Add saved element");
     if (!browse) throw new Error("expected Element Style browse control");
+    expect(browse.disabled).toBe(false);
+    await act(async () => browse.click());
+    await flushResources();
+    const itemButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("[class*='customLibraryApplyItem']"))
+      .find((button) => button.textContent?.includes("Root text style"));
+    if (!itemButton) throw new Error("expected Root Element Style item");
+    await act(async () => itemButton.click());
+    const apply = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Apply to selected");
+    if (!apply) throw new Error("expected Root Element Style apply action");
+    await act(async () => apply.click());
+
+    const changed = await save(onSave);
+    expect(changed.slides).toEqual(source.slides);
+    expect(changed.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Styled master content", typography: { fontFamily: "Root Sans" } });
+    expect(changed.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+    const resourcesToggle = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resourcesToggle) throw new Error("expected Custom Resources action");
+    await act(async () => resourcesToggle.click());
+    const elements = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Elements");
+    if (!elements) throw new Error("expected Elements panel action");
+    await act(async () => elements.click());
+    expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
+    expect(containerElement.querySelector('[role="treeitem"][aria-selected="true"]')?.textContent).toContain("Styled master content");
+
+    await undo();
+    const undone = await save(onSave);
+    expect(undone.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Master content" });
+    expect(undone.resources).toBeUndefined();
+    await redo();
+    const redone = await save(onSave);
+    expect(redone.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Styled master content" });
+    expect(redone.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    render(redone, vi.fn(async () => {}), undefined, { elementStyleRepository: appliedRepository });
+    expect(containerElement.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')?.textContent).toContain("Styled master content");
+  });
+
+  it("disables Root Element Style browsing until a master element is selected", async () => {
+    const repository = elementStyleRepository([{
+      id: "unused-root-style",
+      item: { name: "Unused Root style", root: { type: "text", properties: [] } },
+    }]);
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(presentation(), onSave, undefined, { elementStyleRepository: repository });
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+    const browse = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add saved element");
+    if (!browse) throw new Error("expected Element Style browse control");
     expect(browse.disabled).toBe(true);
     await act(async () => browse.click());
     expect(repository.listItems).not.toHaveBeenCalled();
-    expect(containerElement.querySelector("[data-custom-library-apply]")).toBeNull();
+
+    const saveButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    expect(saveButton?.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+
+    await act(async () => resources.click());
+    const history = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "History");
+    if (!history) throw new Error("expected History action");
+    await act(async () => history.click());
+    expect(containerElement.textContent).toContain("History is not populated yet.");
   });
 
   it("allows descendant Cut/Paste while keeping the canonical Root boundary protected", async () => {

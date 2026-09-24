@@ -380,4 +380,21 @@ describe("applyCustomLibraryItemToPresentation", () => {
     expect(result).toEqual({ ok: false, reason: "unsupported-create-type" });
     expect(original).toEqual(presentation());
   });
+
+  it("rejects owner writes atomically after dependency materialization", () => {
+    const original = presentation();
+    const before = structuredClone(original);
+    const style = item(textRecipe("Fira Code"), {
+      fonts: [{ family: "Fira Code", faces: [face("https://example.com/fira.woff2")] }],
+    });
+    const result = applyCustomLibraryItemToPresentation(style, original, 0, null, {
+      resolveElements: (current) => current.slides[0]?.elements ?? null,
+      replaceElements: () => null,
+    });
+
+    expect(result).toEqual({ ok: false, reason: "invalid-recipe-application" });
+    expect(original).toEqual(before);
+    expect(original.resources).toBeUndefined();
+    expect(original.slides[0]?.elements).toEqual([]);
+  });
 });

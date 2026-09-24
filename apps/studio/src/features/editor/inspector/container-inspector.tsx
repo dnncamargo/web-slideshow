@@ -100,21 +100,19 @@ export function ContainerInspector({
 
       {rootLocalContentReceiver ? (
         <div className={styles.inspectorGroup}>
-          <label className={styles.field}>
-            <span className={styles.inspectorLabel}>{t("inspector.rootLocalContent")}</span>
-            <span>
-              <input
-                type="checkbox"
-                data-root-local-content-receiver
-                checked={rootLocalContentReceiver.allowed}
-                onChange={(event) => rootLocalContentReceiver.onChange(event.target.checked)}
-              />{" "}
-              {t("inspector.allowLocalSlideContent")}
-            </span>
+          <span className={styles.inspectorLabel}>{t("inspector.rootLocalContent")}</span>
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              data-root-local-content-receiver
+              checked={rootLocalContentReceiver.allowed}
+              onChange={(event) => rootLocalContentReceiver.onChange(event.target.checked)}
+            />
+            <span>{t("inspector.allowLocalSlideContent")}</span>
           </label>
-          <span className={styles.status}>
+          <div className={styles.nextStep}>
             {t("inspector.rootLocalContentDescription")}
-          </span>
+          </div>
           {rootLocalContentReceiver.feedback ? (
             <span className={styles.status} role="alert">
               {rootLocalContentReceiver.feedback}

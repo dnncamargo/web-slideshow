@@ -29,13 +29,25 @@ export type CustomLibraryPlacementResult =
   | {
       ok: false;
       reason: CustomLibraryApplyFailureReason;
+  };
+
+export type CustomLibraryElementPlacementResult =
+  | {
+      ok: true;
+      elements: PresentationElement[];
+      appliedElementId: string;
+      mode: CustomLibraryPlacementMode;
+    }
+  | {
+      ok: false;
+      reason: CustomLibraryApplyFailureReason;
     };
 
 function createRoot(
   recipe: CustomLibraryElementRecipe,
-  slide: Slide,
+  elements: PresentationElement[],
   usedIds: Set<string>,
-): CustomLibraryPlacementResult {
+): CustomLibraryElementPlacementResult {
   const materialized = materializeCustomLibraryElementRecipe(recipe, usedIds);
 
   if (!materialized.ok) {
@@ -44,27 +56,24 @@ function createRoot(
 
   return {
     ok: true,
-    slide: {
-      ...slide,
-      elements: [...slide.elements, materialized.element],
-    },
+    elements: [...elements, materialized.element],
     appliedElementId: materialized.element.id,
     mode: "create-root",
   };
 }
 
-export function placeCustomLibraryElementRecipe(
+export function placeCustomLibraryElementRecipeInElements(
   recipe: CustomLibraryElementRecipe,
-  slide: Slide,
+  elements: PresentationElement[],
   usedIds: Set<string>,
   selectedElementId: string | null,
-): CustomLibraryPlacementResult {
+): CustomLibraryElementPlacementResult {
   const selected = selectedElementId === null
     ? null
-    : findElementById(slide.elements, selectedElementId);
+    : findElementById(elements, selectedElementId);
 
   if (selected === null) {
-    return createRoot(recipe, slide, usedIds);
+    return createRoot(recipe, elements, usedIds);
   }
 
   if (selected.type === recipe.type) {
@@ -76,10 +85,7 @@ export function placeCustomLibraryElementRecipe(
 
     return {
       ok: true,
-      slide: {
-        ...slide,
-        elements: updateElementById(slide.elements, selected.id, () => merged.element),
-      },
+      elements: updateElementById(elements, selected.id, () => merged.element),
       appliedElementId: selected.id,
       mode: "merge-selected",
     };
@@ -93,11 +99,30 @@ export function placeCustomLibraryElementRecipe(
 
   return {
     ok: true,
-    slide: {
-      ...slide,
-      elements: insertElementAfterId(slide.elements, selected.id, materialized.element),
-    },
+    elements: insertElementAfterId(elements, selected.id, materialized.element),
     appliedElementId: materialized.element.id,
     mode: "create-sibling",
   };
+}
+
+export function placeCustomLibraryElementRecipe(
+  recipe: CustomLibraryElementRecipe,
+  slide: Slide,
+  usedIds: Set<string>,
+  selectedElementId: string | null,
+): CustomLibraryPlacementResult {
+  const result = placeCustomLibraryElementRecipeInElements(
+    recipe,
+    slide.elements,
+    usedIds,
+    selectedElementId,
+  );
+  return result.ok
+    ? {
+        ok: true,
+        slide: { ...slide, elements: result.elements },
+        appliedElementId: result.appliedElementId,
+        mode: result.mode,
+      }
+    : result;
 }

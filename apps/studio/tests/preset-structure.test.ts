@@ -235,6 +235,10 @@ describe("shared preset structural primitive", () => {
       id: "root-definition-root",
       type: "container",
       hidden: false,
+      layout: {
+        width: "100%",
+        height: "100%",
+      },
       children: [],
     });
   });

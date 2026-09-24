@@ -63,6 +63,24 @@ export function resolveEffectiveRootDefinitionId(
   return slide.rootDefinitionId ?? presentation.defaultRootDefinitionId;
 }
 
+export type SlideRootDefinitionAssignmentBlocker =
+  | "ordinary-content"
+  | "local-root-content";
+
+/** Classifies persisted Slide content that makes changing Root association unsafe. */
+export function getSlideRootDefinitionAssignmentBlocker(
+  presentation: Presentation,
+  slide: Presentation["slides"][number],
+): SlideRootDefinitionAssignmentBlocker | null {
+  if (resolveEffectiveRootDefinitionId(presentation, slide) === undefined) {
+    return slide.elements.length > 0 ? "ordinary-content" : null;
+  }
+
+  return (slide.localRootChildren ?? []).some((record) => record.children.length > 0)
+    ? "local-root-content"
+    : null;
+}
+
 /** Authorizes one Container in a Root Definition to receive future local Slide content. */
 export function setRootDefinitionLocalChildTarget(
   presentation: Presentation,

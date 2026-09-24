@@ -59,7 +59,10 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
-import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/custom-library-item-apply";
+import {
+  applyCustomLibraryItemToPresentation,
+  type CustomLibraryElementOwner,
+} from "@/features/custom-library/custom-library-item-apply";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -213,6 +216,7 @@ import type { SlideLayoutPreset } from "./slide-operations";
 import {
   createRootDefinitionFromPreset,
   deleteRootDefinition,
+  getSlideRootDefinitionAssignmentBlocker,
   renameRootDefinition,
   setSlideRootDefinition,
   type RootDefinitionLifecycleFailure,
@@ -298,6 +302,15 @@ import {
   type AuthoringTarget,
 } from "./authoring-target";
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
+import {
+  isAuthorizedLocalRootReceiver,
+  findLocalRootChildOwner,
+  resolveOwnedAuthoringTree,
+  replaceOwnedAuthoringTree,
+  updateOwnedAuthoringTree,
+  updateLocalRootChildren,
+  updateLocalRootElement,
+} from "./slide-local-root-authoring";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -330,7 +343,7 @@ import type {
 // BEGIN: SLIDE LAYOUT PICKER
 // ============================================================
 
-import { SlideLayoutPicker, type CreationKind } from "./slide-layout-picker";
+import { SlideLayoutPicker } from "./slide-layout-picker";
 import { updatePresentationTitle } from "./presentation-title";
 
 type RootLocalContentTargetError = {
@@ -1273,7 +1286,7 @@ export function EditorWorkspace({
     if (presentation === pending.beforePresentation) return;
 
     pendingQrSelectionRef.current = null;
-    const elements = resolveAuthoringElements(presentation, pending.target);
+    const elements = resolveOwnedAuthoringTree(presentation, pending.target, pending.sourceElementId)?.elements ?? null;
     const source = elements ? findElementById(elements, pending.sourceElementId) : undefined;
     const qr = elements ? findElementById(elements, pending.qrElementId) : undefined;
     if (
@@ -1344,10 +1357,6 @@ export function EditorWorkspace({
 
   const [newSlidePreset, setNewSlidePreset] =
     useState<SlideLayoutPreset>("blank");
-
-  const [creationKind, setCreationKind] = useState<CreationKind>("slide");
-
-  const [newRootDefinitionName, setNewRootDefinitionName] = useState("");
 
   const [creationError, setCreationError] = useState<string | null>(null);
   const [slideRootDefinitionError, setSlideRootDefinitionError] = useState<string | null>(null);
@@ -1461,6 +1470,25 @@ export function EditorWorkspace({
   const resolvedAuthoringTarget = resolveAuthoringTarget(presentation, authoringTarget);
   const selectedSlide = resolvedAuthoringTarget?.slide ?? presentation.slides[retainedSlideIndex];
   const retainedSlide = presentation.slides[retainedSlideIndex];
+  const materializedSlideProjection = useMemo(() => {
+    if (!selectedSlide || authoringTarget.kind !== "slide") return null;
+    return materializeSlide(presentation, selectedSlide);
+  }, [authoringTarget.kind, presentation, selectedSlide]);
+  const effectiveSlide = authoringTarget.kind === "slide"
+    ? materializedSlideProjection?.slide ?? selectedSlide
+    : selectedSlide;
+  const effectiveElements = effectiveSlide?.elements ?? [];
+  const materializedOwnership = materializedSlideProjection?.ownershipByStructuralId ?? null;
+  const rootBackedSlide = authoringTarget.kind === "slide"
+    && selectedSlide !== undefined
+    && (selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+  const slideRootDefinitionAssignmentBlocker = selectedSlide
+    ? getSlideRootDefinitionAssignmentBlocker(presentation, selectedSlide)
+    : null;
+
+  useEffect(() => {
+    if (rootBackedSlide) setPendingCut(null);
+  }, [rootBackedSlide]);
   const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
     ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
     : undefined;
@@ -1559,10 +1587,12 @@ export function EditorWorkspace({
 
   useEffect(() => {
     if (!pendingElementDeletion) return;
-    const elements = resolveAuthoringElements(
-      presentation,
-      pendingElementDeletion.target,
-    );
+    const elements = pendingElementDeletion.target.kind === "slide"
+      ? (() => {
+          const slide = presentation.slides[pendingElementDeletion.target.slideIndex];
+          return slide ? materializeSlide(presentation, slide).slide.elements : null;
+        })()
+      : resolveAuthoringElements(presentation, pendingElementDeletion.target);
     const element = elements
       ? findElementById(elements, pendingElementDeletion.elementId)
       : null;
@@ -1602,10 +1632,20 @@ export function EditorWorkspace({
       return null;
     }
 
-    return findElementById(selectedSlide.elements, selectedElement.id);
-  }, [selectedSlide, selectedElement]);
+    return findElementById(effectiveElements, selectedElement.id);
+  }, [effectiveElements, selectedElement, selectedSlide]);
+  const selectedElementOwner = selectedDocumentElement && materializedOwnership
+    ? materializedOwnership.get(selectedDocumentElement.id)
+    : undefined;
+  const selectedMasterElement = rootBackedSlide && selectedDocumentElement !== null
+    && findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) === null;
+  const elementStyleApplyAllowed = rootDefinitionMode
+    ? selectedDocumentElement !== null
+    : !rootBackedSlide
+      || (selectedDocumentElement !== null && !selectedMasterElement);
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
-    && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement));
+    && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement))
+    || (!rootDefinitionMode && selectedMasterElement);
 
   const currentImageMediaTarget = useMemo<OwnedImageMediaAuthoringTarget | null>(() => {
     if (selectedDocumentElement?.type === "image") {
@@ -1636,7 +1676,14 @@ export function EditorWorkspace({
     target: OwnedImageMediaAuthoringTarget,
     sourcePresentation: Presentation = presentation,
   ): ImageMediaValue | null {
-    const elements = resolveAuthoringElements(sourcePresentation, target.authoringTarget);
+    const elements = target.authoringTarget.kind === "slide"
+      ? (() => {
+          const slide = sourcePresentation.slides[target.authoringTarget.slideIndex];
+          return slide && (slide.rootDefinitionId ?? sourcePresentation.defaultRootDefinitionId) !== undefined
+            ? materializeSlide(sourcePresentation, slide).slide.elements
+            : slide?.elements ?? null;
+        })()
+      : resolveAuthoringElements(sourcePresentation, target.authoringTarget);
     if (!elements) return null;
     if (target.mediaTarget.kind === "image") {
       const element = findElementById(elements, target.mediaTarget.elementId);
@@ -1651,7 +1698,8 @@ export function EditorWorkspace({
     target: OwnedImageMediaAuthoringTarget,
     update: (media: ImageMediaValue) => ImageMediaValue,
   ): Presentation {
-    const elements = resolveAuthoringElements(current, target.authoringTarget);
+    const anchorId = target.mediaTarget.kind === "image" ? target.mediaTarget.elementId : target.mediaTarget.galleryId;
+    const elements = resolveOwnedAuthoringTree(current, target.authoringTarget, anchorId)?.elements ?? null;
     if (!elements) return current;
 
     const mediaTarget = target.mediaTarget;
@@ -1677,7 +1725,7 @@ export function EditorWorkspace({
 
     return nextElements === elements
       ? current
-      : replaceAuthoringElements(current, target.authoringTarget, nextElements);
+      : replaceOwnedAuthoringTree(current, target.authoringTarget, anchorId, nextElements);
   }
 
   useEffect(() => {
@@ -1717,6 +1765,7 @@ export function EditorWorkspace({
   }
 
   function cutSelectedElement(): boolean {
+    if (rootBackedSlide) return false;
     if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
       return false;
     }
@@ -1737,6 +1786,7 @@ export function EditorWorkspace({
   }
 
   function pasteClipboardEntry(entryId: string): boolean {
+    if (rootBackedSlide) return false;
     const target = authoringTarget;
     const entry = clipboardSession.entries.find(
       (candidate) => candidate.id === entryId,
@@ -1792,6 +1842,7 @@ export function EditorWorkspace({
   }
 
   function pastePendingCut(): boolean {
+    if (rootBackedSlide) return false;
     if (!pendingCut) return false;
 
     const target = authoringTarget;
@@ -1939,6 +1990,9 @@ export function EditorWorkspace({
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
     }
+    if (selectedMasterElement) {
+      return;
+    }
     if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return;
     }
@@ -2061,10 +2115,10 @@ export function EditorWorkspace({
     }
 
     return findElementSiblingPosition(
-      selectedSlide.elements,
+      effectiveElements,
       selectedElement.id,
     );
-  }, [selectedSlide, selectedElement]);
+  }, [effectiveElements, selectedElement, selectedSlide]);
 
   const selectedElementParent = useMemo(() => {
     if (
@@ -2075,12 +2129,12 @@ export function EditorWorkspace({
     }
 
     const parent = findElementById(
-      selectedSlide.elements,
+      effectiveElements,
       selectedElementPosition.parentRef.id,
     );
 
     return parent?.type === "container" ? parent : null;
-  }, [selectedElementPosition, selectedSlide]);
+  }, [effectiveElements, selectedElementPosition, selectedSlide]);
 
   // ==========================================================
   // END: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -2099,9 +2153,9 @@ export function EditorWorkspace({
   const renderedSlideModel = useMemo(() => {
     if (!selectedSlide) return undefined;
     return authoringTarget.kind === "slide"
-      ? materializeSlide(presentation, selectedSlide).slide
+      ? materializedSlideProjection?.slide
       : selectedSlide;
-  }, [authoringTarget.kind, selectedSlide, presentation]);
+  }, [authoringTarget.kind, materializedSlideProjection, selectedSlide]);
 
   const renderedSlide = useMemo(
     () => renderedSlideModel ? renderSlide(renderedSlideModel, { presentation }) : "",
@@ -2486,6 +2540,11 @@ export function EditorWorkspace({
 
   function selectSlide(index: number) {
     if (rootDefinitionMode) return;
+    selectSlideFromResourceUsage(index);
+  }
+
+  function selectSlideFromResourceUsage(index: number) {
+    if (!presentation.slides[index]) return;
     finishPresentationTransaction();
     setSelectedSlideIndex(index);
     setAuthoringTarget({ kind: "slide", slideIndex: index });
@@ -2572,7 +2631,7 @@ export function EditorWorkspace({
     }
 
     const position = findElementSiblingPosition(
-      selectedSlide.elements,
+      effectiveElements,
       elementId,
     );
 
@@ -2582,7 +2641,7 @@ export function EditorWorkspace({
 
     if (position.parentRef.kind === "slide") {
       const documentElement = findElementById(
-        selectedSlide.elements,
+        effectiveElements,
         elementId,
       );
 
@@ -2601,14 +2660,14 @@ export function EditorWorkspace({
       return null;
     }
 
-    {
-      const { id } = position.parentRef;
-      return (
-        Array.from(
-          canvas.querySelectorAll<HTMLElement>("[data-presentation-id]"),
-        ).find((candidate) => candidate.dataset.presentationId === id) ?? null
-      );
-    }
+    const parent = findElementById(
+      effectiveElements,
+      position.parentRef.id,
+    );
+
+    return parent?.type === "container"
+      ? findCanvasElementById(canvas, parent.id)
+      : null;
   }
 
   function getCanvasBounds(element: HTMLElement): CanvasBounds {
@@ -2775,7 +2834,7 @@ export function EditorWorkspace({
     );
     const selection = resolveCanvasPointerSelection(
       hitTarget,
-      selectedSlide.elements,
+      effectiveElements,
     );
 
     if (!selection) {
@@ -2965,7 +3024,7 @@ export function EditorWorkspace({
         labelParams: { setting: "canvas.drag" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, drag.elementId)?.elements ?? null;
         const element = elements ? findElementById(elements, drag.elementId) : null;
         if (
           !elements ||
@@ -3020,7 +3079,7 @@ export function EditorWorkspace({
 
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, nextElements);
       },
     );
   }
@@ -3392,7 +3451,7 @@ export function EditorWorkspace({
         labelParams: { setting: "canvas.resize" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, resize.elementId)?.elements ?? null;
         const element = elements ? findElementById(elements, resize.elementId) : null;
         if (
           !elements ||
@@ -3472,7 +3531,7 @@ export function EditorWorkspace({
 
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, resize.elementId, nextElements);
       },
     );
   }
@@ -3605,9 +3664,17 @@ export function EditorWorkspace({
 
     const intent = authoringIntentRef.current;
     const writeTarget = intent?.target ?? authoringTarget;
-    const applyUpdate = (current: Presentation): Presentation =>
-      updateAuthoringElements(current, writeTarget, (elements) =>
+    const applyUpdate = (current: Presentation): Presentation => {
+      if (
+        writeTarget.kind === "slide" &&
+        (current.slides[writeTarget.slideIndex]?.rootDefinitionId ?? current.defaultRootDefinitionId) !== undefined &&
+        findLocalRootChildOwner(current, writeTarget.slideIndex, selectedElement.id) !== null
+      ) {
+        return updateLocalRootElement(current, writeTarget.slideIndex, selectedElement.id, update);
+      }
+      return updateAuthoringElements(current, writeTarget, (elements) =>
         updateElementById(elements, selectedElement.id, update));
+    };
     if (intent?.type === "continuous") {
       dispatchHistory({ type: "transaction-update", key: intent.key, update: applyUpdate });
     } else if (intent?.type === "discrete") {
@@ -3645,7 +3712,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentContainer = findElementById(elements, containerId);
         if (currentContainer?.type !== "container") return current;
@@ -3655,7 +3722,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => nextContainer);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
   }
@@ -3674,7 +3741,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentContainer = findElementById(elements, containerId);
         if (currentContainer?.type !== "container" || currentContainer.linkedStyleId !== expectedLinkedStyleId) return current;
@@ -3683,7 +3750,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => nextContainer);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
   }
@@ -3700,7 +3767,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, topicsId)?.elements ?? null;
         if (!elements) return current;
         const currentTopics = findElementById(elements, topicsId);
         if (currentTopics?.type !== "topics") return current;
@@ -3710,7 +3777,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, topicsId, () => nextTopics);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -3729,7 +3796,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, topicsId)?.elements ?? null;
         if (!elements) return current;
         const currentTopics = findElementById(elements, topicsId);
         if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId !== expectedLinkedStyleId) return current;
@@ -3738,7 +3805,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, topicsId, () => nextTopics);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -3772,7 +3839,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.childrenFit" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentElement = findElementById(elements, containerId);
         if (currentElement?.type !== "container") return current;
@@ -3810,7 +3877,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => updated);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
     return true;
@@ -4107,12 +4174,12 @@ export function EditorWorkspace({
       target,
       { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
       (current, currentTarget) => {
-        const elements = resolveAuthoringElements(current, currentTarget);
+        const elements = resolveOwnedAuthoringTree(current, currentTarget, textId)?.elements ?? null;
         const text = elements ? findElementById(elements, textId) : undefined;
         if (text?.type !== "text") return current;
         const created = createTextStyleFromText(current, text, trimmedName);
         if (!created) return current;
-        return updateAuthoringElements(created.presentation, currentTarget, (currentElements) =>
+        return updateOwnedAuthoringTree(created.presentation, currentTarget, textId, (currentElements) =>
           updateElementById(currentElements, textId, (element) => element.type === "text" ? created.text : element),
         );
       },
@@ -4188,21 +4255,21 @@ export function EditorWorkspace({
         labelParams: { setting: "linkedStyle.createFromElement" },
       },
       (current, currentTarget) => {
-        const elements = resolveAuthoringElements(current, currentTarget);
+        const elements = resolveOwnedAuthoringTree(current, currentTarget, elementId)?.elements ?? null;
         const currentElement = elements ? findElementById(elements, elementId) : undefined;
         if (!currentElement || currentElement.type !== expectedType) return current;
 
         if (expectedType === "container") {
           if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
           const candidate = createLinkedStyleFromContainerElement(current, currentElement, name);
-          return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
             updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
           );
         }
 
         if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
         const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
-        return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+        return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
           updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element),
         );
       },
@@ -4376,6 +4443,67 @@ export function EditorWorkspace({
     const newElement = createElement(type, usedIds);
     const target = authoringTarget;
 
+    if (rootBackedSlide && target.kind === "slide") {
+      const selectedId = selectedElement?.id ?? null;
+      const selectedOwner = selectedId === null
+        ? undefined
+        : selectedMasterElement
+          ? "master"
+          : findLocalRootChildOwner(presentation, target.slideIndex, selectedId) !== null
+            ? "slide"
+            : undefined;
+      const receiverId = selectedOwner === "master"
+        ? selectedDocumentElement?.type === "container" ? selectedDocumentElement.id : null
+        : selectedId === null
+          ? null
+          : findLocalRootChildOwner(presentation, target.slideIndex, selectedId)?.targetContainerId ?? null;
+      if (receiverId === null) return;
+
+      commitAuthoringAction(
+        target,
+        {
+          kind: "element.add",
+          labelKey: "history.element.add",
+          labelParams: { elementType: type },
+        },
+        (current) => {
+          const prepared = type === "table"
+            ? ensureStructuredTableTextStyles(current).presentation
+            : type === "topics"
+              ? ensureTopicsTextStyle(current)
+              : current;
+          const slide = prepared.slides[target.slideIndex];
+          if (!slide) return current;
+          const projected = materializeSlide(prepared, slide).slide;
+          const destination = selectedOwner === "master"
+            ? { kind: "append-container" as const, containerId: receiverId }
+            : resolveAddElementDestination(
+                projected.elements,
+                selectedId,
+                newElement,
+                selectedElement?.contentSlotId ?? null,
+              );
+          return updateLocalRootChildren(prepared, target.slideIndex, receiverId, (children) => {
+            if (selectedOwner === "master") {
+              return [...children, newElement];
+            }
+            switch (destination.kind) {
+              case "append-container":
+                return appendElementToContainer(children, destination.containerId, newElement);
+              case "append-content-slot":
+                return appendElementToContentSlot(children, destination.contentSlotId, newElement);
+              case "insert-after":
+                return insertElementAfterId(children, destination.targetId, newElement);
+              case "slide-root":
+                return children;
+            }
+          });
+        },
+      );
+      setSelectedElement({ id: newElement.id, type: newElement.type });
+      return;
+    }
+
     commitAuthoringAction(
       target,
       {
@@ -4467,6 +4595,7 @@ export function EditorWorkspace({
   }
 
   function createQrFromSelectedLink(href: string): void {
+    if (selectedMasterElement) return;
     if (
       !selectedDocumentElement ||
       (selectedDocumentElement.type !== "text" &&
@@ -4503,7 +4632,7 @@ export function EditorWorkspace({
         labelParams: { elementType: "image" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, sourceElementId)?.elements ?? null;
         if (!elements) return current;
         const currentSource = findElementById(elements, sourceElementId);
         if (
@@ -4525,7 +4654,7 @@ export function EditorWorkspace({
           newElement,
         );
         if (nextElements === elements) return current;
-        return replaceAuthoringElements(current, authoringTarget, nextElements);
+        return replaceOwnedAuthoringTree(current, authoringTarget, sourceElementId, nextElements);
       },
     );
   }
@@ -4545,12 +4674,31 @@ export function EditorWorkspace({
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
+    const target = authoringTarget;
+    const owner: CustomLibraryElementOwner = {
+      resolveElements: (current) => resolveOwnedAuthoringTree(
+        current,
+        target,
+        selectedElementId ?? undefined,
+      )?.elements ?? null,
+      replaceElements: (current, elements) => {
+        const next = selectedElementId === null
+          ? replaceAuthoringElements(current, target, elements)
+          : replaceOwnedAuthoringTree(current, target, selectedElementId, elements);
+        return next === current ? null : next;
+      },
+    };
+
+    if (!owner.resolveElements(presentation)) {
+      return { ok: false, reason: "invalid-recipe-application" };
+    }
 
     const preflightResult = applyCustomLibraryItemToPresentation(
       item,
       presentation,
       slideIndex,
       selectedElementId,
+      owner,
     );
 
     if (!preflightResult.ok) {
@@ -4558,7 +4706,8 @@ export function EditorWorkspace({
     }
 
     let currentResult: ReturnType<typeof applyCustomLibraryItemToPresentation> = preflightResult;
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "customLibrary.apply",
         labelKey: "history.element.setting",
@@ -4570,6 +4719,7 @@ export function EditorWorkspace({
           current,
           slideIndex,
           selectedElementId,
+          owner,
         );
         currentResult = result;
         return result.ok ? result.presentation : current;
@@ -4580,10 +4730,8 @@ export function EditorWorkspace({
       return currentResult;
     }
 
-    const appliedElement = findElementById(
-      preflightResult.presentation.slides[slideIndex]?.elements ?? [],
-      preflightResult.appliedElementId,
-    );
+    const appliedElements = owner.resolveElements(preflightResult.presentation) ?? [];
+    const appliedElement = findElementById(appliedElements, preflightResult.appliedElementId);
     if (appliedElement) {
       setSelectedElement({
         id: appliedElement.id,
@@ -4611,7 +4759,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
     const target = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, target);
+    const elements = resolveOwnedAuthoringTree(presentation, target, topicsId)?.elements ?? null;
 
     if (!elements) {
       return null;
@@ -4638,7 +4786,7 @@ export function EditorWorkspace({
       },
       (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        const preparedElements = resolveOwnedAuthoringTree(prepared, authoringTarget, topicsId)?.elements ?? null;
         if (!preparedElements) return current;
 
         const elements = appendTopicItemToTopics(
@@ -4649,7 +4797,7 @@ export function EditorWorkspace({
 
         return elements === preparedElements
           ? current
-          : replaceAuthoringElements(prepared, authoringTarget, elements);
+          : replaceOwnedAuthoringTree(prepared, authoringTarget, topicsId, elements);
       },
     );
 
@@ -4660,7 +4808,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
     const target = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, target);
+    const elements = resolveOwnedAuthoringTree(presentation, target, topicsId)?.elements ?? null;
 
     if (!elements) {
       return null;
@@ -4688,7 +4836,7 @@ export function EditorWorkspace({
       },
       (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        const preparedElements = resolveOwnedAuthoringTree(prepared, authoringTarget, topicsId)?.elements ?? null;
         if (!preparedElements) return current;
 
         const elements = appendChildTopicItemToTopics(
@@ -4700,7 +4848,7 @@ export function EditorWorkspace({
 
         return elements === preparedElements
           ? current
-          : replaceAuthoringElements(prepared, authoringTarget, elements);
+          : replaceOwnedAuthoringTree(prepared, authoringTarget, topicsId, elements);
       },
     );
 
@@ -4735,6 +4883,27 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const duplicatedElement = duplicateElement(selectedDocumentElement, usedIds);
     const target = authoringTarget;
+
+    if (rootBackedSlide && target.kind === "slide") {
+      const owner = findLocalRootChildOwner(presentation, target.slideIndex, sourceElementId);
+      if (!owner) return;
+      commitAuthoringAction(
+        target,
+        {
+          kind: "element.duplicate",
+          labelKey: "history.element.duplicate",
+          labelParams: { elementType: selectedDocumentElement.type },
+        },
+        (current) => updateOwnedAuthoringTree(
+          current,
+          target,
+          sourceElementId,
+          (children) => insertElementAfterId(children, sourceElementId, duplicatedElement),
+        ),
+      );
+      setSelectedElement({ id: duplicatedElement.id, type: duplicatedElement.type });
+      return;
+    }
 
     commitAuthoringAction(
       target,
@@ -4793,6 +4962,27 @@ export function EditorWorkspace({
       setPendingElementDeletion(null);
       return;
     }
+    if (deletion.target.kind === "slide" && (deletion.target.slideIndex === selectedSlideIndex)) {
+      const slideIndex = deletion.target.slideIndex;
+      const projected = materializeSlide(current, current.slides[slideIndex]!);
+      const localOwner = findLocalRootChildOwner(current, slideIndex, deletion.elementId);
+      const localElement = findElementById(projected.slide.elements, deletion.elementId);
+      if (localOwner && localElement?.type === deletion.elementType) {
+        commitAuthoringAction(
+          deletion.target,
+          { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } },
+          (currentPresentation) => updateLocalRootChildren(
+            currentPresentation,
+            slideIndex,
+            localOwner.targetContainerId,
+            (children) => removeElementById(children, deletion.elementId),
+          ),
+        );
+        setSelectedElement((currentSelection) => currentSelection?.id === deletion.elementId ? null : currentSelection);
+        setPendingElementDeletion(null);
+        return;
+      }
+    }
     const currentElements = resolveAuthoringElements(current, deletion.target);
     const currentElement = currentElements
       ? findElementById(currentElements, deletion.elementId)
@@ -4844,6 +5034,27 @@ export function EditorWorkspace({
 
     const deletion = pendingElementDeletion;
     const current = history.present;
+    if (deletion.target.kind === "slide" && deletion.target.slideIndex === selectedSlideIndex) {
+      const slideIndex = deletion.target.slideIndex;
+      const projected = materializeSlide(current, current.slides[slideIndex]!);
+      const localOwner = findLocalRootChildOwner(current, slideIndex, deletion.elementId);
+      const localElement = findElementById(projected.slide.elements, deletion.elementId);
+      if (localOwner && localElement?.type === "container") {
+        commitAuthoringAction(
+          deletion.target,
+          { kind: "element.deleteContainerPreserveChildren", labelKey: "history.element.deleteContainerPreserveChildren" },
+          (currentPresentation) => updateLocalRootChildren(
+            currentPresentation,
+            slideIndex,
+            localOwner.targetContainerId,
+            (children) => unwrapContainerPreservingChildren(children, deletion.elementId).elements,
+          ),
+        );
+        setSelectedElement((currentSelection) => currentSelection?.id === deletion.elementId ? null : currentSelection);
+        setPendingElementDeletion(null);
+        return;
+      }
+    }
     const currentElements = resolveAuthoringElements(current, deletion.target);
     const currentElement = currentElements
       ? findElementById(currentElements, deletion.elementId)
@@ -4958,7 +5169,18 @@ export function EditorWorkspace({
   // END: CREATE SLIDE FROM PRESET
   // ==========================================================
 
-  function addRootDefinition(preset: SlideLayoutPreset, name: string) {
+  function addRootDefinition(preset: SlideLayoutPreset) {
+    const rootDefinitionBaseName = t("creation.rootDefinition");
+    const existingNames = new Set(
+      (presentation.rootDefinitions ?? []).map((definition) => definition.name.trim()),
+    );
+    let ordinal = 1;
+    let name = `${rootDefinitionBaseName} ${ordinal}`;
+    while (existingNames.has(name)) {
+      ordinal += 1;
+      name = `${rootDefinitionBaseName} ${ordinal}`;
+    }
+
     const result = createRootDefinitionFromPreset(presentation, preset, name);
     if (!result.ok) {
       setCreationError(
@@ -4977,8 +5199,6 @@ export function EditorWorkspace({
     setSelectedElement(null);
     setCreationError(null);
     setIsSlideLayoutPickerOpen(false);
-    setCreationKind("slide");
-    setNewRootDefinitionName("");
   }
 
   function renamePresentationRootDefinition(rootDefinitionId: string, name: string) {
@@ -5060,16 +5280,13 @@ export function EditorWorkspace({
     setRootLocalContentTargetError(null);
   }
 
-  function createOwnerFromPicker() {
-    if (creationKind === "root-definition") {
-      addRootDefinition(newSlidePreset, newRootDefinitionName);
-      return;
-    }
-
+  function createSlideFromPicker() {
     addSlide(newSlidePreset);
-    setCreationKind("slide");
-    setNewRootDefinitionName("");
     setCreationError(null);
+  }
+
+  function createRootFromPicker() {
+    addRootDefinition("blank");
   }
   // ==========================================================
   // BEGIN: DUPLICATE SLIDE
@@ -5560,7 +5777,7 @@ export function EditorWorkspace({
     target: AuthoringTarget,
     tableId: string,
   ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
-    const elements = resolveAuthoringElements(current, target);
+    const elements = resolveOwnedAuthoringTree(current, target, tableId)?.elements ?? null;
     const element = elements ? findElementById(elements, tableId) : null;
     return element?.type === "table" && element.mode === "structured" ? element : null;
   }
@@ -5577,13 +5794,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addColumnToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5604,12 +5821,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.columns[index]?.id !== expectedColumnId) return current;
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeColumnFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5625,13 +5842,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addRowToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5652,12 +5869,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.rows[index]?.id !== expectedRowId) return current;
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeRowFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5670,12 +5887,12 @@ export function EditorWorkspace({
         target,
         { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
         (current, authoringTarget) => {
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = setStructuredTableShowHeader(elements, tableId, showHeader);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5687,12 +5904,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveColumn", labelKey: "history.element.setting", labelParams: { setting: "table.moveColumn" } },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveColumnInStructuredTable(elements, tableId, columnId, offset);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -5703,12 +5920,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveRow", labelKey: "history.element.setting", labelParams: { setting: "table.moveRow" } },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveRowInStructuredTable(elements, tableId, rowId, offset);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -5899,8 +6116,6 @@ export function EditorWorkspace({
                 setCreationError(null);
                 setIsSlideLayoutPickerOpen((current) => {
                   if (current) return false;
-                  setCreationKind("slide");
-                  setNewRootDefinitionName("");
                   return true;
                 });
               }}
@@ -5922,17 +6137,8 @@ export function EditorWorkspace({
               <SlideLayoutPicker
                 value={newSlidePreset}
                 onChange={setNewSlidePreset}
-                onCreate={createOwnerFromPicker}
-                creationKind={creationKind}
-                onCreationKindChange={(kind) => {
-                  setCreationKind(kind);
-                  setCreationError(null);
-                }}
-                rootDefinitionName={newRootDefinitionName}
-                onRootDefinitionNameChange={(name) => {
-                  setNewRootDefinitionName(name);
-                  setCreationError(null);
-                }}
+                onCreate={createSlideFromPicker}
+                onCreateRoot={createRootFromPicker}
                 error={creationError}
               />
             )}
@@ -6055,6 +6261,16 @@ export function EditorWorkspace({
             </span>
 
             <span className={styles.canvasToolbarRight}>
+              {rootDefinitionMode && (
+                <button
+                  type="button"
+                  className={`${styles.notesToggle} ${styles.notesToggleActive} ${styles.masterExitAction}`}
+                  onClick={exitRootDefinitionEditing}
+                >
+                  {t("editor.exitMasterEditing")}
+                </button>
+              )}
+
               <button
                 type="button"
                 className={
@@ -6093,15 +6309,6 @@ export function EditorWorkspace({
               </button>
 
               <span>{presentation.aspectRatio}</span>
-              {rootDefinitionMode && (
-                <button
-                  type="button"
-                  className={styles.notesToggle}
-                  onClick={exitRootDefinitionEditing}
-                >
-                  {t("editor.exitMasterEditing")}
-                </button>
-              )}
             </span>
           </div>
 
@@ -6344,7 +6551,7 @@ export function EditorWorkspace({
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
             onApplyElementStyle={applyCustomLibraryItem}
-            allowElementStyleApply={!rootDefinitionMode}
+            allowElementStyleApply={elementStyleApplyAllowed}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
@@ -6370,6 +6577,7 @@ export function EditorWorkspace({
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}
+             onSelectRootDefinitionSlide={selectSlideFromResourceUsage}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
             selectedElement={selectedDocumentElement}
@@ -6429,6 +6637,7 @@ export function EditorWorkspace({
                   pendingCut={pendingCut}
                   pendingCutLabel={t("editor.pendingCut")}
                   presentation={presentation}
+                  canPaste={!rootBackedSlide}
                   clearLabel={t("editor.clearClipboard")}
                   emptyLabel={t("editor.clipboardEmpty")}
                   pinnedLabel={t("editor.pinnedSnapshots")}
@@ -6475,7 +6684,7 @@ export function EditorWorkspace({
                     return (
                       <ElementTreePanel
                   key={selectedSlide.id}
-                  slide={selectedSlide}
+                  slide={effectiveSlide ?? selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
                   selectedContentSlotId={selectedElement?.contentSlotId ?? null}
                   selectedGalleryItemIndex={
@@ -6522,11 +6731,12 @@ export function EditorWorkspace({
                   onMoveTableColumn={moveTableColumnInTree}
                   onMoveTableRow={moveTableRowInTree}
                   workspaceRootContainerId={rootDefinitionMode ? resolveCanonicalRootContainerId(presentation, authoringTarget) : undefined}
+                  disableMovement={rootBackedSlide}
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
                    onBrowseElementStyles={() => {
-                     if (!rootDefinitionMode) setRightPanelMode("resources");
+                     if (elementStyleApplyAllowed) setRightPanelMode("resources");
                    }}
                    palette={presentation.palette}
                    fontResources={presentation.resources?.fonts}
@@ -6553,6 +6763,7 @@ export function EditorWorkspace({
                     }
                     canDuplicate={
                       Boolean(selectedDocumentElement) &&
+                      !selectedMasterElement &&
                       !(
                         rootDefinitionMode &&
                         selectedDocumentElement !== null &&
@@ -6565,6 +6776,7 @@ export function EditorWorkspace({
                     }
                     canDelete={
                       Boolean(selectedDocumentElement) &&
+                      !selectedMasterElement &&
                       !(
                         rootDefinitionMode &&
                         selectedDocumentElement !== null &&
@@ -6573,6 +6785,18 @@ export function EditorWorkspace({
                           authoringTarget,
                           selectedDocumentElement.id,
                         )
+                      )
+                    }
+                    canAdd={
+                      !rootBackedSlide || (
+                        (selectedDocumentElement !== null &&
+                          findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) !== null) ||
+                        (selectedDocumentElement?.type === "container" &&
+                          isAuthorizedLocalRootReceiver(
+                            presentation,
+                            selectedSlide!,
+                            selectedDocumentElement.id,
+                          ))
                       )
                     }
                     noSelectionDestination={
@@ -6627,11 +6851,12 @@ export function EditorWorkspace({
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
                           onCreateQrFromLink={
-                            selectedDocumentElement && isProtectedRootContainer(
+                            selectedMasterElement ||
+                            (selectedDocumentElement && isProtectedRootContainer(
                               presentation,
                               authoringTarget,
                               selectedDocumentElement.id,
-                            )
+                            ))
                               ? undefined
                               : createQrFromSelectedLink
                           }
@@ -6730,6 +6955,7 @@ export function EditorWorkspace({
                         <span>{t("inspector.rootDefinition")}</span>
                         <select
                           data-slide-root-definition
+                          disabled={slideRootDefinitionAssignmentBlocker !== null}
                           value={selectedSlide.rootDefinitionId ?? ""}
                           onChange={(event) => changeSlideRootDefinition(event.target.value)}
                         >
@@ -6744,6 +6970,8 @@ export function EditorWorkspace({
                             <option key={definition.id} value={definition.id}>{definition.name}</option>
                           ))}
                         </select>
+                        {slideRootDefinitionAssignmentBlocker === "ordinary-content" ? <span className={styles.status}>{t("inspector.rootDefinitionOrdinaryContent")}</span> : null}
+                        {slideRootDefinitionAssignmentBlocker === "local-root-content" ? <span className={styles.status}>{t("inspector.rootDefinitionIncompatible")}</span> : null}
                         {slideRootDefinitionError === "incompatible" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionIncompatible")}</span> : null}
                         {slideRootDefinitionError === "root-not-found" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionUnavailable")}</span> : null}
                       </label>
@@ -6765,7 +6993,7 @@ export function EditorWorkspace({
                           {t("inspector.rootElements")}
                         </span>
 
-                        <strong>{selectedSlide.elements.length}</strong>
+                        <strong>{effectiveElements.length}</strong>
                       </div>
 
                       <div className={styles.nextStep}>

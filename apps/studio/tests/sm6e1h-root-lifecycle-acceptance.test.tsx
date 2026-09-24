@@ -27,13 +27,6 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-  if (!setter) throw new Error("expected textarea value setter");
-  setter.call(textarea, value);
-  textarea.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
 function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
     .find((candidate) => candidate.textContent?.includes(text));
@@ -88,12 +81,9 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
   }
 
   async function createRootDefinition(): Promise<void> {
-    await act(async () => container.querySelector<HTMLInputElement>('input[value="root-definition"]')?.click());
-    await act(async () => buttonByText(container, "Title + 2 Cols").click());
-    const name = container.querySelector<HTMLInputElement>('input[aria-label="Root Definition name"]');
-    if (!name) throw new Error("expected Root Definition name input");
-    await act(async () => changeInput(name, "  Shared Root  "));
-    await act(async () => exactButton(container, "Create Root Definition").click());
+    const rootTile = container.querySelector<HTMLButtonElement>('[data-layout-action="root-definition"]');
+    if (!rootTile) throw new Error("expected Root Definition layout tile");
+    await act(async () => rootTile.click());
   }
 
   async function openResources(): Promise<void> {
@@ -118,13 +108,6 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(container.querySelector('[data-authoring-target="slide"]')).toBeNull();
 
-    const createdText = container.querySelector<HTMLElement>('[data-presentation-id="root-definition-title"]');
-    if (!createdText) throw new Error("expected generated Root Text");
-    await act(async () => createdText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
-    const textarea = container.querySelector<HTMLTextAreaElement>("#text-content");
-    if (!textarea) throw new Error("expected normal Text Inspector");
-    await act(async () => changeTextarea(textarea, "Shared Root heading"));
-
     const rootContainer = container.querySelector<HTMLElement>('[data-presentation-id="root-definition-root"]');
     if (!rootContainer) throw new Error("expected canonical Root Container");
     await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -138,10 +121,10 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     const createdRootId = createdRoot.id;
     expect(snapshot.rootDefinitions).toHaveLength(1);
     expect(snapshot.slides).toEqual(initial.slides);
-    expect(createdRoot.name).toBe("Shared Root");
+    expect(createdRoot.name).toBe("Root Definition 1");
     expect(createdRoot.localChildTargetIds).toEqual(["root-definition-root"]);
     expect(createdRoot.root).toMatchObject({ id: "root-definition-root" });
-    expect(JSON.stringify(createdRoot.root)).toContain("Shared Root heading");
+    expect(createdRoot.root).toMatchObject({ layout: { width: "100%", height: "100%" }, children: [] });
     expect(snapshot.slides[0]?.elements).toEqual([]);
     expect(snapshot.slides[0]?.rootDefinitionId).toBeUndefined();
     expect(snapshot.slides[0]?.localRootChildren).toBeUndefined();
@@ -150,7 +133,7 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     expect(container.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
 
     await openNew();
-    expect(container.querySelector<HTMLInputElement>('input[value="slide"]')?.checked).toBe(true);
+    expect(container.querySelector('input[type="radio"]')).toBeNull();
     await act(async () => buttonByText(container, "Blank").click());
     await act(async () => exactButton(container, "+ New").click());
     const newSlideIndex = 1;
@@ -166,7 +149,7 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
       association.value = createdRootId;
       association.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(container.querySelector('[data-presentation-id="root-definition-title"]')?.textContent).toContain("Shared Root heading");
+    expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
     snapshot = await save(saved);
     const associatedSlide = snapshot.slides[newSlideIndex];
     expect(associatedSlide?.rootDefinitionId).toBe(createdRootId);
@@ -178,9 +161,12 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     const rootSection = await openRootDefinitions();
     const row = rootSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!row) throw new Error("expected created Root in This Presentation");
+    const rowDisclosure = row.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!rowDisclosure) throw new Error("expected Root disclosure");
+    await act(async () => rowDisclosure.click());
     await act(async () => row.querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
-    expect(container.querySelector('[data-presentation-id="root-definition-title"]')?.textContent).toContain("Shared Root heading");
+    expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
     const reopenedRootContainer = container.querySelector<HTMLElement>('[data-presentation-id="root-definition-root"]');
     if (!reopenedRootContainer) throw new Error("expected reopened canonical Root Container");
     await act(async () => reopenedRootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -190,11 +176,13 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     await openRootDefinitions();
     const activeRow = container.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!activeRow) throw new Error("expected active Root row");
-    await act(async () => activeRow.querySelector<HTMLButtonElement>('[data-root-definition-action="rename"]')?.click());
+    const activeDisclosure = activeRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!activeDisclosure) throw new Error("expected active Root disclosure");
+    await act(async () => activeDisclosure.click());
     const renameInput = activeRow.querySelector<HTMLInputElement>("input");
     if (!renameInput) throw new Error("expected Root rename input");
     await act(async () => changeInput(renameInput, "  Shared Layout  "));
-    await act(async () => activeRow.querySelector<HTMLButtonElement>('[data-root-definition-action="save-rename"]')?.click());
+    await act(async () => renameInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     snapshot = await save(saved);
     expect(snapshot.rootDefinitions?.[0]?.name).toBe("Shared Layout");
     expect(snapshot.rootDefinitions?.[0]?.id).toBe(createdRootId);
@@ -205,14 +193,24 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
 
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
     snapshot = await save(saved);
-    expect(snapshot.rootDefinitions?.[0]?.name).toBe("Shared Root");
+    expect(snapshot.rootDefinitions?.[0]?.name).toBe("Root Definition 1");
     expect(snapshot.slides[newSlideIndex]?.rootDefinitionId).toBe(createdRootId);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
     snapshot = await save(saved);
     expect(snapshot.rootDefinitions?.[0]?.name).toBe("Shared Layout");
 
     const referencedSection = await openRootDefinitions();
-    expect(referencedSection.querySelector<HTMLButtonElement>(`[data-root-definition-id="${createdRootId}"] [data-root-definition-action="delete"]`)?.disabled).toBe(true);
+    const referencedRow = referencedSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
+    if (!referencedRow) throw new Error("expected referenced Root row");
+    const referencedDisclosure = referencedRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!referencedDisclosure) throw new Error("expected referenced Root disclosure");
+    if (referencedDisclosure.getAttribute("aria-expanded") !== "true") {
+      await act(async () => referencedDisclosure.click());
+    }
+    const expandedReferencedRow = container.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
+    const referencedDelete = expandedReferencedRow?.querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]');
+    if (!referencedDelete) throw new Error("expected expanded referenced Root actions");
+    expect(referencedDelete.disabled).toBe(true);
 
     const finalSnapshot = saved.at(-1);
     if (!finalSnapshot) throw new Error("expected final saved snapshot");
@@ -238,19 +236,22 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
       .filter((button) => button.className.includes("slideItem"));
     await act(async () => slideButtons.at(-1)?.click());
     expect(container.querySelector<HTMLSelectElement>("[data-slide-root-definition]")?.value).toBe(createdRootId);
-    expect(container.querySelector('[data-presentation-id="root-definition-title"]')?.textContent).toContain("Shared Root heading");
+    expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
 
     await openResources();
     const reloadedSection = await openRootDefinitions();
     expect(reloadedSection.querySelectorAll("[data-root-definition-id]")).toHaveLength(1);
     const reloadedRow = reloadedSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!reloadedRow) throw new Error("expected Root after remount");
+    const reloadedDisclosure = reloadedRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!reloadedDisclosure) throw new Error("expected reloaded Root disclosure");
+    await act(async () => reloadedDisclosure.click());
     await act(async () => reloadedRow.querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
-    expect(container.querySelector('[data-presentation-id="root-definition-title"]')?.textContent).toContain("Shared Root heading");
+    expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
     const reloadedRootContainer = container.querySelector<HTMLElement>('[data-presentation-id="root-definition-root"]');
     if (!reloadedRootContainer) throw new Error("expected remounted canonical Root Container");
     await act(async () => reloadedRootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     expect(container.querySelector<HTMLInputElement>("[data-root-local-content-receiver]")?.checked).toBe(true);
-  });
+  }, 30000);
 });

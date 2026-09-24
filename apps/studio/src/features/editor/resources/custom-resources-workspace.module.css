@@ -53,17 +53,14 @@
   padding-left: var(--ps-ui-space-6);
 }
 
-.rootDefinitionNameInput {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--ps-ui-control-compact-height);
-  padding: 0 var(--ps-ui-space-8);
-  border: var(--ps-ui-border-width-default) solid var(--ps-ui-border-input);
-  border-radius: var(--ps-ui-radius-input);
-  background: var(--ps-ui-background-input);
-  color: var(--ps-ui-text-secondary);
-  font: inherit;
+.rootDefinitionResourceItem {
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--ps-ui-space-8);
+}
+
+.rootDefinitionActionRow {
+  align-items: center;
 }
 
 .resourceItem strong {
@@ -457,10 +454,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--ps-ui-space-8);
-}
-
-[data-presentation-linked-styles] > .resourceAction + .resourceAction {
-  margin-left: var(--ps-ui-space-8);
 }
 
 .presentationSections {

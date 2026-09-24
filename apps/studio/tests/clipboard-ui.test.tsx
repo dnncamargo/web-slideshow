@@ -31,6 +31,34 @@ function presentation(): Presentation {
   });
 }
 
+function rootBackedPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    id: "clipboard-root-backed",
+    slides: [{
+      ...presentation().slides[0],
+      rootDefinitionId: "root-1",
+      elements: [],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching master",
+      root: {
+        type: "container",
+        id: "root-container",
+        hidden: false,
+        children: [{
+          type: "text",
+          id: "root-text",
+          hidden: false,
+          variant: "body",
+          content: "Master content",
+        }],
+      },
+    }],
+  });
+}
+
 describe("Editor Clipboard panel foundation", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -254,5 +282,62 @@ describe("Editor Clipboard panel foundation", () => {
     await act(async () => remove!.click());
     expect(container.querySelector("[class*='clipboardEntry']")).toBeNull();
     expect(container.querySelectorAll("[class*='slideCanvas'] [data-presentation-id]")).toHaveLength(1);
+  });
+
+  it("gates Clipboard double-click Paste for Root-backed Slides without disabling card actions", async () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={rootBackedPresentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const masterText = container.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    expect(masterText).not.toBeNull();
+    await act(async () => masterText!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true, cancelable: true })));
+
+    const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Clipboard");
+    expect(clipboardTab).toBeDefined();
+    act(() => clipboardTab!.click());
+
+    const entry = container.querySelector<HTMLElement>("[class*='clipboardEntry']");
+    expect(entry).not.toBeNull();
+    const beforePaste = container.querySelectorAll("[class*='slideCanvas'] [data-presentation-id]").length;
+    await act(async () => entry!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-presentation-id]")).toHaveLength(beforePaste);
+
+    await act(async () => entry!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(container.querySelector("[class*='clipboardEntrySelected']")).not.toBeNull();
+    const remove = entry!.querySelector<HTMLButtonElement>('button[aria-label^="Remove "]');
+    expect(remove).not.toBeNull();
+    await act(async () => remove!.click());
+    expect(container.querySelector("[class*='clipboardEntry']")).toBeNull();
+  });
+
+  it("keeps Clipboard double-click Paste enabled for ordinary Slides", async () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={presentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const image = container.querySelector<HTMLElement>('[data-presentation-id="image-1"]');
+    expect(image).not.toBeNull();
+    await act(async () => image!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true, cancelable: true })));
+
+    const clipboardTab = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Clipboard");
+    expect(clipboardTab).toBeDefined();
+    act(() => clipboardTab!.click());
+    const entry = container.querySelector<HTMLElement>("[class*='clipboardEntry']");
+    expect(entry).not.toBeNull();
+    await act(async () => entry!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
+    expect(container.querySelectorAll("[class*='slideCanvas'] [data-presentation-id]")).toHaveLength(2);
   });
 });

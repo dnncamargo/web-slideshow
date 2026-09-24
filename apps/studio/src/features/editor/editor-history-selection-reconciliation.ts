@@ -1,4 +1,5 @@
 import type { Presentation } from "@web-slideshow/document-schema";
+import { materializeSlide } from "@web-slideshow/document-schema";
 
 import {
   resolveAuthoringElements,
@@ -21,7 +22,12 @@ export function reconcileSelectedElementAfterReplay(
   const target: AuthoringTarget = typeof targetOrSlideIndex === "number"
     ? { kind: "slide", slideIndex: targetOrSlideIndex }
     : targetOrSlideIndex;
-  const elements = resolveAuthoringElements(presentation, target);
+  const elements = target.kind === "slide"
+    ? (() => {
+        const slide = presentation.slides[target.slideIndex];
+        return slide ? materializeSlide(presentation, slide).slide.elements : null;
+      })()
+    : resolveAuthoringElements(presentation, target);
   return elements && findElementById(elements, selected.id)
     ? { ...selected, contentSlotId: null }
     : null;

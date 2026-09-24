@@ -31,6 +31,8 @@ interface ElementCrudControlsProps {
 
   canDelete?: boolean;
 
+  canAdd?: boolean;
+
   noSelectionDestination?: "slide-root" | "root-container";
 
   onAdd: (
@@ -57,6 +59,7 @@ export function ElementCrudControls({
   selectedContentSlotId,
   canDuplicate = Boolean(selectedElement),
   canDelete = Boolean(selectedElement),
+  canAdd = true,
   noSelectionDestination = "slide-root",
   onAdd,
   onDuplicate,
@@ -188,6 +191,8 @@ const insertionDescription =
           className={
             styles.elementCrudPrimary
           }
+
+          disabled={!canAdd}
 
           onClick={
             () => {

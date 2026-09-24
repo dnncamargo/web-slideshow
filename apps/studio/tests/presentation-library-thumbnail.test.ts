@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveLogicalSlideSize } from "@web-slideshow/renderer";
+import { renderSlide, resolveLogicalSlideSize } from "@web-slideshow/renderer";
 
 import { deriveThumbnailPreview } from "../src/features/persistence/presentation-persistence";
 import {
@@ -51,6 +51,33 @@ const textElement = {
   type: "text",
   content: "Hello world",
 };
+
+function renderPreview(preview: ReturnType<typeof deriveThumbnailPreview>): string {
+  if (!preview) {
+    throw new Error("Expected a thumbnail preview.");
+  }
+  return renderSlide(preview.firstSlide, { presentation: preview.presentation });
+}
+
+function styledPresentation(slide: unknown, extras: Record<string, unknown> = {}): unknown {
+  const base = makePresentation({ slides: [slide] }) as Record<string, unknown>;
+  return {
+    ...base,
+    textStyles: [{
+      id: "custom-text",
+      name: "Custom text",
+      role: "body",
+      style: { color: "#facc15" },
+      typography: { fontWeight: 700 },
+    }],
+    linkedStyles: [{
+      id: "custom-container",
+      name: "Custom container",
+      style: { background: { color: "#101827" } },
+    }],
+    ...extras,
+  };
+}
 
 describe("deriveThumbnailPreview", () => {
   it("derives a preview from a first slide that has authored elements", () => {
@@ -180,6 +207,95 @@ describe("deriveThumbnailPreview", () => {
     expect(preview?.presentation.linkedStyles).toEqual([
       { id: "card-style", name: "Card", style: { background: { color: "#123456" } } },
     ]);
+  });
+
+  it("renders an ordinary Text Style reference through the thumbnail renderer", () => {
+    const preview = deriveThumbnailPreview(styledPresentation({
+      id: "slide-1",
+      elements: [{ id: "text", type: "text", variant: "custom-text", content: "Styled" }],
+    }));
+
+    expect(renderPreview(preview)).toContain("font-weight:700");
+    expect(renderPreview(preview)).toContain("color:#facc15");
+  });
+
+  it("renders an ordinary Linked Style reference through the thumbnail renderer", () => {
+    const preview = deriveThumbnailPreview(styledPresentation({
+      id: "slide-1",
+      elements: [{ id: "card", type: "container", linkedStyleId: "custom-container", children: [] }],
+    }));
+
+    expect(renderPreview(preview)).toContain("background:#101827");
+  });
+
+  it("renders Root master Linked and Text Styles together", () => {
+    const preview = deriveThumbnailPreview(styledPresentation(
+      { id: "slide-1", rootDefinitionId: "master", elements: [] },
+      {
+        rootDefinitions: [{
+          id: "master",
+          name: "Master",
+          root: {
+            id: "root",
+            type: "container",
+            children: [{
+              id: "card",
+              type: "container",
+              linkedStyleId: "custom-container",
+              children: [{ id: "text", type: "text", variant: "custom-text", content: "Master" }],
+            }],
+          },
+        }],
+      },
+    ));
+
+    expect(preview?.firstSlide.elements[0]).toMatchObject({ id: "root", type: "container" });
+    expect(renderPreview(preview)).toContain("background:#101827");
+    expect(renderPreview(preview)).toContain("font-weight:700");
+  });
+
+  it("renders styled localRootChildren with the Presentation owner context", () => {
+    const preview = deriveThumbnailPreview(styledPresentation(
+      {
+        id: "slide-1",
+        rootDefinitionId: "master",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "target",
+          children: [{ id: "local-text", type: "text", variant: "custom-text", content: "Local" }],
+        }],
+      },
+      {
+        rootDefinitions: [{
+          id: "master",
+          name: "Master",
+          localChildTargetIds: ["target"],
+          root: { id: "root", type: "container", children: [{ id: "target", type: "container", children: [] }] },
+        }],
+      },
+    ));
+
+    expect(renderPreview(preview)).toContain("font-weight:700");
+  });
+
+  it("renders a linked Topics Style through the thumbnail renderer", () => {
+    const base = makePresentation({ slides: [makeSlide("slide-1", [{
+      id: "topics",
+      type: "topics",
+      linkedStyleId: "topics-style",
+      items: [],
+    }]) ] }) as Record<string, unknown>;
+    const preview = deriveThumbnailPreview({
+      ...base,
+      linkedStyles: [{
+        target: "topics",
+        id: "topics-style",
+        name: "Topics",
+        rootMarkerStyle: "square",
+      }],
+    });
+
+    expect(renderPreview(preview)).toContain("--presentation-topic-marker-style:square");
   });
 
   it("falls back when the first slide references an unresolved linked style", () => {

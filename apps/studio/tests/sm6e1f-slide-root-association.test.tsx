@@ -2,11 +2,15 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../src/features/custom-library/custom-library-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -36,6 +40,33 @@ function presentation(populated = false): Presentation {
   });
 }
 
+function localContentPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      rootDefinitionId: "root-a",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "root-a-container",
+        children: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Local content" }],
+      }],
+    }],
+    rootDefinitions: (presentation().rootDefinitions ?? []).map((definition) =>
+      definition.id === "root-a" ? { ...definition, localChildTargetIds: ["root-a-container"] } : definition),
+  });
+}
+
+function elementStyleRepository(items: CustomLibraryItemRecord[]): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
+  return {
+    saveItem: async () => "unused",
+    listItems: vi.fn(async () => items),
+    getItem: async () => null,
+    deleteItem: async () => undefined,
+  };
+}
+
 describe("SM6E1F Slide Root association", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -51,12 +82,13 @@ describe("SM6E1F Slide Root association", () => {
     document.body.innerHTML = "";
   });
 
-  async function mount(initial: Presentation = presentation(), saved: Presentation[] = [], initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }): Promise<void> {
+  async function mount(initial: Presentation = presentation(), saved: Presentation[] = [], initialAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string }, customLibraryRepository?: CustomLibraryRepository): Promise<void> {
     await act(async () => root.render(
       <StudioI18nProvider>
         <EditorWorkspace
           initialPresentation={initial}
           initialAuthoringTarget={initialAuthoringTarget}
+          customLibraryRepository={customLibraryRepository}
           onSave={async (snapshot) => { saved.push(structuredClone(snapshot)); }}
         />
       </StudioI18nProvider>,
@@ -77,6 +109,13 @@ describe("SM6E1F Slide Root association", () => {
     const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.trim() === "Save");
     if (!button) throw new Error("Save button not found");
+    await act(async () => button.click());
+  }
+
+  async function openHistory(): Promise<void> {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "History");
+    if (!button) throw new Error("History button not found");
     await act(async () => button.click());
   }
 
@@ -101,9 +140,13 @@ describe("SM6E1F Slide Root association", () => {
     await mount(initial, saved);
     const select = container.querySelector<HTMLSelectElement>("[data-slide-root-definition]");
     expect(Array.from(select?.options ?? [], (option) => option.textContent)).toEqual(["No Root Definition", "Root A", "Root B", "Root C"]);
+    expect(select?.disabled).toBe(false);
     await selectRoot("root-a");
+    expect(container.querySelector<HTMLSelectElement>("[data-slide-root-definition]")?.disabled).toBe(false);
     expect(container.querySelector('[data-presentation-id="root-a-text"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="ordinary-text"]')).toBeNull();
+    await openHistory();
+    expect(container.textContent).toContain("Change Root Definition");
     await save();
     expect(saved.at(-1)?.slides[0]).toMatchObject({ id: "slide-1", rootDefinitionId: "root-a", elements: [] });
     expect(saved.at(-1)?.rootDefinitions).toEqual(initial.rootDefinitions);
@@ -137,18 +180,147 @@ describe("SM6E1F Slide Root association", () => {
     expect(container.querySelector("[data-slide-root-definition]")).toBeNull();
     await openResources();
     const section = await openRootDefinitions();
-    expect(section.querySelector<HTMLButtonElement>('[data-root-definition-id="root-a"] [data-root-definition-action="delete"]')?.disabled).toBe(true);
+    const row = section.querySelector<HTMLElement>('[data-root-definition-id="root-a"]');
+    if (!row) throw new Error("Root A row not found");
+    const disclosure = row.querySelector<HTMLButtonElement>("[data-root-definition-disclosure]");
+    if (!disclosure) throw new Error("Root A disclosure not found");
+    if (disclosure.getAttribute("aria-expanded") !== "true") {
+      await act(async () => disclosure.click());
+    }
+    expect(row.querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.disabled).toBe(true);
   });
 
-  it("rejects populated Slide association without data loss or a History action", async () => {
+  it("disables Root association for ordinary Slide content without data loss or a History action", async () => {
     const initial = presentation(true);
     const saved: Presentation[] = [];
     await mount(initial, saved);
+    expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.disabled).toBe(true);
+    expect(container.textContent).toContain("ordinary content");
     await selectRoot("root-a");
     expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.value).toBe("");
-    expect(container.textContent).toContain("This Slide has local root content");
     expect(container.querySelector('[data-presentation-id="ordinary-text"]')).not.toBeNull();
     expect(saved).toHaveLength(0);
+  });
+
+  it("keeps a Root-backed Slide locked while local content exists and re-enables after pruning it", async () => {
+    const saved: Presentation[] = [];
+    await mount(localContentPresentation(), saved);
+    const select = container.querySelector<HTMLSelectElement>('[data-slide-root-definition]');
+    expect(select?.value).toBe("root-a");
+    expect(select?.disabled).toBe(true);
+    expect(container.textContent).toContain("local root content");
+
+    const localText = container.querySelector<HTMLElement>('[data-presentation-id="local-text"]');
+    if (!localText) throw new Error("expected local content");
+    await act(async () => localText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+    const deleteButton = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete");
+    if (!deleteButton) throw new Error("expected local content delete action");
+    await act(async () => deleteButton.click());
+
+    expect(container.querySelector('[data-presentation-id="local-text"]')).toBeNull();
+    expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.disabled).toBe(false);
+  });
+
+  it("applies Element Styles to local Root content without writing slide.elements", async () => {
+    const source = localContentPresentation();
+    const saved: Presentation[] = [];
+    const item: CustomLibraryItemRecord = {
+      id: "local-element-style",
+      item: {
+        name: "Local text style",
+        root: { type: "text", properties: [{ path: "content", value: "Styled local content" }] },
+      },
+    };
+    const repository = elementStyleRepository([item]);
+    await mount(source, saved, { kind: "slide", slideIndex: 0 }, repository);
+
+    const localText = container.querySelector<HTMLElement>('[data-presentation-id="local-text"]');
+    if (!localText) throw new Error("expected local content");
+    await act(async () => localText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await openResources();
+    const browse = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "+ Add saved element");
+    if (!browse) throw new Error("expected Element Style browse control");
+    expect(browse.disabled).toBe(false);
+    await act(async () => browse.click());
+    await act(async () => undefined);
+    const itemButton = Array.from(container.querySelectorAll<HTMLButtonElement>("[class*='customLibraryApplyItem']"))
+      .find((candidate) => candidate.textContent?.includes("Local text style"));
+    if (!itemButton) throw new Error("expected local Element Style item");
+    await act(async () => itemButton.click());
+    const apply = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Apply to selected");
+    if (!apply) throw new Error("expected Element Style apply action");
+    await act(async () => apply.click());
+    await save();
+
+    const changed = saved.at(-1);
+    expect(changed?.slides[0]?.elements).toEqual([]);
+    expect(changed?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Styled local content" });
+    expect(changed?.rootDefinitions).toEqual(source.rootDefinitions);
+
+    const resourcesToggle = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Custom Resources");
+    if (!resourcesToggle) throw new Error("expected Custom Resources action");
+    await act(async () => resourcesToggle.click());
+    const elements = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Elements");
+    if (!elements) throw new Error("expected Elements panel action");
+    await act(async () => elements.click());
+    expect(container.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
+    expect(container.querySelector('[role="treeitem"][aria-selected="true"]')?.textContent).toContain("Styled local content");
+
+    await openHistory();
+    expect(container.textContent).toContain("Custom library apply");
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    await save();
+    expect(saved.at(-1)?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Local content" });
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    await save();
+    const redone = saved.at(-1);
+    expect(redone?.slides[0]?.localRootChildren?.[0]?.children[0]).toMatchObject({ id: "local-text", content: "Styled local content" });
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await mount(redone, [], { kind: "slide", slideIndex: 0 }, repository);
+    expect(container.querySelector('[data-presentation-id="local-text"]')?.textContent).toContain("Styled local content");
+    expect(redone?.slides[0]?.elements).toEqual([]);
+    expect(redone?.rootDefinitions).toEqual(source.rootDefinitions);
+  });
+
+  it("blocks Element Styles for Root master content on a Root-backed Slide", async () => {
+    const source = localContentPresentation();
+    const repository = elementStyleRepository([{
+      id: "blocked-element-style",
+      item: { name: "Blocked style", root: { type: "text", properties: [{ path: "content", value: "Should not apply" }] } },
+    }]);
+    await mount(source, [], { kind: "slide", slideIndex: 0 }, repository);
+
+    const masterText = container.querySelector<HTMLElement>('[data-presentation-id="root-a-text"]');
+    if (!masterText) throw new Error("expected Root master content");
+    await act(async () => masterText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await openResources();
+    const browse = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "+ Add saved element");
+    if (!browse) throw new Error("expected Element Style browse control");
+    expect(browse.disabled).toBe(true);
+    await act(async () => browse.click());
+    expect(repository.listItems).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Apply to selected");
+  });
+
+  it("does not lock association after canonical local-content pruning and preserves the Presentation default option", async () => {
+    const initial = PresentationSchema.parse({
+      ...presentation(),
+      defaultRootDefinitionId: "root-a",
+      slides: [{ id: "slide-1", rootDefinitionId: "root-a", elements: [] }],
+    });
+    await mount(initial);
+    const select = container.querySelector<HTMLSelectElement>('[data-slide-root-definition]');
+    expect(select?.disabled).toBe(false);
+    expect(select?.options[0]?.textContent).toBe("Use Presentation default — Root A");
   });
 
   it("associates a newly created Root to a newly created Slide through the normal flow", async () => {
@@ -157,23 +329,16 @@ describe("SM6E1F Slide Root association", () => {
     const newButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("New slide"));
     if (!newButton) throw new Error("New button not found");
     await act(async () => newButton.click());
-    await act(async () => container.querySelector<HTMLInputElement>('input[value="root-definition"]')?.click());
-    const nameInput = container.querySelector<HTMLInputElement>('input[aria-label="Root Definition name"]');
-    if (!nameInput) throw new Error("Root name input not found");
-    const inputSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    inputSetter?.call(nameInput, "Created Root");
-    await act(async () => nameInput.dispatchEvent(new Event("input", { bubbles: true })));
-    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Full"))?.click());
-    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Create Root Definition")?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-layout-action="root-definition"]')?.click());
     await save();
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Exit master editing"))?.click());
     await act(async () => newButton.click());
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Blank"))?.click());
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "+ New")?.click());
-    const createdRootId = saved.at(-1)?.rootDefinitions?.find((definition) => definition.name === "Created Root")?.id;
+    const createdRootId = saved.at(-1)?.rootDefinitions?.[0]?.id;
     if (!createdRootId) throw new Error("created Root was not saved");
     await selectRoot(createdRootId);
     expect(container.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
-    expect(container.querySelector('[data-presentation-id="root-definition-title"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
   });
 });
