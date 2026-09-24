@@ -1979,6 +1979,9 @@ export function EditorWorkspace({
     if (!selectedDocumentElement || pendingElementDeletion !== null) {
       return;
     }
+    if (selectedMasterElement) {
+      return;
+    }
     if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return;
     }
@@ -6598,6 +6601,7 @@ export function EditorWorkspace({
                   pendingCut={pendingCut}
                   pendingCutLabel={t("editor.pendingCut")}
                   presentation={presentation}
+                  canPaste={!rootBackedSlide}
                   clearLabel={t("editor.clearClipboard")}
                   emptyLabel={t("editor.clipboardEmpty")}
                   pinnedLabel={t("editor.pinnedSnapshots")}

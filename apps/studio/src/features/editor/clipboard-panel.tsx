@@ -107,6 +107,7 @@ function SnapshotCard({
   session,
   presentation,
   onSelect,
+  canPaste,
   onPaste,
   onPin,
   onRemove,
@@ -119,6 +120,7 @@ function SnapshotCard({
   session: ClipboardSessionState;
   presentation: Presentation;
   onSelect: (entryId: string) => void;
+  canPaste: boolean;
   onPaste: (entryId: string) => void;
   onPin: (entryId: string) => void;
   onRemove: (entryId: string) => void;
@@ -134,7 +136,9 @@ function SnapshotCard({
       className={entry.id === session.selectedEntryId ? styles.clipboardEntrySelected : styles.clipboardEntry}
       aria-label={label}
       onClick={() => onSelect(entry.id)}
-      onDoubleClick={() => onPaste(entry.id)}
+      onDoubleClick={() => {
+        if (canPaste) onPaste(entry.id);
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -186,6 +190,7 @@ export function ClipboardPanel({
   pinnedLabel,
   onClear,
   onSelect,
+  canPaste = true,
   onPaste,
   onCancelPendingCut,
   onPin,
@@ -204,6 +209,7 @@ export function ClipboardPanel({
   pinnedLabel: string;
   onClear: () => void;
   onSelect: (entryId: string) => void;
+  canPaste?: boolean;
   onPaste: (entryId: string) => void;
   onCancelPendingCut: () => void;
   onPin: (entryId: string) => void;
@@ -245,6 +251,7 @@ export function ClipboardPanel({
               session={session}
               presentation={presentation}
               onSelect={onSelect}
+              canPaste={canPaste}
               onPaste={onPaste}
               onPin={onPin}
               onRemove={onRemove}
@@ -276,6 +283,7 @@ export function ClipboardPanel({
                 session={session}
                 presentation={presentation}
                 onSelect={onSelect}
+                canPaste={canPaste}
                 onPaste={onPaste}
                 onPin={onPin}
                 onRemove={onRemove}

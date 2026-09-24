@@ -60,6 +60,34 @@ function nonEmptyContainerPresentation(): Presentation {
   });
 }
 
+function rootBackedPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    id: "root-backed-deletion-workspace",
+    slides: [{
+      ...presentation().slides[0],
+      rootDefinitionId: "root-1",
+      elements: [],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching master",
+      root: {
+        type: "container",
+        id: "root-container",
+        hidden: false,
+        children: [{
+          type: "text",
+          id: "root-text",
+          hidden: false,
+          variant: "body",
+          content: "Master content",
+        }],
+      },
+    }],
+  });
+}
+
 describe("EditorWorkspace element deletion", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -119,6 +147,27 @@ describe("EditorWorkspace element deletion", () => {
 
     expect(container.querySelector('[data-presentation-id="image-1"]')).not.toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("ignores Delete for projected master elements on Root-backed Slides", async () => {
+    const source = rootBackedPresentation();
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={source} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const masterText = container.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    expect(masterText).not.toBeNull();
+    await act(async () => masterText!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true })));
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+    expect(source.rootDefinitions?.[0]?.root.children).toHaveLength(1);
+    expect(source.slides[0]?.elements).toHaveLength(0);
   });
 
   it("keeps incompatible containers on the destructive-only confirmation", async () => {
