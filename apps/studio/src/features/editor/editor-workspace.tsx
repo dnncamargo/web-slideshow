@@ -2529,6 +2529,11 @@ export function EditorWorkspace({
 
   function selectSlide(index: number) {
     if (rootDefinitionMode) return;
+    selectSlideFromResourceUsage(index);
+  }
+
+  function selectSlideFromResourceUsage(index: number) {
+    if (!presentation.slides[index]) return;
     finishPresentationTransaction();
     setSelectedSlideIndex(index);
     setAuthoringTarget({ kind: "slide", slideIndex: index });
@@ -6542,6 +6547,7 @@ export function EditorWorkspace({
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
              onSelectTextStyleElement={selectTextStyleElement}
+             onSelectRootDefinitionSlide={selectSlideFromResourceUsage}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
              onRequestDetachTextStyleElement={requestTextStyleDetach}
             selectedElement={selectedDocumentElement}

@@ -161,6 +161,9 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     const rootSection = await openRootDefinitions();
     const row = rootSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!row) throw new Error("expected created Root in This Presentation");
+    const rowDisclosure = row.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!rowDisclosure) throw new Error("expected Root disclosure");
+    await act(async () => rowDisclosure.click());
     await act(async () => row.querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();
@@ -173,6 +176,9 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     await openRootDefinitions();
     const activeRow = container.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!activeRow) throw new Error("expected active Root row");
+    const activeDisclosure = activeRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!activeDisclosure) throw new Error("expected active Root disclosure");
+    await act(async () => activeDisclosure.click());
     await act(async () => activeRow.querySelector<HTMLButtonElement>('[data-root-definition-action="rename"]')?.click());
     const renameInput = activeRow.querySelector<HTMLInputElement>("input");
     if (!renameInput) throw new Error("expected Root rename input");
@@ -195,6 +201,11 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     expect(snapshot.rootDefinitions?.[0]?.name).toBe("Shared Layout");
 
     const referencedSection = await openRootDefinitions();
+    const referencedRow = referencedSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
+    if (!referencedRow) throw new Error("expected referenced Root row");
+    const referencedDisclosure = referencedRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!referencedDisclosure) throw new Error("expected referenced Root disclosure");
+    await act(async () => referencedDisclosure.click());
     expect(referencedSection.querySelector<HTMLButtonElement>(`[data-root-definition-id="${createdRootId}"] [data-root-definition-action="delete"]`)?.disabled).toBe(true);
 
     const finalSnapshot = saved.at(-1);
@@ -228,6 +239,9 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     expect(reloadedSection.querySelectorAll("[data-root-definition-id]")).toHaveLength(1);
     const reloadedRow = reloadedSection.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
     if (!reloadedRow) throw new Error("expected Root after remount");
+    const reloadedDisclosure = reloadedRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!reloadedDisclosure) throw new Error("expected reloaded Root disclosure");
+    await act(async () => reloadedDisclosure.click());
     await act(async () => reloadedRow.querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-definition-root"]')).not.toBeNull();

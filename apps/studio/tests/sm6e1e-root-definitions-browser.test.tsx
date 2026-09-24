@@ -41,6 +41,18 @@ function presentation(options: { referenced?: boolean } = {}): Presentation {
   });
 }
 
+function usagePresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    defaultRootDefinitionId: "root-a",
+    slides: [
+      { id: "slide-explicit-a", title: "Explicit A", rootDefinitionId: "root-a", elements: [] },
+      { id: "slide-default-a", title: "Default A", elements: [] },
+      { id: "slide-explicit-b", title: "Explicit B", rootDefinitionId: "root-b", elements: [] },
+    ],
+  });
+}
+
 function changeInput(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (!setter) throw new Error("expected input value setter");
@@ -96,6 +108,14 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     return result;
   }
 
+  async function expandRoot(id: string): Promise<HTMLElement> {
+    const rootRow = row(id);
+    const disclosure = rootRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
+    if (!disclosure) throw new Error("Root disclosure not found");
+    if (disclosure.getAttribute("aria-expanded") !== "true") await act(async () => disclosure.click());
+    return rootRow;
+  }
+
   async function save(): Promise<void> {
     const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.trim() === "Save");
@@ -111,6 +131,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     expect(section.textContent).toContain("Root B");
     expect(section.querySelectorAll("[data-root-definition-id]")).toHaveLength(2);
 
+    await expandRoot("root-b");
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(container.textContent).toContain("Master slide · Root B");
@@ -123,6 +144,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await mount(initial, [], { kind: "root-definition", rootDefinitionId: "root-a" });
     await openResources();
     await openRootDefinitions();
+    await expandRoot("root-b");
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.textContent).toContain("Master slide · Root B");
     await openResources();
@@ -145,6 +167,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.includes("Exit master editing"))?.click());
     await openResources();
     await openRootDefinitions();
+    await expandRoot(createdId!);
     await act(async () => row(createdId!).querySelector<HTMLButtonElement>('[data-root-definition-action="open"]')?.click());
     expect(container.textContent).toContain("Master slide · Root Definition 1");
   });
@@ -155,6 +178,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await mount(initial, saved, { kind: "root-definition", rootDefinitionId: "root-a" });
     await openResources();
     await openRootDefinitions();
+    await expandRoot("root-a");
     await act(async () => row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="rename"]')?.click());
     const input = row("root-a").querySelector<HTMLInputElement>("input");
     if (!input) throw new Error("rename input not found");
@@ -181,6 +205,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await mount(initial, saved);
     await openResources();
     await openRootDefinitions();
+    await expandRoot("root-b");
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.click());
     expect(container.textContent).toContain('Delete Root Definition "Root B"?');
     const dialog = container.querySelector<HTMLElement>("[data-studio-danger-confirm-dialog]");
@@ -204,6 +229,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await mount(initial, saved);
     await openResources();
     const section = await openRootDefinitions();
+    await expandRoot("root-a");
     const deleteButton = section.querySelector<HTMLButtonElement>('[data-root-definition-id="root-a"] [data-root-definition-action="delete"]');
     expect(deleteButton?.disabled).toBe(true);
     expect(container.querySelector("[data-studio-danger-confirm-dialog]")).toBeNull();
@@ -216,6 +242,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await mount(initial, saved, { kind: "root-definition", rootDefinitionId: "root-b" });
     await openResources();
     await openRootDefinitions();
+    await expandRoot("root-b");
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.click());
     const dialog = container.querySelector<HTMLElement>("[data-studio-danger-confirm-dialog]");
     if (!dialog) throw new Error("delete confirmation not found");
@@ -225,5 +252,50 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     expect(saved.at(-1)?.slides).toEqual(initial.slides);
     expect(container.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-b-text"]')).toBeNull();
+  });
+
+  it("orders Root Definitions before Linked Styles and preserves section disclosure state", async () => {
+    await mount();
+    await openResources();
+    const presentationSection = container.querySelector<HTMLElement>('[aria-labelledby="custom-resources-this-presentation"]');
+    if (!presentationSection) throw new Error("This Presentation section not found");
+    const titles = Array.from(presentationSection.querySelectorAll<HTMLElement>("details > summary"), (summary) => summary.textContent?.trim());
+    expect(titles.slice(0, 5)).toEqual(["Root Definitions2", "Linked Styles0", "Text Styles4", "Palette", "Fonts"]);
+
+    const rootSection = Array.from(presentationSection.querySelectorAll<HTMLDetailsElement>("details"))
+      .find((details) => details.querySelector("summary")?.textContent?.includes("Root Definitions"));
+    if (!rootSection) throw new Error("Root Definitions section not found");
+    expect(row("root-a").textContent).toContain("Used by 0 slides");
+    if (!rootSection.open) await act(async () => rootSection.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(rootSection.open).toBe(true);
+    await act(async () => rootSection.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(rootSection.open).toBe(false);
+  });
+
+  it("shows effective explicit and default Slide usage without counting a different explicit Root", async () => {
+    await mount(usagePresentation());
+    await openResources();
+    await openRootDefinitions();
+
+    expect(row("root-a").textContent).toContain("Used by 2 slides");
+    expect(row("root-b").textContent).toContain("Used by 1 slide");
+
+    const rootA = await expandRoot("root-a");
+    expect(rootA.querySelectorAll("[data-root-definition-usage-slide]")).toHaveLength(2);
+    expect(rootA.querySelector('[data-root-definition-usage-source="explicit"]')).not.toBeNull();
+    expect(rootA.querySelector('[data-root-definition-usage-source="default"]')).not.toBeNull();
+    expect(rootA.textContent).toContain("Explicit A");
+    expect(rootA.textContent).toContain("Default A");
+    expect(rootA.textContent).not.toContain("Explicit B");
+  });
+
+  it("navigates to a listed Root Definition Slide usage", async () => {
+    await mount(usagePresentation(), [], { kind: "root-definition", rootDefinitionId: "root-a" });
+    await openResources();
+    await openRootDefinitions();
+    const rootA = await expandRoot("root-a");
+    await act(async () => rootA.querySelector<HTMLButtonElement>('[data-root-definition-usage-slide="1"]')?.click());
+    expect(container.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
+    expect(container.textContent).toContain("Default A");
   });
 });
