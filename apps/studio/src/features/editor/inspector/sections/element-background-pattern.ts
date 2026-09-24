@@ -4,13 +4,84 @@ import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 export type BackgroundPatternPresetId = "grid" | "fine-grid" | "dots" | "offset-dots" | "diagonal-lines";
 export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; pattern: BackgroundPattern }
 
+const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 1px, transparent 1px), linear-gradient(90deg, var(--presentation-pattern-color-1) 1px, transparent 1px)";
+const DOT_IMAGE = "radial-gradient(circle, var(--presentation-pattern-color-1) 1px, transparent 1px)";
+const OFFSET_DOT_IMAGE = `${DOT_IMAGE}, ${DOT_IMAGE}`;
+const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0, transparent 8px, var(--presentation-pattern-color-1) 8px, var(--presentation-pattern-color-1) 9px)";
+
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
+  { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
+  { id: "fine-grid", pattern: { image: GRID_IMAGE, size: "16px 16px", repeat: "repeat", colors: ["#cbd5e1"] } },
+  { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", position: "0 0, 12px 12px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"] } },
+];
+
+const LEGACY_BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" } },
   { id: "fine-grid", pattern: { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "16px 16px", repeat: "repeat" } },
   { id: "dots", pattern: { image: "radial-gradient(circle, #94a3b8 1px, transparent 1px)", size: "24px 24px", repeat: "repeat" } },
   { id: "offset-dots", pattern: { image: "radial-gradient(circle, #94a3b8 1px, transparent 1px), radial-gradient(circle, #94a3b8 1px, transparent 1px)", size: "24px 24px", position: "0 0, 12px 12px", repeat: "repeat" } },
   { id: "diagonal-lines", pattern: { image: "repeating-linear-gradient(45deg, transparent 0, transparent 8px, #cbd5e1 8px, #cbd5e1 9px)", size: "auto", repeat: "repeat" } },
 ];
+
+function isSquarePixelSize(size: string | undefined): boolean {
+  return size !== undefined && /^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/.test(size) && size.split(" ")[0] === size.split(" ")[1];
+}
+
+function exactPattern(left: BackgroundPattern, right: BackgroundPattern): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPreset): boolean {
+  if (pattern.image !== preset.pattern.image || pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity) return false;
+  if (preset.id === "grid" || preset.id === "fine-grid") return pattern.position === undefined;
+  if (preset.id === "dots") return pattern.position === undefined;
+  if (preset.id === "offset-dots") return pattern.position === formatOffsetPosition(getPatternSizeValue(pattern, preset.id));
+  return pattern.position === undefined && (pattern.size === "auto" || isSquarePixelSize(pattern.size));
+}
+
+function formatCssNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+export function formatOffsetPosition(size: number): string {
+  const offset = formatCssNumber(size / 2);
+  return `0 0, ${offset}px ${offset}px`;
+}
+
+export function getPatternSizeValue(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId): number {
+  const match = pattern.size?.match(/^(\d+(?:\.\d+)?)px \1px$/);
+  if (match) return Number(match[1]);
+  return presetId === "fine-grid" ? 16 : presetId === "grid" ? 32 : presetId === "diagonal-lines" ? 18 : 24;
+}
+
+export function materializeBackgroundPatternPreset(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId): BackgroundPattern {
+  if (pattern.colors !== undefined || pattern.image === BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === presetId)?.pattern.image) return { ...pattern, colors: pattern.colors?.slice() };
+  const preset = BACKGROUND_PATTERN_PRESETS.find((candidate) => candidate.id === presetId);
+  if (!preset) return pattern;
+  return {
+    ...preset.pattern,
+    size: pattern.size ?? preset.pattern.size,
+    position: pattern.position ?? preset.pattern.position,
+    repeat: pattern.repeat ?? preset.pattern.repeat,
+    opacity: pattern.opacity,
+  };
+}
+
+export function updateBackgroundPatternSize(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId, size: number): BackgroundPattern {
+  const bounded = Math.min(500, Math.max(1, size));
+  return {
+    ...pattern,
+    size: `${formatCssNumber(bounded)}px ${formatCssNumber(bounded)}px`,
+    ...(presetId === "offset-dots" ? { position: formatOffsetPosition(bounded) } : {}),
+  };
+}
+
+export function updateBackgroundPatternRotation(pattern: BackgroundPattern, rotation: number): BackgroundPattern {
+  const bounded = Math.min(360, Math.max(-360, rotation));
+  return { ...pattern, rotation: bounded === 0 ? undefined : bounded };
+}
 
 export type PatternCssParseResult =
   | { success: true; background: string | undefined; backgroundPattern: BackgroundPattern }
@@ -63,7 +134,13 @@ export function parseBackgroundPatternCss(input: string): PatternCssParseResult 
 }
 
 export function findBackgroundPatternPreset(pattern: BackgroundPattern): BackgroundPatternPresetId | undefined {
-  return BACKGROUND_PATTERN_PRESETS.find((preset) => JSON.stringify(preset.pattern) === JSON.stringify(pattern))?.id;
+  const legacy = LEGACY_BACKGROUND_PATTERN_PRESETS.find((preset) => exactPattern(preset.pattern, pattern));
+  if (legacy) return legacy.id;
+  const matches = BACKGROUND_PATTERN_PRESETS.filter((preset) => familyMatches(pattern, preset));
+  if (matches.some((preset) => preset.id === "grid" || preset.id === "fine-grid")) {
+    return pattern.size === "16px 16px" ? "fine-grid" : "grid";
+  }
+  return matches[0]?.id;
 }
 
 export function renderBackgroundPatternCss(style: { background?: string; backgroundPattern?: BackgroundPattern } | undefined): string {

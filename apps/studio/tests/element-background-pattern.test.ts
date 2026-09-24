@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   BACKGROUND_PATTERN_PRESETS,
+  formatOffsetPosition,
   findBackgroundPatternPreset,
+  materializeBackgroundPatternPreset,
   parseBackgroundPatternCss,
   renderBackgroundPatternCss,
+  updateBackgroundPatternRotation,
+  updateBackgroundPatternSize,
 } from "../src/features/editor/inspector/sections/element-background-pattern";
 
 describe("Container background pattern authoring primitives", () => {
@@ -194,5 +198,48 @@ describe("Container background pattern authoring primitives", () => {
         "background-repeat: no-repeat;\n" +
         "opacity: 0.5;",
     );
+  });
+
+  it("recognizes legacy patterns and parameterized families without persisting identity", () => {
+    const legacy = [
+      { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" as const },
+      { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "16px 16px", repeat: "repeat" as const },
+      { image: "radial-gradient(circle, #94a3b8 1px, transparent 1px)", size: "24px 24px", repeat: "repeat" as const },
+      { image: "radial-gradient(circle, #94a3b8 1px, transparent 1px), radial-gradient(circle, #94a3b8 1px, transparent 1px)", size: "24px 24px", position: "0 0, 12px 12px", repeat: "repeat" as const },
+      { image: "repeating-linear-gradient(45deg, transparent 0, transparent 8px, #cbd5e1 8px, #cbd5e1 9px)", size: "auto", repeat: "repeat" as const },
+    ];
+    expect(legacy.map(findBackgroundPatternPreset)).toEqual(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id));
+    expect(BACKGROUND_PATTERN_PRESETS.map((preset) => findBackgroundPatternPreset(preset.pattern))).toEqual(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id));
+    expect(BACKGROUND_PATTERN_PRESETS.every((preset) => !JSON.stringify(preset.pattern).includes("presetId"))).toBe(true);
+  });
+
+  it("materializes a legacy preset only when a structured edit is requested", () => {
+    const legacy = { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" as const };
+    expect(legacy).not.toHaveProperty("colors");
+    expect(materializeBackgroundPatternPreset(legacy, "grid")).toMatchObject({
+      image: expect.stringContaining("--presentation-pattern-color-1"),
+      size: "32px 32px",
+      colors: ["#cbd5e1"],
+    });
+  });
+
+  it("keeps preset family recognition while editing size and rotation", () => {
+    const grid = BACKGROUND_PATTERN_PRESETS[0]!.pattern;
+    expect(findBackgroundPatternPreset(updateBackgroundPatternRotation(grid, 20))).toBe("grid");
+    expect(updateBackgroundPatternRotation({ ...grid, rotation: 20 }, 0).rotation).toBeUndefined();
+  });
+
+  it("updates Offset Dots position from its tile size", () => {
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "offset-dots")!.pattern;
+    const updated = updateBackgroundPatternSize(pattern, "offset-dots", 30);
+    expect(updated).toMatchObject({ size: "30px 30px", position: formatOffsetPosition(30) });
+    expect(findBackgroundPatternPreset(updated)).toBe("offset-dots");
+  });
+
+  it("gives Diagonal Lines a deterministic numeric size while retaining legacy recognition", () => {
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")!.pattern;
+    const updated = updateBackgroundPatternSize(pattern, "diagonal-lines", 25);
+    expect(updated.size).toBe("25px 25px");
+    expect(findBackgroundPatternPreset(updated)).toBe("diagonal-lines");
   });
 });

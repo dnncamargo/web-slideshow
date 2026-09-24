@@ -128,6 +128,56 @@ describe("Container canonical background pattern inspector", () => {
     expect(currentContainer().style).not.toHaveProperty("backgroundGradient");
   });
 
+  it("shows structured controls for a preset and writes controlled color slots", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+
+    expect(host.querySelector("#container-pattern-color-1")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).not.toBeNull();
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#cbd5e1"],
+      image: expect.stringContaining("--presentation-pattern-color-1"),
+    });
+  });
+
+  it("hydrates a legacy preset without writing and materializes on the first structured edit", async () => {
+    const legacy = { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" as const };
+    await act(async () => mount(containerElement({ style: { background: { pattern: legacy } } })));
+    expect(updates).toHaveLength(0);
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "40"));
+    expect(updates).toHaveLength(1);
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      image: expect.stringContaining("--presentation-pattern-color-1"),
+      colors: ["#cbd5e1"],
+      size: "40px 40px",
+    });
+  });
+
+  it("updates Pattern color, size, and rotation without clearing background or gradient", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    const color = host.querySelector<HTMLInputElement>("#container-pattern-color-1-value");
+    await act(async () => setValue(color!, "#123456"));
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+    expect(currentContainer().style?.background?.pattern?.colors).toEqual(["#123456"]);
+
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "48"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "48px 48px", rotation: 20 });
+  });
+
+  it("keeps Custom CSS authoring separate from structured parameters", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));
+    expect(host.querySelector("#container-background-pattern-size")).toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).toBeNull();
+    expect(host.querySelector("#container-custom-pattern-css")).not.toBeNull();
+  });
+
   it("preserves color and gradient when adding a Pattern", async () => {
     await act(async () => mount(containerElement({ style: { background: { color: "#0f172a", gradient } } })));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
