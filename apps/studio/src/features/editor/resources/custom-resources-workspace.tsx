@@ -343,7 +343,7 @@ export function CustomResourcesWorkspace({
                         const reason = onRenameRootDefinition(definition.id, name);
                         setRootDefinitionFeedback(reason ? { id: definition.id, reason } : null);
                       }}
-                      onDelete={() => setPendingRootDefinitionDelete({ id: definition.id, name: definition.name })}
+                      onRemove={() => setPendingRootDefinitionDelete({ id: definition.id, name: definition.name })}
                       onClearFeedback={() => setRootDefinitionFeedback(null)}
                       t={t}
                     />;
@@ -421,7 +421,7 @@ export function CustomResourcesWorkspace({
       {pendingRootDefinitionDelete ? <DangerConfirmDialog
         title={t("customResources.deleteRootDefinitionTitle")}
         message={t("customResources.deleteRootDefinitionConfirm", { name: pendingRootDefinitionDelete.name })}
-        confirmLabel={t("customResources.confirmDelete")}
+        confirmLabel={t("customResources.remove")}
         cancelLabel={t("elementCrud.cancel")}
         onCancel={() => setPendingRootDefinitionDelete(null)}
         onConfirm={() => {
@@ -448,7 +448,7 @@ function RootDefinitionResourceRow({
   feedback,
   onOpen,
   onRename,
-  onDelete,
+  onRemove,
   onClearFeedback,
   t,
 }: {
@@ -462,21 +462,11 @@ function RootDefinitionResourceRow({
   feedback: RootDefinitionLifecycleFailure | null;
   onOpen: () => void;
   onRename: (name: string) => void;
-  onDelete: () => void;
+  onRemove: () => void;
   onClearFeedback: () => void;
   t: StudioTranslate;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [draft, setDraft] = useState(name);
-
-  function commitRename(): void {
-    const trimmed = draft.trim();
-    if (!trimmed) return;
-    onRename(trimmed);
-    setRenaming(false);
-  }
-
   const editorId = `root-definition-${id}-editor`;
   return <div className={`${styles.resourceItem} ${styles.rootDefinitionResourceItem}`} data-root-definition-id={id} data-active={active ? "true" : "false"}>
     <button type="button" className={styles.typographyStyleDisclosure} aria-expanded={expanded} aria-controls={editorId} data-root-definition-disclosure onClick={() => setExpanded((open) => !open)}>
@@ -489,29 +479,20 @@ function RootDefinitionResourceRow({
     </button>
     {expanded ? <div id={editorId} className={styles.typographyStyleEditor}>
       <div className={styles.resourceItemDetails}>
-        {renaming ? <input
-          className={styles.rootDefinitionNameInput}
-          aria-label={t("customResources.renameRootDefinition")}
-          value={draft}
-          onChange={(event) => { setDraft(event.target.value); onClearFeedback(); }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") { event.preventDefault(); commitRename(); }
-            if (event.key === "Escape") { setDraft(name); setRenaming(false); onClearFeedback(); }
-          }}
-        /> : <strong>{name}</strong>}
+        <LinkedStyleNameField style={{ id, name }} labelKey="creation.rootDefinitionName" onDraftChange={onClearFeedback} onRename={(_, nextName) => onRename(nextName)} />
         {feedback === "referenced" ? <span className={styles.status} role="alert">{t("customResources.rootDefinitionInUse")}</span> : null}
         {feedback === "invalid-name" ? <span className={styles.status} role="alert">{t("creation.invalidName")}</span> : null}
       </div>
       <div className={`${styles.resourceActionRow} ${styles.rootDefinitionActionRow}`}>
         <button type="button" className={styles.resourceAction} data-root-definition-action="open" onClick={onOpen}>{t("customResources.openRootDefinition")}</button>
-        <button type="button" className={styles.resourceAction} data-root-definition-action="rename" onClick={() => { setDraft(name); setRenaming(true); onClearFeedback(); }}>{t("customResources.renameRootDefinition")}</button>
-        <button type="button" className={styles.resourceAction} data-root-definition-action="delete" disabled={referenced} onClick={onDelete}>{t("customResources.delete")}</button>
       </div>
-      {renaming ? <div className={styles.resourceActionRow}>
-        <button type="button" className={styles.resourceAction} data-root-definition-action="save-rename" disabled={!draft.trim()} onClick={commitRename}>{t("topbar.save")}</button>
-        <button type="button" className={styles.resourceAction} data-root-definition-action="cancel-rename" onClick={() => { setDraft(name); setRenaming(false); onClearFeedback(); }}>{t("elementCrud.cancel")}</button>
-      </div> : null}
-      <RootDefinitionUsageLocations presentation={presentation} locations={usageLocations} onSelect={onSelectSlide} t={t} />
+      <div className={styles.linkedStyleSection} data-root-definition-section="reuse">
+        <h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3>
+        <RootDefinitionUsageLocations presentation={presentation} locations={usageLocations} onSelect={onSelectSlide} t={t} />
+      </div>
+      <div className={styles.resourceStyleActions}>
+        <button type="button" className={styles.resourceAction} data-root-definition-action="delete" disabled={referenced} onClick={onRemove}>{t("customResources.remove")}</button>
+      </div>
     </div> : null}
   </div>;
 }
@@ -635,7 +616,7 @@ function LinkedStylesWorkspace({
         </div></AuthoringHistoryContext.Provider> : null}
       </div>;
     })}
-    {adding ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser openInitially properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={(property) => runAddDiscrete(() => create(property))} /> : null}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div></AuthoringHistoryContext.Provider> : addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button><Button variant="ghost" size="compact" onClick={() => { setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.close")}</Button></div> : <><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></>}
+    {adding ? <AuthoringHistoryContext.Provider value={authoringHistory}><div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => setChooserId("new")}>{t("customResources.addFirstProperty")}</button>{chooserId === "new" ? <LinkedStylePropertyChooser openInitially properties={listAvailableLinkedStyleProperties({ id: "draft", name: draftName.trim() })} onChoose={(property) => runAddDiscrete(() => create(property))} /> : null}<Button variant="ghost" size="compact" onClick={() => { setAdding(false); setDraftName(""); setChooserId(null); }}>{t("customResources.close")}</Button></div></AuthoringHistoryContext.Provider> : addingFromSelected ? <div className={styles.linkedStyleEditor}><label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draftName} onChange={(event) => setDraftName(event.target.value)} /></label><button type="button" className={styles.resourceAction} disabled={!draftName.trim()} onClick={() => { onCreateFromSelected(draftName); setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.addToLinkedStyles")}</button><Button variant="ghost" size="compact" onClick={() => { setAddingFromSelected(false); setDraftName(""); }}>{t("customResources.close")}</Button></div> : <div className={styles.resourceActionRow} data-linked-style-actions><button type="button" className={styles.resourceAction} onClick={() => setAdding(true)}>+ {t("customResources.addLinkedStyle")}</button><button type="button" className={styles.resourceAction} disabled={!canCreateFromSelected} onClick={() => setAddingFromSelected(true)}>{t("customResources.addToLinkedStyles")}</button></div>}
   </div>;
 }
 
@@ -881,12 +862,12 @@ function LinkedStylePropertyRow({ style, property, onUpdate, onRemove, canRemove
   </div>;
 }
 
-function LinkedStyleNameField({ style, onRename }: { style: Pick<LinkedContainerStyle | LinkedTopicsStyle, "id" | "name">; onRename: (id: string, name: string) => void }) {
+function LinkedStyleNameField({ style, labelKey = "customResources.linkedStyleName", onDraftChange, onRename }: { style: Pick<LinkedContainerStyle | LinkedTopicsStyle, "id" | "name">; labelKey?: "customResources.linkedStyleName" | "creation.rootDefinitionName"; onDraftChange?: () => void; onRename: (id: string, name: string) => void }) {
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(style.name);
   useEffect(() => setDraft(style.name), [style.id, style.name]);
   const commit = () => { const next = draft.trim(); if (next) onRename(style.id, next); else setDraft(style.name); };
-  return <label className={styles.field}><span>{t("customResources.linkedStyleName")}</span><input value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); event.currentTarget.blur(); } }} /></label>;
+  return <label className={styles.field}><span>{t(labelKey)}</span><input value={draft} onChange={(event) => { setDraft(event.target.value); onDraftChange?.(); }} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); onDraftChange?.(); event.currentTarget.blur(); } }} /></label>;
 }
 
 function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false, historyScope = "linkedStyle" }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean; historyScope?: "linkedStyle" | "textStyle" }) {
@@ -1173,7 +1154,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
         </section>)}
       </div>
       {availableProperties.length > 0 || availableAppearance.length > 0 || availableLayout.length > 0 ? <PropertyChooser properties={availableProperties} layoutProperties={availableLayout} appearanceProperties={availableAppearance} onAdd={addProperty} onAddLayout={addLayoutProperty} onAddAppearance={addAppearance} /> : null}
-      <div className={styles.linkedStyleSection} data-text-style-usage><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.usage")}</h3><ResourceUsageLocations presentation={presentation} locations={locations} onSelect={(location) => onSelectElement(location, id)} onRequestDetach={onRequestDetachElement} styleName={label} /></div>
+      <div className={styles.linkedStyleSection} data-text-style-usage data-text-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><ResourceUsageLocations presentation={presentation} locations={locations} onSelect={(location) => onSelectElement(location, id)} onRequestDetach={onRequestDetachElement} styleName={label} /></div>
       {fundamental && style && onReset ? <div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} onClick={onReset}>{t("customResources.reset")}</button></div> : null}
       {!fundamental && onRemove ? <div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={removeDisabled} onClick={onRemove}>{t("customResources.remove")}</button></div> : null}
     </div> : null}

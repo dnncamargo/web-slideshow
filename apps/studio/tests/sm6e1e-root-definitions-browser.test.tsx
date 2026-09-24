@@ -187,11 +187,10 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await openResources();
     await openRootDefinitions();
     await expandRoot("root-a");
-    await act(async () => row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="rename"]')?.click());
     const input = row("root-a").querySelector<HTMLInputElement>("input");
     if (!input) throw new Error("rename input not found");
     await act(async () => changeInput(input, "  Renamed A  "));
-    await act(async () => row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="save-rename"]')?.click());
+    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-disclosure]')?.getAttribute("aria-expanded")).toBe("true");
     await save();
     const renamed = saved.at(-1)?.rootDefinitions?.find((definition) => definition.id === "root-a");
@@ -216,10 +215,10 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await openRootDefinitions();
     await expandRoot("root-b");
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.click());
-    expect(container.textContent).toContain('Delete Root Definition "Root B"?');
+    expect(container.textContent).toContain('Remove Root Definition "Root B"?');
     const dialog = container.querySelector<HTMLElement>("[data-studio-danger-confirm-dialog]");
     if (!dialog) throw new Error("delete confirmation not found");
-    await act(async () => Array.from(dialog.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Delete")?.click());
+    await act(async () => Array.from(dialog.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remove")?.click());
     await save();
     expect(saved.at(-1)?.rootDefinitions?.map((definition) => definition.name)).toEqual(["Root A"]);
     expect(saved.at(-1)?.slides).toEqual(initial.slides);
@@ -255,7 +254,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await act(async () => row("root-b").querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.click());
     const dialog = container.querySelector<HTMLElement>("[data-studio-danger-confirm-dialog]");
     if (!dialog) throw new Error("delete confirmation not found");
-    await act(async () => Array.from(dialog.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Delete")?.click());
+    await act(async () => Array.from(dialog.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remove")?.click());
     await save();
     expect(saved.at(-1)?.rootDefinitions?.map((definition) => definition.id)).toEqual(["root-a"]);
     expect(saved.at(-1)?.slides).toEqual(initial.slides);

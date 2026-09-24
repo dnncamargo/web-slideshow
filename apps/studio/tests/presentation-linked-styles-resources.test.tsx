@@ -136,7 +136,7 @@ describe("Linked Styles Resources contract", () => {
     expect(disclosure.querySelector("span[class*='resourceItemMeta']")?.textContent).toBe("Used by 1 element");
     const chevron = disclosure.querySelector("span[class*='resourceDisclosureChevron']");
     expect(chevron?.textContent).toBe("▸");
-    const add = host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button")!;
+    const add = host.querySelector<HTMLButtonElement>("[data-linked-style-actions] > button")!;
     expect(add.className).toContain("resourceAction");
     expect(add.textContent).toBe("+ Add Linked Style");
     await act(async () => disclosure.click());
@@ -451,7 +451,7 @@ describe("Linked Styles Resources contract", () => {
   });
 
   it("enables Add to Linked Styles only for canonically creatable selected elements", async () => {
-    const action = () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type");
+    const action = () => host.querySelector<HTMLButtonElement>("[data-linked-style-actions] > button:last-of-type");
     await render(makePresentation(), () => undefined, "en", () => undefined, () => undefined, null);
     expect(action()?.textContent).toContain("Add to Linked Styles");
     expect(action()?.disabled).toBe(true);
@@ -579,10 +579,10 @@ describe("Linked Styles Resources contract", () => {
     let current = PresentationSchema.parse({ ...makePresentation(), slides: [{ id: "s", title: "S", elements: [source, other] }], linkedStyles: [{ id: "shared", name: "Shared", layout: { margin: 2 } }] });
     const create = (name: string) => { current = createLinkedStyleFromTopics(current, 0, source.id, name); };
     await render(current, () => undefined, "en", () => undefined, () => undefined, source, create);
-    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-linked-style-actions] > button:last-of-type")?.click());
     const nameInput = host.querySelector<HTMLInputElement>("[data-presentation-linked-styles] input")!;
     await setInput(nameInput, "Shared");
-    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-presentation-linked-styles] > button:last-of-type"))?.click());
+    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-linked-style-actions] > button:last-of-type"))?.click());
     const created = current.linkedStyles?.find((style) => style.id !== "shared");
     expect(current.linkedStyles).toHaveLength(2);
     expect(created).toMatchObject({ target: "topics", name: "Shared" });
@@ -603,10 +603,10 @@ describe("Linked Styles Resources contract", () => {
     let current = PresentationSchema.parse({ ...makePresentation(), linkedStyles: undefined, slides: [{ id: "s", title: "S", elements: [source, other] }] });
     const create = (name: string) => { current = createLinkedStyleFromContainer(current, 0, source.id, name); };
     await render(current, () => undefined, "en", () => undefined, () => undefined, source, create);
-    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-linked-styles] > button:last-of-type")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-linked-style-actions] > button:last-of-type")?.click());
     const nameInput = host.querySelector<HTMLInputElement>("[data-presentation-linked-styles] input")!;
     await setInput(nameInput, "Container");
-    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-presentation-linked-styles] > button:last-of-type"))?.click());
+    await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-linked-styles] button")).find((button) => button.textContent?.includes("Add to Linked Styles") && button !== host.querySelector("[data-linked-style-actions] > button:last-of-type"))?.click());
     const created = current.linkedStyles?.[0];
     expect(current.linkedStyles).toHaveLength(1);
     expect(created).toMatchObject({ name: "Container" });
