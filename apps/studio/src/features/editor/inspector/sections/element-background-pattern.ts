@@ -7,7 +7,7 @@ export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; patter
 const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 1px, transparent 1px), linear-gradient(90deg, var(--presentation-pattern-color-1) 1px, transparent 1px)";
 const DOT_IMAGE = "radial-gradient(circle, var(--presentation-pattern-color-1) 1px, transparent 1px)";
 const OFFSET_DOT_IMAGE = `${DOT_IMAGE}, ${DOT_IMAGE}`;
-const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0, transparent 8px, var(--presentation-pattern-color-1) 8px, var(--presentation-pattern-color-1) 9px)";
+const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0%, transparent 44%, var(--presentation-pattern-color-1) 44%, var(--presentation-pattern-color-1) 50%)";
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
@@ -62,7 +62,9 @@ export function materializeBackgroundPatternPreset(pattern: BackgroundPattern, p
   if (!preset) return pattern;
   return {
     ...preset.pattern,
-    size: pattern.size ?? preset.pattern.size,
+    size: presetId === "diagonal-lines" && pattern.size === "auto"
+      ? preset.pattern.size
+      : pattern.size ?? preset.pattern.size,
     position: pattern.position ?? preset.pattern.position,
     repeat: pattern.repeat ?? preset.pattern.repeat,
     opacity: pattern.opacity,

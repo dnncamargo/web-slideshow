@@ -4,6 +4,7 @@ import {
   BACKGROUND_PATTERN_PRESETS,
   formatOffsetPosition,
   findBackgroundPatternPreset,
+  getPatternSizeValue,
   materializeBackgroundPatternPreset,
   parseBackgroundPatternCss,
   renderBackgroundPatternCss,
@@ -237,9 +238,25 @@ describe("Container background pattern authoring primitives", () => {
   });
 
   it("gives Diagonal Lines a deterministic numeric size while retaining legacy recognition", () => {
+    const legacy = { image: "repeating-linear-gradient(45deg, transparent 0, transparent 8px, #cbd5e1 8px, #cbd5e1 9px)", size: "auto", repeat: "repeat" as const };
+    expect(findBackgroundPatternPreset(legacy)).toBe("diagonal-lines");
+    const materialized = materializeBackgroundPatternPreset(legacy, "diagonal-lines");
+    expect(materialized).toMatchObject({ colors: ["#cbd5e1"], size: "18px 18px" });
+    expect(materialized.size).not.toBe("auto");
+    expect(materialized.image).toContain("44%");
+    expect(materialized.image).not.toContain("8px");
+
     const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")!.pattern;
     const updated = updateBackgroundPatternSize(pattern, "diagonal-lines", 25);
     expect(updated.size).toBe("25px 25px");
     expect(findBackgroundPatternPreset(updated)).toBe("diagonal-lines");
+    expect(getPatternSizeValue(updateBackgroundPatternSize(pattern, "diagonal-lines", 18), "diagonal-lines")).toBe(18);
+    expect(getPatternSizeValue(updateBackgroundPatternSize(pattern, "diagonal-lines", 36), "diagonal-lines")).toBe(36);
+    expect(updateBackgroundPatternSize({ ...pattern, colors: ["#123456"], rotation: 30 }, "diagonal-lines", 36)).toMatchObject({
+      colors: ["#123456"],
+      rotation: 30,
+      image: pattern.image,
+      size: "36px 36px",
+    });
   });
 });
