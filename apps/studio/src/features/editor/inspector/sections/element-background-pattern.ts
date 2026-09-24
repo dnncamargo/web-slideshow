@@ -17,7 +17,7 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "fine-grid", pattern: { image: FINE_GRID_IMAGE, size: "16px 16px", repeat: "repeat", colors: ["#cbd5e1"] } },
   { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
-  { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 45 } },
+  { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 135 } },
 ];
 
 const LEGACY_BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [

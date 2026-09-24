@@ -24,7 +24,7 @@ describe("Container background pattern authoring primitives", () => {
 
     expect(BACKGROUND_PATTERN_PRESETS[0]).not.toHaveProperty("preset");
     expect(BACKGROUND_PATTERN_PRESETS[0]).not.toHaveProperty("provider");
-    expect(BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")?.pattern.rotation).toBe(45);
+    expect(BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")?.pattern.rotation).toBe(135);
   });
 
   it.each([0, 1, 2, 3, 4])("preset %s is canonical Pattern data", (index) => {
@@ -249,13 +249,13 @@ describe("Container background pattern authoring primitives", () => {
     expect(materialized.size).not.toBe("auto");
     expect(materialized.image).toContain("90deg");
     expect(materialized.image).not.toContain("45deg");
-    expect(materialized.rotation).toBe(45);
+    expect(materialized.rotation).toBe(135);
     expect(materialized.image).not.toContain("8px");
 
     const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")!.pattern;
     const updated = updateBackgroundPatternSize(pattern, "diagonal-lines", 25);
     expect(updated.size).toBe("25px 25px");
-    expect(updated.rotation).toBe(45);
+    expect(updated.rotation).toBe(135);
     expect(updated.image).not.toContain("45deg");
     expect(findBackgroundPatternPreset(updated)).toBe("diagonal-lines");
     expect(getPatternSizeValue(updateBackgroundPatternSize(pattern, "diagonal-lines", 18), "diagonal-lines")).toBe(18);

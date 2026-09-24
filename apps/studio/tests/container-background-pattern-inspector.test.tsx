@@ -145,7 +145,7 @@ describe("Container canonical background pattern inspector", () => {
   it("uses canonical rotation for Diagonal Lines without leaking it to another preset", async () => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "diagonal-lines"));
-    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("45");
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("135");
     expect(currentContainer().style?.background?.pattern?.image).not.toContain("45deg");
 
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "dots"));
