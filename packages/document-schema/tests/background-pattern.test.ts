@@ -153,6 +153,49 @@ describe("BackgroundPatternSchema", () => {
     ).toBe(true);
   });
 
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "accepts %s without rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({ image: dotPattern, repeat }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "accepts %s with zero rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({ image: dotPattern, repeat, rotation: 0 }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "rejects %s with nonzero rotation",
+    (repeat) => {
+      const result = BackgroundPatternSchema.safeParse({ image: dotPattern, repeat, rotation: 15 });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path.join(".") === "rotation")).toBe(true);
+      }
+    },
+  );
+
+  it.each([undefined, "repeat", "space", "round"] as const)(
+    "accepts %s with nonzero rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({
+          image: dotPattern,
+          ...(repeat === undefined ? {} : { repeat }),
+          rotation: 15,
+        }).success,
+      ).toBe(true);
+    },
+  );
+
   it.each([
     ["opacity below zero", { image: dotPattern, opacity: -0.01 }],
     ["opacity above one", { image: dotPattern, opacity: 1.01 }],

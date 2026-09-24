@@ -271,6 +271,21 @@ export const BackgroundPatternSchema =
       rotation: z.number().finite().min(-360).max(360).optional(),
     })
     .superRefine((pattern, context) => {
+      if (
+        pattern.rotation !== undefined &&
+        pattern.rotation !== 0 &&
+        (pattern.repeat === "repeat-x" ||
+          pattern.repeat === "repeat-y" ||
+          pattern.repeat === "no-repeat")
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["rotation"],
+          message:
+            "Background pattern rotation requires repetition in both axes.",
+        });
+      }
+
       const referencedSlots = new Set(
         referencedPatternColorSlots(pattern.image),
       );

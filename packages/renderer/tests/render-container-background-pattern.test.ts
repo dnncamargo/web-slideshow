@@ -107,6 +107,21 @@ describe("Container background patterns", () => {
     },
   );
 
+  it.each(["repeat-x", "no-repeat"] as const)(
+    "keeps legacy %s Patterns on the single visual layer without rotation",
+    (repeat) => {
+      const html = renderElement(
+        createContainerElement({
+          style: { background: { pattern: { image: PATTERN_IMAGE, repeat } } },
+        }),
+      );
+
+      expect(html).toContain(`background-repeat:${repeat}`);
+      expect(html).not.toContain("presentation-container-background-pattern-paint");
+      expect(html).not.toContain("transform:rotate");
+    },
+  );
+
   it.each([0, 1])("renders pattern opacity %s independently", (opacity) => {
     const html = renderElement(
       createContainerElement({
