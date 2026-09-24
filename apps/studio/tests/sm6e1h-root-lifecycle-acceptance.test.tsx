@@ -179,11 +179,10 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     const activeDisclosure = activeRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
     if (!activeDisclosure) throw new Error("expected active Root disclosure");
     await act(async () => activeDisclosure.click());
-    await act(async () => activeRow.querySelector<HTMLButtonElement>('[data-root-definition-action="rename"]')?.click());
     const renameInput = activeRow.querySelector<HTMLInputElement>("input");
     if (!renameInput) throw new Error("expected Root rename input");
     await act(async () => changeInput(renameInput, "  Shared Layout  "));
-    await act(async () => activeRow.querySelector<HTMLButtonElement>('[data-root-definition-action="save-rename"]')?.click());
+    await act(async () => renameInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     snapshot = await save(saved);
     expect(snapshot.rootDefinitions?.[0]?.name).toBe("Shared Layout");
     expect(snapshot.rootDefinitions?.[0]?.id).toBe(createdRootId);
