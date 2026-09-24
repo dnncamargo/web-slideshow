@@ -1639,8 +1639,10 @@ export function EditorWorkspace({
     : undefined;
   const selectedMasterElement = rootBackedSlide && selectedDocumentElement !== null
     && findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) === null;
-  const elementStyleApplyAllowed = !rootBackedSlide
-    || (selectedDocumentElement !== null && !selectedMasterElement);
+  const elementStyleApplyAllowed = rootDefinitionMode
+    ? selectedDocumentElement !== null
+    : !rootBackedSlide
+      || (selectedDocumentElement !== null && !selectedMasterElement);
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
     && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement))
     || (!rootDefinitionMode && selectedMasterElement);
@@ -4679,9 +4681,12 @@ export function EditorWorkspace({
         target,
         selectedElementId ?? undefined,
       )?.elements ?? null,
-      replaceElements: (current, elements) => selectedElementId === null
-        ? replaceAuthoringElements(current, target, elements)
-        : replaceOwnedAuthoringTree(current, target, selectedElementId, elements),
+      replaceElements: (current, elements) => {
+        const next = selectedElementId === null
+          ? replaceAuthoringElements(current, target, elements)
+          : replaceOwnedAuthoringTree(current, target, selectedElementId, elements);
+        return next === current ? null : next;
+      },
     };
 
     if (!owner.resolveElements(presentation)) {

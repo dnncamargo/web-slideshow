@@ -180,7 +180,14 @@ describe("SM6E1F Slide Root association", () => {
     expect(container.querySelector("[data-slide-root-definition]")).toBeNull();
     await openResources();
     const section = await openRootDefinitions();
-    expect(section.querySelector<HTMLButtonElement>('[data-root-definition-id="root-a"] [data-root-definition-action="delete"]')?.disabled).toBe(true);
+    const row = section.querySelector<HTMLElement>('[data-root-definition-id="root-a"]');
+    if (!row) throw new Error("Root A row not found");
+    const disclosure = row.querySelector<HTMLButtonElement>("[data-root-definition-disclosure]");
+    if (!disclosure) throw new Error("Root A disclosure not found");
+    if (disclosure.getAttribute("aria-expanded") !== "true") {
+      await act(async () => disclosure.click());
+    }
+    expect(row.querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]')?.disabled).toBe(true);
   });
 
   it("disables Root association for ordinary Slide content without data loss or a History action", async () => {

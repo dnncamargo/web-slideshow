@@ -39,7 +39,7 @@ export type CustomLibraryItemApplyResult =
 
 export type CustomLibraryElementOwner = Readonly<{
   resolveElements: (presentation: Presentation) => PresentationElement[] | null;
-  replaceElements: (presentation: Presentation, elements: PresentationElement[]) => Presentation;
+  replaceElements: (presentation: Presentation, elements: PresentationElement[]) => Presentation | null;
 }>;
 
 type StyleRemap = {
@@ -427,16 +427,21 @@ export function applyCustomLibraryItemToPresentation(
     return placement;
   }
 
+  const nextPresentation = owner
+    ? owner.replaceElements(workingPresentation, placement.elements)
+    : {
+        ...workingPresentation,
+        slides: workingPresentation.slides.map((slide, index) =>
+          index === selectedSlideIndex ? { ...slide, elements: placement.elements } : slide,
+        ),
+      };
+  if (nextPresentation === null) {
+    return { ok: false, reason: "invalid-recipe-application" };
+  }
+
   return {
     ok: true,
-    presentation: owner
-      ? owner.replaceElements(workingPresentation, placement.elements)
-      : {
-          ...workingPresentation,
-          slides: workingPresentation.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: placement.elements } : slide,
-          ),
-        },
+    presentation: nextPresentation,
     appliedElementId: placement.appliedElementId,
     mode: placement.mode,
   };

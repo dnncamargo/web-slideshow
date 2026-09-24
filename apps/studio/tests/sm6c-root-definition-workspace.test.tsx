@@ -704,6 +704,38 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(redone.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
   });
 
+  it("disables Root Element Style browsing until a master element is selected", async () => {
+    const repository = elementStyleRepository([{
+      id: "unused-root-style",
+      item: { name: "Unused Root style", root: { type: "text", properties: [] } },
+    }]);
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(presentation(), onSave, undefined, { elementStyleRepository: repository });
+
+    const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resources) throw new Error("expected Custom Resources action");
+    await act(async () => resources.click());
+    const browse = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add saved element");
+    if (!browse) throw new Error("expected Element Style browse control");
+    expect(browse.disabled).toBe(true);
+    await act(async () => browse.click());
+    expect(repository.listItems).not.toHaveBeenCalled();
+
+    const saveButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    expect(saveButton?.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+
+    await act(async () => resources.click());
+    const history = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "History");
+    if (!history) throw new Error("expected History action");
+    await act(async () => history.click());
+    expect(containerElement.textContent).toContain("History is not populated yet.");
+  });
+
   it("allows descendant Cut/Paste while keeping the canonical Root boundary protected", async () => {
     const source = presentation();
     const onSave = vi.fn(async () => {});
