@@ -7,8 +7,8 @@ export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; patter
 const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)";
 const FINE_GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
 const DOT_IMAGE = "radial-gradient(circle at 50% 50%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
-const OFFSET_DOT_IMAGE = "radial-gradient(circle at 0% 0%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%), radial-gradient(circle at 50% 50%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
-const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0% 44%, var(--presentation-pattern-color-1) 44% 56%, transparent 56% 100%)";
+const OFFSET_DOT_IMAGE = "radial-gradient(circle at 25% 25%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%), radial-gradient(circle at 75% 75%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
+const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0% 40%, var(--presentation-pattern-color-1) 40% 46%, transparent 46% 54%, var(--presentation-pattern-color-1) 54% 60%, transparent 60% 100%)";
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },

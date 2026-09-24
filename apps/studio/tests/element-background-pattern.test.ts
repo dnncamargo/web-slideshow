@@ -235,6 +235,8 @@ describe("Container background pattern authoring primitives", () => {
     const updated = updateBackgroundPatternSize(pattern, "offset-dots", 30);
     expect(updated).toMatchObject({ size: "30px 30px", image: pattern.image });
     expect(updated.position).toBeUndefined();
+    expect(pattern.image).toContain("25% 25%");
+    expect(pattern.image).toContain("75% 75%");
     expect(findBackgroundPatternPreset(updated)).toBe("offset-dots");
   });
 
@@ -244,7 +246,7 @@ describe("Container background pattern authoring primitives", () => {
     const materialized = materializeBackgroundPatternPreset(legacy, "diagonal-lines");
     expect(materialized).toMatchObject({ colors: ["#cbd5e1"], size: "18px 18px" });
     expect(materialized.size).not.toBe("auto");
-    expect(materialized.image).toContain("44%");
+    expect(materialized.image).toContain("40%");
     expect(materialized.image).not.toContain("8px");
 
     const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")!.pattern;
