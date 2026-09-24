@@ -47,6 +47,43 @@ describe("Container background pattern authoring primitives", () => {
     expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
   });
 
+  it("uses valid structured geometry for Art Deco", () => {
+    const image = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "art-deco")!.pattern.image;
+
+    expect(image).toContain("ellipse");
+    expect(image).toContain("linear-gradient(90deg");
+    expect(image).toContain("linear-gradient(45deg");
+    expect(image).toContain("linear-gradient(135deg");
+    expect(image).not.toContain("transparent 50% 53% 100%");
+    for (const slot of [1, 2, 3, 4]) {
+      expect(image).toContain(`--presentation-pattern-color-${slot}`);
+    }
+    expect(BackgroundPatternSchema.safeParse({
+      image,
+      size: "80px 80px",
+      repeat: "repeat",
+      colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"],
+    }).success).toBe(true);
+  });
+
+  it("uses finite circuit traces and pads instead of a full grid", () => {
+    const image = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "circuit-grid")!.pattern.image;
+
+    expect(image.match(/radial-gradient\(/g)).toHaveLength(10);
+    expect(image).toContain("ellipse");
+    expect(image).toContain("--presentation-pattern-color-1");
+    expect(image).toContain("--presentation-pattern-color-2");
+    expect(image).not.toContain("linear-gradient(90deg");
+    expect(image).not.toContain("linear-gradient(0deg");
+    expect(image).not.toMatch(/\b\d+px\b/);
+    expect(BackgroundPatternSchema.safeParse({
+      image,
+      size: "48px 48px",
+      repeat: "repeat",
+      colors: ["#64748b", "#38bdf8"],
+    }).success).toBe(true);
+  });
+
   it("parses MagicPattern Grid CSS", () => {
     const result = parseBackgroundPatternCss(
       "background-color: #0f172a; background-image: linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px); background-size: 20px 20px;",
