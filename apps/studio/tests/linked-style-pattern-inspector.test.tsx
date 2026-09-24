@@ -8,16 +8,11 @@ import { PresentationSchema, type ContainerElement, type Presentation } from "@w
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { BACKGROUND_PATTERN_PRESETS } from "../src/features/editor/inspector/sections/element-background-pattern";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const linkedPattern = {
-  image: "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)",
-  size: "32px 32px",
-  repeat: "repeat" as const,
-  colors: ["#cbd5e1"],
-  rotation: 12,
-};
+const linkedPattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "art-deco")!.pattern;
 
 function changeInput(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -71,18 +66,18 @@ describe("Linked Container Pattern inspector", () => {
     await act(async () => render());
 
     const size = host.querySelector<HTMLInputElement>("#container-background-pattern-size");
-    expect(size?.value).toBe("32");
+    expect(size?.value).toBe("80");
     expect(host.textContent).toContain("Linked");
-    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("12");
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("0");
 
-    await act(async () => changeInput(size!, "48"));
+    await act(async () => changeInput(size!, "96"));
 
     expect(state.style?.background?.pattern).toMatchObject({
       image: linkedPattern.image,
       colors: linkedPattern.colors,
-      size: "48px 48px",
-      rotation: 12,
+      size: "96px 96px",
     });
+    expect(state.style?.background?.pattern?.rotation).toBeUndefined();
     expect(presentation.linkedStyles?.[0]?.style?.background?.pattern).toEqual(linkedPattern);
     expect(host.textContent).toContain("Local override");
     expect(host.textContent).toContain("Linked");
@@ -94,6 +89,6 @@ describe("Linked Container Pattern inspector", () => {
 
     expect(state.style?.background?.pattern).toBeUndefined();
     expect(presentation.linkedStyles?.[0]?.style?.background?.pattern).toEqual(linkedPattern);
-    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("32");
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("80");
   });
 });

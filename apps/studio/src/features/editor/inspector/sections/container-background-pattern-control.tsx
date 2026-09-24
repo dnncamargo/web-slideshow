@@ -191,6 +191,13 @@ export function ContainerBackgroundPatternControl({
           <option value="dots">{t("inspector.pattern.dots")}</option>
           <option value="offset-dots">{t("inspector.pattern.offsetDots")}</option>
           <option value="diagonal-lines">{t("inspector.pattern.diagonalLines")}</option>
+          <option value="art-deco">{t("inspector.pattern.artDeco")}</option>
+          <option value="circuit-grid">{t("inspector.pattern.circuitGrid")}</option>
+          <option value="paper">{t("inspector.pattern.paper")}</option>
+          <option value="graph-paper-dotted">{t("inspector.pattern.graphPaperDotted")}</option>
+          <option value="cross">{t("inspector.pattern.cross")}</option>
+          <option value="triple-axis-overlay">{t("inspector.pattern.tripleAxisOverlay")}</option>
+          <option value="chevron">{t("inspector.pattern.chevron")}</option>
           <option value="custom">{t("inspector.pattern.custom")}</option>
         </select>
       </label>
@@ -234,7 +241,7 @@ export function ContainerBackgroundPatternControl({
       {presetId !== undefined && structuredPattern !== undefined && (
         <div className={styles.gradientControl}>
           {structuredPattern.colors !== undefined && structuredPattern.colors.length > 1 && (
-            <span className={styles.appearanceSubheading}>{t("inspector.pattern.colors")}</span>
+            <span className={styles.appearanceSubheading}>{t("inspector.colors")}</span>
           )}
           {structuredPattern.colors?.map((color, index) => (
             <div className={styles.colorControl} key={`${controlPrefix}-pattern-color-${index + 1}`}>

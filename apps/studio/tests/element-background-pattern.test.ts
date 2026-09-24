@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 
 import {
   BACKGROUND_PATTERN_PRESETS,
@@ -13,13 +14,20 @@ import {
 } from "../src/features/editor/inspector/sections/element-background-pattern";
 
 describe("Container background pattern authoring primitives", () => {
-  it("defines all five deterministic presets without a persisted identity", () => {
+  it("defines all twelve deterministic presets without a persisted identity", () => {
     expect(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id)).toEqual([
       "grid",
       "fine-grid",
       "dots",
       "offset-dots",
       "diagonal-lines",
+      "art-deco",
+      "circuit-grid",
+      "paper",
+      "graph-paper-dotted",
+      "cross",
+      "triple-axis-overlay",
+      "chevron",
     ]);
 
     expect(BACKGROUND_PATTERN_PRESETS[0]).not.toHaveProperty("preset");
@@ -27,12 +35,16 @@ describe("Container background pattern authoring primitives", () => {
     expect(BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "diagonal-lines")?.pattern.rotation).toBe(135);
   });
 
-  it.each([0, 1, 2, 3, 4])("preset %s is canonical Pattern data", (index) => {
-    const preset = BACKGROUND_PATTERN_PRESETS[index];
+  it.each(BACKGROUND_PATTERN_PRESETS)("preset $id is canonical Pattern data", (preset) => {
 
     expect(preset).toBeDefined();
     expect(preset?.pattern.image).toMatch(/gradient\(/);
-    expect(findBackgroundPatternPreset(preset!.pattern)).toBe(preset?.id);
+    expect(BackgroundPatternSchema.safeParse(preset.pattern).success).toBe(true);
+    expect(findBackgroundPatternPreset(preset.pattern)).toBe(preset.id);
+    expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : preset.id === "circuit-grid" || preset.id === "paper" ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
+    expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    expect(preset.pattern.repeat).toBe("repeat");
+    expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
   });
 
   it("parses MagicPattern Grid CSS", () => {
@@ -210,7 +222,7 @@ describe("Container background pattern authoring primitives", () => {
       { image: "radial-gradient(circle, #94a3b8 1px, transparent 1px), radial-gradient(circle, #94a3b8 1px, transparent 1px)", size: "24px 24px", position: "0 0, 12px 12px", repeat: "repeat" as const },
       { image: "repeating-linear-gradient(45deg, transparent 0, transparent 8px, #cbd5e1 8px, #cbd5e1 9px)", size: "auto", repeat: "repeat" as const },
     ];
-    expect(legacy.map(findBackgroundPatternPreset)).toEqual(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id));
+    expect(legacy.map(findBackgroundPatternPreset)).toEqual(BACKGROUND_PATTERN_PRESETS.slice(0, 5).map((preset) => preset.id));
     expect(BACKGROUND_PATTERN_PRESETS.map((preset) => findBackgroundPatternPreset(preset.pattern))).toEqual(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id));
     expect(BACKGROUND_PATTERN_PRESETS.every((preset) => !JSON.stringify(preset.pattern).includes("presetId"))).toBe(true);
   });
@@ -297,5 +309,15 @@ describe("Container background pattern authoring primitives", () => {
     if (preset.id === "dots" || preset.id === "offset-dots") {
       expect(preset.pattern.image).toContain("circle closest-side");
     }
+  });
+
+  it.each(BACKGROUND_PATTERN_PRESETS.slice(5))("recognizes $id after color, size, and rotation changes", (preset) => {
+    const colors = preset.pattern.colors!.map((_, index) => index === 0 ? "#123456" : "#654321");
+    const colored = { ...preset.pattern, colors };
+    const sized = updateBackgroundPatternSize(colored, preset.id, getPatternSizeValue(preset.pattern, preset.id) * 2);
+    const rotated = updateBackgroundPatternRotation(sized, 20);
+    expect(findBackgroundPatternPreset(colored)).toBe(preset.id);
+    expect(findBackgroundPatternPreset(sized)).toBe(preset.id);
+    expect(findBackgroundPatternPreset(rotated)).toBe(preset.id);
   });
 });

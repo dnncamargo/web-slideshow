@@ -118,12 +118,20 @@ describe("Container canonical background pattern inspector", () => {
     ["dots", "radial-gradient"],
     ["offset-dots", "radial-gradient"],
     ["diagonal-lines", "linear-gradient"],
+    ["art-deco", "gradient"],
+    ["circuit-grid", "gradient"],
+    ["paper", "gradient"],
+    ["graph-paper-dotted", "radial-gradient"],
+    ["cross", "linear-gradient"],
+    ["triple-axis-overlay", "linear-gradient"],
+    ["chevron", "linear-gradient"],
   ])("preset %s writes canonical Pattern data", async (mode, imageKind) => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
 
     expect(updates).toHaveLength(1);
     expect(state).toMatchObject({ style: { background: { pattern: { image: expect.stringContaining(imageKind) } } } });
+    expect(currentContainer().style?.background?.pattern?.colors?.length).toBeGreaterThanOrEqual(1);
     expect(currentContainer().style).not.toHaveProperty("backgroundPattern");
     expect(currentContainer().style).not.toHaveProperty("backgroundGradient");
   });
@@ -140,6 +148,22 @@ describe("Container canonical background pattern inspector", () => {
       image: expect.stringContaining("--presentation-pattern-color-1"),
     });
     expect(host.textContent).not.toContain("Pattern colors");
+  });
+
+  it.each([
+    ["art-deco", 4],
+    ["circuit-grid", 2],
+    ["paper", 2],
+    ["graph-paper-dotted", 1],
+    ["cross", 1],
+    ["triple-axis-overlay", 3],
+    ["chevron", 1],
+  ])("renders %s with %s canonical color controls", async (mode, count) => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
+    expect(host.querySelectorAll('input[id^="container-pattern-color-"][id$="-value"]')).toHaveLength(count);
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).not.toBeNull();
   });
 
   it("uses canonical rotation for Diagonal Lines without leaking it to another preset", async () => {
@@ -213,6 +237,24 @@ describe("Container canonical background pattern inspector", () => {
       size: "48px 48px",
       rotation: 20,
     });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("resets all four Art Deco colors atomically", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "art-deco"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-4-value")!, "#654321"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "96"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+
+    const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Reset");
+    expect(reset).not.toBeUndefined();
+    await act(async () => reset?.click());
+
+    expect(currentContainer().style?.background?.pattern?.colors).toEqual(["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"]);
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "96px 96px", rotation: 20 });
     expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
   });
 

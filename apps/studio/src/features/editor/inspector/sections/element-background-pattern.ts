@@ -1,7 +1,19 @@
 import type { BackgroundPattern } from "@web-slideshow/document-schema";
 import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 
-export type BackgroundPatternPresetId = "grid" | "fine-grid" | "dots" | "offset-dots" | "diagonal-lines";
+export type BackgroundPatternPresetId =
+  | "grid"
+  | "fine-grid"
+  | "dots"
+  | "offset-dots"
+  | "diagonal-lines"
+  | "art-deco"
+  | "circuit-grid"
+  | "paper"
+  | "graph-paper-dotted"
+  | "cross"
+  | "triple-axis-overlay"
+  | "chevron";
 export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; pattern: BackgroundPattern }
 
 const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)";
@@ -11,6 +23,13 @@ const DOT_IMAGE = "radial-gradient(circle closest-side at 50% 50%, var(--present
 // At 25%/25%, closest-side is 25% of the tile, so the ratio doubles to retain ~1px.
 const OFFSET_DOT_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%)";
 const DIAGONAL_IMAGE = "linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
+const ART_DECO_IMAGE = "radial-gradient(ellipse at 50% 18%, transparent 0% 25%, var(--presentation-pattern-color-1) 25% 29%, transparent 29% 100%), radial-gradient(ellipse at 50% 82%, transparent 0% 25%, var(--presentation-pattern-color-1) 25% 29%, transparent 29% 100%), linear-gradient(90deg, transparent 0% 21%, var(--presentation-pattern-color-2) 21% 24%, transparent 24% 76%, var(--presentation-pattern-color-2) 76% 79%, transparent 79% 100%), linear-gradient(45deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53% 100%), linear-gradient(135deg, transparent 0% 47%, var(--presentation-pattern-color-4) 47% 50%, transparent 50% 53% 100%), radial-gradient(circle at 18% 50%, var(--presentation-pattern-color-3) 0% 5%, transparent 5% 100%), radial-gradient(circle at 82% 50%, var(--presentation-pattern-color-4) 0% 5%, transparent 5% 100%)";
+const CIRCUIT_GRID_IMAGE = "linear-gradient(90deg, transparent 0% 12%, var(--presentation-pattern-color-1) 12% 15%, transparent 15% 47%, var(--presentation-pattern-color-1) 47% 53%, transparent 53% 85%, var(--presentation-pattern-color-1) 85% 88%, transparent 88% 100%), linear-gradient(0deg, transparent 0% 12%, var(--presentation-pattern-color-1) 12% 15%, transparent 15% 47%, var(--presentation-pattern-color-1) 47% 53%, transparent 53% 85%, var(--presentation-pattern-color-1) 85% 88%, transparent 88% 100%), radial-gradient(circle at 15% 15%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%), radial-gradient(circle at 85% 85%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%)";
+const PAPER_IMAGE = "linear-gradient(0deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(45deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%), linear-gradient(135deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%)";
+const GRAPH_PAPER_DOTTED_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 25% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%)";
+const CROSS_IMAGE = "linear-gradient(0deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%), linear-gradient(90deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%)";
+const TRIPLE_AXIS_OVERLAY_IMAGE = "linear-gradient(0deg, transparent 0% 47%, var(--presentation-pattern-color-1) 47% 53%, transparent 53% 100%), linear-gradient(60deg, transparent 0% 47%, var(--presentation-pattern-color-2) 47% 53%, transparent 53% 100%), linear-gradient(120deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 53%, transparent 53% 100%)";
+const CHEVRON_IMAGE = "linear-gradient(45deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%), linear-gradient(135deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%)";
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
@@ -18,6 +37,13 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 135 } },
+  { id: "art-deco", pattern: { image: ART_DECO_IMAGE, size: "80px 80px", repeat: "repeat", colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"] } },
+  { id: "circuit-grid", pattern: { image: CIRCUIT_GRID_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#64748b", "#38bdf8"] } },
+  { id: "paper", pattern: { image: PAPER_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#cbd5e1", "#e2e8f0"] } },
+  { id: "graph-paper-dotted", pattern: { image: GRAPH_PAPER_DOTTED_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "cross", pattern: { image: CROSS_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "triple-axis-overlay", pattern: { image: TRIPLE_AXIS_OVERLAY_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#f97316", "#22c55e", "#3b82f6"] } },
+  { id: "chevron", pattern: { image: CHEVRON_IMAGE, size: "40px 40px", repeat: "repeat", colors: ["#cbd5e1"] } },
 ];
 
 const LEGACY_BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
@@ -41,7 +67,7 @@ function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPres
   if (preset.id === "grid" || preset.id === "fine-grid") return pattern.position === undefined;
   if (preset.id === "dots") return pattern.position === undefined;
   if (preset.id === "offset-dots") return pattern.position === undefined;
-  return pattern.position === undefined && (pattern.size === "auto" || isSquarePixelSize(pattern.size));
+  return pattern.position === undefined && (preset.id === "diagonal-lines" && pattern.size === "auto" || isSquarePixelSize(pattern.size));
 }
 
 function formatCssNumber(value: number): string {
