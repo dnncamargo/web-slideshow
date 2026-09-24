@@ -301,6 +301,9 @@ import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 import {
   isAuthorizedLocalRootReceiver,
   findLocalRootChildOwner,
+  resolveOwnedAuthoringTree,
+  replaceOwnedAuthoringTree,
+  updateOwnedAuthoringTree,
   updateLocalRootChildren,
   updateLocalRootElement,
 } from "./slide-local-root-authoring";
@@ -1279,7 +1282,7 @@ export function EditorWorkspace({
     if (presentation === pending.beforePresentation) return;
 
     pendingQrSelectionRef.current = null;
-    const elements = resolveAuthoringElements(presentation, pending.target);
+    const elements = resolveOwnedAuthoringTree(presentation, pending.target, pending.sourceElementId)?.elements ?? null;
     const source = elements ? findElementById(elements, pending.sourceElementId) : undefined;
     const qr = elements ? findElementById(elements, pending.qrElementId) : undefined;
     if (
@@ -1475,6 +1478,10 @@ export function EditorWorkspace({
   const rootBackedSlide = authoringTarget.kind === "slide"
     && selectedSlide !== undefined
     && (selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+
+  useEffect(() => {
+    if (rootBackedSlide) setPendingCut(null);
+  }, [rootBackedSlide]);
   const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
     ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
     : undefined;
@@ -1623,9 +1630,11 @@ export function EditorWorkspace({
   const selectedElementOwner = selectedDocumentElement && materializedOwnership
     ? materializedOwnership.get(selectedDocumentElement.id)
     : undefined;
+  const selectedMasterElement = rootBackedSlide && selectedDocumentElement !== null
+    && findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) === null;
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
     && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement))
-    || (!rootDefinitionMode && selectedElementOwner === "master");
+    || (!rootDefinitionMode && selectedMasterElement);
 
   const currentImageMediaTarget = useMemo<OwnedImageMediaAuthoringTarget | null>(() => {
     if (selectedDocumentElement?.type === "image") {
@@ -1678,7 +1687,8 @@ export function EditorWorkspace({
     target: OwnedImageMediaAuthoringTarget,
     update: (media: ImageMediaValue) => ImageMediaValue,
   ): Presentation {
-    const elements = resolveAuthoringElements(current, target.authoringTarget);
+    const anchorId = target.mediaTarget.kind === "image" ? target.mediaTarget.elementId : target.mediaTarget.galleryId;
+    const elements = resolveOwnedAuthoringTree(current, target.authoringTarget, anchorId)?.elements ?? null;
     if (!elements) return current;
 
     const mediaTarget = target.mediaTarget;
@@ -1704,7 +1714,7 @@ export function EditorWorkspace({
 
     return nextElements === elements
       ? current
-      : replaceAuthoringElements(current, target.authoringTarget, nextElements);
+      : replaceOwnedAuthoringTree(current, target.authoringTarget, anchorId, nextElements);
   }
 
   useEffect(() => {
@@ -1744,6 +1754,7 @@ export function EditorWorkspace({
   }
 
   function cutSelectedElement(): boolean {
+    if (rootBackedSlide) return false;
     if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
       return false;
     }
@@ -1764,6 +1775,7 @@ export function EditorWorkspace({
   }
 
   function pasteClipboardEntry(entryId: string): boolean {
+    if (rootBackedSlide) return false;
     const target = authoringTarget;
     const entry = clipboardSession.entries.find(
       (candidate) => candidate.id === entryId,
@@ -1819,6 +1831,7 @@ export function EditorWorkspace({
   }
 
   function pastePendingCut(): boolean {
+    if (rootBackedSlide) return false;
     if (!pendingCut) return false;
 
     const target = authoringTarget;
@@ -2992,7 +3005,7 @@ export function EditorWorkspace({
         labelParams: { setting: "canvas.drag" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, drag.elementId)?.elements ?? null;
         const element = elements ? findElementById(elements, drag.elementId) : null;
         if (
           !elements ||
@@ -3047,7 +3060,7 @@ export function EditorWorkspace({
 
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, nextElements);
       },
     );
   }
@@ -3419,7 +3432,7 @@ export function EditorWorkspace({
         labelParams: { setting: "canvas.resize" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, resize.elementId)?.elements ?? null;
         const element = elements ? findElementById(elements, resize.elementId) : null;
         if (
           !elements ||
@@ -3499,7 +3512,7 @@ export function EditorWorkspace({
 
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, resize.elementId, nextElements);
       },
     );
   }
@@ -3680,7 +3693,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentContainer = findElementById(elements, containerId);
         if (currentContainer?.type !== "container") return current;
@@ -3690,7 +3703,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => nextContainer);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
   }
@@ -3709,7 +3722,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentContainer = findElementById(elements, containerId);
         if (currentContainer?.type !== "container" || currentContainer.linkedStyleId !== expectedLinkedStyleId) return current;
@@ -3718,7 +3731,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => nextContainer);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
   }
@@ -3735,7 +3748,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, topicsId)?.elements ?? null;
         if (!elements) return current;
         const currentTopics = findElementById(elements, topicsId);
         if (currentTopics?.type !== "topics") return current;
@@ -3745,7 +3758,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, topicsId, () => nextTopics);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -3764,7 +3777,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.linkedStyle" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, topicsId)?.elements ?? null;
         if (!elements) return current;
         const currentTopics = findElementById(elements, topicsId);
         if (currentTopics?.type !== "topics" || currentTopics.linkedStyleId !== expectedLinkedStyleId) return current;
@@ -3773,7 +3786,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, topicsId, () => nextTopics);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -3807,7 +3820,7 @@ export function EditorWorkspace({
         labelParams: { setting: "container.childrenFit" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
         if (!elements) return current;
         const currentElement = findElementById(elements, containerId);
         if (currentElement?.type !== "container") return current;
@@ -3845,7 +3858,7 @@ export function EditorWorkspace({
         const nextElements = updateElementById(elements, containerId, () => updated);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
       },
     );
     return true;
@@ -4142,12 +4155,12 @@ export function EditorWorkspace({
       target,
       { kind: "textStyle.createFromText", labelKey: "history.element.setting", labelParams: { setting: "textStyle.createFromText" } },
       (current, currentTarget) => {
-        const elements = resolveAuthoringElements(current, currentTarget);
+        const elements = resolveOwnedAuthoringTree(current, currentTarget, textId)?.elements ?? null;
         const text = elements ? findElementById(elements, textId) : undefined;
         if (text?.type !== "text") return current;
         const created = createTextStyleFromText(current, text, trimmedName);
         if (!created) return current;
-        return updateAuthoringElements(created.presentation, currentTarget, (currentElements) =>
+        return updateOwnedAuthoringTree(created.presentation, currentTarget, textId, (currentElements) =>
           updateElementById(currentElements, textId, (element) => element.type === "text" ? created.text : element),
         );
       },
@@ -4223,21 +4236,21 @@ export function EditorWorkspace({
         labelParams: { setting: "linkedStyle.createFromElement" },
       },
       (current, currentTarget) => {
-        const elements = resolveAuthoringElements(current, currentTarget);
+        const elements = resolveOwnedAuthoringTree(current, currentTarget, elementId)?.elements ?? null;
         const currentElement = elements ? findElementById(elements, elementId) : undefined;
         if (!currentElement || currentElement.type !== expectedType) return current;
 
         if (expectedType === "container") {
           if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
           const candidate = createLinkedStyleFromContainerElement(current, currentElement, name);
-          return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
             updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
           );
         }
 
         if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
         const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
-        return candidate === null ? current : updateAuthoringElements(candidate.presentation, currentTarget, (currentElements) =>
+        return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
           updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element),
         );
       },
@@ -4413,7 +4426,13 @@ export function EditorWorkspace({
 
     if (rootBackedSlide && target.kind === "slide") {
       const selectedId = selectedElement?.id ?? null;
-      const selectedOwner = selectedId === null ? undefined : materializedOwnership?.get(selectedId);
+      const selectedOwner = selectedId === null
+        ? undefined
+        : selectedMasterElement
+          ? "master"
+          : findLocalRootChildOwner(presentation, target.slideIndex, selectedId) !== null
+            ? "slide"
+            : undefined;
       const receiverId = selectedOwner === "master"
         ? selectedDocumentElement?.type === "container" ? selectedDocumentElement.id : null
         : selectedId === null
@@ -4557,6 +4576,7 @@ export function EditorWorkspace({
   }
 
   function createQrFromSelectedLink(href: string): void {
+    if (selectedMasterElement) return;
     if (
       !selectedDocumentElement ||
       (selectedDocumentElement.type !== "text" &&
@@ -4593,7 +4613,7 @@ export function EditorWorkspace({
         labelParams: { elementType: "image" },
       },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, sourceElementId)?.elements ?? null;
         if (!elements) return current;
         const currentSource = findElementById(elements, sourceElementId);
         if (
@@ -4615,7 +4635,7 @@ export function EditorWorkspace({
           newElement,
         );
         if (nextElements === elements) return current;
-        return replaceAuthoringElements(current, authoringTarget, nextElements);
+        return replaceOwnedAuthoringTree(current, authoringTarget, sourceElementId, nextElements);
       },
     );
   }
@@ -4701,7 +4721,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
     const target = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, target);
+    const elements = resolveOwnedAuthoringTree(presentation, target, topicsId)?.elements ?? null;
 
     if (!elements) {
       return null;
@@ -4728,7 +4748,7 @@ export function EditorWorkspace({
       },
       (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        const preparedElements = resolveOwnedAuthoringTree(prepared, authoringTarget, topicsId)?.elements ?? null;
         if (!preparedElements) return current;
 
         const elements = appendTopicItemToTopics(
@@ -4739,7 +4759,7 @@ export function EditorWorkspace({
 
         return elements === preparedElements
           ? current
-          : replaceAuthoringElements(prepared, authoringTarget, elements);
+          : replaceOwnedAuthoringTree(prepared, authoringTarget, topicsId, elements);
       },
     );
 
@@ -4750,7 +4770,7 @@ export function EditorWorkspace({
     const usedIds = collectPresentationAuthoringIds(presentation);
     const created = createDefaultTopicItem(usedIds);
     const target = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, target);
+    const elements = resolveOwnedAuthoringTree(presentation, target, topicsId)?.elements ?? null;
 
     if (!elements) {
       return null;
@@ -4778,7 +4798,7 @@ export function EditorWorkspace({
       },
       (current, authoringTarget) => {
         const prepared = ensureTopicsTextStyle(current);
-        const preparedElements = resolveAuthoringElements(prepared, authoringTarget);
+        const preparedElements = resolveOwnedAuthoringTree(prepared, authoringTarget, topicsId)?.elements ?? null;
         if (!preparedElements) return current;
 
         const elements = appendChildTopicItemToTopics(
@@ -4790,7 +4810,7 @@ export function EditorWorkspace({
 
         return elements === preparedElements
           ? current
-          : replaceAuthoringElements(prepared, authoringTarget, elements);
+          : replaceOwnedAuthoringTree(prepared, authoringTarget, topicsId, elements);
       },
     );
 
@@ -4827,7 +4847,6 @@ export function EditorWorkspace({
     const target = authoringTarget;
 
     if (rootBackedSlide && target.kind === "slide") {
-      if (materializedOwnership?.get(sourceElementId) !== "slide") return;
       const owner = findLocalRootChildOwner(presentation, target.slideIndex, sourceElementId);
       if (!owner) return;
       commitAuthoringAction(
@@ -4837,10 +4856,10 @@ export function EditorWorkspace({
           labelKey: "history.element.duplicate",
           labelParams: { elementType: selectedDocumentElement.type },
         },
-        (current) => updateLocalRootChildren(
+        (current) => updateOwnedAuthoringTree(
           current,
-          target.slideIndex,
-          owner.targetContainerId,
+          target,
+          sourceElementId,
           (children) => insertElementAfterId(children, sourceElementId, duplicatedElement),
         ),
       );
@@ -5720,7 +5739,7 @@ export function EditorWorkspace({
     target: AuthoringTarget,
     tableId: string,
   ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
-    const elements = resolveAuthoringElements(current, target);
+    const elements = resolveOwnedAuthoringTree(current, target, tableId)?.elements ?? null;
     const element = elements ? findElementById(elements, tableId) : null;
     return element?.type === "table" && element.mode === "structured" ? element : null;
   }
@@ -5737,13 +5756,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addColumnToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5764,12 +5783,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.columns[index]?.id !== expectedColumnId) return current;
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeColumnFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5785,13 +5804,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveAuthoringElements(prepared, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addRowToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(prepared, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5812,12 +5831,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.rows[index]?.id !== expectedRowId) return current;
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeRowFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5830,12 +5849,12 @@ export function EditorWorkspace({
         target,
         { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
         (current, authoringTarget) => {
-          const elements = resolveAuthoringElements(current, authoringTarget);
+          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = setStructuredTableShowHeader(elements, tableId, showHeader);
           return nextElements === elements
             ? current
-            : replaceAuthoringElements(current, authoringTarget, nextElements);
+            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5847,12 +5866,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveColumn", labelKey: "history.element.setting", labelParams: { setting: "table.moveColumn" } },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveColumnInStructuredTable(elements, tableId, columnId, offset);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -5863,12 +5882,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveRow", labelKey: "history.element.setting", labelParams: { setting: "table.moveRow" } },
       (current, authoringTarget) => {
-        const elements = resolveAuthoringElements(current, authoringTarget);
+        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveRowInStructuredTable(elements, tableId, rowId, offset);
         return nextElements === elements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -6704,6 +6723,7 @@ export function EditorWorkspace({
                     }
                     canDuplicate={
                       Boolean(selectedDocumentElement) &&
+                      !selectedMasterElement &&
                       !(
                         rootDefinitionMode &&
                         selectedDocumentElement !== null &&
@@ -6716,6 +6736,7 @@ export function EditorWorkspace({
                     }
                     canDelete={
                       Boolean(selectedDocumentElement) &&
+                      !selectedMasterElement &&
                       !(
                         rootDefinitionMode &&
                         selectedDocumentElement !== null &&
@@ -6728,7 +6749,8 @@ export function EditorWorkspace({
                     }
                     canAdd={
                       !rootBackedSlide || (
-                        selectedElementOwner === "slide" ||
+                        (selectedDocumentElement !== null &&
+                          findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) !== null) ||
                         (selectedDocumentElement?.type === "container" &&
                           isAuthorizedLocalRootReceiver(
                             presentation,
@@ -6789,11 +6811,12 @@ export function EditorWorkspace({
                           fontResources={presentation.resources?.fonts ?? []}
                           presentation={presentation}
                           onCreateQrFromLink={
-                            selectedDocumentElement && isProtectedRootContainer(
+                            selectedMasterElement ||
+                            (selectedDocumentElement && isProtectedRootContainer(
                               presentation,
                               authoringTarget,
                               selectedDocumentElement.id,
-                            )
+                            ))
                               ? undefined
                               : createQrFromSelectedLink
                           }

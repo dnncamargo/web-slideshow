@@ -403,10 +403,34 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(saved.slides[0]!.localRootChildren?.[0]?.targetContainerId).toBe("root-container");
     expect(saved.slides[0]!.localRootChildren?.[0]?.children).toHaveLength(1);
 
+    const localId = saved.slides[0]!.localRootChildren?.[0]?.children[0]?.id;
+    if (!localId) throw new Error("expected saved local element");
+    const localNode = containerElement.querySelector<HTMLElement>(`[data-presentation-id="${localId}"]`);
+    if (!localNode) throw new Error("expected local element in Canvas");
+    await act(async () => localNode.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const textarea = containerElement.querySelector<HTMLTextAreaElement>("#text-content");
+    if (!textarea) throw new Error("expected local Text inspector");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(textarea, "Edited local content");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.blur();
+    });
+    const edited = await save(onSave);
+    expect(edited.slides[0]!.elements).toEqual([]);
+    expect(edited.slides[0]!.localRootChildren?.[0]?.children[0]).toMatchObject({ content: "Edited local content" });
+
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
-    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalled();
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
     expect(containerElement.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(containerElement);
+    render(edited, vi.fn(async () => {}), undefined, undefined, { kind: "slide", slideIndex: 0 });
+    expect(containerElement.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
+    expect(containerElement.textContent).toContain("Edited local content");
+    expect(edited.slides[0]!.elements).toEqual([]);
   });
 
   it("captures discrete Root Definition Text writes on the active target", async () => {

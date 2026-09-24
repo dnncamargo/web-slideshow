@@ -7,10 +7,18 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { findElementById, updateElementById } from "./element-hierarchy";
+import { replaceAuthoringElements, type AuthoringTarget } from "./authoring-target";
 
 export type LocalRootChildOwner = Readonly<{
   targetContainerId: string;
   recordIndex: number;
+}>;
+
+export type OwnedAuthoringTree = Readonly<{
+  kind: "ordinary" | "root-definition" | "slide-local-root";
+  elements: PresentationElement[];
+  slideIndex?: number;
+  targetContainerId?: string;
 }>;
 
 function resolveSlide(
@@ -47,6 +55,55 @@ export function findLocalRootChildOwner(
   return record === undefined
     ? null
     : { targetContainerId: record.targetContainerId, recordIndex };
+}
+
+export function resolveOwnedAuthoringTree(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  anchorElementId?: string,
+): OwnedAuthoringTree | null {
+  if (target.kind === "root-definition") {
+    const root = presentation.rootDefinitions?.find((definition) => definition.id === target.rootDefinitionId)?.root;
+    return root ? { kind: "root-definition", elements: [root] } : null;
+  }
+
+  const slide = resolveSlide(presentation, target.slideIndex);
+  if (!slide) return null;
+  const rootBacked = (slide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+  if (!rootBacked) return { kind: "ordinary", elements: slide.elements };
+  if (anchorElementId === undefined) return null;
+  const owner = findLocalRootChildOwner(presentation, target.slideIndex, anchorElementId);
+  if (!owner) return null;
+  const record = slide.localRootChildren?.[owner.recordIndex];
+  return record
+    ? { kind: "slide-local-root", slideIndex: target.slideIndex, targetContainerId: owner.targetContainerId, elements: record.children }
+    : null;
+}
+
+export function replaceOwnedAuthoringTree(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  anchorElementId: string,
+  nextElements: PresentationElement[],
+): Presentation {
+  const owned = resolveOwnedAuthoringTree(presentation, target, anchorElementId);
+  if (!owned) return presentation;
+  if (owned.kind === "slide-local-root") {
+    return updateLocalRootChildren(presentation, owned.slideIndex!, owned.targetContainerId!, () => nextElements);
+  }
+  return replaceAuthoringElements(presentation, target, nextElements);
+}
+
+export function updateOwnedAuthoringTree(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  anchorElementId: string,
+  update: (elements: PresentationElement[]) => PresentationElement[],
+): Presentation {
+  const owned = resolveOwnedAuthoringTree(presentation, target, anchorElementId);
+  if (!owned) return presentation;
+  const nextElements = update(owned.elements);
+  return nextElements === owned.elements ? presentation : replaceOwnedAuthoringTree(presentation, target, anchorElementId, nextElements);
 }
 
 export function updateLocalRootChildren(

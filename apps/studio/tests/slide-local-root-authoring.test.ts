@@ -74,4 +74,33 @@ describe("slide-local-root-authoring", () => {
     const unchanged = updateLocalRootChildren(initial, 0, "root", () => [text("not-allowed")]);
     expect(unchanged).toBe(initial);
   });
+
+  it("reuses one receiver record and resolves nested local ownership immutably", () => {
+    const initial = presentation();
+    const nested = {
+      id: "local-container",
+      type: "container" as const,
+      hidden: false,
+      children: [text("nested-text")],
+    };
+    const withContainer = updateLocalRootChildren(initial, 0, "receiver", () => [nested]);
+    const withSibling = updateLocalRootChildren(withContainer, 0, "receiver", (children) => [...children, text("sibling")]);
+
+    expect(withContainer).not.toBe(initial);
+    expect(withContainer.slides[0]!.localRootChildren).toHaveLength(1);
+    expect(withSibling.slides[0]!.localRootChildren).toHaveLength(1);
+    expect(findLocalRootChildOwner(withSibling, 0, "nested-text")).toMatchObject({ targetContainerId: "receiver" });
+    const updated = updateLocalRootElement(withSibling, 0, "nested-text", (element) =>
+      element.type === "text" ? { ...element, content: "Nested edited" } : element,
+    );
+    expect(updated.slides[0]!.localRootChildren?.[0]?.children[0]).toMatchObject({
+      id: "local-container",
+      children: [{ id: "nested-text", content: "Nested edited" }],
+    });
+    expect(initial.slides[0]!.localRootChildren).toBeUndefined();
+    expect(withSibling.slides[0]!.localRootChildren?.[0]?.children[0]).toEqual(nested);
+    expect(PresentationSchema.safeParse(updated).success).toBe(true);
+    const duplicated = updateLocalRootChildren(updated, 0, "receiver", (children) => [...children, text("nested-copy")]);
+    expect(duplicated.slides[0]!.localRootChildren?.[0]?.children).toHaveLength(3);
+  });
 });
