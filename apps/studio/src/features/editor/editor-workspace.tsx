@@ -213,6 +213,7 @@ import type { SlideLayoutPreset } from "./slide-operations";
 import {
   createRootDefinitionFromPreset,
   deleteRootDefinition,
+  getSlideRootDefinitionAssignmentBlocker,
   renameRootDefinition,
   setSlideRootDefinition,
   type RootDefinitionLifecycleFailure,
@@ -1478,6 +1479,9 @@ export function EditorWorkspace({
   const rootBackedSlide = authoringTarget.kind === "slide"
     && selectedSlide !== undefined
     && (selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+  const slideRootDefinitionAssignmentBlocker = selectedSlide
+    ? getSlideRootDefinitionAssignmentBlocker(presentation, selectedSlide)
+    : null;
 
   useEffect(() => {
     if (rootBackedSlide) setPendingCut(null);
@@ -6925,6 +6929,7 @@ export function EditorWorkspace({
                         <span>{t("inspector.rootDefinition")}</span>
                         <select
                           data-slide-root-definition
+                          disabled={slideRootDefinitionAssignmentBlocker !== null}
                           value={selectedSlide.rootDefinitionId ?? ""}
                           onChange={(event) => changeSlideRootDefinition(event.target.value)}
                         >
@@ -6939,6 +6944,8 @@ export function EditorWorkspace({
                             <option key={definition.id} value={definition.id}>{definition.name}</option>
                           ))}
                         </select>
+                        {slideRootDefinitionAssignmentBlocker === "ordinary-content" ? <span className={styles.status}>{t("inspector.rootDefinitionOrdinaryContent")}</span> : null}
+                        {slideRootDefinitionAssignmentBlocker === "local-root-content" ? <span className={styles.status}>{t("inspector.rootDefinitionIncompatible")}</span> : null}
                         {slideRootDefinitionError === "incompatible" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionIncompatible")}</span> : null}
                         {slideRootDefinitionError === "root-not-found" ? <span className={styles.status} role="alert">{t("inspector.rootDefinitionUnavailable")}</span> : null}
                       </label>

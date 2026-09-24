@@ -36,6 +36,24 @@ function presentation(populated = false): Presentation {
   });
 }
 
+function localContentPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      rootDefinitionId: "root-a",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "root-a-container",
+        children: [{ id: "local-text", type: "text", hidden: false, variant: "body", content: "Local content" }],
+      }],
+    }],
+    rootDefinitions: (presentation().rootDefinitions ?? []).map((definition) =>
+      definition.id === "root-a" ? { ...definition, localChildTargetIds: ["root-a-container"] } : definition),
+  });
+}
+
 describe("SM6E1F Slide Root association", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -80,6 +98,13 @@ describe("SM6E1F Slide Root association", () => {
     await act(async () => button.click());
   }
 
+  async function openHistory(): Promise<void> {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "History");
+    if (!button) throw new Error("History button not found");
+    await act(async () => button.click());
+  }
+
   async function openResources(): Promise<void> {
     const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((candidate) => candidate.textContent?.trim() === "Custom Resources");
@@ -101,9 +126,13 @@ describe("SM6E1F Slide Root association", () => {
     await mount(initial, saved);
     const select = container.querySelector<HTMLSelectElement>("[data-slide-root-definition]");
     expect(Array.from(select?.options ?? [], (option) => option.textContent)).toEqual(["No Root Definition", "Root A", "Root B", "Root C"]);
+    expect(select?.disabled).toBe(false);
     await selectRoot("root-a");
+    expect(container.querySelector<HTMLSelectElement>("[data-slide-root-definition]")?.disabled).toBe(false);
     expect(container.querySelector('[data-presentation-id="root-a-text"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="ordinary-text"]')).toBeNull();
+    await openHistory();
+    expect(container.textContent).toContain("Change Root Definition");
     await save();
     expect(saved.at(-1)?.slides[0]).toMatchObject({ id: "slide-1", rootDefinitionId: "root-a", elements: [] });
     expect(saved.at(-1)?.rootDefinitions).toEqual(initial.rootDefinitions);
@@ -140,15 +169,49 @@ describe("SM6E1F Slide Root association", () => {
     expect(section.querySelector<HTMLButtonElement>('[data-root-definition-id="root-a"] [data-root-definition-action="delete"]')?.disabled).toBe(true);
   });
 
-  it("rejects populated Slide association without data loss or a History action", async () => {
+  it("disables Root association for ordinary Slide content without data loss or a History action", async () => {
     const initial = presentation(true);
     const saved: Presentation[] = [];
     await mount(initial, saved);
+    expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.disabled).toBe(true);
+    expect(container.textContent).toContain("ordinary content");
     await selectRoot("root-a");
     expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.value).toBe("");
-    expect(container.textContent).toContain("This Slide has local root content");
     expect(container.querySelector('[data-presentation-id="ordinary-text"]')).not.toBeNull();
     expect(saved).toHaveLength(0);
+  });
+
+  it("keeps a Root-backed Slide locked while local content exists and re-enables after pruning it", async () => {
+    const saved: Presentation[] = [];
+    await mount(localContentPresentation(), saved);
+    const select = container.querySelector<HTMLSelectElement>('[data-slide-root-definition]');
+    expect(select?.value).toBe("root-a");
+    expect(select?.disabled).toBe(true);
+    expect(container.textContent).toContain("local root content");
+
+    const localText = container.querySelector<HTMLElement>('[data-presentation-id="local-text"]');
+    if (!localText) throw new Error("expected local content");
+    await act(async () => localText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+    const deleteButton = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete");
+    if (!deleteButton) throw new Error("expected local content delete action");
+    await act(async () => deleteButton.click());
+
+    expect(container.querySelector('[data-presentation-id="local-text"]')).toBeNull();
+    expect(container.querySelector<HTMLSelectElement>('[data-slide-root-definition]')?.disabled).toBe(false);
+  });
+
+  it("does not lock association after canonical local-content pruning and preserves the Presentation default option", async () => {
+    const initial = PresentationSchema.parse({
+      ...presentation(),
+      defaultRootDefinitionId: "root-a",
+      slides: [{ id: "slide-1", rootDefinitionId: "root-a", elements: [] }],
+    });
+    await mount(initial);
+    const select = container.querySelector<HTMLSelectElement>('[data-slide-root-definition]');
+    expect(select?.disabled).toBe(false);
+    expect(select?.options[0]?.textContent).toBe("Use Presentation default — Root A");
   });
 
   it("associates a newly created Root to a newly created Slide through the normal flow", async () => {

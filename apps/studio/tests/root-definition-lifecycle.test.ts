@@ -13,10 +13,12 @@ import {
 import {
   createRootDefinitionFromPreset,
   deleteRootDefinition,
+  getSlideRootDefinitionAssignmentBlocker,
   renameRootDefinition,
   setRootDefinitionLocalChildTarget,
   setSlideRootDefinition,
 } from "../src/features/editor/root-definition-lifecycle";
+import { updateLocalRootChildren } from "../src/features/editor/slide-local-root-authoring";
 
 const presets: SlideLayoutPreset[] = [
   "blank",
@@ -364,6 +366,33 @@ describe("Root Definition lifecycle operations", () => {
     expect(result.presentation.rootDefinitions).toEqual(source.rootDefinitions);
     expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
     expect(source).toEqual(before);
+  });
+
+  it("classifies Root association safety from persisted Slide content", () => {
+    const root = targetedDefinition("root-a", "receiver");
+    const empty = presentation({ rootDefinitions: [root] });
+    expect(getSlideRootDefinitionAssignmentBlocker(empty, empty.slides[0]!)).toBeNull();
+
+    const ordinary = presentation({
+      rootDefinitions: [root],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [{ id: "ordinary", type: "text", hidden: false, variant: "body", content: "Keep" }] }],
+    });
+    expect(getSlideRootDefinitionAssignmentBlocker(ordinary, ordinary.slides[0]!)).toBe("ordinary-content");
+
+    const rootBacked = presentation({
+      rootDefinitions: [root],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [] }],
+    });
+    expect(getSlideRootDefinitionAssignmentBlocker(rootBacked, rootBacked.slides[0]!)).toBeNull();
+
+    const local = presentation({
+      rootDefinitions: [{ ...root, localChildTargetIds: ["receiver"] }],
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [], localRootChildren: [{ targetContainerId: "receiver", children: [{ id: "local", type: "text", hidden: false, variant: "body", content: "Local" }] }] }],
+    });
+    expect(getSlideRootDefinitionAssignmentBlocker(local, local.slides[0]!)).toBe("local-root-content");
+    const pruned = updateLocalRootChildren(local, 0, "receiver", () => []);
+    expect(pruned.slides[0]!.localRootChildren).toBeUndefined();
+    expect(getSlideRootDefinitionAssignmentBlocker(pruned, pruned.slides[0]!)).toBeNull();
   });
 
   it.each([
