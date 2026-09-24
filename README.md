@@ -167,7 +167,7 @@ Root Definitions provide structural normalization: they reduce repeated canonica
 
 The canonical model keeps `rootDefinitions` in the Presentation and associates a Slide by `rootDefinitionId` (falling back to `defaultRootDefinitionId`). A Root is created from the shared New → Slide | Root Definition flow, edited in the same Editor workspace, and managed through Custom Resources → This Presentation → Root Definitions. Slides expose the association in the Slide Inspector.
 
-Root Definitions may authorize master Container receivers through `localChildTargetIds`; this is distinct from Slide-owned `localRootChildren`, whose authoring is not yet implemented. Runtime consumers materialize the effective tree without changing the referential canonical document. Draft persistence stores the complete canonical Presentation as `presentationJson`; import/export remaps Root identities and typed references deterministically, and publish/runtime preserve the referential model. `schemaVersion` remains literally `1`.
+Root Definitions may authorize master Container receivers through `localChildTargetIds`; Slide-owned `localRootChildren` provide separate per-Slide content for those receivers. Runtime consumers materialize the effective tree without changing the referential canonical document. Draft persistence stores the complete canonical Presentation as `presentationJson`; import/export remaps Root identities and typed references deterministically, and publish/runtime preserve the referential model. `schemaVersion` remains literally `1`.
 
 ## Instance branding and deployment
 
