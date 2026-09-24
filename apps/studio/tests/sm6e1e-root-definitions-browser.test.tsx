@@ -53,6 +53,14 @@ function usagePresentation(): Presentation {
   });
 }
 
+function defaultReferenceOnlyPresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...presentation(),
+    defaultRootDefinitionId: "root-a",
+    slides: [{ id: "slide-explicit-b", title: "Explicit B", rootDefinitionId: "root-b", elements: [] }],
+  });
+}
+
 function changeInput(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (!setter) throw new Error("expected input value setter");
@@ -184,6 +192,7 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     if (!input) throw new Error("rename input not found");
     await act(async () => changeInput(input, "  Renamed A  "));
     await act(async () => row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="save-rename"]')?.click());
+    expect(row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-disclosure]')?.getAttribute("aria-expanded")).toBe("true");
     await save();
     const renamed = saved.at(-1)?.rootDefinitions?.find((definition) => definition.id === "root-a");
     expect(renamed?.name).toBe("Renamed A");
@@ -297,5 +306,14 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     await act(async () => rootA.querySelector<HTMLButtonElement>('[data-root-definition-usage-slide="1"]')?.click());
     expect(container.querySelector('[data-authoring-target="slide"]')).not.toBeNull();
     expect(container.textContent).toContain("Default A");
+  });
+
+  it("keeps Delete protected by the Presentation default even with zero effective Slide usage", async () => {
+    await mount(defaultReferenceOnlyPresentation());
+    await openResources();
+    const section = await openRootDefinitions();
+    expect(row("root-a").textContent).toContain("Used by 0 slides");
+    await expandRoot("root-a");
+    expect(section.querySelector<HTMLButtonElement>('[data-root-definition-id="root-a"] [data-root-definition-action="delete"]')?.disabled).toBe(true);
   });
 });

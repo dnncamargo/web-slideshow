@@ -326,13 +326,15 @@ export function CustomResourcesWorkspace({
                 <div className={styles.localFontList} data-root-definitions>
                   {presentation.rootDefinitions.map((definition) => {
                     const usageLocations = findRootDefinitionUsageLocations(presentation, definition.id);
+                    const lifecycleReferenced = presentation.defaultRootDefinitionId === definition.id
+                      || presentation.slides.some((slide) => slide.rootDefinitionId === definition.id);
                     return <RootDefinitionResourceRow
-                      key={`${definition.id}:${definition.name}`}
+                      key={definition.id}
                       id={definition.id}
                       name={definition.name}
                       presentation={presentation}
                       active={activeRootDefinitionId === definition.id}
-                      referenced={usageLocations.length > 0}
+                      referenced={lifecycleReferenced}
                       usageLocations={usageLocations}
                       onSelectSlide={onSelectRootDefinitionSlide}
                       feedback={rootDefinitionFeedback?.id === definition.id ? rootDefinitionFeedback.reason : null}

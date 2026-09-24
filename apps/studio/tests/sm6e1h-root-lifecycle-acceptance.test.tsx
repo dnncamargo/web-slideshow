@@ -205,8 +205,13 @@ describe("SM6E1H Root Definition lifecycle integration acceptance", () => {
     if (!referencedRow) throw new Error("expected referenced Root row");
     const referencedDisclosure = referencedRow.querySelector<HTMLButtonElement>('[data-root-definition-disclosure]');
     if (!referencedDisclosure) throw new Error("expected referenced Root disclosure");
-    await act(async () => referencedDisclosure.click());
-    expect(referencedSection.querySelector<HTMLButtonElement>(`[data-root-definition-id="${createdRootId}"] [data-root-definition-action="delete"]`)?.disabled).toBe(true);
+    if (referencedDisclosure.getAttribute("aria-expanded") !== "true") {
+      await act(async () => referencedDisclosure.click());
+    }
+    const expandedReferencedRow = container.querySelector<HTMLElement>(`[data-root-definition-id="${createdRootId}"]`);
+    const referencedDelete = expandedReferencedRow?.querySelector<HTMLButtonElement>('[data-root-definition-action="delete"]');
+    if (!referencedDelete) throw new Error("expected expanded referenced Root actions");
+    expect(referencedDelete.disabled).toBe(true);
 
     const finalSnapshot = saved.at(-1);
     if (!finalSnapshot) throw new Error("expected final saved snapshot");
