@@ -63,6 +63,7 @@ interface ElementTreePanelProps {
   onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
   onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
   workspaceRootContainerId?: string | null;
+  disableMovement?: boolean;
   customLibraryRepository?: CustomLibraryRepository;
   onBrowseElementStyles: () => void;
   palette?: PresentationPalette;
@@ -901,6 +902,7 @@ export function ElementTreePanel({
   onMoveTableColumn,
   onMoveTableRow,
   workspaceRootContainerId,
+  disableMovement = false,
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
   customLibraryRepository,
@@ -1036,7 +1038,7 @@ export function ElementTreePanel({
               }}
               onSelectElement={selectRealElement}
               onDragStart={(element, event) => {
-                if (workspaceRootContainerId !== undefined && element.id === workspaceRootContainerId) return;
+                if (disableMovement || (workspaceRootContainerId !== undefined && element.id === workspaceRootContainerId)) return;
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", element.id);
                 setDragSource({ kind: "element", elementId: element.id });
@@ -1046,12 +1048,13 @@ export function ElementTreePanel({
                 });
               }}
               onDragOver={(target, event) => {
-                if (!dragSource) {
+                if (disableMovement || !dragSource) {
                   return;
                 }
 
                 const intent = getDropIntent(target, event);
                 if (
+                  disableMovement ||
                   workspaceRootContainerId !== undefined &&
                   target.id === workspaceRootContainerId &&
                   intent !== "inside"
@@ -1095,6 +1098,7 @@ export function ElementTreePanel({
               }}
               onDrop={(target) => {
                 if (
+                  disableMovement ||
                   !dragSource ||
                   !dropTarget ||
                   dropTarget.id !== target.id
@@ -1141,7 +1145,7 @@ export function ElementTreePanel({
                 selectRealElement({ id: galleryId, type: "gallery", galleryItemIndex: itemIndex });
               }}
               onGalleryItemDragOver={(galleryId, itemIndex, event) => {
-                if (!dragSource) return;
+                if (disableMovement || !dragSource) return;
                 const intent: TreeDropIntent = event.clientY - event.currentTarget.getBoundingClientRect().top < event.currentTarget.getBoundingClientRect().height / 2 ? "before" : "after";
                 const valid =
                   (dragSource.kind === "gallery-item" && dragSource.galleryId === galleryId && dragSource.itemIndex !== itemIndex) ||
@@ -1154,7 +1158,7 @@ export function ElementTreePanel({
                 setDropTarget({ id: galleryId, itemIndex, intent });
               }}
               onGalleryItemDrop={(galleryId, itemIndex) => {
-                if (!dragSource || !dropTarget || dropTarget.id !== galleryId || dropTarget.itemIndex !== itemIndex) return;
+                if (disableMovement || !dragSource || !dropTarget || dropTarget.id !== galleryId || dropTarget.itemIndex !== itemIndex) return;
                 onGalleryStructureDrop({
                   source: dragSource,
                   target: { kind: "gallery-item", galleryId, itemIndex },
@@ -1175,7 +1179,7 @@ export function ElementTreePanel({
               onSelectTableStructuralNode={setSelectedTableStructuralNode}
               onMoveTableColumn={onMoveTableColumn}
               onMoveTableRow={onMoveTableRow}
-              isDraggable={workspaceRootContainerId === undefined || element.id !== workspaceRootContainerId}
+              isDraggable={!disableMovement && (workspaceRootContainerId === undefined || element.id !== workspaceRootContainerId)}
             />
           ))}
         </ul>
@@ -1186,6 +1190,7 @@ export function ElementTreePanel({
           aria-label={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveLeft") : t("tree.moveUp")}
           title={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveLeft") : t("tree.moveUp")}
           disabled={
+            disableMovement || (
             currentSelectedTableStructuralNode?.kind === "column"
               ? selectedTableColumnIndex <= 0
               : currentSelectedTableStructuralNode?.kind === "row"
@@ -1194,7 +1199,7 @@ export function ElementTreePanel({
               ? selectedGalleryItemIndex === 0
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === 0
-              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp
+              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp)
           }
           onClick={() => {
             if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
@@ -1225,6 +1230,7 @@ export function ElementTreePanel({
           aria-label={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveRight") : t("tree.moveDown")}
           title={currentSelectedTableStructuralNode?.kind === "column" ? t("tree.moveRight") : t("tree.moveDown")}
           disabled={
+            disableMovement || (
             currentSelectedTableStructuralNode?.kind === "column"
               ? selectedTableColumnIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableColumnIndex >= selectedTable.columns.length - 1
               : currentSelectedTableStructuralNode?.kind === "row"
@@ -1233,7 +1239,7 @@ export function ElementTreePanel({
               ? selectedGalleryItemIndex === selectedGallery.items.length - 1
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === selectedTopicItemPosition.count - 1
-              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown
+              : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown)
           }
           onClick={() => {
             if (currentSelectedTableStructuralNode?.kind === "column" && selectedTableColumnIndex >= 0) {
@@ -1261,7 +1267,7 @@ export function ElementTreePanel({
         </button>
         <select
           aria-label={t("tree.moveTo")}
-          disabled={!selectedElementForMovement || isSelectedWorkspaceRoot || selectedGallery !== null || selectedTableRepresentativeChild}
+          disabled={disableMovement || !selectedElementForMovement || isSelectedWorkspaceRoot || selectedGallery !== null || selectedTableRepresentativeChild}
           value=""
           onChange={(event) => {
             if (selectedElementId && selectedElementForMovement) {

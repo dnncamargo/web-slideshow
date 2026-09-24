@@ -528,8 +528,20 @@
 
 
 .masterExitAction {
-  border-color: var(--ps-ui-semantic-accent);
-  color: var(--ps-ui-semantic-accent);
+  border-color: var(--ps-ui-semantic-warning);
+  background: var(--ps-ui-background-raised);
+  color: var(--ps-ui-semantic-warning);
+}
+
+.masterExitAction:hover {
+  border-color: var(--ps-ui-semantic-warning);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-semantic-warning);
+}
+
+.masterExitAction:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-warning);
+  outline-offset: 2px;
 }
 
 /* ==========================================================
@@ -3739,13 +3751,13 @@
 
   padding: var(--ps-ui-space-8);
 
-  border: var(--ps-ui-border-width-default) solid var(--ps-ui-semantic-accent);
+  border: var(--ps-ui-border-width-default) solid var(--ps-ui-semantic-warning);
 
   border-radius: var(--ps-ui-radius-6);
 
   background: var(--ps-ui-background-control);
 
-  color: var(--ps-ui-semantic-accent);
+  color: var(--ps-ui-semantic-warning);
 
   text-align: left;
 
@@ -3754,7 +3766,13 @@
 
 
 .layoutRootDefinition:hover {
+  border-color: var(--ps-ui-semantic-warning);
   background: var(--ps-ui-background-raised);
+}
+
+.layoutRootDefinition:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-warning);
+  outline-offset: 2px;
 }
 
 

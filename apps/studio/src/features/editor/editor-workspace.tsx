@@ -298,6 +298,12 @@ import {
   type AuthoringTarget,
 } from "./authoring-target";
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
+import {
+  isAuthorizedLocalRootReceiver,
+  findLocalRootChildOwner,
+  updateLocalRootChildren,
+  updateLocalRootElement,
+} from "./slide-local-root-authoring";
 
 // ============================================================
 // END: ELEMENT OPERATIONS
@@ -1457,6 +1463,18 @@ export function EditorWorkspace({
   const resolvedAuthoringTarget = resolveAuthoringTarget(presentation, authoringTarget);
   const selectedSlide = resolvedAuthoringTarget?.slide ?? presentation.slides[retainedSlideIndex];
   const retainedSlide = presentation.slides[retainedSlideIndex];
+  const materializedSlideProjection = useMemo(() => {
+    if (!selectedSlide || authoringTarget.kind !== "slide") return null;
+    return materializeSlide(presentation, selectedSlide);
+  }, [authoringTarget.kind, presentation, selectedSlide]);
+  const effectiveSlide = authoringTarget.kind === "slide"
+    ? materializedSlideProjection?.slide ?? selectedSlide
+    : selectedSlide;
+  const effectiveElements = effectiveSlide?.elements ?? [];
+  const materializedOwnership = materializedSlideProjection?.ownershipByStructuralId ?? null;
+  const rootBackedSlide = authoringTarget.kind === "slide"
+    && selectedSlide !== undefined
+    && (selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
   const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
     ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
     : undefined;
@@ -1555,10 +1573,12 @@ export function EditorWorkspace({
 
   useEffect(() => {
     if (!pendingElementDeletion) return;
-    const elements = resolveAuthoringElements(
-      presentation,
-      pendingElementDeletion.target,
-    );
+    const elements = pendingElementDeletion.target.kind === "slide"
+      ? (() => {
+          const slide = presentation.slides[pendingElementDeletion.target.slideIndex];
+          return slide ? materializeSlide(presentation, slide).slide.elements : null;
+        })()
+      : resolveAuthoringElements(presentation, pendingElementDeletion.target);
     const element = elements
       ? findElementById(elements, pendingElementDeletion.elementId)
       : null;
@@ -1598,10 +1618,14 @@ export function EditorWorkspace({
       return null;
     }
 
-    return findElementById(selectedSlide.elements, selectedElement.id);
-  }, [selectedSlide, selectedElement]);
+    return findElementById(effectiveElements, selectedElement.id);
+  }, [effectiveElements, selectedElement, selectedSlide]);
+  const selectedElementOwner = selectedDocumentElement && materializedOwnership
+    ? materializedOwnership.get(selectedDocumentElement.id)
+    : undefined;
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
-    && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement));
+    && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement))
+    || (!rootDefinitionMode && selectedElementOwner === "master");
 
   const currentImageMediaTarget = useMemo<OwnedImageMediaAuthoringTarget | null>(() => {
     if (selectedDocumentElement?.type === "image") {
@@ -1632,7 +1656,14 @@ export function EditorWorkspace({
     target: OwnedImageMediaAuthoringTarget,
     sourcePresentation: Presentation = presentation,
   ): ImageMediaValue | null {
-    const elements = resolveAuthoringElements(sourcePresentation, target.authoringTarget);
+    const elements = target.authoringTarget.kind === "slide"
+      ? (() => {
+          const slide = sourcePresentation.slides[target.authoringTarget.slideIndex];
+          return slide && (slide.rootDefinitionId ?? sourcePresentation.defaultRootDefinitionId) !== undefined
+            ? materializeSlide(sourcePresentation, slide).slide.elements
+            : slide?.elements ?? null;
+        })()
+      : resolveAuthoringElements(sourcePresentation, target.authoringTarget);
     if (!elements) return null;
     if (target.mediaTarget.kind === "image") {
       const element = findElementById(elements, target.mediaTarget.elementId);
@@ -2057,10 +2088,10 @@ export function EditorWorkspace({
     }
 
     return findElementSiblingPosition(
-      selectedSlide.elements,
+      effectiveElements,
       selectedElement.id,
     );
-  }, [selectedSlide, selectedElement]);
+  }, [effectiveElements, selectedElement, selectedSlide]);
 
   const selectedElementParent = useMemo(() => {
     if (
@@ -2071,12 +2102,12 @@ export function EditorWorkspace({
     }
 
     const parent = findElementById(
-      selectedSlide.elements,
+      effectiveElements,
       selectedElementPosition.parentRef.id,
     );
 
     return parent?.type === "container" ? parent : null;
-  }, [selectedElementPosition, selectedSlide]);
+  }, [effectiveElements, selectedElementPosition, selectedSlide]);
 
   // ==========================================================
   // END: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -2095,9 +2126,9 @@ export function EditorWorkspace({
   const renderedSlideModel = useMemo(() => {
     if (!selectedSlide) return undefined;
     return authoringTarget.kind === "slide"
-      ? materializeSlide(presentation, selectedSlide).slide
+      ? materializedSlideProjection?.slide
       : selectedSlide;
-  }, [authoringTarget.kind, selectedSlide, presentation]);
+  }, [authoringTarget.kind, materializedSlideProjection, selectedSlide]);
 
   const renderedSlide = useMemo(
     () => renderedSlideModel ? renderSlide(renderedSlideModel, { presentation }) : "",
@@ -2568,7 +2599,7 @@ export function EditorWorkspace({
     }
 
     const position = findElementSiblingPosition(
-      selectedSlide.elements,
+      effectiveElements,
       elementId,
     );
 
@@ -2578,7 +2609,7 @@ export function EditorWorkspace({
 
     if (position.parentRef.kind === "slide") {
       const documentElement = findElementById(
-        selectedSlide.elements,
+        effectiveElements,
         elementId,
       );
 
@@ -2597,14 +2628,14 @@ export function EditorWorkspace({
       return null;
     }
 
-    {
-      const { id } = position.parentRef;
-      return (
-        Array.from(
-          canvas.querySelectorAll<HTMLElement>("[data-presentation-id]"),
-        ).find((candidate) => candidate.dataset.presentationId === id) ?? null
-      );
-    }
+    const parent = findElementById(
+      effectiveElements,
+      position.parentRef.id,
+    );
+
+    return parent?.type === "container"
+      ? findCanvasElementById(canvas, parent.id)
+      : null;
   }
 
   function getCanvasBounds(element: HTMLElement): CanvasBounds {
@@ -2771,7 +2802,7 @@ export function EditorWorkspace({
     );
     const selection = resolveCanvasPointerSelection(
       hitTarget,
-      selectedSlide.elements,
+      effectiveElements,
     );
 
     if (!selection) {
@@ -3601,9 +3632,17 @@ export function EditorWorkspace({
 
     const intent = authoringIntentRef.current;
     const writeTarget = intent?.target ?? authoringTarget;
-    const applyUpdate = (current: Presentation): Presentation =>
-      updateAuthoringElements(current, writeTarget, (elements) =>
+    const applyUpdate = (current: Presentation): Presentation => {
+      if (
+        writeTarget.kind === "slide" &&
+        (current.slides[writeTarget.slideIndex]?.rootDefinitionId ?? current.defaultRootDefinitionId) !== undefined &&
+        findLocalRootChildOwner(current, writeTarget.slideIndex, selectedElement.id) !== null
+      ) {
+        return updateLocalRootElement(current, writeTarget.slideIndex, selectedElement.id, update);
+      }
+      return updateAuthoringElements(current, writeTarget, (elements) =>
         updateElementById(elements, selectedElement.id, update));
+    };
     if (intent?.type === "continuous") {
       dispatchHistory({ type: "transaction-update", key: intent.key, update: applyUpdate });
     } else if (intent?.type === "discrete") {
@@ -4372,6 +4411,61 @@ export function EditorWorkspace({
     const newElement = createElement(type, usedIds);
     const target = authoringTarget;
 
+    if (rootBackedSlide && target.kind === "slide") {
+      const selectedId = selectedElement?.id ?? null;
+      const selectedOwner = selectedId === null ? undefined : materializedOwnership?.get(selectedId);
+      const receiverId = selectedOwner === "master"
+        ? selectedDocumentElement?.type === "container" ? selectedDocumentElement.id : null
+        : selectedId === null
+          ? null
+          : findLocalRootChildOwner(presentation, target.slideIndex, selectedId)?.targetContainerId ?? null;
+      if (receiverId === null) return;
+
+      commitAuthoringAction(
+        target,
+        {
+          kind: "element.add",
+          labelKey: "history.element.add",
+          labelParams: { elementType: type },
+        },
+        (current) => {
+          const prepared = type === "table"
+            ? ensureStructuredTableTextStyles(current).presentation
+            : type === "topics"
+              ? ensureTopicsTextStyle(current)
+              : current;
+          const slide = prepared.slides[target.slideIndex];
+          if (!slide) return current;
+          const projected = materializeSlide(prepared, slide).slide;
+          const destination = selectedOwner === "master"
+            ? { kind: "append-container" as const, containerId: receiverId }
+            : resolveAddElementDestination(
+                projected.elements,
+                selectedId,
+                newElement,
+                selectedElement?.contentSlotId ?? null,
+              );
+          return updateLocalRootChildren(prepared, target.slideIndex, receiverId, (children) => {
+            if (selectedOwner === "master") {
+              return [...children, newElement];
+            }
+            switch (destination.kind) {
+              case "append-container":
+                return appendElementToContainer(children, destination.containerId, newElement);
+              case "append-content-slot":
+                return appendElementToContentSlot(children, destination.contentSlotId, newElement);
+              case "insert-after":
+                return insertElementAfterId(children, destination.targetId, newElement);
+              case "slide-root":
+                return children;
+            }
+          });
+        },
+      );
+      setSelectedElement({ id: newElement.id, type: newElement.type });
+      return;
+    }
+
     commitAuthoringAction(
       target,
       {
@@ -4732,6 +4826,28 @@ export function EditorWorkspace({
     const duplicatedElement = duplicateElement(selectedDocumentElement, usedIds);
     const target = authoringTarget;
 
+    if (rootBackedSlide && target.kind === "slide") {
+      if (materializedOwnership?.get(sourceElementId) !== "slide") return;
+      const owner = findLocalRootChildOwner(presentation, target.slideIndex, sourceElementId);
+      if (!owner) return;
+      commitAuthoringAction(
+        target,
+        {
+          kind: "element.duplicate",
+          labelKey: "history.element.duplicate",
+          labelParams: { elementType: selectedDocumentElement.type },
+        },
+        (current) => updateLocalRootChildren(
+          current,
+          target.slideIndex,
+          owner.targetContainerId,
+          (children) => insertElementAfterId(children, sourceElementId, duplicatedElement),
+        ),
+      );
+      setSelectedElement({ id: duplicatedElement.id, type: duplicatedElement.type });
+      return;
+    }
+
     commitAuthoringAction(
       target,
       {
@@ -4789,6 +4905,27 @@ export function EditorWorkspace({
       setPendingElementDeletion(null);
       return;
     }
+    if (deletion.target.kind === "slide" && (deletion.target.slideIndex === selectedSlideIndex)) {
+      const slideIndex = deletion.target.slideIndex;
+      const projected = materializeSlide(current, current.slides[slideIndex]!);
+      const localOwner = findLocalRootChildOwner(current, slideIndex, deletion.elementId);
+      const localElement = findElementById(projected.slide.elements, deletion.elementId);
+      if (localOwner && localElement?.type === deletion.elementType) {
+        commitAuthoringAction(
+          deletion.target,
+          { kind: "element.delete", labelKey: "history.element.delete", labelParams: { elementType: deletion.elementType } },
+          (currentPresentation) => updateLocalRootChildren(
+            currentPresentation,
+            slideIndex,
+            localOwner.targetContainerId,
+            (children) => removeElementById(children, deletion.elementId),
+          ),
+        );
+        setSelectedElement((currentSelection) => currentSelection?.id === deletion.elementId ? null : currentSelection);
+        setPendingElementDeletion(null);
+        return;
+      }
+    }
     const currentElements = resolveAuthoringElements(current, deletion.target);
     const currentElement = currentElements
       ? findElementById(currentElements, deletion.elementId)
@@ -4840,6 +4977,27 @@ export function EditorWorkspace({
 
     const deletion = pendingElementDeletion;
     const current = history.present;
+    if (deletion.target.kind === "slide" && deletion.target.slideIndex === selectedSlideIndex) {
+      const slideIndex = deletion.target.slideIndex;
+      const projected = materializeSlide(current, current.slides[slideIndex]!);
+      const localOwner = findLocalRootChildOwner(current, slideIndex, deletion.elementId);
+      const localElement = findElementById(projected.slide.elements, deletion.elementId);
+      if (localOwner && localElement?.type === "container") {
+        commitAuthoringAction(
+          deletion.target,
+          { kind: "element.deleteContainerPreserveChildren", labelKey: "history.element.deleteContainerPreserveChildren" },
+          (currentPresentation) => updateLocalRootChildren(
+            currentPresentation,
+            slideIndex,
+            localOwner.targetContainerId,
+            (children) => unwrapContainerPreservingChildren(children, deletion.elementId).elements,
+          ),
+        );
+        setSelectedElement((currentSelection) => currentSelection?.id === deletion.elementId ? null : currentSelection);
+        setPendingElementDeletion(null);
+        return;
+      }
+    }
     const currentElements = resolveAuthoringElements(current, deletion.target);
     const currentElement = currentElements
       ? findElementById(currentElements, deletion.elementId)
@@ -6467,7 +6625,7 @@ export function EditorWorkspace({
                     return (
                       <ElementTreePanel
                   key={selectedSlide.id}
-                  slide={selectedSlide}
+                  slide={effectiveSlide ?? selectedSlide}
                   selectedElementId={selectedElement?.id ?? null}
                   selectedContentSlotId={selectedElement?.contentSlotId ?? null}
                   selectedGalleryItemIndex={
@@ -6514,6 +6672,7 @@ export function EditorWorkspace({
                   onMoveTableColumn={moveTableColumnInTree}
                   onMoveTableRow={moveTableRowInTree}
                   workspaceRootContainerId={rootDefinitionMode ? resolveCanonicalRootContainerId(presentation, authoringTarget) : undefined}
+                  disableMovement={rootBackedSlide}
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
@@ -6565,6 +6724,17 @@ export function EditorWorkspace({
                           authoringTarget,
                           selectedDocumentElement.id,
                         )
+                      )
+                    }
+                    canAdd={
+                      !rootBackedSlide || (
+                        selectedElementOwner === "slide" ||
+                        (selectedDocumentElement?.type === "container" &&
+                          isAuthorizedLocalRootReceiver(
+                            presentation,
+                            selectedSlide!,
+                            selectedDocumentElement.id,
+                          ))
                       )
                     }
                     noSelectionDestination={
@@ -6757,7 +6927,7 @@ export function EditorWorkspace({
                           {t("inspector.rootElements")}
                         </span>
 
-                        <strong>{selectedSlide.elements.length}</strong>
+                        <strong>{effectiveElements.length}</strong>
                       </div>
 
                       <div className={styles.nextStep}>

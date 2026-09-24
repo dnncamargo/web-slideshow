@@ -110,9 +110,9 @@ export function ContainerInspector({
             />
             <span>{t("inspector.allowLocalSlideContent")}</span>
           </label>
-          <span className={styles.status}>
+          <div className={styles.nextStep}>
             {t("inspector.rootLocalContentDescription")}
-          </span>
+          </div>
           {rootLocalContentReceiver.feedback ? (
             <span className={styles.status} role="alert">
               {rootLocalContentReceiver.feedback}

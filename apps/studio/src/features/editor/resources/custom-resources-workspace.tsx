@@ -468,7 +468,7 @@ function RootDefinitionResourceRow({
     setEditing(false);
   }
 
-  return <div className={styles.resourceItem} data-root-definition-id={id} data-active={active ? "true" : "false"}>
+  return <div className={`${styles.resourceItem} ${styles.rootDefinitionResourceItem}`} data-root-definition-id={id} data-active={active ? "true" : "false"}>
     <div className={styles.resourceItemDetails}>
       {editing ? <input
         className={styles.rootDefinitionNameInput}
@@ -484,7 +484,7 @@ function RootDefinitionResourceRow({
       {feedback === "referenced" ? <span className={styles.status} role="alert">{t("customResources.rootDefinitionInUse")}</span> : null}
       {feedback === "invalid-name" ? <span className={styles.status} role="alert">{t("creation.invalidName")}</span> : null}
     </div>
-    <div className={styles.resourceActionRow}>
+    <div className={`${styles.resourceActionRow} ${styles.rootDefinitionActionRow}`}>
       <button type="button" className={styles.resourceAction} data-root-definition-action="open" onClick={onOpen}>{t("customResources.openRootDefinition")}</button>
       {editing ? <>
         <button type="button" className={styles.resourceAction} data-root-definition-action="save-rename" disabled={!draft.trim()} onClick={commitRename}>{t("topbar.save")}</button>

@@ -133,13 +133,14 @@ describe("SM6C Root Definition workspace shell", () => {
       fontRepository?: CustomLibraryFontRepository;
       elementStyleRepository?: CustomLibraryRepository;
     },
+    initialAuthoringTarget: AuthoringTarget = { kind: "root-definition", rootDefinitionId: "root-1" },
   ): void {
     act(() => {
       root.render(
         <StudioI18nProvider>
           <EditorWorkspace
             initialPresentation={initialPresentation}
-            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+            initialAuthoringTarget={initialAuthoringTarget}
             onSave={onSave}
             notesRepository={notesRepository}
             customLibraryPaletteRepository={resources?.paletteRepository}
@@ -362,6 +363,50 @@ describe("SM6C Root Definition workspace shell", () => {
     render(saved, vi.fn(async () => {}));
     expect(containerElement.querySelector('[data-authoring-target="root-definition"]')).not.toBeNull();
     expect(containerElement.querySelector('[data-presentation-id="root-text"]')?.textContent).toContain("Edited root content again");
+  });
+
+  it("authors local content through the effective Slide tree without writing slide.elements", async () => {
+    const source = PresentationSchema.parse({
+      ...presentation(),
+      slides: [{ id: "slide-1", title: "Root slide", elements: [], rootDefinitionId: "root-1" }, ...presentation().slides.slice(1)],
+      rootDefinitions: [{
+        id: "root-1",
+        name: "Teaching master",
+        localChildTargetIds: ["root-container"],
+        root: container("root-container", [text("root-text")]),
+      }],
+    });
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    render(source, onSave, undefined, undefined, { kind: "slide", slideIndex: 0 });
+
+    const add = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add");
+    if (!add) throw new Error("expected Add action");
+    expect(add.disabled).toBe(true);
+
+    const rootContainer = Array.from(containerElement.querySelectorAll<HTMLElement>('[data-presentation-id="root-container"]')).at(-1);
+    if (!rootContainer) throw new Error("expected projected root container");
+    await act(async () => rootContainer.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const enabledAdd = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "+ Add");
+    if (!enabledAdd) throw new Error("expected Add action after selecting receiver");
+    expect(enabledAdd.disabled).toBe(false);
+    await act(async () => enabledAdd.click());
+
+    const saveButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!saveButton) throw new Error("expected Save action");
+    await act(async () => saveButton.click());
+    const saved = onSave.mock.calls.at(-1)?.[0] as Presentation | undefined;
+    if (!saved) throw new Error("expected saved Presentation");
+    expect(saved.slides[0]!.elements).toEqual([]);
+    expect(saved.slides[0]!.localRootChildren?.[0]?.targetContainerId).toBe("root-container");
+    expect(saved.slides[0]!.localRootChildren?.[0]?.children).toHaveLength(1);
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(containerElement.querySelector('[data-presentation-id="root-container"]')).not.toBeNull();
   });
 
   it("captures discrete Root Definition Text writes on the active target", async () => {
