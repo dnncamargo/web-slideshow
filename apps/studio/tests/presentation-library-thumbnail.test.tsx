@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import { renderPresentation } from "@web-slideshow/renderer";
 
 import { PresentationThumbnail } from "../src/features/library/presentation-thumbnail";
 import { PresentationThumbnailPreview } from "../src/features/library/presentation-thumbnail-preview";
@@ -145,6 +146,60 @@ function rootBackedPreview(): PresentationThumbnailPreviewData {
   return preview;
 }
 
+function referencedStylePreview(): PresentationThumbnailPreviewData {
+  const preview = deriveThumbnailPreview({
+    schemaVersion: 1,
+    id: "referenced-style-presentation",
+    title: "Referenced styles",
+    slides: [{ id: "slide-1", elements: [], rootDefinitionId: "master" }],
+    defaultRootDefinitionId: "master",
+    palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    resources: {
+      fonts: [{
+        id: "demo-font",
+        family: "Demo Sans",
+        source: { type: "url", url: "https://example.com/demo.woff2", format: "woff2" },
+      }],
+    },
+    textStyles: [{
+      id: "master-text-style",
+      name: "Master text",
+      role: "body",
+      style: { color: { kind: "palette", colorId: "accent" } },
+      typography: { fontFamily: "Demo Sans", fontWeight: 700 },
+    }],
+    linkedStyles: [{
+      id: "master-card-style",
+      name: "Master card",
+      style: { background: { color: { kind: "palette", colorId: "accent" } } },
+    }],
+    rootDefinitions: [{
+      id: "master",
+      name: "Master",
+      root: {
+        id: "master-root",
+        type: "container",
+        children: [{
+          id: "master-card",
+          type: "container",
+          linkedStyleId: "master-card-style",
+          children: [{
+            id: "master-text",
+            type: "text",
+            variant: "master-text-style",
+            content: "Master content",
+          }],
+        }],
+      },
+    }],
+  });
+
+  if (!preview) {
+    throw new Error("Expected referenced-style thumbnail preview fixture to parse.");
+  }
+  return preview;
+}
+
 function summary(
   id: string,
   thumbnailPreview?: PresentationThumbnailPreviewData,
@@ -194,6 +249,23 @@ describe("presentation thumbnail preview", () => {
     expect(slide?.getAttribute("data-presentation-slide-id")).toBe("slide-1");
     expect(container.textContent).toContain("Hello world");
     expect(container.querySelector('[data-presentation-type="text"]')).not.toBeNull();
+  });
+
+  it("keeps Presentation-level palette and font resources for referenced master styles", () => {
+    const preview = referencedStylePreview();
+    const normalMarkup = renderPresentation(preview.presentation);
+
+    expect(normalMarkup).toContain("--ps-palette-0061006300630065006e0074:#facc15");
+    expect(normalMarkup).toContain("@font-face");
+
+    renderNode(<PresentationThumbnailPreview preview={preview} />);
+
+    const paletteStyle = container.querySelector("style[data-presentation-thumbnail-palette]");
+    expect(paletteStyle?.textContent).toContain(
+      "--ps-palette-0061006300630065006e0074:#facc15",
+    );
+    expect(container.querySelector("[data-presentation-thumbnail-stage]")).not.toBeNull();
+    expect(container.querySelector("style[data-presentation-font-resources]")).not.toBeNull();
   });
 
   it("renders only the preview first slide (never additional slides)", () => {

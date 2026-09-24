@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   hydrateRendererRuntime,
+  renderFontResources,
+  renderPresentationPaletteVariables,
   renderSlide,
   resolveLogicalSlideSize,
 } from "@web-slideshow/renderer";
@@ -37,6 +39,12 @@ export function PresentationThumbnailPreview({
 
   const logicalWidth = resolveLogicalSlideSize(preview.aspectRatio).logicalWidth;
   const logicalHeight = thumbnailLogicalHeight(preview.aspectRatio);
+  const paletteVariables = renderPresentationPaletteVariables(
+    preview.presentation.palette,
+  );
+  const fontResources = renderFontResources(
+    preview.presentation.resources?.fonts,
+  );
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -86,9 +94,24 @@ export function PresentationThumbnailPreview({
       inert
       style={{ pointerEvents: "none", userSelect: "none" }}
     >
+      {paletteVariables ? (
+        <style
+          data-presentation-thumbnail-palette
+          dangerouslySetInnerHTML={{
+            __html: `[data-presentation-thumbnail-stage]{${paletteVariables}}`,
+          }}
+        />
+      ) : null}
+      {fontResources ? (
+        <style
+          data-presentation-font-resources
+          dangerouslySetInnerHTML={{ __html: fontResources }}
+        />
+      ) : null}
       <div
         ref={stageRef}
         className={styles.thumbnailPreviewStage}
+        data-presentation-thumbnail-stage
         style={{
           width: logicalWidth,
           height: logicalHeight,
