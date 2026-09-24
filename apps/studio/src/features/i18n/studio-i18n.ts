@@ -133,6 +133,7 @@ const englishMessages = {
   "history.length.change": "Change length",
   "history.length.reset": "Reset length",
   "history.color.change": "Change color",
+  "history.color.reset": "Reset pattern colors",
   "history.text.color": "Change text color",
   "history.text.edit": "Edit text",
 
@@ -1323,6 +1324,7 @@ const portugueseMessages = {
   "history.length.change": "Alterar comprimento",
   "history.length.reset": "Redefinir comprimento",
   "history.color.change": "Alterar cor",
+  "history.color.reset": "Redefinir cores do padrão",
   "history.text.color": "Alterar cor do texto",
   "history.text.edit": "Editar texto",
 

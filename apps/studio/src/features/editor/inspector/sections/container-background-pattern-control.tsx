@@ -15,6 +15,7 @@ import { ColorControl } from "./color-control";
 
 import {
   BACKGROUND_PATTERN_PRESETS,
+  applyPresetPatternColors,
   findBackgroundPatternPreset,
   getPatternSizeValue,
   materializeBackgroundPatternPreset,
@@ -93,6 +94,9 @@ export function ContainerBackgroundPatternControl({
   const structuredPattern = presetId === undefined || pattern === undefined
     ? pattern
     : materializeBackgroundPatternPreset(pattern, presetId);
+  const currentPreset = presetId === undefined
+    ? undefined
+    : BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === presetId);
   const patternKey = patternSignature(pattern);
   const styleRef = useRef(element.style);
   const [mode, setMode] = useState<PatternControlMode>(derivedMode);
@@ -101,6 +105,12 @@ export function ContainerBackgroundPatternControl({
 
   function runDiscrete(callback: () => void): void {
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.backgroundPattern" } } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
+
+  function runColorReset(callback: () => void): void {
+    const meta = { kind: "color.reset", labelKey: "history.color.reset" } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
     else callback();
   }
@@ -170,8 +180,9 @@ export function ContainerBackgroundPatternControl({
             }
 
             setError(undefined);
-            if (samePattern(localPattern, preset.pattern)) return;
-            runDiscrete(() => onChange(preset.pattern));
+            const nextPattern = applyPresetPatternColors(pattern, preset);
+            if (samePattern(localPattern, nextPattern)) return;
+            runDiscrete(() => onChange(nextPattern));
           }}
         >
           {allowNone && <option value="none">{t("inspector.pattern.none")}</option>}
@@ -244,6 +255,24 @@ export function ContainerBackgroundPatternControl({
               </label>
             </div>
           ))}
+          {currentPreset?.pattern.colors !== undefined && (
+            <div className={styles.colorControlActionRow}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                disabled={JSON.stringify(structuredPattern.colors) === JSON.stringify(currentPreset.pattern.colors)}
+                onClick={() => {
+                  const base = materializeBackgroundPatternPreset(pattern ?? currentPreset.pattern, presetId);
+                  runColorReset(() => onChange({
+                    ...base,
+                    colors: [...currentPreset.pattern.colors!],
+                  }));
+                }}
+              >
+                {t("inspector.reset")}
+              </button>
+            </div>
+          )}
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
               <span>{t("inspector.pattern.size")}</span>

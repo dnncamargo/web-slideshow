@@ -30,7 +30,7 @@ function presentation(): Presentation {
             color: "#f8fafc",
             gradient: { type: "linear", stops: [{ color: "#fff", position: 0 }, { color: "#000", position: 100 }] },
             pattern: {
-              image: "linear-gradient(var(--presentation-pattern-color-1) 1px, transparent 1px), linear-gradient(90deg, var(--presentation-pattern-color-1) 1px, transparent 1px)",
+              image: "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)",
               size: "32px 32px",
               repeat: "repeat",
               colors: ["#cbd5e1"],

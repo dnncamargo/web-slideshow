@@ -12,7 +12,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const linkedPattern = {
-  image: "linear-gradient(var(--presentation-pattern-color-1) 1px, transparent 1px), linear-gradient(90deg, var(--presentation-pattern-color-1) 1px, transparent 1px)",
+  image: "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)",
   size: "32px 32px",
   repeat: "repeat" as const,
   colors: ["#cbd5e1"],
@@ -88,7 +88,7 @@ describe("Linked Container Pattern inspector", () => {
     expect(host.textContent).toContain("Linked");
 
     const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.trim() === "Reset");
+      .find((button) => button.textContent?.trim() === "Reset" && !button.disabled);
     expect(reset).not.toBeUndefined();
     await act(async () => reset?.click());
 

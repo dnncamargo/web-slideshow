@@ -170,6 +170,40 @@ describe("Container canonical background pattern inspector", () => {
     expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "48px 48px", rotation: 20 });
   });
 
+  it("preserves effective Pattern colors when switching preset families", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "dots"));
+
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#123456"],
+      size: "24px 24px",
+      image: expect.stringContaining("radial-gradient"),
+    });
+  });
+
+  it("resets Pattern colors as one group without changing Size or Rotation", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "48"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+
+    const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Reset");
+    expect(reset).not.toBeNull();
+    expect(reset?.disabled).toBe(false);
+    await act(async () => reset?.click());
+
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#cbd5e1"],
+      size: "48px 48px",
+      rotation: 20,
+    });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
   it("keeps Custom CSS authoring separate from structured parameters", async () => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));

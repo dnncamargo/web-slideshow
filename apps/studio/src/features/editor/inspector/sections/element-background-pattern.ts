@@ -4,16 +4,17 @@ import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 export type BackgroundPatternPresetId = "grid" | "fine-grid" | "dots" | "offset-dots" | "diagonal-lines";
 export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; pattern: BackgroundPattern }
 
-const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 1px, transparent 1px), linear-gradient(90deg, var(--presentation-pattern-color-1) 1px, transparent 1px)";
-const DOT_IMAGE = "radial-gradient(circle, var(--presentation-pattern-color-1) 1px, transparent 1px)";
-const OFFSET_DOT_IMAGE = `${DOT_IMAGE}, ${DOT_IMAGE}`;
-const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0%, transparent 44%, var(--presentation-pattern-color-1) 44%, var(--presentation-pattern-color-1) 50%)";
+const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)";
+const FINE_GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
+const DOT_IMAGE = "radial-gradient(circle at 50% 50%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
+const OFFSET_DOT_IMAGE = "radial-gradient(circle at 0% 0%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%), radial-gradient(circle at 50% 50%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
+const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0% 44%, var(--presentation-pattern-color-1) 44% 56%, transparent 56% 100%)";
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
-  { id: "fine-grid", pattern: { image: GRID_IMAGE, size: "16px 16px", repeat: "repeat", colors: ["#cbd5e1"] } },
+  { id: "fine-grid", pattern: { image: FINE_GRID_IMAGE, size: "16px 16px", repeat: "repeat", colors: ["#cbd5e1"] } },
   { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
-  { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", position: "0 0, 12px 12px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"] } },
 ];
 
@@ -37,17 +38,12 @@ function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPres
   if (pattern.image !== preset.pattern.image || pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity) return false;
   if (preset.id === "grid" || preset.id === "fine-grid") return pattern.position === undefined;
   if (preset.id === "dots") return pattern.position === undefined;
-  if (preset.id === "offset-dots") return pattern.position === formatOffsetPosition(getPatternSizeValue(pattern, preset.id));
+  if (preset.id === "offset-dots") return pattern.position === undefined;
   return pattern.position === undefined && (pattern.size === "auto" || isSquarePixelSize(pattern.size));
 }
 
 function formatCssNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-export function formatOffsetPosition(size: number): string {
-  const offset = formatCssNumber(size / 2);
-  return `0 0, ${offset}px ${offset}px`;
 }
 
 export function getPatternSizeValue(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId): number {
@@ -65,9 +61,30 @@ export function materializeBackgroundPatternPreset(pattern: BackgroundPattern, p
     size: presetId === "diagonal-lines" && pattern.size === "auto"
       ? preset.pattern.size
       : pattern.size ?? preset.pattern.size,
-    position: pattern.position ?? preset.pattern.position,
+    position: pattern.image === preset.pattern.image
+      ? pattern.position ?? preset.pattern.position
+      : preset.pattern.position,
     repeat: pattern.repeat ?? preset.pattern.repeat,
     opacity: pattern.opacity,
+  };
+}
+
+export function getEffectivePatternColors(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId | undefined): BackgroundPattern["colors"] {
+  if (pattern.colors !== undefined) return pattern.colors;
+  if (presetId === undefined) return undefined;
+  return materializeBackgroundPatternPreset(pattern, presetId).colors;
+}
+
+export function applyPresetPatternColors(
+  pattern: BackgroundPattern | undefined,
+  targetPreset: BackgroundPatternPreset,
+): BackgroundPattern {
+  const sourcePresetId = pattern === undefined ? undefined : findBackgroundPatternPreset(pattern);
+  const sourceColors = pattern === undefined ? undefined : getEffectivePatternColors(pattern, sourcePresetId);
+  const targetColors = targetPreset.pattern.colors ?? [];
+  return {
+    ...targetPreset.pattern,
+    colors: targetColors.map((fallback, index) => sourceColors?.[index] ?? fallback),
   };
 }
 
@@ -76,7 +93,6 @@ export function updateBackgroundPatternSize(pattern: BackgroundPattern, presetId
   return {
     ...pattern,
     size: `${formatCssNumber(bounded)}px ${formatCssNumber(bounded)}px`,
-    ...(presetId === "offset-dots" ? { position: formatOffsetPosition(bounded) } : {}),
   };
 }
 

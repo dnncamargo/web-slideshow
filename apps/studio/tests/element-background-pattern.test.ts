@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BACKGROUND_PATTERN_PRESETS,
-  formatOffsetPosition,
+  applyPresetPatternColors,
   findBackgroundPatternPreset,
   getPatternSizeValue,
   materializeBackgroundPatternPreset,
@@ -230,10 +230,11 @@ describe("Container background pattern authoring primitives", () => {
     expect(updateBackgroundPatternRotation({ ...grid, rotation: 20 }, 0).rotation).toBeUndefined();
   });
 
-  it("updates Offset Dots position from its tile size", () => {
+  it("keeps Offset Dots stagger geometry inside the normalized image", () => {
     const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "offset-dots")!.pattern;
     const updated = updateBackgroundPatternSize(pattern, "offset-dots", 30);
-    expect(updated).toMatchObject({ size: "30px 30px", position: formatOffsetPosition(30) });
+    expect(updated).toMatchObject({ size: "30px 30px", image: pattern.image });
+    expect(updated.position).toBeUndefined();
     expect(findBackgroundPatternPreset(updated)).toBe("offset-dots");
   });
 
@@ -258,5 +259,32 @@ describe("Container background pattern authoring primitives", () => {
       image: pattern.image,
       size: "36px 36px",
     });
+  });
+
+  it("carries effective Pattern colors by slot when switching presets", () => {
+    const grid = { ...BACKGROUND_PATTERN_PRESETS[0]!.pattern, colors: ["#123456"] };
+    const dots = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "dots")!;
+    expect(applyPresetPatternColors(grid, dots).colors).toEqual(["#123456"]);
+
+    const fourColorTarget = {
+      ...dots,
+      pattern: { ...dots.pattern, colors: ["#a", "#b", "#c", "#d"] },
+    };
+    expect(applyPresetPatternColors({ ...grid, colors: ["#1", "#2"] }, fourColorTarget).colors)
+      .toEqual(["#1", "#2", "#c", "#d"]);
+    expect(applyPresetPatternColors({ ...grid, colors: ["#1", "#2"] }, dots).colors).toEqual(["#1"]);
+
+    const legacyGrid = { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" as const };
+    expect(applyPresetPatternColors(legacyGrid, dots).colors).toEqual(["#cbd5e1"]);
+  });
+
+  it.each(BACKGROUND_PATTERN_PRESETS)("keeps $id image stable while changing Size", (preset) => {
+    const updated = updateBackgroundPatternSize(preset.pattern, preset.id, getPatternSizeValue(preset.pattern, preset.id) * 2);
+    expect(updated.image).toBe(preset.pattern.image);
+    expect(updated.colors).toEqual(preset.pattern.colors);
+    expect(updated.rotation).toBe(preset.pattern.rotation);
+    expect(updated.repeat).toBe(preset.pattern.repeat);
+    expect(updated.size).not.toBe(preset.pattern.size);
+    expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
   });
 });
