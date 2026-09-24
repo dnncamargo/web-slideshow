@@ -6,16 +6,18 @@ export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; patter
 
 const GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 3.125%, transparent 3.125% 100%)";
 const FINE_GRID_IMAGE = "linear-gradient(var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
-const DOT_IMAGE = "radial-gradient(circle at 50% 50%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
-const OFFSET_DOT_IMAGE = "radial-gradient(circle at 25% 25%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%), radial-gradient(circle at 75% 75%, var(--presentation-pattern-color-1) 0% 4.1667%, transparent 4.1667% 100%)";
-const DIAGONAL_IMAGE = "repeating-linear-gradient(45deg, transparent 0% 40%, var(--presentation-pattern-color-1) 40% 46%, transparent 46% 54%, var(--presentation-pattern-color-1) 54% 60%, transparent 60% 100%)";
+// closest-side is 50% of a centered tile, so 8.3333% gives a ~1px radius at 24px.
+const DOT_IMAGE = "radial-gradient(circle closest-side at 50% 50%, var(--presentation-pattern-color-1) 0% 8.3333%, transparent 8.3333% 100%)";
+// At 25%/25%, closest-side is 25% of the tile, so the ratio doubles to retain ~1px.
+const OFFSET_DOT_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%)";
+const DIAGONAL_IMAGE = "linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
   { id: "fine-grid", pattern: { image: FINE_GRID_IMAGE, size: "16px 16px", repeat: "repeat", colors: ["#cbd5e1"] } },
   { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
-  { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"] } },
+  { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 45 } },
 ];
 
 const LEGACY_BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [

@@ -233,7 +233,9 @@ export function ContainerBackgroundPatternControl({
 
       {presetId !== undefined && structuredPattern !== undefined && (
         <div className={styles.gradientControl}>
-          <span>{t("inspector.pattern.colors")}</span>
+          {structuredPattern.colors !== undefined && structuredPattern.colors.length > 1 && (
+            <span className={styles.appearanceSubheading}>{t("inspector.pattern.colors")}</span>
+          )}
           {structuredPattern.colors?.map((color, index) => (
             <div className={styles.colorControl} key={`${controlPrefix}-pattern-color-${index + 1}`}>
               <label className={styles.field}>

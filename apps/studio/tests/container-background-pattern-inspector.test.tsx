@@ -117,7 +117,7 @@ describe("Container canonical background pattern inspector", () => {
     ["fine-grid", "linear-gradient"],
     ["dots", "radial-gradient"],
     ["offset-dots", "radial-gradient"],
-    ["diagonal-lines", "repeating-linear-gradient"],
+    ["diagonal-lines", "linear-gradient"],
   ])("preset %s writes canonical Pattern data", async (mode, imageKind) => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
@@ -139,6 +139,18 @@ describe("Container canonical background pattern inspector", () => {
       colors: ["#cbd5e1"],
       image: expect.stringContaining("--presentation-pattern-color-1"),
     });
+    expect(host.textContent).not.toContain("Pattern colors");
+  });
+
+  it("uses canonical rotation for Diagonal Lines without leaking it to another preset", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "diagonal-lines"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("45");
+    expect(currentContainer().style?.background?.pattern?.image).not.toContain("45deg");
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "dots"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("0");
+    expect(currentContainer().style?.background?.pattern?.rotation).toBeUndefined();
   });
 
   it("hydrates a legacy preset without writing and materializes on the first structured edit", async () => {
