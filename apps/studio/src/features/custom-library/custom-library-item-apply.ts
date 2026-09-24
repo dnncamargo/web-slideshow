@@ -5,6 +5,7 @@ import {
   TextStyleSchema,
   type LinkedStyle,
   type Presentation,
+  type PresentationElement,
   type CustomTextStyle,
 } from "@web-slideshow/document-schema";
 
@@ -12,7 +13,7 @@ import type { CustomLibraryItemDraft } from "./custom-library-item";
 import { addCustomLibraryFontToPresentation } from "./custom-library-font-apply";
 import type { CustomLibraryElementRecipe } from "./custom-library-recipe";
 import {
-  placeCustomLibraryElementRecipe,
+  placeCustomLibraryElementRecipeInElements,
   type CustomLibraryPlacementMode,
 } from "./custom-library-placement";
 import type { CustomLibraryApplyFailureReason } from "./custom-library-apply";
@@ -35,6 +36,11 @@ export type CustomLibraryItemApplyResult =
       ok: false;
       reason: CustomLibraryItemApplyFailureReason;
     };
+
+export type CustomLibraryElementOwner = Readonly<{
+  resolveElements: (presentation: Presentation) => PresentationElement[] | null;
+  replaceElements: (presentation: Presentation, elements: PresentationElement[]) => Presentation;
+}>;
 
 type StyleRemap = {
   textStyles: Map<string, string>;
@@ -363,6 +369,7 @@ export function applyCustomLibraryItemToPresentation(
   presentation: Presentation,
   selectedSlideIndex: number,
   selectedElementId: string | null,
+  owner?: CustomLibraryElementOwner,
 ): CustomLibraryItemApplyResult {
   if (!presentation.slides[selectedSlideIndex]) {
     return { ok: false, reason: "invalid-recipe-application" };
@@ -403,14 +410,16 @@ export function applyCustomLibraryItemToPresentation(
 
   const usedIds = collectPresentationAuthoringIds(workingPresentation);
 
-  const workingSlide = workingPresentation.slides[selectedSlideIndex];
-  if (!workingSlide) {
+  const ownerElements = owner
+    ? owner.resolveElements(workingPresentation)
+    : workingPresentation.slides[selectedSlideIndex]?.elements ?? null;
+  if (!ownerElements) {
     return { ok: false, reason: "invalid-recipe-application" };
   }
 
-  const placement = placeCustomLibraryElementRecipe(
+  const placement = placeCustomLibraryElementRecipeInElements(
     workingRecipe,
-    workingSlide,
+    ownerElements,
     usedIds,
     selectedElementId,
   );
@@ -420,12 +429,14 @@ export function applyCustomLibraryItemToPresentation(
 
   return {
     ok: true,
-    presentation: {
-      ...workingPresentation,
-      slides: workingPresentation.slides.map((slide, index) =>
-        index === selectedSlideIndex ? placement.slide : slide,
-      ),
-    },
+    presentation: owner
+      ? owner.replaceElements(workingPresentation, placement.elements)
+      : {
+          ...workingPresentation,
+          slides: workingPresentation.slides.map((slide, index) =>
+            index === selectedSlideIndex ? { ...slide, elements: placement.elements } : slide,
+          ),
+        },
     appliedElementId: placement.appliedElementId,
     mode: placement.mode,
   };

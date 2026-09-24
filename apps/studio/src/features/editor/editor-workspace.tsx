@@ -59,7 +59,10 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
-import { applyCustomLibraryItemToPresentation } from "@/features/custom-library/custom-library-item-apply";
+import {
+  applyCustomLibraryItemToPresentation,
+  type CustomLibraryElementOwner,
+} from "@/features/custom-library/custom-library-item-apply";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -1636,6 +1639,8 @@ export function EditorWorkspace({
     : undefined;
   const selectedMasterElement = rootBackedSlide && selectedDocumentElement !== null
     && findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) === null;
+  const elementStyleApplyAllowed = !rootBackedSlide
+    || (selectedDocumentElement !== null && !selectedMasterElement);
   const rootDefinitionInspectorReadOnly = rootDefinitionMode
     && (selectedDocumentElement === null || !isRootDefinitionGenericInspectorElement(selectedDocumentElement))
     || (!rootDefinitionMode && selectedMasterElement);
@@ -4667,12 +4672,28 @@ export function EditorWorkspace({
     const selectedElementId = selectedElement?.contentSlotId != null
       ? null
       : selectedElement?.id ?? null;
+    const target = authoringTarget;
+    const owner: CustomLibraryElementOwner = {
+      resolveElements: (current) => resolveOwnedAuthoringTree(
+        current,
+        target,
+        selectedElementId ?? undefined,
+      )?.elements ?? null,
+      replaceElements: (current, elements) => selectedElementId === null
+        ? replaceAuthoringElements(current, target, elements)
+        : replaceOwnedAuthoringTree(current, target, selectedElementId, elements),
+    };
+
+    if (!owner.resolveElements(presentation)) {
+      return { ok: false, reason: "invalid-recipe-application" };
+    }
 
     const preflightResult = applyCustomLibraryItemToPresentation(
       item,
       presentation,
       slideIndex,
       selectedElementId,
+      owner,
     );
 
     if (!preflightResult.ok) {
@@ -4680,7 +4701,8 @@ export function EditorWorkspace({
     }
 
     let currentResult: ReturnType<typeof applyCustomLibraryItemToPresentation> = preflightResult;
-    commitPresentationAction(
+    commitAuthoringAction(
+      target,
       {
         kind: "customLibrary.apply",
         labelKey: "history.element.setting",
@@ -4692,6 +4714,7 @@ export function EditorWorkspace({
           current,
           slideIndex,
           selectedElementId,
+          owner,
         );
         currentResult = result;
         return result.ok ? result.presentation : current;
@@ -4702,10 +4725,8 @@ export function EditorWorkspace({
       return currentResult;
     }
 
-    const appliedElement = findElementById(
-      preflightResult.presentation.slides[slideIndex]?.elements ?? [],
-      preflightResult.appliedElementId,
-    );
+    const appliedElements = owner.resolveElements(preflightResult.presentation) ?? [];
+    const appliedElement = findElementById(appliedElements, preflightResult.appliedElementId);
     if (appliedElement) {
       setSelectedElement({
         id: appliedElement.id,
@@ -6525,7 +6546,7 @@ export function EditorWorkspace({
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
             onApplyElementStyle={applyCustomLibraryItem}
-            allowElementStyleApply={!rootDefinitionMode}
+            allowElementStyleApply={elementStyleApplyAllowed}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
@@ -6710,7 +6731,7 @@ export function EditorWorkspace({
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
                    onBrowseElementStyles={() => {
-                     if (!rootDefinitionMode) setRightPanelMode("resources");
+                     if (elementStyleApplyAllowed) setRightPanelMode("resources");
                    }}
                    palette={presentation.palette}
                    fontResources={presentation.resources?.fonts}

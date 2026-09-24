@@ -8,7 +8,10 @@ import { PresentationSchema, type Presentation, type PresentationElement } from 
 import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
-import type { CustomLibraryRepository } from "../src/features/custom-library/custom-library-repository";
+import type {
+  CustomLibraryItemRecord,
+  CustomLibraryRepository,
+} from "../src/features/custom-library/custom-library-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { reconcileSelectedElementAfterReplay } from "../src/features/editor/editor-history-selection-reconciliation";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -100,10 +103,10 @@ function fontRepository(records: CustomLibraryFontRecord[] = [fontRecord]): Cust
   };
 }
 
-function elementStyleRepository(): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
+function elementStyleRepository(items: CustomLibraryItemRecord[] = []): CustomLibraryRepository & { listItems: ReturnType<typeof vi.fn> } {
   return {
     saveItem: async () => "unused",
-    listItems: vi.fn(async () => []),
+    listItems: vi.fn(async () => items),
     getItem: async () => null,
     deleteItem: async () => undefined,
   };
@@ -621,9 +624,39 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(await save(onSave)).toEqual(changed);
   });
 
-  it("blocks the Root Element Style workflow at its actual Resources control", async () => {
-    const repository = elementStyleRepository();
-    render(presentation(), vi.fn(), undefined, { elementStyleRepository: repository });
+  it("applies an Element Style to the editable Root tree through Resources", async () => {
+    const item: CustomLibraryItemRecord = {
+      id: "root-element-style",
+      item: {
+        name: "Root text style",
+        root: {
+          type: "text",
+          properties: [
+            { path: "content", value: "Styled master content" },
+            { path: "typography.fontFamily", value: "Root Sans" },
+          ],
+        },
+        dependencies: {
+          fonts: [{
+            family: "Root Sans",
+            faces: [{
+              weight: 400,
+              style: "normal",
+              subset: "latin",
+              source: { type: "url", url: "https://example.com/root-sans.woff2", format: "woff2" },
+            }],
+          }],
+        },
+      },
+    };
+    const source = presentation();
+    const onSave = vi.fn(async (_saved: Presentation) => {});
+    const appliedRepository = elementStyleRepository([item]);
+    render(source, onSave, undefined, { elementStyleRepository: appliedRepository });
+
+    const rootText = containerElement.querySelector<HTMLElement>('[data-presentation-id="root-text"]');
+    if (!rootText) throw new Error("expected Root Definition text in Canvas");
+    await act(async () => rootText.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
     const resources = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Custom Resources");
@@ -633,10 +666,42 @@ describe("SM6C Root Definition workspace shell", () => {
     const browse = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "+ Add saved element");
     if (!browse) throw new Error("expected Element Style browse control");
-    expect(browse.disabled).toBe(true);
+    expect(browse.disabled).toBe(false);
     await act(async () => browse.click());
-    expect(repository.listItems).not.toHaveBeenCalled();
-    expect(containerElement.querySelector("[data-custom-library-apply]")).toBeNull();
+    await flushResources();
+    const itemButton = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("[class*='customLibraryApplyItem']"))
+      .find((button) => button.textContent?.includes("Root text style"));
+    if (!itemButton) throw new Error("expected Root Element Style item");
+    await act(async () => itemButton.click());
+    const apply = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Apply to selected");
+    if (!apply) throw new Error("expected Root Element Style apply action");
+    await act(async () => apply.click());
+
+    const changed = await save(onSave);
+    expect(changed.slides).toEqual(source.slides);
+    expect(changed.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Styled master content", typography: { fontFamily: "Root Sans" } });
+    expect(changed.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
+    expect(containerElement.querySelector('[data-presentation-id="root-text"]')).not.toBeNull();
+    const resourcesToggle = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Custom Resources");
+    if (!resourcesToggle) throw new Error("expected Custom Resources action");
+    await act(async () => resourcesToggle.click());
+    const elements = Array.from(containerElement.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Elements");
+    if (!elements) throw new Error("expected Elements panel action");
+    await act(async () => elements.click());
+    expect(containerElement.querySelectorAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1);
+    expect(containerElement.querySelector('[role="treeitem"][aria-selected="true"]')?.textContent).toContain("Styled master content");
+
+    await undo();
+    const undone = await save(onSave);
+    expect(undone.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Master content" });
+    expect(undone.resources).toBeUndefined();
+    await redo();
+    const redone = await save(onSave);
+    expect(redone.rootDefinitions?.[0]?.root.children[0]).toMatchObject({ id: "root-text", content: "Styled master content" });
+    expect(redone.resources?.fonts?.[0]).toMatchObject({ family: "Root Sans" });
   });
 
   it("allows descendant Cut/Paste while keeping the canonical Root boundary protected", async () => {
