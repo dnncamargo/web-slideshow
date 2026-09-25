@@ -125,7 +125,7 @@ describe("Text Inspector typography style attachment", () => {
   });
 
   it("labels a local Text color reset as returning to Container inheritance", async () => {
-    await mount(text({ style: { color: "#0000ff" } }), presentation(), {
+    await mount(text({ styleDetached: true, style: { color: "#0000ff" } }), presentation(), {
       id: "parent",
       type: "container",
       hidden: false,
@@ -675,12 +675,19 @@ describe("Text Inspector typography style attachment", () => {
   it("resets color without changing unrelated visual fields", async () => {
     await mount(text({
       style: { color: "#ff0000", background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" },
-    }), presentation([{ id: "body", style: { color: "#00ff00" } }]));
+    }), presentation([{ id: "body", style: { color: "#00ff00" } }]), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
 
     const color = host.querySelector<HTMLInputElement>("#text-color-value");
     const meta = color?.closest("label");
     expect(meta?.textContent).toContain("Local override");
     expect(meta?.textContent).not.toContain("Use theme default");
+    expect(meta?.textContent).not.toContain("Use inherited color");
     const reset = meta?.querySelector("button");
     await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current.style).toEqual({ background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" });
@@ -689,10 +696,17 @@ describe("Text Inspector typography style attachment", () => {
   });
 
   it("uses the property Reset for a local color when the master omits color", async () => {
-    await mount(text({ style: { color: "#ff0000" } }), presentation([{ id: "body", typography: { fontSize: 20 } }]));
+    await mount(text({ style: { color: "#ff0000" } }), presentation([{ id: "body", typography: { fontSize: 20 } }]), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
     const meta = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
     expect(meta?.textContent).toContain("Local override");
     expect(meta?.textContent).not.toContain("Use theme default");
+    expect(meta?.textContent).not.toContain("Use inherited color");
     const reset = Array.from(meta?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Reset");
     await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current).not.toHaveProperty("style.color");

@@ -84,7 +84,7 @@ export function CanonicalTextAppearanceSection({
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }
-            secondaryAction={style?.color !== undefined && (fallbackTextColorSource === "container" || textColorSource === undefined) ? {
+            secondaryAction={style?.color !== undefined && textColorSource === undefined ? {
               label: fallbackTextColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"),
               onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
             } : undefined}
