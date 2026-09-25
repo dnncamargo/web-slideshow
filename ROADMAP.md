@@ -624,6 +624,55 @@ These completions do not change `schemaVersion`, the Presentation schema, persis
 
 ---
 
+# Pattern and Container Color refinement ✅
+
+The current authoring and rendering model includes:
+
+- parameterized Container Background Patterns with Pattern-owned colors, Size and Rotation;
+- a structured 14-preset catalog: Grid, Fine Grid, Dots, Offset Dots, Diagonal Lines, Art Deco, Circuit Grid, Paper, Graph Paper Dotted, Dashed Paper, Cross, Crossed Axes, Triple-Axis Overlay and Chevron;
+- 1–4 semantic Pattern Color slots with normal ColorValue / Palette behavior and Linked Container Style support;
+- Studio-only preset identity; canonical documents remain referential and parameterized without a persisted preset id;
+- Background-owned masking for Dashed Paper and Cross, using effective Container Background paint while keeping Container Background independently authored;
+- Container foreground Color inheritance for Text, Topics text, eligible Topics markers, Table textual foreground and nested Containers;
+- independent semantic color systems for Code, Terminal, Blocks and Plot root/curve semantics;
+- Studio distinction between authored Color, Inherited from Container / Herdado do Container and Theme default / Padrão do tema, without persisting inherited/effective child Color;
+- Plot axis labels using explicit Axis Color > Container foreground > theme primary for 2D x/y/f(x) and 3D x/y/z, with the 2D x label framed beyond the mathematical endpoint without changing curve geometry.
+
+Do not infer rejected intermediate Pattern geometry or a generic Linked Style target from this refinement. Linked Styles currently target Container and Topics.
+
+---
+
+# Immediate next execution queue
+
+The order is frozen for the next implementation chat:
+
+## 1. Table Size ← NEXT
+
+Begin with an audit of:
+
+- current Simple Table and Structured Table canonical/layout capabilities;
+- current Table Inspector sizing controls, if any;
+- renderer ownership of width, height and layout;
+- Canvas/resizing integration;
+- ContentSlot implications for Structured Table;
+- existing shared layout primitives that can be reused.
+
+Reuse the existing canonical layout contract if it already expresses the product need. Do not define a Table-specific parallel sizing contract before evidence.
+
+## 2. Divider gradient
+
+Audit the current Divider visual/style schema, existing Gradient and ColorValue primitives, renderer behavior, Inspector conventions and future Linked Style implications before implementation. Use existing visual primitives where compatible; do not define a second gradient contract.
+
+## 3. Linked Styles — Table, Code, Terminal, Divider
+
+Current Linked Style targets remain Container and Topics. The planned expansion is target-specific, not a generic all-elements abstraction. Audit each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. Reuse existing ownership semantics and do not assume identical property sets.
+
+## 4. Text effects — shadow / glow
+
+Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
+
+---
+
 # Future / deferred
 
 ## P14 — Maintenance & Diagnostics 🟡
@@ -645,7 +694,7 @@ Deferred candidates include:
 - Library-thumbnail FontResource parity;
 - Topics → Text Style consumption;
 - Custom Library portability refinements;
-- remaining WYSIWYG/Text improvements.
+- remaining WYSIWYG/Text improvements (the explicit Text shadow/glow work is tracked in the immediate queue).
 
 Backlog items are not active checkpoints until evidence and an explicit product decision promote them.
 
@@ -689,7 +738,12 @@ P12   UX / Properties refinement                            ✅
        Root Definitions / structural normalization            ✅
 
 NEXT:
-  TBD — pending product decision
+  1. Table Size
+
+IMMEDIATE QUEUE:
+  2. Divider gradient
+  3. Linked Styles — Table, Code, Terminal, Divider
+  4. Text effects — shadow / glow
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -707,4 +761,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and audit the work area selected by the pending product decision before changing production code.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Table Size audit before changing production code.

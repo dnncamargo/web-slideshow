@@ -427,6 +427,11 @@ Recent merged work includes:
 - Topics structural authoring refinement and Element Tree simplification (PR #152);
 - Embed viewport framing, provider compatibility and stable Control preview DOM (PR #154).
 - Editor History / Undo-Redo over canonical Presentation snapshots, with semantic actions and a 30-action session bound.
+- parameterized Container Background Patterns with Pattern-owned colors, Size, Rotation and an expanded 14-preset catalog;
+- Pattern Color / Palette / Linked Container Style support, with preset identity remaining Studio-only and canonical documents remaining referential/parameterized;
+- Background-owned masking for Dashed Paper and Cross, keeping Container Background independently authored;
+- Container foreground Color inheritance for Text, Topics, Table text, nested Containers and eligible Topics markers, with authored, inherited and theme-default Inspector semantics and no persisted effective child Color;
+- Plot axis-label refinement: explicit Axis Color > Container foreground > theme primary for 2D and 3D labels, with the 2D x label framed beyond the mathematical endpoint without changing curve geometry.
 
 Historical suite counts belong to their respective checkpoints and should not be treated as the current expected total. Feature closure continues to require focused tests, relevant typechecks, `git diff --check`, remote review and manual acceptance where applicable.
 
@@ -513,7 +518,17 @@ Container preserve-children deletion (#171)       ✅
 Historical identity cleanup (#172)                ✅
 Import-time ID normalization (#173)                ✅
 Root Definitions / structural normalization              ✅
-Next work area: TBD — pending product decision
+NEXT: Table Size
+Queued: Divider gradient; Linked Styles — Table, Code, Terminal, Divider; Text effects — shadow / glow
 ```
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
+Immediate execution order:
+
+1. Table Size ← NEXT
+2. Divider gradient
+3. Linked Styles: Table, Code, Terminal, Divider
+4. Text effects: shadow and/or glow
+
+Table Size begins with an audit of the current Table canonical/layout, renderer and Inspector ownership before implementation. The next implementation chat starts from a fully closed local `main` and audits the current Simple Table and Structured Table layout capabilities, sizing controls, renderer ownership, Canvas/resizing integration, ContentSlot implications and reusable shared layout primitives. Reuse the existing canonical layout contract if it already expresses the product need; do not create a parallel Table sizing contract before evidence.
+
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements. The explicit Text shadow/glow work is now in the immediate queue rather than this generic backlog.
