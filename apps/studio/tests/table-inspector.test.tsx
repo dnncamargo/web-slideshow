@@ -118,6 +118,18 @@ function structuredTable(): StructuredTableElement {
   };
 }
 
+function setNumberInputValue(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setter) throw new Error("input value setter not found");
+  setter.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function resetButtonFor(input: HTMLInputElement): HTMLButtonElement | null {
+  return input.closest("label")?.querySelector<HTMLButtonElement>("button") ?? null;
+}
+
 describe("TableInspector", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -424,6 +436,30 @@ describe("TableInspector", () => {
     expect((elementState as SimpleTableElement).style?.borderRadius).toBe(4);
   });
 
+  it("authors and resets Simple Table size without losing layout siblings", async () => {
+    await act(async () => mount(simpleTable({
+      layout: { width: "40%", height: 120, margin: 8 },
+    })));
+
+    const width = container.querySelector<HTMLInputElement>("#element-width");
+    const height = container.querySelector<HTMLInputElement>("#element-height");
+    expect(width).not.toBeNull();
+    expect(height).not.toBeNull();
+
+    await act(async () => {
+      setNumberInputValue(width!, "60");
+      setNumberInputValue(height!, "240");
+    });
+
+    expect((elementState as SimpleTableElement).layout).toEqual({ width: "60%", height: 240, margin: 8 });
+
+    await act(async () => resetButtonFor(width!)?.click());
+    expect((elementState as SimpleTableElement).layout).toEqual({ height: 240, margin: 8 });
+
+    await act(async () => resetButtonFor(container.querySelector<HTMLInputElement>("#element-height")!)?.click());
+    expect((elementState as SimpleTableElement).layout).toEqual({ margin: 8 });
+  });
+
   it("shows inherited Container color for Simple Table without authoring it", async () => {
     await act(async () => {
       mount(simpleTable({ style: { background: { color: "#101218" } } }));
@@ -496,6 +532,31 @@ describe("TableInspector", () => {
     expect(container.querySelector("#table-font-size")).toBeNull();
     expect(container.querySelector("#table-line-height")).toBeNull();
     expect(container.querySelector("#table-color")).toBeNull();
+  });
+
+  it("authors and resets Structured Table size without losing layout siblings", async () => {
+    await act(async () => mount({
+      ...structuredTable(),
+      layout: { width: "40%", height: 120, margin: 8 },
+    }));
+
+    const width = container.querySelector<HTMLInputElement>("#element-width");
+    const height = container.querySelector<HTMLInputElement>("#element-height");
+    expect(width).not.toBeNull();
+    expect(height).not.toBeNull();
+
+    await act(async () => {
+      setNumberInputValue(width!, "60");
+      setNumberInputValue(height!, "240");
+    });
+
+    expect((elementState as StructuredTableElement).layout).toEqual({ width: "60%", height: 240, margin: 8 });
+
+    await act(async () => resetButtonFor(width!)?.click());
+    expect((elementState as StructuredTableElement).layout).toEqual({ height: 240, margin: 8 });
+
+    await act(async () => resetButtonFor(container.querySelector<HTMLInputElement>("#element-height")!)?.click());
+    expect((elementState as StructuredTableElement).layout).toEqual({ margin: 8 });
   });
 
   it("uses the shared structural selection for summary buttons", async () => {
