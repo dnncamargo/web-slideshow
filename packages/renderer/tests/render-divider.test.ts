@@ -91,6 +91,51 @@ describe("renderDivider", () => {
     expect(html).toContain("background:currentColor");
   });
 
+  it("renders a gradient background while preserving the inherited color fallback", () => {
+    const html = renderDivider(
+      divider({
+        style: {
+          background: {
+            gradient: {
+              type: "linear",
+              angle: 135,
+              stops: [
+                { color: "#7c3aed", position: 0 },
+                { color: "#06b6d4", position: 100 },
+              ],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("background-image:linear-gradient(135deg,#7c3aed 0%,#06b6d4 100%)");
+    expect(html).toContain("background:currentColor");
+  });
+
+  it("renders authored background color and gradient together", () => {
+    const html = renderDivider(
+      divider({
+        style: {
+          background: {
+            color: "#0f172a",
+            gradient: {
+              type: "linear",
+              stops: [
+                { color: "#7c3aed", position: 0 },
+                { color: "#06b6d4", position: 100 },
+              ],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("background:#0f172a");
+    expect(html).toContain("background-image:linear-gradient(180deg,#7c3aed 0%,#06b6d4 100%)");
+    expect(html).not.toContain("background:currentColor");
+  });
+
   it("renders nothing when hidden", () => {
     expect(renderDivider(divider({ hidden: true }))).toBe("");
   });

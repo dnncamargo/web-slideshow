@@ -4,7 +4,7 @@ import type {
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
-import { renderColorValue } from "./render-palette";
+import { renderBackground } from "./render-visual";
 
 // ============================================================
 // BEGIN: DIVIDER EFFECTIVE GEOMETRY DEFAULTS
@@ -67,10 +67,12 @@ export function renderDivider(
     styles.push(`height:${defaults.height}`);
   }
 
-  if (element.style?.background?.color !== undefined) {
-    styles.push(`background:${renderColorValue(element.style.background.color)}`);
-  } else {
+  if (element.style?.background?.color === undefined) {
     styles.push("background:currentColor");
+  }
+
+  if (element.style?.background !== undefined) {
+    styles.push(...renderBackground(element.style.background));
   }
 
   if (element.style?.borderRadius !== undefined) styles.push(`border-radius:${renderLength(element.style.borderRadius)}`);
