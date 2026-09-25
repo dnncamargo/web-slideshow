@@ -52,7 +52,8 @@ describe("Container background pattern authoring primitives", () => {
     const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "art-deco")!.pattern;
     const image = pattern.image;
 
-    expect(image).toContain("ellipse");
+    expect(image).not.toContain("radial-gradient(");
+    expect(image).not.toContain("ellipse");
     expect(image).toContain("linear-gradient(90deg");
     expect(image).toContain("linear-gradient(45deg");
     expect(image).toContain("linear-gradient(135deg");
