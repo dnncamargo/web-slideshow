@@ -108,12 +108,12 @@ describe("Plot renderer", () => {
     expect(html).toContain("presentation-plot");
     expect(html).toContain("presentation-plot-svg");
     expect(html).toContain("<path");
-    expect(html).toContain('viewBox="0 0 20 20"');
+    expect(html).toContain('viewBox="0 0 21.25 20"');
     expect(html).not.toContain("[plot]");
   });
 
   it("keeps the fixed viewport when fitToAxes is explicitly true", () => {
-    expect(renderPlot("y = x^2", { fitToAxes: true })).toContain('viewBox="0 0 20 20"');
+    expect(renderPlot("y = x^2", { fitToAxes: true })).toContain('viewBox="0 0 21.25 20"');
   });
 
   it("derives an automatic display viewport from generated geometry", () => {

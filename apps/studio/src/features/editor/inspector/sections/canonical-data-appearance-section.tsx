@@ -27,6 +27,7 @@ import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import { usePresentationColorPalette } from "./presentation-color-palette";
 import { useAuthoringHistory } from "../../authoring-history-context";
+import type { InheritedColorSource } from "../color-inheritance";
 
 export type CanonicalDataStyle = GradientSurfaceVisualStyle | CodeVisualStyle | TerminalVisualStyle | BlocksVisualStyle | SimpleTableVisualStyle | StructuredTableVisualStyle;
 type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
@@ -132,9 +133,11 @@ interface Props {
   onUpdateStyle: (update: (style: CanonicalDataStyle | undefined) => CanonicalDataStyle) => void;
   onUpdateEffect: (update: (effect: ElementEffect | undefined) => ElementEffect) => void;
   controlPrefix: string;
+  effectiveColor?: ColorValue;
+  effectiveColorSource?: InheritedColorSource;
 }
 
-export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix }: Props) {
+export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix, effectiveColor, effectiveColorSource }: Props) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const palette = usePresentationColorPalette();
@@ -196,7 +199,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <ElementBorderControl border={blocksStyle?.blockBorder} onChange={(blockBorder) => onUpdateStyle((current) => ({ ...current, blockBorder }))} controlPrefix={`${controlPrefix}-block`} allowGradient={false} label={t("inspector.blocks.blockStroke")} />
     </div>}
     {showColor && (element.type === "code" || (element.type === "table" && element.mode !== "structured")) && <div className={styles.colorControl}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as ColorCapableCanonicalDataStyle))} secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as ColorCapableCanonicalDataStyle; delete next.color; return next; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} effectiveValue={element.type === "table" ? effectiveColor : undefined} effectiveSource={element.type === "table" ? effectiveColorSource : undefined} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as ColorCapableCanonicalDataStyle))} secondaryAction={element.type === "table" && element.style?.color === undefined ? undefined : { label: element.type === "table" && effectiveColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as ColorCapableCanonicalDataStyle; delete next.color; return next; }) }} /></label>
     </div>}
     {element.type === "terminal" && <div className={styles.colorControl}>
       {([

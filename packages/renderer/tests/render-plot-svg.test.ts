@@ -79,6 +79,13 @@ describe("renderMathGeometrySvg", () => {
     expect(svg).toContain('class="presentation-plot-axis-label presentation-plot-axis-label-y"');
     expect(svg).toContain(">x</text>");
     expect(svg).toContain(">f(x)</text>");
+    const xLabel = svg.match(/<text class="presentation-plot-axis-label presentation-plot-axis-label-x"[^>]+>/)?.[0];
+    const xLabelX = Number(xLabel?.match(/\bx="([^"]+)"/)?.[1]);
+    expect(xLabelX).toBeGreaterThan(20);
+    expect(xLabel).toContain('y="9.5" text-anchor="start"');
+    expect(svg).toContain('x="10.5" y="1.5" text-anchor="start"');
+    expect(svg).toContain('x1="0" y1="10" x2="20" y2="10"');
+    expect(svg).toContain('viewBox="0 0 21.25 20"');
     expect(svg.match(/<path /g)).toHaveLength(1);
   });
 

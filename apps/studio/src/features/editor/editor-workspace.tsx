@@ -170,7 +170,7 @@ import {
 import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
-import { findElementLocation, visitElements, type ElementParentRef } from "./element-hierarchy";
+import { findAncestorContainers, findElementLocation, visitElements, type ElementParentRef } from "./element-hierarchy";
 import { getElementLabel } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
@@ -2135,6 +2135,11 @@ export function EditorWorkspace({
 
     return parent?.type === "container" ? parent : null;
   }, [effectiveElements, selectedElementPosition, selectedSlide]);
+
+  const selectedAncestorContainers = useMemo(() => {
+    if (!selectedDocumentElement) return [];
+    return findAncestorContainers(effectiveElements, selectedDocumentElement.id);
+  }, [effectiveElements, selectedDocumentElement]);
 
   // ==========================================================
   // END: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -6878,6 +6883,7 @@ export function EditorWorkspace({
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
                           onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
                           parent={selectedElementParent}
+                          ancestorContainers={selectedAncestorContainers}
                           layerControls={
                             rootDefinitionMode
                               ? null

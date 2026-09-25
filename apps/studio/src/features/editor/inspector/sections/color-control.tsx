@@ -19,6 +19,7 @@ import { usePresentationColorPalette } from "./presentation-color-palette";
 import { usePickedColors } from "./picked-colors-provider";
 import { useAuthoringHistory } from "../../authoring-history-context";
 import type { HistoryActionMeta } from "../../editor-history-state";
+import type { InheritedColorSource } from "../color-inheritance";
 
 const DEFAULT_PICKER_COLOR = "#f8fafc";
 
@@ -27,6 +28,7 @@ interface ColorControlProps {
   name: string;
   value: ColorValue | undefined;
   effectiveValue?: ColorValue;
+  effectiveSource?: InheritedColorSource;
   onChange: (color: ColorValue, source?: ColorChangeSource) => void;
   secondaryAction?: {
     label: string;
@@ -44,6 +46,7 @@ export function ColorControl({
   name,
   value,
   effectiveValue,
+  effectiveSource,
   onChange,
   secondaryAction,
   disabled = false,
@@ -97,13 +100,20 @@ export function ColorControl({
     authoringHistory.discrete(historyMeta, () => onChange(color, source));
   };
   const hasReusableChoices = paletteColors.length > 0 || (picked?.colors.length ?? 0) > 0;
+  const passivePlaceholder = effectiveSource === "container"
+    ? t("inspector.inheritedFromContainer")
+    : effectiveSource === "theme"
+      ? t("inspector.themeDefault")
+      : undefined;
 
   return (
     <div className={styles.colorControlGroup}>
       <LiteralColorInput
         id={id}
         name={name}
-        value={literalValue}
+        value={value === undefined && effectiveSource !== undefined ? undefined : literalValue}
+        previewValue={sourceValue}
+        placeholder={passivePlaceholder}
         disabled={disabled}
         onCommit={(color) => {
           if (disabled) return;

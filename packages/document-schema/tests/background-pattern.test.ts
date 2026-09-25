@@ -57,11 +57,162 @@ describe("BackgroundPatternSchema", () => {
     }
   });
 
+  it.each([1, 2, 3, 4])("accepts %s controlled Pattern color slots", (count) => {
+    const image = `linear-gradient(${Array.from(
+      { length: count },
+      (_, index) => `var(--presentation-pattern-color-${index + 1}) ${index * 25}%`,
+    ).join(", ")})`;
+
+    const result = BackgroundPatternSchema.safeParse({
+      image,
+      colors: Array.from({ length: count }, (_, index) => `#${index + 1}${index + 1}${index + 1}`),
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts Palette ColorValue entries in Pattern color slots", () => {
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+      colors: [{ kind: "palette", colorId: "accent" }],
+    }).success).toBe(true);
+  });
+
+  it("accepts the controlled Container Background pattern variable", () => {
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(var(--presentation-pattern-background-color), transparent)",
+    }).success).toBe(true);
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))",
+      colors: ["#111"],
+    }).success).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "more than four colors",
+      pattern: {
+        image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+        colors: ["#111", "#222", "#333", "#444", "#555"],
+      },
+    },
+    {
+      name: "missing referenced slot colors",
+      pattern: {
+        image: "linear-gradient(var(--presentation-pattern-color-2), transparent)",
+        colors: ["#111", "#222"],
+      },
+    },
+    {
+      name: "non-contiguous slots",
+      pattern: {
+        image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-color-3))",
+        colors: ["#111", "#222", "#333"],
+      },
+    },
+    {
+      name: "dead colors",
+      pattern: {
+        image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+        colors: ["#111", "#222"],
+      },
+    },
+    {
+      name: "duplicated authored literal colors",
+      pattern: {
+        image: "linear-gradient(var(--presentation-pattern-color-1), #111)",
+        colors: ["#111"],
+      },
+    },
+    {
+      name: "colors without slot references",
+      pattern: { image: "linear-gradient(#111, #222)", colors: ["#111"] },
+    },
+    {
+      name: "arbitrary custom property",
+      pattern: { image: "linear-gradient(var(--background-pattern), transparent)" },
+    },
+    {
+      name: "misspelled controlled background property",
+      pattern: { image: "linear-gradient(var(--presentation-pattern-background), transparent)" },
+    },
+    {
+      name: "controlled background fallback",
+      pattern: { image: "linear-gradient(var(--presentation-pattern-background-color, red), transparent)" },
+    },
+    {
+      name: "slot greater than four",
+      pattern: { image: "linear-gradient(var(--presentation-pattern-color-5), transparent)" },
+    },
+  ])("rejects $name", ({ pattern }) => {
+    expect(BackgroundPatternSchema.safeParse(pattern).success).toBe(false);
+  });
+
+  it("accepts legacy literal-color images without a colors array", () => {
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(#111 1px, transparent 1px)",
+    }).success).toBe(true);
+  });
+
+  it.each([-360, 0, 360])("accepts rotation %s", (rotation) => {
+    expect(BackgroundPatternSchema.safeParse({ image: dotPattern, rotation }).success).toBe(true);
+  });
+
+  it.each([-360.01, 360.01, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects rotation %s outside finite bounds",
+    (rotation) => {
+      expect(BackgroundPatternSchema.safeParse({ image: dotPattern, rotation }).success).toBe(false);
+    },
+  );
+
   it.each([0, 1])("accepts opacity %s", (opacity) => {
     expect(
       BackgroundPatternSchema.safeParse({ image: dotPattern, opacity }).success,
     ).toBe(true);
   });
+
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "accepts %s without rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({ image: dotPattern, repeat }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "accepts %s with zero rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({ image: dotPattern, repeat, rotation: 0 }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each(["repeat-x", "repeat-y", "no-repeat"] as const)(
+    "rejects %s with nonzero rotation",
+    (repeat) => {
+      const result = BackgroundPatternSchema.safeParse({ image: dotPattern, repeat, rotation: 15 });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path.join(".") === "rotation")).toBe(true);
+      }
+    },
+  );
+
+  it.each([undefined, "repeat", "space", "round"] as const)(
+    "accepts %s with nonzero rotation",
+    (repeat) => {
+      expect(
+        BackgroundPatternSchema.safeParse({
+          image: dotPattern,
+          ...(repeat === undefined ? {} : { repeat }),
+          rotation: 15,
+        }).success,
+      ).toBe(true);
+    },
+  );
 
   it.each([
     ["opacity below zero", { image: dotPattern, opacity: -0.01 }],

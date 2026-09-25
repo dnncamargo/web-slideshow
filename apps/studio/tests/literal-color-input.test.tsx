@@ -37,6 +37,22 @@ describe("LiteralColorInput", () => {
     expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
   });
 
+  it("supports an empty authored value with a preview swatch and placeholder", () => {
+    act(() => root.render(
+      <LiteralColorInput
+        id="color"
+        name="Color"
+        value={undefined}
+        previewValue="#ff00ff"
+        placeholder="Inherited from Container"
+        onChange={vi.fn()}
+      />,
+    ));
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("");
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("input[type=color]")?.value).toBe("#ff00ff");
+  });
+
   it("displays HEX and RGBA values", () => {
     render("#2563eb");
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#2563eb");
@@ -182,6 +198,30 @@ describe("LiteralColorInput", () => {
     act(() => root.render(<LiteralColorInput id="color" name="Color" value="#2563eb" onChange={onChange} />));
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#2563eb");
     expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
+  });
+
+  it("refreshes an unowned preview and uses the latest preview for picker commits", async () => {
+    const onChange = vi.fn();
+    const onCommit = vi.fn();
+    await act(async () => root.render(
+      <LiteralColorInput id="color" name="Color" value={undefined} previewValue="rgba(255, 0, 0, 0.5)" placeholder="Inherited from Container" onChange={onChange} onCommit={onCommit} />,
+    ));
+    expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("rgba");
+    await act(async () => root.render(
+      <LiteralColorInput id="color" name="Color" value={undefined} previewValue="#0000ff" placeholder="Inherited from Container" onChange={onChange} onCommit={onCommit} />,
+    ));
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("");
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("input[type=color]")?.value).toBe("#0000ff");
+    expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
+    expect(onChange).not.toHaveBeenCalled();
+
+    const picker = container.querySelector<HTMLInputElement>("input[type=color]")!;
+    await act(async () => {
+      setInputValue(picker, "#00ff00");
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onCommit).toHaveBeenCalledWith("#00ff00", "picker");
   });
 
   it("disables all controls", () => {

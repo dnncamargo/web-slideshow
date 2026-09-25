@@ -17,7 +17,9 @@ export type LiteralColorChangeSource = "picker" | "text" | "format";
 export interface LiteralColorInputProps {
   id: string;
   name: string;
-  value: Color;
+  value: Color | undefined;
+  previewValue?: Color;
+  placeholder?: string;
   disabled?: boolean;
   onChange: (color: Color, source: LiteralColorChangeSource) => void;
   onCommit?: (color: Color, source: "picker") => void;
@@ -42,6 +44,8 @@ export function LiteralColorInput({
   id,
   name,
   value,
+  previewValue,
+  placeholder,
   disabled = false,
   onChange,
   onCommit,
@@ -49,23 +53,27 @@ export function LiteralColorInput({
 }: LiteralColorInputProps) {
   const pickerRef = useRef<HTMLInputElement>(null);
   const lastPickerPreviewRef = useRef<Color | undefined>(undefined);
-  const [draft, setDraft] = useState<Color>(value);
-  const [format, setFormat] = useState<ColorFormat>(() => getColorFormat(value));
+  const [draft, setDraft] = useState<Color | "">(value ?? "");
+  const [format, setFormat] = useState<ColorFormat>(() => getColorFormat(value ?? previewValue ?? "#f8fafc"));
   const [lastValue, setLastValue] = useState(value);
-  const pickerStateRef = useRef({ draft, value, format, onChange, onCommit });
-  pickerStateRef.current = { draft, value, format, onChange, onCommit };
+  const [lastPreviewValue, setLastPreviewValue] = useState(previewValue);
+  const pickerStateRef = useRef({ draft, value, previewValue, format, onChange, onCommit });
+  pickerStateRef.current = { draft, value, previewValue, format, onChange, onCommit };
 
-  if (value !== lastValue) {
+  if (value !== lastValue || (value === undefined && previewValue !== lastPreviewValue)) {
     setLastValue(value);
-    setDraft(value);
-    setFormat(getColorFormat(value));
+    setLastPreviewValue(previewValue);
+    if (value !== undefined || lastValue !== undefined) setDraft(value ?? "");
+    setFormat(getColorFormat(value ?? previewValue ?? "#f8fafc"));
   }
 
-  const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(value);
+  const pickerColor = colorToPickerHex(draft) ?? colorToPickerHex(previewValue) ?? colorToPickerHex(value);
 
   const updatePickerColor = (pickerValue: string, preview: boolean) => {
     const current = pickerStateRef.current;
-    const pickerBase = parseColor(current.draft) ? current.draft : current.value;
+    const pickerBase = parseColor(current.draft)
+      ? current.draft
+      : current.value ?? current.previewValue ?? "#f8fafc";
     const next = replaceColorRgb(pickerBase, pickerValue, current.format);
 
     if (next) {
@@ -112,6 +120,7 @@ export function LiteralColorInput({
         type="text"
         autoComplete="off"
         value={draft}
+        placeholder={placeholder}
         disabled={disabled}
         onChange={(event) => {
           const nextDraft = event.target.value;

@@ -11,11 +11,17 @@ import styles from "../../editor-workspace.module.css";
 import { useAuthoringHistory } from "../../authoring-history-context";
 
 import { getControlName } from "../inspector-helpers";
+import { ColorControl } from "./color-control";
 
 import {
   BACKGROUND_PATTERN_PRESETS,
+  applyPresetPatternColors,
   findBackgroundPatternPreset,
+  getPatternSizeValue,
+  materializeBackgroundPatternPreset,
   parseBackgroundPatternCss,
+  updateBackgroundPatternRotation,
+  updateBackgroundPatternSize,
 } from "./element-background-pattern";
 
 interface ContainerBackgroundPatternControlProps {
@@ -41,7 +47,9 @@ function samePattern(left: BackgroundPattern | undefined, right: BackgroundPatte
     && left.size === right.size
     && left.position === right.position
     && left.repeat === right.repeat
-    && left.opacity === right.opacity;
+    && left.opacity === right.opacity
+    && JSON.stringify(left.colors) === JSON.stringify(right.colors)
+    && left.rotation === right.rotation;
 }
 
 function renderPatternCss(
@@ -83,6 +91,12 @@ export function ContainerBackgroundPatternControl({
     : undefined;
   const presetId = pattern === undefined ? undefined : findBackgroundPatternPreset(pattern);
   const derivedMode: PatternControlMode = pattern === undefined ? "none" : presetId ?? "custom";
+  const structuredPattern = presetId === undefined || pattern === undefined
+    ? pattern
+    : materializeBackgroundPatternPreset(pattern, presetId);
+  const currentPreset = presetId === undefined
+    ? undefined
+    : BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === presetId);
   const patternKey = patternSignature(pattern);
   const styleRef = useRef(element.style);
   const [mode, setMode] = useState<PatternControlMode>(derivedMode);
@@ -93,6 +107,21 @@ export function ContainerBackgroundPatternControl({
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "container.backgroundPattern" } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
     else callback();
+  }
+
+  function runColorReset(callback: () => void): void {
+    const meta = { kind: "color.reset", labelKey: "history.color.reset" } as const;
+    if (authoringHistory) authoringHistory.discrete(meta, callback);
+    else callback();
+  }
+
+  function updateContinuous(key: string, callback: () => void): void {
+    if (!authoringHistory) {
+      callback();
+      return;
+    }
+    authoringHistory.begin(key, { kind: "number.change", labelKey: "history.number.change" });
+    authoringHistory.update(key, callback);
   }
 
   useEffect(() => {
@@ -151,8 +180,9 @@ export function ContainerBackgroundPatternControl({
             }
 
             setError(undefined);
-            if (samePattern(localPattern, preset.pattern)) return;
-            runDiscrete(() => onChange(preset.pattern));
+            const nextPattern = applyPresetPatternColors(pattern, preset);
+            if (samePattern(localPattern, nextPattern)) return;
+            runDiscrete(() => onChange(nextPattern));
           }}
         >
           {allowNone && <option value="none">{t("inspector.pattern.none")}</option>}
@@ -161,6 +191,15 @@ export function ContainerBackgroundPatternControl({
           <option value="dots">{t("inspector.pattern.dots")}</option>
           <option value="offset-dots">{t("inspector.pattern.offsetDots")}</option>
           <option value="diagonal-lines">{t("inspector.pattern.diagonalLines")}</option>
+          <option value="art-deco">{t("inspector.pattern.artDeco")}</option>
+          <option value="circuit-grid">{t("inspector.pattern.circuitGrid")}</option>
+          <option value="paper">{t("inspector.pattern.paper")}</option>
+          <option value="graph-paper-dotted">{t("inspector.pattern.graphPaperDotted")}</option>
+          <option value="dashed-paper">{t("inspector.pattern.dashedPaper")}</option>
+          <option value="cross">{t("inspector.pattern.cross")}</option>
+          <option value="crossed-axes">{t("inspector.pattern.crossedAxes")}</option>
+          <option value="triple-axis-overlay">{t("inspector.pattern.tripleAxisOverlay")}</option>
+          <option value="chevron">{t("inspector.pattern.chevron")}</option>
           <option value="custom">{t("inspector.pattern.custom")}</option>
         </select>
       </label>
@@ -198,6 +237,99 @@ export function ContainerBackgroundPatternControl({
           >
             {t("inspector.pattern.apply")}
           </button>
+        </div>
+      )}
+
+      {presetId !== undefined && structuredPattern !== undefined && (
+        <div className={styles.gradientControl}>
+          {structuredPattern.colors !== undefined && structuredPattern.colors.length > 1 && (
+            <span className={styles.appearanceSubheading}>{t("inspector.colors")}</span>
+          )}
+          {structuredPattern.colors?.map((color, index) => (
+            <div className={styles.colorControl} key={`${controlPrefix}-pattern-color-${index + 1}`}>
+              <label className={styles.field}>
+                <span>{structuredPattern.colors?.length === 1
+                  ? t("inspector.pattern.color")
+                  : t("inspector.pattern.colorNumber", { number: index + 1 })}</span>
+                <ColorControl
+                  id={`${controlPrefix}-pattern-color-${index + 1}`}
+                  name={getControlName(controlPrefix, `PatternColor${index + 1}`)}
+                  value={pattern?.colors?.[index]}
+                  effectiveValue={color}
+                  onChange={(nextColor) => {
+                    const base = materializeBackgroundPatternPreset(pattern ?? structuredPattern, presetId);
+                    const colors = [...(base.colors ?? [])];
+                    colors[index] = nextColor;
+                    onChange({ ...base, colors });
+                  }}
+                />
+              </label>
+            </div>
+          ))}
+          {currentPreset?.pattern.colors !== undefined && (
+            <div className={styles.colorControlActionRow}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                disabled={JSON.stringify(structuredPattern.colors) === JSON.stringify(currentPreset.pattern.colors)}
+                onClick={() => {
+                  const base = materializeBackgroundPatternPreset(pattern ?? currentPreset.pattern, presetId);
+                  runColorReset(() => onChange({
+                    ...base,
+                    colors: [...currentPreset.pattern.colors!],
+                  }));
+                }}
+              >
+                {t("inspector.reset")}
+              </button>
+            </div>
+          )}
+          <div className={styles.fieldGrid}>
+            <label className={styles.field}>
+              <span>{t("inspector.pattern.size")}</span>
+              <div className={styles.unitInput}>
+                <input
+                  id={`${controlPrefix}-background-pattern-size`}
+                  name={getControlName(controlPrefix, "BackgroundPatternSize")}
+                  type="number"
+                  min="1"
+                  max="500"
+                  step="1"
+                  value={getPatternSizeValue(structuredPattern, presetId)}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (!Number.isFinite(next) || next <= 0) return;
+                    const base = materializeBackgroundPatternPreset(pattern ?? structuredPattern, presetId);
+                    updateContinuous("number:container-pattern-size", () => onChange(updateBackgroundPatternSize(base, presetId, next)));
+                  }}
+                  onBlur={() => authoringHistory?.finish("number:container-pattern-size")}
+                />
+                <span>px</span>
+              </div>
+            </label>
+            <label className={styles.field}>
+              <span>{t("inspector.pattern.rotation")}</span>
+              <div className={styles.unitInput}>
+                <input
+                  id={`${controlPrefix}-background-pattern-rotation`}
+                  name={getControlName(controlPrefix, "BackgroundPatternRotation")}
+                  type="number"
+                  min="-360"
+                  max="360"
+                  step="1"
+                  value={structuredPattern.rotation ?? 0}
+                  onChange={(event) => {
+                    const next = Number(event.target.value);
+                    if (!Number.isFinite(next)) return;
+                    const base = materializeBackgroundPatternPreset(pattern ?? structuredPattern, presetId);
+                    updateContinuous("number:container-pattern-rotation", () => onChange(updateBackgroundPatternRotation(base, next)));
+                  }}
+                  onBlur={() => authoringHistory?.finish("number:container-pattern-rotation")}
+                />
+                <span>°</span>
+              </div>
+            </label>
+          </div>
         </div>
       )}
     </div>

@@ -5,12 +5,14 @@ import {
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
+  FundamentalTextStyleIdSchema,
 } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import {
   convertAuthoringLength,
   resolveEffectiveElementStyleDefaults,
+  THEME_COLORS,
 } from "@web-slideshow/theme/element-style-defaults";
 
 import styles from "../editor-workspace.module.css";
@@ -53,6 +55,7 @@ import {
 } from "./text-style-property";
 import type { CoreTypographyProperty } from "./sections/element-typography-control";
 import type { ElementSpacingField } from "./sections/element-spacing-section";
+import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
 
 type TextInspectorElement = Extract<PresentationElement, { type: "text" }>;
 
@@ -66,10 +69,12 @@ export function TextInspector({
   fontResources,
   presentation,
   parent = null,
+  ancestorContainers,
   layerControls = null,
   onCreateQrFromLink,
 }: TypographyInspectorProps<TextInspectorElement> & {
   parent?: ContainerElement | null;
+  ancestorContainers?: readonly ContainerElement[];
   layerControls?: ElementLayerControls | null;
   onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
@@ -144,6 +149,30 @@ export function TextInspector({
 
   const textStyleSourceFor = (property: TextStyleInspectorProperty) =>
     getTextStylePropertyInfo(presentation, element, property);
+  const textColorSource = textStyleSourceFor("color");
+  const textRole = resolvedTextStyle?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
+  const themeTextColor = textRole === "subtitle"
+    ? THEME_COLORS.textSecondary
+    : textRole === "caption"
+      ? THEME_COLORS.textMuted
+      : THEME_COLORS.textPrimary;
+  const inheritedContainerColor = resolveNearestContainerColor(
+    presentation,
+    ancestorContainers !== undefined && ancestorContainers.length > 0
+      ? ancestorContainers
+      : parent ? [parent] : [],
+  );
+  const textHasStrongerColor = element.style?.color !== undefined
+    || textColorSource?.source === "linked";
+  const effectiveTextColorSource: InheritedColorSource | undefined = textHasStrongerColor
+    ? undefined
+    : inheritedContainerColor === undefined
+      ? "theme"
+      : "container";
+  const fallbackTextColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
+  const effectiveTextColor = resolvedTextStyle?.style?.color
+    ?? inheritedContainerColor
+    ?? themeTextColor;
   const typographyProperties: readonly CoreTypographyProperty[] = [
     "fontFamily", "fontSize", "fontWeight", "fontStyle", "textAlign", "lineHeight",
     "letterSpacing", "textTransform", "whiteSpace", "textWrapStyle", "overflowWrap",
@@ -277,8 +306,10 @@ export function TextInspector({
         onUpdateStyle={updateStyle}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
-        effectiveTextColor={resolvedTextStyle?.style?.color}
-        textColorSource={textStyleSourceFor("color")}
+        effectiveTextColor={effectiveTextColor}
+        effectiveTextColorSource={effectiveTextColorSource}
+        fallbackTextColorSource={fallbackTextColorSource}
+        textColorSource={textColorSource}
         onResetTextColor={() => resetTextStyleProperty("color")}
       />
 

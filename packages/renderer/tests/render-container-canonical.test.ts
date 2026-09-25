@@ -193,6 +193,21 @@ describe("production canonical Container renderer", () => {
     expect(html).toContain(`background-image:${PATTERN.image}`);
   });
 
+  it("emits the effective Container color as the inherited foreground fallback", () => {
+    const literal = rootTag(renderElement(createContainerElement({ style: { color: "#ff00aa" } })));
+    expect(literal).toContain("color:#ff00aa");
+    expect(literal).toContain("--presentation-container-color:#ff00aa");
+
+    const palette = rootTag(renderElement(createContainerElement({
+      style: { color: { kind: "palette", colorId: "accent" } },
+    })));
+    expect(palette).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+    expect(palette).toContain("--presentation-container-color:var(--ps-palette-0061006300630065006e0074)");
+
+    const uncolored = rootTag(renderElement(createContainerElement()));
+    expect(uncolored).not.toContain("--presentation-container-color");
+  });
+
   it("renders gradient borders from the canonical border namespace", () => {
     const tag = rootTag(renderElement(createContainerElement({
       style: {

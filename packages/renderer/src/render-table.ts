@@ -78,7 +78,9 @@ export function renderTable(
     }
 
     if (element.style?.color !== undefined) {
-      styleParts.push(`color:${renderColorValue(element.style.color)}`);
+      const color = renderColorValue(element.style.color);
+      styleParts.push(`color:${color}`);
+      styleParts.push(`--presentation-table-color:${color}`);
     }
   }
 

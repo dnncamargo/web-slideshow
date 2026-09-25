@@ -13,6 +13,7 @@ import type {
   TopicItem,
 } from "./elements";
 import type {
+  BackgroundPattern,
   Border,
   Gradient,
   Shadow,
@@ -75,6 +76,13 @@ export function visitPresentationColorValues(
     if (stroke) visitColor({ value: stroke.color, set: (value) => { stroke.color = value; } }, [...path, "color"]);
   };
 
+  const visitBackgroundPattern = (pattern: BackgroundPattern | undefined, path: PaletteColorPath): void => {
+    pattern?.colors?.forEach((color, index) => visitColor({
+      value: color,
+      set: (value) => { pattern.colors![index] = value; },
+    }, [...path, "colors", index]));
+  };
+
   const visitTypography = (typography: ElementTypography | undefined, path: PaletteColorPath): void => {
     if (!typography) return;
     visitColor({ value: typography.textDecorationColor, set: (value) => { typography.textDecorationColor = value; } }, [...path, "textDecorationColor"]);
@@ -87,7 +95,11 @@ export function visitPresentationColorValues(
 
   const visitStyle = (style: {
     color?: ColorValue | undefined;
-    background?: { color?: ColorValue | undefined; gradient?: Gradient | undefined } | undefined;
+    background?: {
+      color?: ColorValue | undefined;
+      gradient?: Gradient | undefined;
+      pattern?: BackgroundPattern | undefined;
+    } | undefined;
     border?: Border | undefined;
   } | undefined, path: PaletteColorPath): void => {
     if (!style) return;
@@ -95,6 +107,7 @@ export function visitPresentationColorValues(
     if (style.background) {
       visitColor({ value: style.background.color, set: (value) => { style.background!.color = value; } }, [...path, "background", "color"]);
       visitGradient(style.background.gradient, [...path, "background", "gradient"]);
+      visitBackgroundPattern(style.background.pattern, [...path, "background", "pattern"]);
     }
     visitBorder(style.border, [...path, "border"]);
   };
@@ -248,6 +261,7 @@ export function validatePresentationPaletteReferences(
   presentation: {
     palette?: PresentationPalette | undefined;
     slides: Slide[];
+    rootDefinitions?: { root: PresentationElement }[] | undefined;
     textStyles?: TextStyle[] | undefined;
     linkedStyles?: LinkedStyle[] | undefined;
   },

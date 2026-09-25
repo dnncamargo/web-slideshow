@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BackgroundPattern } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
+import { renderBackgroundPattern } from "../src/render-background-pattern";
 
 import {
   createContainerElement,
@@ -40,6 +41,88 @@ describe("Container background patterns", () => {
     expect(html).toContain("z-index:-1");
   });
 
+  it("renders controlled literal and Palette Pattern color variables in order", () => {
+    const styles = renderBackgroundPattern({
+      image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-color-2))",
+      colors: ["#111", { kind: "palette", colorId: "accent" }],
+    });
+
+    expect(styles).toBe(
+      "--presentation-pattern-color-1:#111;" +
+        "--presentation-pattern-color-2:var(--ps-palette-0061006300630065006e0074);" +
+        "background-image:linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-color-2))",
+    );
+  });
+
+  it("renders the effective Container Background variable only when requested", () => {
+    const image = "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))";
+    expect(renderBackgroundPattern({ image, colors: ["#111"] }, "#e5e5f7")).toBe(
+      "--presentation-pattern-color-1:#111;" +
+        "--presentation-pattern-background-color:#e5e5f7;" +
+        `background-image:${image}`,
+    );
+    expect(renderBackgroundPattern({ image, colors: ["#111"] }, { kind: "palette", colorId: "accent" })).toContain(
+      "--presentation-pattern-background-color:var(--ps-palette-0061006300630065006e0074)",
+    );
+    expect(renderBackgroundPattern({ image })).toContain("--presentation-pattern-background-color:transparent");
+    expect(renderBackgroundPattern({ image: PATTERN_IMAGE })).not.toContain("presentation-pattern-background-color");
+  });
+
+  it("passes the effective background to the rotated Pattern paint", () => {
+    const html = renderElement(createContainerElement({
+      style: {
+        background: {
+          color: "#123456",
+          pattern: {
+            image: "linear-gradient(var(--presentation-pattern-background-color), transparent)",
+            rotation: 20,
+          },
+        },
+      },
+    }));
+
+    expect(html).toContain("--presentation-pattern-background-color:#123456");
+    expect(html).toContain("presentation-container-background-pattern-paint");
+  });
+
+  it("keeps zero rotation output identical to absent rotation", () => {
+    const withoutRotation = renderElement(createContainerElement({
+      style: { background: { pattern: { image: PATTERN_IMAGE } } },
+    }));
+    const withZeroRotation = renderElement(createContainerElement({
+      style: { background: { pattern: { image: PATTERN_IMAGE, rotation: 0 } } },
+    }));
+
+    expect(withZeroRotation).toBe(withoutRotation);
+    expect(withZeroRotation).not.toContain("presentation-container-background-pattern-paint");
+  });
+
+  it("rotates only an oversized renderer-owned Pattern paint inside a clipping surface", () => {
+    const html = renderElement(createContainerElement({
+      style: {
+        borderRadius: 16,
+        background: {
+          pattern: {
+            image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+            colors: ["#111"],
+            rotation: 45,
+          },
+        },
+      },
+      children: [createTextElement({ id: "content" })],
+    }));
+
+    expect(rootTag(html)).not.toContain("overflow:hidden");
+    expect(html).toContain('class="presentation-container-background-pattern"');
+    expect(html).toContain("overflow:hidden");
+    expect(html).toContain("inset:-100vmax");
+    expect(html).toContain("transform:rotate(45deg)");
+    expect(html).toContain("pointer-events:none");
+    expect(html).toContain("border-radius:inherit");
+    expect(html).toContain('data-presentation-id="content"');
+    expect(html).not.toContain('data-presentation-type="container" style="overflow:hidden');
+  });
+
   it.each(
     ["repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round"] as const,
   )(
@@ -52,6 +135,21 @@ describe("Container background patterns", () => {
       );
 
       expect(html).toContain(`background-repeat:${repeat}`);
+    },
+  );
+
+  it.each(["repeat-x", "no-repeat"] as const)(
+    "keeps legacy %s Patterns on the single visual layer without rotation",
+    (repeat) => {
+      const html = renderElement(
+        createContainerElement({
+          style: { background: { pattern: { image: PATTERN_IMAGE, repeat } } },
+        }),
+      );
+
+      expect(html).toContain(`background-repeat:${repeat}`);
+      expect(html).not.toContain("presentation-container-background-pattern-paint");
+      expect(html).not.toContain("transform:rotate");
     },
   );
 
@@ -157,6 +255,40 @@ describe("Container background patterns", () => {
     expect(html.indexOf("z-index:100")).toBeGreaterThan(
       html.indexOf("presentation-container-background-pattern"),
     );
+  });
+
+  it("preserves linked Pattern colors and rotation through resolution", () => {
+    const html = renderElement(
+      createContainerElement({ linkedStyleId: "pattern-style" }),
+      {
+        presentation: {
+          schemaVersion: 1,
+          id: "presentation",
+          title: "Presentation",
+          description: "",
+          aspectRatio: "16:9",
+          linkedStyles: [{
+            id: "pattern-style",
+            name: "Pattern style",
+            style: {
+              background: {
+                color: "#123456",
+                pattern: {
+                  image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))",
+                  colors: ["#111"],
+                  rotation: -30,
+                },
+              },
+            },
+          }],
+          slides: [],
+        },
+      },
+    );
+
+    expect(html).toContain("--presentation-pattern-color-1:#111");
+    expect(html).toContain("--presentation-pattern-background-color:#123456");
+    expect(html).toContain("transform:rotate(-30deg)");
   });
 
   it("keeps unpatterned Container output unchanged", () => {

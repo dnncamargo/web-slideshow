@@ -2,11 +2,14 @@ import { useRef, useState } from "react";
 
 import type {
   FontResource,
+  ContainerElement,
+  Presentation,
   ElementEffect,
   PresentationElement,
   SimpleTableElement,
   StructuredTableElement,
 } from "@web-slideshow/document-schema";
+import { THEME_COLORS } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { DangerConfirmDialog } from "@/features/app/danger-confirm-dialog";
@@ -33,6 +36,7 @@ import {
   getStructuredRowLabel,
   type TableStructuralSelection,
 } from "../table-tree-helpers";
+import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -63,6 +67,12 @@ interface TableInspectorProps {
   selectedTableStructuralNode?: TableStructuralSelection;
 
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
+
+  presentation?: Pick<Presentation, "linkedStyles">;
+
+  parent?: ContainerElement | null;
+
+  ancestorContainers?: readonly ContainerElement[];
 }
 
 // ============================================================
@@ -429,9 +439,12 @@ export function TableInspector({
   tableAuthoringControls,
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
+  presentation,
+  parent = null,
+  ancestorContainers,
 }: TableInspectorProps) {
   if (element.mode !== "structured") {
-    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
+    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} parent={parent} ancestorContainers={ancestorContainers} />;
   }
 
   return (
@@ -449,14 +462,28 @@ function SimpleTableInspector({
   element,
   onUpdate,
   fontResources,
+  presentation,
+  parent,
+  ancestorContainers,
 }: {
   element: SimpleTableElement;
 
   onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   fontResources: readonly FontResource[];
+  presentation?: Pick<Presentation, "linkedStyles">;
+  parent?: ContainerElement | null;
+  ancestorContainers?: readonly ContainerElement[];
 }) {
   const { t } = useStudioI18n();
+  const inheritedContainerColor = resolveNearestContainerColor(
+    presentation,
+    ancestorContainers !== undefined && ancestorContainers.length > 0
+      ? ancestorContainers
+      : parent ? [parent] : [],
+  );
+  const effectiveTableColor = inheritedContainerColor ?? THEME_COLORS.textSecondary;
+  const effectiveTableColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
   const authoringHistory = useAuthoringHistory();
   const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
 
@@ -991,6 +1018,8 @@ function SimpleTableInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="table"
         showColor
+        effectiveColor={effectiveTableColor}
+        effectiveColorSource={effectiveTableColorSource}
         onUpdateEffect={updateEffect}
       />
 

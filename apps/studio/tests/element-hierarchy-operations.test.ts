@@ -30,6 +30,7 @@ import {
   collectAuthoringIds,
   findElementById,
   findContentSlotById,
+  findAncestorContainers,
   getElementsForParentRef,
   updateElementById,
 } from "../src/features/editor/element-hierarchy";
@@ -1461,5 +1462,59 @@ describe("topic content slot authoring", () => {
         topics("new-topics", []),
       ),
     ).toBe(elements);
+  });
+
+  it("returns nearest-first Container ancestors across nested and Topics content", () => {
+    const elements: PresentationElement[] = [
+      container("outer", [
+        container("inner", [
+          topics("topics", [
+            topicItem("topic-a", contentSlot("slot-a", [text("topic-text")])),
+          ]),
+        ]),
+      ]),
+    ];
+
+    expect(findAncestorContainers(elements, "topic-text").map((item) => item.id)).toEqual([
+      "inner",
+      "outer",
+    ]);
+    expect(findAncestorContainers(elements, "inner").map((item) => item.id)).toEqual(["outer"]);
+    expect(findAncestorContainers(elements, "outer")).toEqual([]);
+
+    const colored: PresentationElement[] = [{
+      type: "container",
+      id: "outer-red",
+      hidden: false,
+      style: { color: "#ff0000" },
+      children: [{
+        type: "container",
+        id: "inner-blue",
+        hidden: false,
+        style: { color: "#0000ff" },
+        children: [text("nested-text")],
+      }],
+    }];
+    expect(findAncestorContainers(colored, "nested-text").map((item) => item.id)).toEqual([
+      "inner-blue",
+      "outer-red",
+    ]);
+
+    const palette: ContainerElement = {
+      type: "container",
+      id: "palette-outer",
+      hidden: false,
+      children: [{
+        type: "container",
+        id: "palette-inner",
+        hidden: false,
+        children: [text("palette-text")],
+      }],
+    };
+    palette.style = { color: { kind: "palette", colorId: "accent" } };
+    expect(findAncestorContainers([palette], "palette-text")[1]?.style?.color).toEqual({
+      kind: "palette",
+      colorId: "accent",
+    });
   });
 });

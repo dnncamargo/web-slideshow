@@ -10,6 +10,7 @@ import type {
   TopicsElement,
   TextRun,
   Presentation,
+  ContainerElement,
 } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -96,6 +97,8 @@ describe("TopicsInspector", () => {
   let presentation: Pick<Presentation, "linkedStyles"> | undefined;
   let attachLinkedTopicsStyle: ReturnType<typeof vi.fn>;
   let detachLinkedTopicsStyle: ReturnType<typeof vi.fn>;
+  let parent: ContainerElement | null;
+  let ancestorContainers: readonly ContainerElement[];
 
   function renderInspector() {
     root.render(
@@ -117,6 +120,8 @@ describe("TopicsInspector", () => {
           }}
           fontResources={fontResources}
           presentation={presentation}
+          parent={parent}
+          ancestorContainers={ancestorContainers}
           onAttachLinkedTopicsStyle={attachLinkedTopicsStyle}
           onDetachLinkedTopicsStyle={detachLinkedTopicsStyle}
         />
@@ -124,13 +129,19 @@ describe("TopicsInspector", () => {
     );
   }
 
-  function mount(initial: TopicsElement) {
+  function mount(
+    initial: TopicsElement,
+    nextParent: ContainerElement | null = null,
+    nextAncestors: readonly ContainerElement[] = [],
+  ) {
     elementState = initial;
     updates = [];
     addTopLevelTopic = vi.fn(() => "topic-created");
     addChildTopic = vi.fn(() => "child-topic-created");
     fontResources = [];
     presentation = undefined;
+    parent = nextParent;
+    ancestorContainers = nextAncestors;
     attachLinkedTopicsStyle = vi.fn();
     detachLinkedTopicsStyle = vi.fn();
     renderInspector();
@@ -345,6 +356,73 @@ describe("TopicsInspector", () => {
     });
 
     expect(kindSelect().value).toBe("unordered");
+  });
+
+  it("shows Container inheritance independently for topic text and marker colors", async () => {
+    await act(async () => {
+      mount(topicsElement(), {
+        id: "parent",
+        type: "container",
+        hidden: false,
+        style: { color: "#ff00ff" },
+        children: [],
+      });
+    });
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("#topics-marker-color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color")?.value).toBe("#ff00ff");
+    expect(container.querySelector<HTMLInputElement>("#topics-marker-color")?.value).toBe("#ff00ff");
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+    expect(container.querySelector<HTMLInputElement>("#topics-marker-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+  });
+
+  it("labels local Topics color resets as returning to Container inheritance", async () => {
+    await act(async () => mount(topicsElement({ style: { color: "#0000ff" }, markerColor: "#00ff00" }), {
+      type: "container", id: "parent", hidden: false, style: { color: "#ff00ff" }, children: [],
+    }));
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+    const labels = ["#topics-text-color-value", "#topics-marker-color-value"].map((id) =>
+      container.querySelector<HTMLInputElement>(id)?.closest("label"),
+    );
+    expect(labels.every((label) => label?.textContent?.includes("Use inherited color"))).toBe(true);
+  });
+
+  it("uses the nearest colored ancestor through uncolored Containers", async () => {
+    await act(async () => {
+      mount(
+        topicsElement(),
+        {
+          type: "container",
+          id: "inner",
+          hidden: false,
+          children: [],
+        },
+        [
+          {
+            type: "container",
+            id: "inner",
+            hidden: false,
+            children: [],
+          },
+          {
+            type: "container",
+            id: "outer",
+            hidden: false,
+            style: { color: "#ff0000" },
+            children: [],
+          },
+        ],
+      );
+    });
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color")?.value).toBe("#ff0000");
   });
 
   it("changes unordered to ordered through onUpdate", async () => {

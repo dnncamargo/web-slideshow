@@ -117,15 +117,230 @@ describe("Container canonical background pattern inspector", () => {
     ["fine-grid", "linear-gradient"],
     ["dots", "radial-gradient"],
     ["offset-dots", "radial-gradient"],
-    ["diagonal-lines", "repeating-linear-gradient"],
+    ["diagonal-lines", "linear-gradient"],
+    ["art-deco", "gradient"],
+    ["circuit-grid", "gradient"],
+    ["paper", "gradient"],
+    ["graph-paper-dotted", "radial-gradient"],
+    ["dashed-paper", "repeating-linear-gradient"],
+    ["cross", "radial-gradient"],
+    ["crossed-axes", "repeating-linear-gradient"],
+    ["triple-axis-overlay", "repeating-linear-gradient"],
+    ["chevron", "linear-gradient"],
   ])("preset %s writes canonical Pattern data", async (mode, imageKind) => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
 
     expect(updates).toHaveLength(1);
     expect(state).toMatchObject({ style: { background: { pattern: { image: expect.stringContaining(imageKind) } } } });
+    expect(currentContainer().style?.background?.pattern?.colors?.length).toBeGreaterThanOrEqual(1);
     expect(currentContainer().style).not.toHaveProperty("backgroundPattern");
     expect(currentContainer().style).not.toHaveProperty("backgroundGradient");
+  });
+
+  it("shows structured controls for a preset and writes controlled color slots", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+
+    expect(host.querySelector("#container-pattern-color-1")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).not.toBeNull();
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#cbd5e1"],
+      image: expect.stringContaining("--presentation-pattern-color-1"),
+    });
+    expect(host.textContent).not.toContain("Pattern colors");
+  });
+
+  it.each([
+    ["art-deco", 4],
+    ["circuit-grid", 2],
+    ["paper", 2],
+    ["graph-paper-dotted", 1],
+    ["dashed-paper", 1],
+    ["cross", 1],
+    ["crossed-axes", 2],
+    ["triple-axis-overlay", 3],
+    ["chevron", 1],
+  ])("renders %s with %s canonical color controls", async (mode, count) => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
+    expect(host.querySelectorAll('input[id^="container-pattern-color-"][id$="-value"]')).toHaveLength(count);
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).not.toBeNull();
+  });
+
+  it("uses canonical rotation for Diagonal Lines without leaking it to another preset", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "diagonal-lines"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("135");
+    expect(currentContainer().style?.background?.pattern?.image).not.toContain("45deg");
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "dots"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-rotation")?.value).toBe("0");
+    expect(currentContainer().style?.background?.pattern?.rotation).toBeUndefined();
+  });
+
+  it("hydrates a legacy preset without writing and materializes on the first structured edit", async () => {
+    const legacy = { image: "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)", size: "32px 32px", repeat: "repeat" as const };
+    await act(async () => mount(containerElement({ style: { background: { pattern: legacy } } })));
+    expect(updates).toHaveLength(0);
+    expect(host.querySelector("#container-background-pattern-size")).not.toBeNull();
+
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "40"));
+    expect(updates).toHaveLength(1);
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      image: expect.stringContaining("--presentation-pattern-color-1"),
+      colors: ["#cbd5e1"],
+      size: "40px 40px",
+    });
+  });
+
+  it("updates Pattern color, size, and rotation without clearing background or gradient", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    const color = host.querySelector<HTMLInputElement>("#container-pattern-color-1-value");
+    await act(async () => setValue(color!, "#123456"));
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+    expect(currentContainer().style?.background?.pattern?.colors).toEqual(["#123456"]);
+
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "48"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "48px 48px", rotation: 20 });
+  });
+
+  it("preserves effective Pattern colors when switching preset families", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "dots"));
+
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#123456"],
+      size: "24px 24px",
+      image: expect.stringContaining("radial-gradient"),
+    });
+  });
+
+  it("resets Pattern colors as one group without changing Size or Rotation", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "grid"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "48"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+
+    const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Reset");
+    expect(reset).not.toBeNull();
+    expect(reset?.disabled).toBe(false);
+    await act(async () => reset?.click());
+
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      colors: ["#cbd5e1"],
+      size: "48px 48px",
+      rotation: 20,
+    });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("resets all four Art Deco colors atomically", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "art-deco"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-1-value")!, "#123456"));
+    await act(async () => setValue(host.querySelector("#container-pattern-color-4-value")!, "#654321"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "96"));
+    await act(async () => setValue(host.querySelector("#container-background-pattern-rotation")!, "20"));
+
+    const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Reset");
+    expect(reset).not.toBeUndefined();
+    await act(async () => reset?.click());
+
+    expect(currentContainer().style?.background?.pattern?.colors).toEqual(["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"]);
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "192px 134.04px", rotation: 20 });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("uses proportional Art Deco and parametric Circuit Grid Size authoring", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "art-deco"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("80");
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "160"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "320px 223.4px" });
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "circuit-grid"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "80px 80px" });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "120px 120px" });
+    expect(currentContainer().style?.background?.color).toBe("#111");
+    expect(currentContainer().style?.background?.gradient).toBe(gradient);
+  });
+
+  it("uses parametric Paper and Graph Paper Dotted Size authoring", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "paper"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "100px 100px, 100px 100px, 20px 20px, 20px 20px",
+      position: "-2px -2px, -2px -2px, -1px -1px, -1px -1px",
+    });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "150px 150px, 150px 150px, 30px 30px, 30px 30px",
+      position: "-3px -3px, -3px -3px, -1.5px -1.5px, -1.5px -1.5px",
+    });
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "graph-paper-dotted"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "10px 40px, 40px 10px",
+      position: "-5px -20px, -20px -5px",
+    });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "15px 60px, 60px 15px",
+      position: "-7.5px -30px, -30px -7.5px",
+    });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("uses reference Size authoring for the remaining catalog Patterns", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+
+    for (const [mode, size, expected] of [
+      ["dashed-paper", "30", "60px 60px"],
+      ["cross", "30", "150px 150px"],
+      ["chevron", "30", "60px 60px, 60px 60px, 60px 60px, 60px 60px"],
+    ] as const) {
+      await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, mode));
+      expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+      await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, size));
+      expect(currentContainer().style?.background?.pattern?.size).toContain(expected);
+    }
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "crossed-axes"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern?.size).toBeUndefined();
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern?.image).toContain("15px");
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "triple-axis-overlay"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern?.image).toContain("105px");
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("keeps Custom CSS authoring separate from structured parameters", async () => {
+    await act(async () => mount(containerElement()));
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));
+    expect(host.querySelector("#container-background-pattern-size")).toBeNull();
+    expect(host.querySelector("#container-background-pattern-rotation")).toBeNull();
+    expect(host.querySelector("#container-custom-pattern-css")).not.toBeNull();
   });
 
   it("preserves color and gradient when adding a Pattern", async () => {

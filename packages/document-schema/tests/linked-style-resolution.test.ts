@@ -105,7 +105,11 @@ describe("resolveLinkedContainerStyle", () => {
     const linkedBorder = { width: 1, color: "#111111" };
     const localBorder = { width: 2, color: "#222222" };
     const gradient = { type: "linear" as const, stops: [{ color: "#111111", position: 0 }, { color: "#222222", position: 100 }] };
-    const pattern = { image: "linear-gradient(#fff, #000)" };
+    const pattern = {
+      image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+      colors: ["#ffffff"],
+      rotation: 18,
+    };
     const result = resolveLinkedContainerStyle(presentation([{
       id: "card", name: "Card",
       style: { background: { color: "#111111", gradient, pattern }, border: linkedBorder },

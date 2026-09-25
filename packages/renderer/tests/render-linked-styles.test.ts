@@ -74,6 +74,20 @@ describe("Linked Container Style rendering", () => {
     expect(source).toEqual(snapshot);
   });
 
+  it("uses the effective linked Container color for descendant fallback", () => {
+    const source = presentation([{
+      id: "linked-colored-container",
+      type: "container",
+      hidden: false,
+      linkedStyleId: "card",
+      children: [],
+    }]);
+
+    const tag = tagForId(renderPresentation(source), "linked-colored-container");
+    expect(tag).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+    expect(tag).toContain("--presentation-container-color:var(--ps-palette-0061006300630065006e0074)");
+  });
+
   it("keeps local overrides while retaining unoverridden linked values and falsy effects", () => {
     const html = renderPresentation(presentation([{
       id: "card-instance",

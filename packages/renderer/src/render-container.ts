@@ -1,4 +1,5 @@
 import type {
+  BackgroundPattern,
   ContainerElement,
   ElementLink,
   PresentationElement,
@@ -123,7 +124,11 @@ function renderVisualStyle(element: ContainerElement): string[] {
     return output;
   }
 
-  if (style.color !== undefined) addStyle(output, "color", renderColorValue(style.color));
+  if (style.color !== undefined) {
+    const color = renderColorValue(style.color);
+    addStyle(output, "color", color);
+    output.push(`--presentation-container-color:${color}`);
+  }
 
   if (style.background?.color) {
     addStyle(output, "background", renderColorValue(style.background.color));
@@ -336,6 +341,31 @@ function renderLinkSurface(link: ElementLink): string {
   return `<a ${attributes.join(" ")}></a>`;
 }
 
+function renderPatternLayer(pattern: BackgroundPattern, backgroundColor: Parameters<typeof renderBackgroundPattern>[1]): string {
+  const baseStyles =
+    "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;";
+
+  if (pattern.rotation === undefined || pattern.rotation === 0) {
+    return `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+      baseStyles + renderBackgroundPattern(pattern, backgroundColor),
+    )}"></div>`;
+  }
+
+  const paintStyles =
+    "position:absolute;inset:-100vmax;pointer-events:none;" +
+    renderBackgroundPattern(pattern, backgroundColor);
+
+  return (
+    `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
+      baseStyles + "overflow:hidden;",
+    )}">` +
+    `<div class="presentation-container-background-pattern-paint" aria-hidden="true" style="${escapeHtml(
+      paintStyles,
+    )}"></div>` +
+    "</div>"
+  );
+}
+
 export function renderContainer(
   element: ContainerElement,
   renderChild: RenderChild,
@@ -409,10 +439,7 @@ export function renderContainer(
   const tag = getTagName(element.role);
   const pattern = renderedElement.style?.background?.pattern;
   const patternLayer = pattern
-    ? `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
-        "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;" +
-          renderBackgroundPattern(pattern),
-      )}"></div>`
+    ? renderPatternLayer(pattern, renderedElement.style?.background?.color)
     : "";
   const children = element.children
     .map((child, index) => {

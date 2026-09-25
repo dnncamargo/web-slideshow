@@ -10,6 +10,7 @@ import {
   stripLocalTextStyleProperties,
   type Presentation,
   type TextElement,
+  type ContainerElement,
 } from "@web-slideshow/document-schema";
 
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
@@ -51,6 +52,7 @@ describe("Text Inspector typography style attachment", () => {
   let current: TextElement;
   let updates: TextElement[];
   let activePresentation: Presentation;
+  let activeParent: ContainerElement | null = null;
 
   function renderInspector(): void {
     root.render(
@@ -58,6 +60,7 @@ describe("Text Inspector typography style attachment", () => {
         <TextInspector
           element={current}
           presentation={activePresentation}
+          parent={activeParent}
           fontResources={fonts}
           onUpdate={(update) => {
             current = update(current) as TextElement;
@@ -69,9 +72,10 @@ describe("Text Inspector typography style attachment", () => {
     );
   }
 
-  async function mount(element: TextElement, nextPresentation = presentation()): Promise<void> {
+  async function mount(element: TextElement, nextPresentation = presentation(), parent: ContainerElement | null = null): Promise<void> {
     current = element;
     activePresentation = nextPresentation;
+    activeParent = parent;
     updates = [];
     await act(async () => renderInspector());
   }
@@ -99,6 +103,39 @@ describe("Text Inspector typography style attachment", () => {
     expect(labels).toEqual(expect.arrayContaining(["Quote", "Title 2"]));
     expect(labels).not.toEqual(expect.arrayContaining(["Body Default", "Body Custom", "Body Local"]));
     expect(options.find((option) => option.textContent === "Quote")?.value).toBe("quote");
+  });
+
+  it("shows inherited Container color without materializing it as Text color", async () => {
+    const source = presentation();
+    source.linkedStyles = [{ id: "container-style", name: "Container", style: { color: "#ff00ff" } }];
+    await mount(text(), source, {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      linkedStyleId: "container-style",
+      children: [],
+    });
+
+    const input = host.querySelector<HTMLInputElement>("#text-color-value");
+    expect(input?.value).toBe("");
+    expect(input?.placeholder).toBe("Inherited from Container");
+    expect(host.querySelector<HTMLInputElement>("#text-color")?.value).toBe("#ff00ff");
+    expect(current.style?.color).toBeUndefined();
+    expect(host.querySelector("#text-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+  });
+
+  it("labels a local Text color reset as returning to Container inheritance", async () => {
+    await mount(text({ styleDetached: true, style: { color: "#0000ff" } }), presentation(), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
+    const label = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
+    expect(label?.textContent).toContain("Use inherited color");
+    await act(async () => Array.from(label?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Use inherited color")?.click());
+    expect(current.style?.color).toBeUndefined();
   });
 
   it("displays Presentation-effective values without writing on mount", async () => {
@@ -638,12 +675,19 @@ describe("Text Inspector typography style attachment", () => {
   it("resets color without changing unrelated visual fields", async () => {
     await mount(text({
       style: { color: "#ff0000", background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" },
-    }), presentation([{ id: "body", style: { color: "#00ff00" } }]));
+    }), presentation([{ id: "body", style: { color: "#00ff00" } }]), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
 
     const color = host.querySelector<HTMLInputElement>("#text-color-value");
     const meta = color?.closest("label");
     expect(meta?.textContent).toContain("Local override");
     expect(meta?.textContent).not.toContain("Use theme default");
+    expect(meta?.textContent).not.toContain("Use inherited color");
     const reset = meta?.querySelector("button");
     await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current.style).toEqual({ background: { color: "#eeeeee" }, borderRadius: "4px", className: "keep" });
@@ -652,10 +696,17 @@ describe("Text Inspector typography style attachment", () => {
   });
 
   it("uses the property Reset for a local color when the master omits color", async () => {
-    await mount(text({ style: { color: "#ff0000" } }), presentation([{ id: "body", typography: { fontSize: 20 } }]));
+    await mount(text({ style: { color: "#ff0000" } }), presentation([{ id: "body", typography: { fontSize: 20 } }]), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
     const meta = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
     expect(meta?.textContent).toContain("Local override");
     expect(meta?.textContent).not.toContain("Use theme default");
+    expect(meta?.textContent).not.toContain("Use inherited color");
     const reset = Array.from(meta?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Reset");
     await act(async () => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(current).not.toHaveProperty("style.color");

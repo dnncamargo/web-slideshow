@@ -11,8 +11,11 @@ import {
   PresentationSchema,
   isPaletteColorReference,
   mapPresentationElementColorValues,
+  removePresentationPaletteColor,
   resolveColorValue,
+  updatePresentationPaletteColorValue,
 } from "../src";
+import type { ContainerElement } from "../src";
 
 import {
   defaultsInput,
@@ -299,5 +302,102 @@ describe("presentation palette reference integrity", () => {
       { id: "interactive", type: "interactive" as const, widget: "function-plot" as const, config: { payload } },
       { id: "scripted", type: "scripted" as const, title: "Script", html: JSON.stringify(payload) },
     ] }] }).success).toBe(true);
+  });
+});
+
+describe("Container Pattern palette traversal", () => {
+  const reference = { kind: "palette" as const, colorId: "accent" };
+  const pattern = {
+    image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+    colors: [reference],
+    rotation: 24,
+  };
+
+  const container = (id: string, style?: ContainerElement["style"]): ContainerElement => ({
+    id,
+    type: "container" as const,
+    hidden: false,
+    children: [],
+    ...(style === undefined ? {} : { style }),
+  });
+
+  const input = (colorId = "accent") => ({
+    ...defaultsInput,
+    palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    linkedStyles: [{
+      id: "pattern-style",
+      name: "Pattern style",
+      style: { background: { pattern: { ...pattern, colors: [{ kind: "palette", colorId }] } } },
+    }],
+    rootDefinitions: [{
+      id: "root",
+      name: "Root",
+      root: container("root-container", { background: { pattern: { ...pattern, colors: [{ kind: "palette", colorId }] } } }),
+    }],
+    slides: [{
+      id: "slide",
+      elements: [container("local-container", { background: { pattern: { ...pattern, colors: [{ kind: "palette", colorId }] } } })],
+    }],
+  });
+
+  it("visits local Container Pattern colors through the shared style boundary", () => {
+    const paths: string[] = [];
+    mapPresentationElementColorValues(
+      container("local-container", { background: { pattern } }),
+      (value, path) => {
+        if (isPaletteColorReference(value)) paths.push(path.join("."));
+        return value;
+      },
+    );
+
+    expect(paths).toEqual(["slides.0.elements.0.style.background.pattern.colors.0"]);
+  });
+
+  it("validates Pattern references in local, Root Definition, and Linked Style owners", () => {
+    const result = PresentationSchema.safeParse(input("missing"));
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((issue) => issue.path.join("."));
+      expect(paths).toEqual(expect.arrayContaining([
+        "slides.0.elements.0.style.background.pattern.colors.0.colorId",
+        "rootDefinitions.0.root.style.background.pattern.colors.0.colorId",
+        "linkedStyles.0.style.background.pattern.colors.0.colorId",
+      ]));
+    }
+  });
+
+  it("updates the shared palette value while preserving Pattern references", () => {
+    const parsed = PresentationSchema.parse(input());
+    const result = updatePresentationPaletteColorValue(parsed, "accent", "#ef4444");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.presentation.palette?.colors[0]?.value).toBe("#ef4444");
+    expect(result.presentation.slides[0]?.elements[0]).toMatchObject({
+      style: { background: { pattern: { colors: [reference] } } },
+    });
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
+
+  it("detaches Pattern colors in local, Root Definition, and Linked Style owners", () => {
+    const parsed = PresentationSchema.parse(input());
+    const result = removePresentationPaletteColor(parsed, "accent");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.detachedCount).toBe(3);
+    expect(result.presentation.slides[0]?.elements[0]).toMatchObject({
+      style: { background: { pattern: { colors: ["#facc15"], rotation: 24 } } },
+    });
+    expect(result.presentation.rootDefinitions?.[0]?.root).toMatchObject({
+      style: { background: { pattern: { colors: ["#facc15"] } } },
+    });
+    expect(result.presentation.linkedStyles?.[0]).toMatchObject({
+      style: { background: { pattern: { colors: ["#facc15"] } } },
+    });
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
   });
 });

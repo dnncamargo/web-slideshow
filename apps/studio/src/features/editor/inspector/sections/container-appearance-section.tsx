@@ -115,6 +115,16 @@ export function ContainerAppearanceSection({ element, localElement = element, pr
             },
           }))}
         />
+        <ContainerLinkedPropertyMeta
+          source={source("style.background.pattern").source}
+          linkedValue={source("style.background.pattern").linkedValue}
+          onReset={source("style.background.pattern").source === "local" && source("style.background.pattern").linkedValue !== undefined
+            ? () => updateStyle((current) => ({
+              ...current,
+              background: current.background === undefined ? undefined : { ...current.background, pattern: undefined },
+            }))
+            : undefined}
+        />
       </div>
 
       <div className={styles.fieldGrid}>

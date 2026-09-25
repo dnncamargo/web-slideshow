@@ -14,12 +14,14 @@ import type {
   LinkedTopicsStyle,
   LinkedStyle,
   Presentation,
+  ContainerElement,
 } from "@web-slideshow/document-schema";
 import { resolveLinkedTopicsStyle } from "@web-slideshow/document-schema";
 
 import {
   resolveEffectiveElementStyleDefaults,
   TOPICS_ITEM_GAP_DEFAULT_PX,
+  THEME_COLORS,
 } from "@web-slideshow/theme/element-style-defaults";
 
 import { ELEMENT_TYPE_MESSAGE_KEYS } from "@/features/i18n/studio-i18n";
@@ -47,6 +49,7 @@ import { TextStylePropertyMeta } from "./sections/text-style-property-meta";
 import type { TextStylePropertyInfo } from "./text-style-property";
 import { clearLinkedTopicsStyleProperty } from "../linked-style-authoring";
 import { getTopicsShareablePropertySource } from "./linked-style-inspector";
+import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
 
 const UNORDERED_MARKER_STYLES: readonly TopicMarkerStyle[] = [
   "disc",
@@ -78,6 +81,10 @@ interface TopicsInspectorProps {
   onAttachLinkedTopicsStyle?: (linkedStyleId: string) => void;
 
   onDetachLinkedTopicsStyle?: () => void;
+
+  parent?: ContainerElement | null;
+
+  ancestorContainers?: readonly ContainerElement[];
 }
 
 interface TopicRowProps {
@@ -315,6 +322,8 @@ export function TopicsInspector({
   presentation,
   onAttachLinkedTopicsStyle,
   onDetachLinkedTopicsStyle,
+  parent = null,
+  ancestorContainers,
 }: TopicsInspectorProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -494,6 +503,16 @@ function addChildTopic(topicItemId: string) {
   const kindSource = topicPropertyInfo("kind");
   const rootMarkerSource = topicPropertyInfo("rootMarkerStyle");
   const markerColorSource = topicPropertyInfo("markerColor");
+  const inheritedContainerColor = resolveNearestContainerColor(
+    presentation,
+    ancestorContainers !== undefined && ancestorContainers.length > 0
+      ? ancestorContainers
+      : parent ? [parent] : [],
+  );
+  const effectiveTopicTextColor = inheritedContainerColor ?? THEME_COLORS.textPrimary;
+  const effectiveTopicColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
+  const effectiveMarkerColor = inheritedContainerColor ?? THEME_COLORS.textSecondary;
+  const effectiveMarkerColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
   const resetLinkedTopicsProperty = (property: Parameters<typeof clearLinkedTopicsStyleProperty>[1]) => {
     runDiscrete(`topics.${property}`, () => updateCurrentTopics((current) => clearLinkedTopicsStyleProperty(current, property)));
   };
@@ -715,13 +734,15 @@ function addChildTopic(topicItemId: string) {
                 id="topics-marker-color"
                 name="topicsMarkerColor"
                 value={resolvedTopics.markerColor}
+                effectiveValue={resolvedTopics.markerColor === undefined ? effectiveMarkerColor : undefined}
+                effectiveSource={resolvedTopics.markerColor === undefined ? effectiveMarkerColorSource : undefined}
                 onChange={(markerColor) => {
                   updateCurrentTopics((current) => ({
                     ...current,
                     markerColor,
                   }));
                 }}
-                secondaryAction={element.linkedStyleId === undefined ? { label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
+                secondaryAction={element.linkedStyleId === undefined && resolvedTopics.markerColor !== undefined ? { label: effectiveMarkerColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
               />
               <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
             </label>
@@ -741,13 +762,15 @@ function addChildTopic(topicItemId: string) {
                 id="topics-text-color"
                 name="topicsTextColor"
                 value={element.style?.color}
+                effectiveValue={effectiveTopicTextColor}
+                effectiveSource={element.style?.color === undefined ? effectiveTopicColorSource : undefined}
                 onChange={(color, source) => {
                   const mode = source === "format" || source === "detach"
                     ? "preserve-overrides"
                     : "apply";
                   updateCurrentTopics((current) => updateTopicsTextColor(current, color, mode));
                 }}
-                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => updateTopicsTextColor(current, undefined, "preserve-overrides")) }}
+                secondaryAction={element.style?.color !== undefined ? { label: effectiveTopicColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => updateTopicsTextColor(current, undefined, "preserve-overrides")) } : undefined}
               />
             </label>
           </div>

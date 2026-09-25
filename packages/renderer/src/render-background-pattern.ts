@@ -1,9 +1,23 @@
-import type { BackgroundPattern } from "@web-slideshow/document-schema";
+import type { BackgroundPattern, ColorValue } from "@web-slideshow/document-schema";
+
+import { renderColorValue } from "./render-palette";
 
 export function renderBackgroundPattern(
   pattern: BackgroundPattern,
+  backgroundColor?: ColorValue,
 ): string {
-  const styles = [`background-image:${pattern.image}`];
+  const styles = pattern.colors?.map(
+    (color, index) =>
+      `--presentation-pattern-color-${index + 1}:${renderColorValue(color)}`,
+  ) ?? [];
+
+  if (/var\s*\(\s*--presentation-pattern-background-color\s*\)/.test(pattern.image)) {
+    styles.push(
+      `--presentation-pattern-background-color:${backgroundColor === undefined ? "transparent" : renderColorValue(backgroundColor)}`,
+    );
+  }
+
+  styles.push(`background-image:${pattern.image}`);
 
   if (pattern.size !== undefined) {
     styles.push(`background-size:${pattern.size}`);
@@ -19,6 +33,11 @@ export function renderBackgroundPattern(
 
   if (pattern.opacity !== undefined) {
     styles.push(`opacity:${pattern.opacity}`);
+  }
+
+  if (pattern.rotation !== undefined && pattern.rotation !== 0) {
+    styles.push(`transform:rotate(${pattern.rotation}deg)`);
+    styles.push("transform-origin:center");
   }
 
   return styles.join(";");

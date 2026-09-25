@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  ContainerElement,
   PresentationElement,
   FontResource,
   SimpleTableElement,
@@ -124,6 +125,9 @@ describe("TableInspector", () => {
   let updates: PresentationElement[];
   let controls: TableAuthoringControls;
   let selectedTableStructuralNode: TableStructuralSelection = null;
+  let parent: ContainerElement | null = null;
+  let ancestorContainers: readonly ContainerElement[] = [];
+  let presentation: { linkedStyles: [] } | undefined;
 
   function renderInspector() {
     root.render(
@@ -140,6 +144,9 @@ describe("TableInspector", () => {
           fontResources={FONT_RESOURCES}
           tableAuthoringControls={controls}
           selectedTableStructuralNode={selectedTableStructuralNode}
+          parent={parent ?? undefined}
+          ancestorContainers={ancestorContainers}
+          presentation={presentation}
           onSelectTableStructuralNode={(selection) => {
             selectedTableStructuralNode = selection;
             renderInspector();
@@ -154,6 +161,9 @@ describe("TableInspector", () => {
     elementState = initial;
     updates = [];
     selectedTableStructuralNode = null;
+    parent = null;
+    ancestorContainers = [];
+    presentation = undefined;
     controls = {
       onAddColumn: (tableId) => {
         const elements = addColumnToStructuredTable([elementState], tableId, new Set());
@@ -412,6 +422,59 @@ describe("TableInspector", () => {
     expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
     expect((elementState as SimpleTableElement).style?.background?.color).toBe("#101218");
     expect((elementState as SimpleTableElement).style?.borderRadius).toBe(4);
+  });
+
+  it("shows inherited Container color for Simple Table without authoring it", async () => {
+    await act(async () => {
+      mount(simpleTable({ style: { background: { color: "#101218" } } }));
+    });
+    parent = {
+      type: "container",
+      id: "parent",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    };
+    presentation = { linkedStyles: [] };
+    await act(async () => {
+      renderInspector();
+    });
+
+    const input = container.querySelector<HTMLInputElement>("#table-color-value");
+    expect(input?.value).toBe("");
+    expect(input?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("#table-color")?.value).toBe("#ff00ff");
+    expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
+    expect(Array.from(input?.closest("label")?.querySelectorAll("button") ?? [])
+      .find((button) => button.textContent?.trim() === "Use inherited color")).toBeUndefined();
+  });
+
+  it("labels a local Simple Table color reset as returning to Container inheritance", async () => {
+    await act(async () => mount(simpleTable({ style: { color: "#0000ff" } })));
+    parent = { type: "container", id: "parent", hidden: false, style: { color: "#ff00ff" }, children: [] };
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+    const input = container.querySelector<HTMLInputElement>("#table-color-value");
+    const button = Array.from(input?.closest("label")?.querySelectorAll("button") ?? [])
+      .find((candidate) => candidate.textContent?.trim() === "Use inherited color");
+    expect(button).toBeDefined();
+    await act(async () => button?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
+  });
+
+  it("uses the nearest colored ancestor through uncolored Containers", async () => {
+    await act(async () => {
+      mount(simpleTable({ style: { background: { color: "#101218" } } }));
+    });
+    ancestorContainers = [
+      { type: "container", id: "inner", hidden: false, children: [] },
+      { type: "container", id: "outer", hidden: false, style: { color: "#ff0000" }, children: [] },
+    ];
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+
+    expect(container.querySelector<HTMLInputElement>("#table-color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("#table-color")?.value).toBe("#ff0000");
   });
 
   it("renders minimal structural controls for a Structured Table", async () => {

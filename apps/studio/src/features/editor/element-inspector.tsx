@@ -77,6 +77,8 @@ interface ElementInspectorProps {
 
   parent: ContainerElement | null;
 
+  ancestorContainers?: readonly ContainerElement[];
+
   layerControls: {
     index: number;
     count: number;
@@ -135,6 +137,7 @@ function ElementTypeInspector({
   onCropEditingImageIdChange,
   unsupportedElementHint,
   parent,
+  ancestorContainers,
   layerControls,
   topicsAuthoringControls,
   tableAuthoringControls,
@@ -170,6 +173,7 @@ function ElementTypeInspector({
           fontResources={fontResources}
           presentation={presentation}
           parent={parent}
+          ancestorContainers={ancestorContainers}
           layerControls={layerControls}
           onCreateQrFromLink={onCreateQrFromLink}
         />
@@ -216,6 +220,9 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
           fontResources={fontResources}
           tableAuthoringControls={tableAuthoringControls}
+          parent={parent}
+          ancestorContainers={ancestorContainers}
+          presentation={presentation}
           selectedTableStructuralNode={selectedTableStructuralNode}
           onSelectTableStructuralNode={onSelectTableStructuralNode}
         />
@@ -249,6 +256,8 @@ function ElementTypeInspector({
           presentation={presentation}
           onAttachLinkedTopicsStyle={onAttachLinkedTopicsStyle}
           onDetachLinkedTopicsStyle={onDetachLinkedTopicsStyle}
+          parent={parent}
+          ancestorContainers={ancestorContainers}
         />
       );
 
@@ -303,6 +312,7 @@ export function ElementInspector({
   cropEditingImageId = null,
   onCropEditingImageIdChange = () => {},
   parent,
+  ancestorContainers,
   layerControls,
   topicsAuthoringControls,
   tableAuthoringControls,
@@ -384,6 +394,7 @@ export function ElementInspector({
         cropEditingImageId={cropEditingImageId}
         onCropEditingImageIdChange={onCropEditingImageIdChange}
         parent={parent}
+        ancestorContainers={ancestorContainers}
         layerControls={layerControls}
         unsupportedElementHint={t("inspector.unsupportedElementHint")}
         topicsAuthoringControls={topicsAuthoringControls}
