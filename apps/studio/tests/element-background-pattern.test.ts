@@ -4,6 +4,7 @@ import { BackgroundPatternSchema } from "@web-slideshow/document-schema";
 import {
   BACKGROUND_PATTERN_PRESETS,
   applyPresetPatternColors,
+  createCircuitGridImage,
   findBackgroundPatternPreset,
   getPatternSizeValue,
   materializeBackgroundPatternPreset,
@@ -42,13 +43,14 @@ describe("Container background pattern authoring primitives", () => {
     expect(BackgroundPatternSchema.safeParse(preset.pattern).success).toBe(true);
     expect(findBackgroundPatternPreset(preset.pattern)).toBe(preset.id);
     expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : preset.id === "circuit-grid" || preset.id === "paper" ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
-    expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    if (preset.id !== "circuit-grid") expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     expect(preset.pattern.repeat).toBe("repeat");
     expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
   });
 
   it("uses valid structured geometry for Art Deco", () => {
-    const image = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "art-deco")!.pattern.image;
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "art-deco")!.pattern;
+    const image = pattern.image;
 
     expect(image).toContain("ellipse");
     expect(image).toContain("linear-gradient(90deg");
@@ -58,30 +60,53 @@ describe("Container background pattern authoring primitives", () => {
     for (const slot of [1, 2, 3, 4]) {
       expect(image).toContain(`--presentation-pattern-color-${slot}`);
     }
-    expect(BackgroundPatternSchema.safeParse({
+    expect(pattern.size).toBe("160px 111.7px");
+    expect(getPatternSizeValue(pattern, "art-deco")).toBe(80);
+    expect(BackgroundPatternSchema.safeParse(pattern).success).toBe(true);
+
+    const doubled = updateBackgroundPatternSize(pattern, "art-deco", 160);
+    expect(doubled).toMatchObject({
+      size: "320px 223.4px",
       image,
-      size: "80px 80px",
-      repeat: "repeat",
-      colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"],
-    }).success).toBe(true);
+      colors: pattern.colors,
+      repeat: pattern.repeat,
+    });
+    expect(getPatternSizeValue(doubled, "art-deco")).toBe(160);
+    expect(findBackgroundPatternPreset({ ...doubled, colors: ["#1", "#2", "#3", "#4"], rotation: 20 })).toBe("art-deco");
   });
 
-  it("uses finite circuit traces and pads instead of a full grid", () => {
-    const image = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "circuit-grid")!.pattern.image;
+  it("uses the supplied parametric Circuit Grid formula", () => {
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "circuit-grid")!.pattern;
 
-    expect(image.match(/radial-gradient\(/g)).toHaveLength(10);
-    expect(image).toContain("ellipse");
-    expect(image).toContain("--presentation-pattern-color-1");
-    expect(image).toContain("--presentation-pattern-color-2");
-    expect(image).not.toContain("linear-gradient(90deg");
-    expect(image).not.toContain("linear-gradient(0deg");
-    expect(image).not.toMatch(/\b\d+px\b/);
-    expect(BackgroundPatternSchema.safeParse({
-      image,
-      size: "48px 48px",
-      repeat: "repeat",
-      colors: ["#64748b", "#38bdf8"],
-    }).success).toBe(true);
+    expect(pattern.colors).toEqual(["#444cf7", "#444cf7"]);
+    expect(pattern.size).toBe("80px 80px");
+    expect(pattern.image).toBe(createCircuitGridImage(20));
+    expect(pattern.image).toContain("39px");
+    expect(pattern.image).toContain("40px");
+    expect(pattern.image).toContain("79px");
+    expect(pattern.image).toContain("80px");
+    expect(pattern.image).toContain("40px 40px");
+    expect(pattern.image).toContain("3.2px");
+    expect(pattern.image).toContain("3.7px");
+    expect(pattern.image).toContain("2.4px");
+    expect(pattern.image).toContain("2.9px");
+    expect(pattern.image).toContain("--presentation-pattern-color-1");
+    expect(pattern.image).toContain("--presentation-pattern-color-2");
+    expect(BackgroundPatternSchema.safeParse(pattern).success).toBe(true);
+
+    const size30 = updateBackgroundPatternSize(pattern, "circuit-grid", 30);
+    expect(size30).toMatchObject({ size: "120px 120px", colors: pattern.colors, repeat: pattern.repeat });
+    expect(size30.image).toBe(createCircuitGridImage(30));
+    expect(size30.image).not.toBe(pattern.image);
+    expect(size30.image).toContain("59px");
+    expect(size30.image).toContain("60px");
+    expect(size30.image).toContain("119px");
+    expect(size30.image).toContain("120px");
+    expect(size30.image).toContain("4.8px");
+    expect(size30.image).toContain("5.3px");
+    expect(size30.image).toContain("3.6px");
+    expect(size30.image).toContain("4.1px");
+    expect(findBackgroundPatternPreset({ ...size30, colors: ["#123456", "#654321"], rotation: 20 })).toBe("circuit-grid");
   });
 
   it("parses MagicPattern Grid CSS", () => {
@@ -337,12 +362,17 @@ describe("Container background pattern authoring primitives", () => {
 
   it.each(BACKGROUND_PATTERN_PRESETS)("keeps $id image stable while changing Size", (preset) => {
     const updated = updateBackgroundPatternSize(preset.pattern, preset.id, getPatternSizeValue(preset.pattern, preset.id) * 2);
-    expect(updated.image).toBe(preset.pattern.image);
+    if (preset.id === "circuit-grid") {
+      expect(updated.image).toBe(createCircuitGridImage(40));
+      expect(updated.image).not.toBe(preset.pattern.image);
+    } else {
+      expect(updated.image).toBe(preset.pattern.image);
+    }
     expect(updated.colors).toEqual(preset.pattern.colors);
     expect(updated.rotation).toBe(preset.pattern.rotation);
     expect(updated.repeat).toBe(preset.pattern.repeat);
     expect(updated.size).not.toBe(preset.pattern.size);
-    expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    if (preset.id !== "circuit-grid") expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     if (preset.id === "dots" || preset.id === "offset-dots") {
       expect(preset.pattern.image).toContain("circle closest-side");
     }

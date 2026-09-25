@@ -254,8 +254,25 @@ describe("Container canonical background pattern inspector", () => {
     await act(async () => reset?.click());
 
     expect(currentContainer().style?.background?.pattern?.colors).toEqual(["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"]);
-    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "96px 96px", rotation: 20 });
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "192px 134.04px", rotation: 20 });
     expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
+  it("uses proportional Art Deco and parametric Circuit Grid Size authoring", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "art-deco"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("80");
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "160"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "320px 223.4px" });
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "circuit-grid"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "80px 80px" });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({ size: "120px 120px" });
+    expect(currentContainer().style?.background?.color).toBe("#111");
+    expect(currentContainer().style?.background?.gradient).toBe(gradient);
   });
 
   it("keeps Custom CSS authoring separate from structured parameters", async () => {

@@ -23,8 +23,7 @@ const DOT_IMAGE = "radial-gradient(circle closest-side at 50% 50%, var(--present
 // At 25%/25%, closest-side is 25% of the tile, so the ratio doubles to retain ~1px.
 const OFFSET_DOT_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%)";
 const DIAGONAL_IMAGE = "linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
-const ART_DECO_IMAGE = "radial-gradient(ellipse 22% 45% at 50% 50%, transparent 0% 82%, var(--presentation-pattern-color-1) 82% 90%, transparent 90% 100%), linear-gradient(90deg, transparent 0% 45%, var(--presentation-pattern-color-2) 45% 55%, transparent 55% 100%), linear-gradient(45deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-3) 53% 56%, transparent 56% 100%), linear-gradient(135deg, transparent 0% 47%, var(--presentation-pattern-color-4) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-4) 53% 56%, transparent 56% 100%), radial-gradient(circle at 22% 50%, var(--presentation-pattern-color-3) 0% 5%, transparent 5% 100%), radial-gradient(circle at 78% 50%, var(--presentation-pattern-color-4) 0% 5%, transparent 5% 100%)";
-const CIRCUIT_GRID_IMAGE = "radial-gradient(ellipse 28% 4% at 36% 28%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(ellipse 4% 24% at 62% 48%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(ellipse 18% 4% at 75% 68%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(ellipse 16% 4% at 28% 70%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(ellipse 4% 15% at 28% 55%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(ellipse 10% 4% at 18% 40%, var(--presentation-pattern-color-1) 0% 80%, transparent 80% 100%), radial-gradient(circle at 62% 28%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%), radial-gradient(circle at 62% 68%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%), radial-gradient(circle at 28% 70%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%), radial-gradient(circle at 18% 40%, var(--presentation-pattern-color-2) 0% 7%, transparent 7% 100%)";
+const ART_DECO_IMAGE = "radial-gradient(ellipse 23% 46% at 50% 50%, transparent 0% 78%, var(--presentation-pattern-color-1) 78% 84%, transparent 84% 100%), linear-gradient(90deg, transparent 0% 48%, var(--presentation-pattern-color-2) 48% 52%, transparent 52% 100%), linear-gradient(45deg, transparent 0% 35%, var(--presentation-pattern-color-2) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-2) 62% 65%, transparent 65% 100%), linear-gradient(135deg, transparent 0% 35%, var(--presentation-pattern-color-2) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-2) 62% 65%, transparent 65% 100%), linear-gradient(45deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-3) 53% 56%, transparent 56% 100%), linear-gradient(135deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-3) 53% 56%, transparent 56% 100%), radial-gradient(circle at 0% 50%, var(--presentation-pattern-color-4) 0% 5%, transparent 5% 100%), radial-gradient(circle at 100% 0%, var(--presentation-pattern-color-4) 0% 5%, transparent 5% 100%)";
 const PAPER_IMAGE = "linear-gradient(0deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(45deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%), linear-gradient(135deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%)";
 const GRAPH_PAPER_DOTTED_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 25% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%)";
 const CROSS_IMAGE = "linear-gradient(0deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%), linear-gradient(90deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%)";
@@ -37,8 +36,8 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "dots", pattern: { image: DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "offset-dots", pattern: { image: OFFSET_DOT_IMAGE, size: "24px 24px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 135 } },
-  { id: "art-deco", pattern: { image: ART_DECO_IMAGE, size: "80px 80px", repeat: "repeat", colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"] } },
-  { id: "circuit-grid", pattern: { image: CIRCUIT_GRID_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#64748b", "#38bdf8"] } },
+  { id: "art-deco", pattern: { image: ART_DECO_IMAGE, size: "160px 111.7px", repeat: "repeat", colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"] } },
+  { id: "circuit-grid", pattern: { image: createCircuitGridImage(20), size: "80px 80px", repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
   { id: "paper", pattern: { image: PAPER_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#cbd5e1", "#e2e8f0"] } },
   { id: "graph-paper-dotted", pattern: { image: GRAPH_PAPER_DOTTED_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "cross", pattern: { image: CROSS_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
@@ -58,15 +57,39 @@ function isSquarePixelSize(size: string | undefined): boolean {
   return size !== undefined && /^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/.test(size) && size.split(" ")[0] === size.split(" ")[1];
 }
 
+const ART_DECO_CELL_RATIO = 148 / 106;
+
+function pixelSizeParts(size: string | undefined): [number, number] | undefined {
+  const match = size?.match(/^(\d+(?:\.\d+)?)px (\d+(?:\.\d+)?)px$/);
+  return match ? [Number(match[1]), Number(match[2])] : undefined;
+}
+
+function artDecoSizeValue(size: string | undefined): number | undefined {
+  const parts = pixelSizeParts(size);
+  if (!parts || parts[0] <= 0 || parts[1] <= 0) return undefined;
+  const value = parts[0] / 2;
+  return formatCssNumber(value) === formatCssNumber(parts[1] / ART_DECO_CELL_RATIO)
+    ? value
+    : undefined;
+}
+
 function exactPattern(left: BackgroundPattern, right: BackgroundPattern): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPreset): boolean {
-  if (pattern.image !== preset.pattern.image || pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity) return false;
-  if (preset.id === "grid" || preset.id === "fine-grid") return pattern.position === undefined;
-  if (preset.id === "dots") return pattern.position === undefined;
-  if (preset.id === "offset-dots") return pattern.position === undefined;
+  if (pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity || pattern.position !== undefined) return false;
+  if (preset.id === "art-deco") return pattern.image === preset.pattern.image && artDecoSizeValue(pattern.size) !== undefined;
+  if (preset.id === "circuit-grid") {
+    const parts = pixelSizeParts(pattern.size);
+    if (!parts || parts[0] !== parts[1] || parts[0] <= 0) return false;
+    const size = parts[0] / 4;
+    return formatCssNumber(size) === String(size) && pattern.image === createCircuitGridImage(size);
+  }
+  if (pattern.image !== preset.pattern.image) return false;
+  if (preset.id === "grid" || preset.id === "fine-grid") return true;
+  if (preset.id === "dots") return true;
+  if (preset.id === "offset-dots") return true;
   return pattern.position === undefined && (preset.id === "diagonal-lines" && pattern.size === "auto" || isSquarePixelSize(pattern.size));
 }
 
@@ -74,7 +97,32 @@ function formatCssNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+export function createCircuitGridImage(size: number): string {
+  const tile = size * 4;
+  const center = size * 2;
+  const firstLine = center - 1;
+  const secondLine = tile - 1;
+  const centerRadius = size * 0.16;
+  const cornerRadius = size * 0.12;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const color = (slot: 1 | 2) => `var(--presentation-pattern-color-${slot})`;
+  return [
+    `repeating-linear-gradient(0deg, transparent, transparent ${css(firstLine)}, ${color(1)} ${css(firstLine)}, ${color(1)} ${css(center)}, transparent ${css(center)}, transparent ${css(secondLine)}, ${color(1)} ${css(secondLine)}, ${color(1)} ${css(tile)})`,
+    `repeating-linear-gradient(90deg, transparent, transparent ${css(firstLine)}, ${color(1)} ${css(firstLine)}, ${color(1)} ${css(center)}, transparent ${css(center)}, transparent ${css(secondLine)}, ${color(1)} ${css(secondLine)}, ${color(1)} ${css(tile)})`,
+    `radial-gradient(circle at ${css(center)} ${css(center)}, ${color(2)} ${css(centerRadius)}, transparent ${css(centerRadius + 0.5)})`,
+    `radial-gradient(circle at 0px 0px, ${color(2)} ${css(cornerRadius)}, transparent ${css(cornerRadius + 0.5)})`,
+    `radial-gradient(circle at ${css(tile)} 0px, ${color(2)} ${css(cornerRadius)}, transparent ${css(cornerRadius + 0.5)})`,
+    `radial-gradient(circle at 0px ${css(tile)}, ${color(2)} ${css(cornerRadius)}, transparent ${css(cornerRadius + 0.5)})`,
+    `radial-gradient(circle at ${css(tile)} ${css(tile)}, ${color(2)} ${css(cornerRadius)}, transparent ${css(cornerRadius + 0.5)})`,
+  ].join(", ");
+}
+
 export function getPatternSizeValue(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId): number {
+  if (presetId === "art-deco") return artDecoSizeValue(pattern.size) ?? 80;
+  if (presetId === "circuit-grid") {
+    const parts = pixelSizeParts(pattern.size);
+    return parts && parts[0] === parts[1] ? parts[0] / 4 : 20;
+  }
   const match = pattern.size?.match(/^(\d+(?:\.\d+)?)px \1px$/);
   if (match) return Number(match[1]);
   return presetId === "fine-grid" ? 16 : presetId === "grid" ? 32 : presetId === "diagonal-lines" ? 18 : 24;
@@ -118,6 +166,20 @@ export function applyPresetPatternColors(
 
 export function updateBackgroundPatternSize(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId, size: number): BackgroundPattern {
   const bounded = Math.min(500, Math.max(1, size));
+  if (presetId === "art-deco") {
+    return {
+      ...pattern,
+      size: `${formatCssNumber(bounded * 2)}px ${formatCssNumber(bounded * ART_DECO_CELL_RATIO)}px`,
+    };
+  }
+  if (presetId === "circuit-grid") {
+    const tile = bounded * 4;
+    return {
+      ...pattern,
+      image: createCircuitGridImage(bounded),
+      size: `${formatCssNumber(tile)}px ${formatCssNumber(tile)}px`,
+    };
+  }
   return {
     ...pattern,
     size: `${formatCssNumber(bounded)}px ${formatCssNumber(bounded)}px`,

@@ -75,7 +75,7 @@ describe("Linked Container Pattern inspector", () => {
     expect(state.style?.background?.pattern).toMatchObject({
       image: linkedPattern.image,
       colors: linkedPattern.colors,
-      size: "96px 96px",
+      size: "192px 134.04px",
     });
     expect(state.style?.background?.pattern?.rotation).toBeUndefined();
     expect(presentation.linkedStyles?.[0]?.style?.background?.pattern).toEqual(linkedPattern);
