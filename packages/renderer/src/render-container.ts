@@ -124,7 +124,11 @@ function renderVisualStyle(element: ContainerElement): string[] {
     return output;
   }
 
-  if (style.color !== undefined) addStyle(output, "color", renderColorValue(style.color));
+  if (style.color !== undefined) {
+    const color = renderColorValue(style.color);
+    addStyle(output, "color", color);
+    output.push(`--presentation-container-color:${color}`);
+  }
 
   if (style.background?.color) {
     addStyle(output, "background", renderColorValue(style.background.color));

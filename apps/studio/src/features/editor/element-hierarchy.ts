@@ -26,6 +26,56 @@ export interface ElementLocation {
   count: number;
 }
 
+/** Returns nearest-first Container ancestors for an authored element. */
+export function findAncestorContainers(
+  elements: readonly PresentationElement[],
+  id: string,
+): ContainerElement[] {
+  const visit = (
+    children: readonly PresentationElement[],
+    ancestors: readonly ContainerElement[],
+  ): ContainerElement[] | null => {
+    for (const element of children) {
+      if (element.id === id) return [...ancestors];
+
+      if (element.type === "container") {
+        const found = visit(element.children, [element, ...ancestors]);
+        if (found) return found;
+      }
+
+      if (isStructuredTable(element)) {
+        for (const column of element.columns) {
+          const found = visit(column.header.children, ancestors);
+          if (found) return found;
+        }
+        for (const row of element.rows) {
+          for (const cell of row.cells) {
+            const found = visit(cell.children, ancestors);
+            if (found) return found;
+          }
+        }
+      }
+
+      if (element.type === "topics") {
+        const visitItems = (items: readonly TopicItem[]): ContainerElement[] | null => {
+          for (const item of items) {
+            const content = visit(item.content.children, ancestors);
+            if (content) return content;
+            const nested = visitItems(item.children);
+            if (nested) return nested;
+          }
+          return null;
+        };
+        const found = visitItems(element.items);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  return visit(elements, []) ?? [];
+}
+
 function isContainer(element: PresentationElement): element is ContainerElement {
   return element.type === "container";
 }

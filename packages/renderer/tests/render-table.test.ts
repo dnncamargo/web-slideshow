@@ -220,9 +220,11 @@ describe("renderTable", () => {
     expect(html).toContain("font-size:1.25rem");
     expect(html).toContain("line-height:1.4");
     expect(html).toContain("color:var(--ps-palette-0061006300630065006e0074)");
+    expect(html).toContain("--presentation-table-color:var(--ps-palette-0061006300630065006e0074)");
 
     const literal = renderTable(createTableElement({ style: { color: "#123456" } }));
     expect(literal).toContain("color:#123456");
+    expect(literal).toContain("--presentation-table-color:#123456");
   });
 
   it("coexists with canonical Simple Table styles", () => {

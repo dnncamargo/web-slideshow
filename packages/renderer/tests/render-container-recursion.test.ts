@@ -62,6 +62,31 @@ describe("recursive container rendering", () => {
     expect(html).toContain("Deep content");
   });
 
+  it("lets the inherited Container color pass through and nested colors replace it", () => {
+    const html = renderElement(createContainerElement({
+      id: "outer",
+      style: { color: "red" },
+      children: [
+        createContainerElement({
+          id: "pass-through",
+          children: [createTextElement({ id: "outer-text" })],
+        }),
+        createContainerElement({
+          id: "override",
+          style: { color: "blue" },
+          children: [createTextElement({ id: "inner-text" })],
+        }),
+      ],
+    }));
+
+    expect(html).toContain("color:red;--presentation-container-color:red");
+    expect(html).toContain("color:blue;--presentation-container-color:blue");
+
+    const passThroughStart = html.indexOf('data-presentation-id="pass-through"');
+    const passThroughTag = html.slice(html.lastIndexOf("<", passThroughStart), html.indexOf(">", passThroughStart));
+    expect(passThroughTag).not.toContain("--presentation-container-color");
+  });
+
   it("renders mixed content across nested containers", () => {
     const element = createContainerElement({
       id: "mixed-root",

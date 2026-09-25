@@ -10,6 +10,7 @@ import {
   stripLocalTextStyleProperties,
   type Presentation,
   type TextElement,
+  type ContainerElement,
 } from "@web-slideshow/document-schema";
 
 import { TextInspector } from "../src/features/editor/inspector/text-inspector";
@@ -51,6 +52,7 @@ describe("Text Inspector typography style attachment", () => {
   let current: TextElement;
   let updates: TextElement[];
   let activePresentation: Presentation;
+  let activeParent: ContainerElement | null = null;
 
   function renderInspector(): void {
     root.render(
@@ -58,6 +60,7 @@ describe("Text Inspector typography style attachment", () => {
         <TextInspector
           element={current}
           presentation={activePresentation}
+          parent={activeParent}
           fontResources={fonts}
           onUpdate={(update) => {
             current = update(current) as TextElement;
@@ -69,9 +72,10 @@ describe("Text Inspector typography style attachment", () => {
     );
   }
 
-  async function mount(element: TextElement, nextPresentation = presentation()): Promise<void> {
+  async function mount(element: TextElement, nextPresentation = presentation(), parent: ContainerElement | null = null): Promise<void> {
     current = element;
     activePresentation = nextPresentation;
+    activeParent = parent;
     updates = [];
     await act(async () => renderInspector());
   }
@@ -99,6 +103,24 @@ describe("Text Inspector typography style attachment", () => {
     expect(labels).toEqual(expect.arrayContaining(["Quote", "Title 2"]));
     expect(labels).not.toEqual(expect.arrayContaining(["Body Default", "Body Custom", "Body Local"]));
     expect(options.find((option) => option.textContent === "Quote")?.value).toBe("quote");
+  });
+
+  it("shows inherited Container color without materializing it as Text color", async () => {
+    const source = presentation();
+    source.linkedStyles = [{ id: "container-style", name: "Container", style: { color: "#ff00ff" } }];
+    await mount(text(), source, {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      linkedStyleId: "container-style",
+      children: [],
+    });
+
+    const input = host.querySelector<HTMLInputElement>("#text-color-value");
+    expect(input?.value).toBe("");
+    expect(input?.placeholder).toBe("Inherited from Container");
+    expect(host.querySelector<HTMLInputElement>("#text-color")?.value).toBe("#ff00ff");
+    expect(current.style?.color).toBeUndefined();
   });
 
   it("displays Presentation-effective values without writing on mount", async () => {

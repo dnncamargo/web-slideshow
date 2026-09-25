@@ -33,14 +33,14 @@ describe("ColorControl linked palette UX", () => {
   function renderControl(value: ColorValue | undefined, onChange = vi.fn(), pickedColors: readonly string[] = [], disabled = false, paletteColors = [
     { id: "accent", name: "Accent", value: "#ffffff" },
     { id: "border", name: "Border", value: "#ffffff" },
-  ], secondaryAction?: { label: string; onClick: () => void; disabled?: boolean }) {
+  ], secondaryAction?: { label: string; onClick: () => void; disabled?: boolean }, options: { effectiveValue?: ColorValue; effectiveSource?: "container" | "theme" } = {}) {
     pickedSpy = vi.fn();
     removePickedSpy = vi.fn();
     act(() => root.render(
       <StudioI18nProvider>
         <PickedColorsProvider colors={pickedColors} onPickColor={pickedSpy} onRemoveColor={removePickedSpy}>
           <PresentationColorPaletteProvider colors={paletteColors}>
-            <ColorControl id="color" name="Color" value={value} onChange={onChange} disabled={disabled} secondaryAction={secondaryAction} />
+            <ColorControl id="color" name="Color" value={value} effectiveValue={options.effectiveValue} effectiveSource={options.effectiveSource} onChange={onChange} disabled={disabled} secondaryAction={secondaryAction} />
           </PresentationColorPaletteProvider>
         </PickedColorsProvider>
       </StudioI18nProvider>,
@@ -260,6 +260,83 @@ describe("ColorControl linked palette UX", () => {
       .find((button) => button.textContent === "Detach");
     expect(detach?.disabled).toBe(true);
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("shows inherited source text while previewing the effective Container color", () => {
+    const onChange = renderControl(undefined, vi.fn(), [], false, undefined, undefined, {
+      effectiveValue: "#ff00ff",
+      effectiveSource: "container",
+    });
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    expect(input?.value).toBe("");
+    expect(input?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("input[type=color]")?.value).toBe("#ff00ff");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("shows Theme default without pretending it is authored", () => {
+    renderControl(undefined, vi.fn(), [], false, undefined, undefined, {
+      effectiveValue: "#f8fafc",
+      effectiveSource: "theme",
+    });
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    expect(input?.value).toBe("");
+    expect(input?.placeholder).toBe("Theme default");
+    expect(container.querySelector<HTMLInputElement>("input[type=color]")?.value).toBe("#f8fafc");
+  });
+
+  it("authors a local color when editing an inherited preview", () => {
+    const onChange = renderControl(undefined, vi.fn(), [], false, undefined, undefined, {
+      effectiveValue: "#ff00ff",
+      effectiveSource: "container",
+    });
+    const input = container.querySelector<HTMLInputElement>("#color-value");
+    act(() => {
+      if (input) {
+        setInputValue(input, "#123456");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(onChange).toHaveBeenCalledWith("#123456", "text");
+  });
+
+  it("authors a palette reference from an inherited preview", () => {
+    const onChange = renderControl(undefined, vi.fn(), [], false, undefined, undefined, {
+      effectiveValue: "#ff00ff",
+      effectiveSource: "container",
+    });
+    act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    const accent = Array.from(container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Accent"));
+    act(() => accent?.click());
+    expect(onChange).toHaveBeenCalledWith({ kind: "palette", colorId: "accent" }, "palette");
+  });
+
+  it("authors a picked literal from an inherited preview", () => {
+    const onChange = renderControl(undefined, vi.fn(), ["#facc15"], false, [], undefined, {
+      effectiveValue: "#ff00ff",
+      effectiveSource: "container",
+    });
+    act(() => container.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
+    const picked = container.querySelector<HTMLButtonElement>("button[aria-label='Apply palette color #facc15']");
+    act(() => picked?.click());
+    expect(onChange).toHaveBeenCalledWith("#facc15", "picked");
+  });
+
+  it("keeps format changes non-authoring while inherited", () => {
+    const onChange = renderControl(undefined, vi.fn(), [], false, undefined, undefined, {
+      effectiveValue: "#ff00ff",
+      effectiveSource: "container",
+    });
+    const format = container.querySelector<HTMLSelectElement>("#color-format");
+    act(() => {
+      if (format) {
+        format.value = "rgba";
+        format.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("");
   });
 });
 

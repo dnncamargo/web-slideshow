@@ -37,6 +37,22 @@ describe("LiteralColorInput", () => {
     expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
   });
 
+  it("supports an empty authored value with a preview swatch and placeholder", () => {
+    act(() => root.render(
+      <LiteralColorInput
+        id="color"
+        name="Color"
+        value={undefined}
+        previewValue="#ff00ff"
+        placeholder="Inherited from Container"
+        onChange={vi.fn()}
+      />,
+    ));
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("");
+    expect(container.querySelector<HTMLInputElement>("#color-value")?.placeholder).toBe("Inherited from Container");
+    expect(container.querySelector<HTMLInputElement>("input[type=color]")?.value).toBe("#ff00ff");
+  });
+
   it("displays HEX and RGBA values", () => {
     render("#2563eb");
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#2563eb");

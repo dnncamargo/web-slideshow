@@ -15,6 +15,7 @@ import { ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import type { TextStylePropertyInfo } from "../text-style-property";
 import { TextStylePropertyMeta } from "./text-style-property-meta";
+import type { InheritedColorSource } from "../color-inheritance";
 
 type CanonicalTextElement = TextElement;
 
@@ -26,6 +27,7 @@ interface CanonicalTextAppearanceSectionProps {
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
   effectiveTextColor?: TextVisualStyle["color"];
+  effectiveTextColorSource?: InheritedColorSource;
   textColorDisabled?: boolean;
   textColorSource?: TextStylePropertyInfo;
   onResetTextColor?: () => void;
@@ -45,6 +47,7 @@ export function CanonicalTextAppearanceSection({
   onUpdateEffect,
   controlPrefix,
   effectiveTextColor,
+  effectiveTextColorSource,
   textColorDisabled = false,
   textColorSource,
   onResetTextColor,
@@ -74,6 +77,7 @@ export function CanonicalTextAppearanceSection({
             name={getControlName(controlPrefix, "Color")}
             value={textColorDisabled ? undefined : style?.color}
             effectiveValue={effectiveTextColor}
+            effectiveSource={effectiveTextColorSource}
             disabled={textColorDisabled}
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))

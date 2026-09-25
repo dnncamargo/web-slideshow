@@ -11,7 +11,7 @@ describe("Plot axis theme fallbacks", () => {
       ".presentation-plot-axis:not([stroke]) {\n  stroke: var(--presentation-text-muted);\n}",
     );
     expect(baseCss).toContain(
-      ".presentation-plot-axis-label:not([fill]) {\n  fill: var(--presentation-text-primary);\n}",
+      ".presentation-plot-axis-label:not([fill]) {\n  fill: var(--presentation-container-color, var(--presentation-text-primary));\n}",
     );
     expect(baseCss).not.toMatch(/\.presentation-plot-axis\s*\{[^}]*\bstroke\s*:/s);
     expect(baseCss).not.toMatch(/\.presentation-plot-axis-label\s*\{[^}]*\bfill\s*:/s);

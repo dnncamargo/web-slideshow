@@ -201,4 +201,24 @@ describe("canonical Text family renderer", () => {
     expect(html).toContain("border-radius:12px");
     expect(html).toContain(">Hello</p>");
   });
+
+  it("keeps a no-color Text child eligible for the Container fallback", () => {
+    const html = renderElement({
+      id: "colored-container",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00aa" },
+      children: [{
+        id: "fallback-text",
+        type: "text",
+        hidden: false,
+        variant: "body",
+        content: "Fallback text",
+      }],
+    });
+
+    expect(html).toContain("--presentation-container-color:#ff00aa");
+    expect(html).toContain('data-presentation-id="fallback-text"');
+    expect(html).not.toContain('data-presentation-id="fallback-text" style="color:');
+  });
 });

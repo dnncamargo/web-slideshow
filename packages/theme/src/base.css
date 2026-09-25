@@ -46,7 +46,7 @@
 .presentation-text {
   margin: 0;
 
-  color: var(--presentation-text-primary);
+  color: var(--presentation-container-color, var(--presentation-text-primary));
 
   font-family: var(--presentation-font-sans);
 }
@@ -66,7 +66,7 @@
 
   font-weight: 500;
 
-  color: var(--presentation-text-secondary);
+  color: var(--presentation-container-color, var(--presentation-text-secondary));
 }
 
 .presentation-text-body {
@@ -78,7 +78,7 @@
   font-size: 0.875rem;
   line-height: 1.45;
 
-  color: var(--presentation-text-muted);
+  color: var(--presentation-container-color, var(--presentation-text-muted));
 }
 
 /* ==========================================================
@@ -103,7 +103,7 @@
 }
 
 .presentation-plot-axis-label:not([fill]) {
-  fill: var(--presentation-text-primary);
+  fill: var(--presentation-container-color, var(--presentation-text-primary));
 }
 
 /* ==========================================================
@@ -333,7 +333,7 @@
   --presentation-table-border-color: var(--presentation-border);
   --presentation-table-frame-radius: var(--presentation-radius-md);
   padding: 0;
-  color: var(--presentation-text-secondary);
+  color: var(--presentation-table-color, var(--presentation-container-color, var(--presentation-text-secondary)));
   font-family: var(--presentation-font-sans);
 }
 
@@ -412,7 +412,7 @@
 .presentation-table th {
   background: rgba(148, 163, 184, 0.08);
 
-  color: var(--presentation-text-primary);
+  color: var(--presentation-table-color, var(--presentation-container-color, var(--presentation-text-primary)));
 
   font-weight: 600;
 }
@@ -444,7 +444,7 @@
 
   list-style-type: var(--presentation-topic-marker-style);
 
-  color: var(--presentation-text-secondary);
+  color: var(--presentation-container-color, var(--presentation-text-secondary));
 
   font-family: var(--presentation-font-sans);
 }
@@ -461,7 +461,7 @@
 
   --presentation-topic-marker-color: currentColor;
 
-  --presentation-topic-color: var(--presentation-text-primary);
+  --presentation-topic-color: var(--presentation-container-color, var(--presentation-text-primary));
 
   --presentation-topic-font-family: var(--presentation-font-sans);
 
