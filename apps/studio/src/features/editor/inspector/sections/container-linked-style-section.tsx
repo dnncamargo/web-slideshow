@@ -1,4 +1,4 @@
-import type { ContainerElement, Presentation } from "@web-slideshow/document-schema";
+import { isLinkedContainerStyle, type ContainerElement, type Presentation } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -34,7 +34,7 @@ export function ContainerLinkedStyleSection({
           }}
         >
           <option value="">{t("inspector.noLinkedContainerStyle")}</option>
-          {(presentation?.linkedStyles ?? []).map((style) => (
+          {(presentation?.linkedStyles ?? []).filter(isLinkedContainerStyle).map((style) => (
             <option key={style.id} value={style.id}>{style.name}</option>
           ))}
         </select>

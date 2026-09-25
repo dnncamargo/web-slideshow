@@ -37,7 +37,7 @@ import { ContainerEffectsSection } from "../inspector/sections/container-effects
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
 import { AuthoringHistoryContext, useAuthoringHistory, type AuthoringHistoryContextValue } from "../authoring-history-context";
 import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleLayoutProperties, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
-import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canUpdateLinkedStyle } from "../linked-style-authoring";
+import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canCreateLinkedStyleFromCode, canCreateLinkedStyleFromTerminal, canCreateLinkedStyleFromSimpleTable, canCreateLinkedStyleFromStructuredTable, canCreateLinkedStyleFromDivider, canUpdateLinkedStyle } from "../linked-style-authoring";
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { findContainerLinkedStyleUsageLocations, findLinkedStyleUsageLocations, findMatchingContainersForLinkedStyle, type LinkedStyleUsageLocation } from "../linked-style-bulk-authoring";
 import type { AuthoringTarget } from "../authoring-target";
@@ -557,7 +557,17 @@ function LinkedStylesWorkspace({
     ? canCreateLinkedStyleFromContainer(selectedElement)
     : selectedElement?.type === "topics"
       ? canCreateLinkedStyleFromTopics(selectedElement)
-      : false;
+      : selectedElement?.type === "code"
+        ? canCreateLinkedStyleFromCode(selectedElement)
+        : selectedElement?.type === "terminal"
+          ? canCreateLinkedStyleFromTerminal(selectedElement)
+          : selectedElement?.type === "table"
+            ? selectedElement.mode === "structured"
+              ? canCreateLinkedStyleFromStructuredTable(selectedElement)
+              : canCreateLinkedStyleFromSimpleTable(selectedElement)
+            : selectedElement?.type === "divider"
+              ? canCreateLinkedStyleFromDivider(selectedElement)
+              : false;
   const runDefinitionDiscrete = (callback: () => void): void => {
     if (authoringHistory) authoringHistory.discrete(definitionMeta, callback);
     else callback();

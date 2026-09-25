@@ -57,6 +57,10 @@ interface ElementInspectorProps {
 
   onDetachLinkedTopicsStyle?: () => void;
 
+  onAttachLinkedTargetStyle?: (linkedStyleId: string) => void;
+
+  onDetachLinkedTargetStyle?: () => void;
+
   preserveImageProportion: boolean;
 
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -125,6 +129,8 @@ function ElementTypeInspector({
   onDetachLinkedStyle = () => {},
   onAttachLinkedTopicsStyle,
   onDetachLinkedTopicsStyle,
+  onAttachLinkedTargetStyle = () => {},
+  onDetachLinkedTargetStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -181,14 +187,14 @@ function ElementTypeInspector({
 
     case "code":
       return (
-        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} />
+        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />
       );
 
     case "plot":
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "terminal":
-      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
+      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
 
     case "image":
       return (
@@ -225,11 +231,13 @@ function ElementTypeInspector({
           presentation={presentation}
           selectedTableStructuralNode={selectedTableStructuralNode}
           onSelectTableStructuralNode={onSelectTableStructuralNode}
+          onAttachLinkedStyle={onAttachLinkedTargetStyle}
+          onDetachLinkedStyle={onDetachLinkedTargetStyle}
         />
       );
 
     case "divider":
-      return <DividerInspector element={element} onUpdate={onUpdate} />;
+      return <DividerInspector element={element} onUpdate={onUpdate} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
 
     case "embed":
       return <EmbedInspector element={element} onUpdate={onUpdate} />;

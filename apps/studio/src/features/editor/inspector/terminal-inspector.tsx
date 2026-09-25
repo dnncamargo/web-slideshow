@@ -1,6 +1,7 @@
 import type {
   ElementEffect,
   FontResource,
+  Presentation,
   PresentationElement,
   TerminalTitleTypography,
   TerminalTypography,
@@ -25,6 +26,7 @@ import {
 } from "../rich-text-authoring";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 
 type TerminalElement = Extract<PresentationElement, { type: "terminal" }>;
 
@@ -38,7 +40,10 @@ export function TerminalInspector({
   element,
   onUpdate,
   fontResources = [],
-}: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[] }) {
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
+}: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[]; presentation?: Presentation; onAttachLinkedStyle?: (id: string) => void; onDetachLinkedStyle?: () => void }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const runDiscrete = (callback: () => void): void => {
@@ -195,6 +200,8 @@ export function TerminalInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <div className={styles.field}>

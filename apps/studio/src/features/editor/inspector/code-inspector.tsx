@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { CodeTypography, ElementEffect, FontResource, PresentationElement } from "@web-slideshow/document-schema";
+import type { CodeTypography, ElementEffect, FontResource, Presentation, PresentationElement } from "@web-slideshow/document-schema";
 import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -17,6 +17,7 @@ import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 
 type CodeElement = Extract<PresentationElement, { type: "code" }>;
 
@@ -49,7 +50,10 @@ export function CodeInspector({
   element,
   onUpdate,
   fontResources = [],
-}: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[] }) {
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
+}: TypedInspectorProps<CodeElement> & { fontResources?: readonly FontResource[]; presentation?: Presentation; onAttachLinkedStyle?: (id: string) => void; onDetachLinkedStyle?: () => void }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const languageHistoryKey = `text:code-${element.id}-language`;
@@ -136,6 +140,8 @@ export function CodeInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <div className={styles.field}>

@@ -1,6 +1,7 @@
 import type {
   DividerElement,
 } from "@web-slideshow/document-schema";
+import type { Presentation } from "@web-slideshow/document-schema";
 
 import type {
   AuthoringLengthUnit,
@@ -22,6 +23,7 @@ import { ElementGradientControl } from "./sections/element-gradient-control";
 
 import { EffectiveLengthInput } from "./sections/effective-length-input";
 import { useAuthoringHistory } from "../authoring-history-context";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 
 type DividerOrientation = DividerElement["orientation"];
 
@@ -86,7 +88,10 @@ const DIVIDER_GEOMETRY_DEFAULTS: Readonly<
 export function DividerInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<DividerElement>) {
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
+}: TypedInspectorProps<DividerElement> & { presentation?: Presentation; onAttachLinkedStyle?: (id: string) => void; onDetachLinkedStyle?: () => void }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const runDiscrete = (callback: () => void): void => {
@@ -121,6 +126,8 @@ export function DividerInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection title={t("inspector.layout")} defaultOpen>
         <label className={styles.field}>

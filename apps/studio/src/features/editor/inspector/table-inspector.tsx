@@ -38,6 +38,7 @@ import {
   type TableStructuralSelection,
 } from "../table-tree-helpers";
 import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -70,6 +71,10 @@ interface TableInspectorProps {
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 
   presentation?: Pick<Presentation, "linkedStyles">;
+
+  onAttachLinkedStyle?: (id: string) => void;
+
+  onDetachLinkedStyle?: () => void;
 
   parent?: ContainerElement | null;
 
@@ -441,11 +446,13 @@ export function TableInspector({
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
   presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
   parent = null,
   ancestorContainers,
 }: TableInspectorProps) {
   if (element.mode !== "structured") {
-    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} parent={parent} ancestorContainers={ancestorContainers} />;
+    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedStyle} onDetachLinkedStyle={onDetachLinkedStyle} parent={parent} ancestorContainers={ancestorContainers} />;
   }
 
   return (
@@ -455,6 +462,9 @@ export function TableInspector({
       tableAuthoringControls={tableAuthoringControls}
       selectedTableStructuralNode={selectedTableStructuralNode}
       onSelectTableStructuralNode={onSelectTableStructuralNode}
+      presentation={presentation}
+      onAttachLinkedStyle={onAttachLinkedStyle}
+      onDetachLinkedStyle={onDetachLinkedStyle}
     />
   );
 }
@@ -466,6 +476,8 @@ function SimpleTableInspector({
   presentation,
   parent,
   ancestorContainers,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
 }: {
   element: SimpleTableElement;
 
@@ -475,6 +487,8 @@ function SimpleTableInspector({
   presentation?: Pick<Presentation, "linkedStyles">;
   parent?: ContainerElement | null;
   ancestorContainers?: readonly ContainerElement[];
+  onAttachLinkedStyle?: (id: string) => void;
+  onDetachLinkedStyle?: () => void;
 }) {
   const { t } = useStudioI18n();
   const inheritedContainerColor = resolveNearestContainerColor(
@@ -835,6 +849,8 @@ function SimpleTableInspector({
     <>
       <div className={styles.inspectorDivider} />
 
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
+
       <InspectorSection
         title={t("table.columns")}
         count={element.columns.length}
@@ -1062,6 +1078,12 @@ interface StructuredTableInspectorProps {
   selectedTableStructuralNode?: TableStructuralSelection;
 
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
+
+  presentation?: Pick<Presentation, "linkedStyles">;
+
+  onAttachLinkedStyle?: (id: string) => void;
+
+  onDetachLinkedStyle?: () => void;
 }
 
 function StructuredTableInspector({
@@ -1070,6 +1092,9 @@ function StructuredTableInspector({
   tableAuthoringControls,
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
 }: StructuredTableInspectorProps) {
   const { t } = useStudioI18n();
   const [pendingRemoval, setPendingRemoval] = useState<TableStructuralSelection>(null);
@@ -1100,6 +1125,8 @@ function StructuredTableInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection
         title={t("table.columns")}
