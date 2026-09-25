@@ -337,19 +337,19 @@ function renderLinkSurface(link: ElementLink): string {
   return `<a ${attributes.join(" ")}></a>`;
 }
 
-function renderPatternLayer(pattern: BackgroundPattern): string {
+function renderPatternLayer(pattern: BackgroundPattern, backgroundColor: Parameters<typeof renderBackgroundPattern>[1]): string {
   const baseStyles =
     "position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;";
 
   if (pattern.rotation === undefined || pattern.rotation === 0) {
     return `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
-      baseStyles + renderBackgroundPattern(pattern),
+      baseStyles + renderBackgroundPattern(pattern, backgroundColor),
     )}"></div>`;
   }
 
   const paintStyles =
     "position:absolute;inset:-100vmax;pointer-events:none;" +
-    renderBackgroundPattern(pattern);
+    renderBackgroundPattern(pattern, backgroundColor);
 
   return (
     `<div class="presentation-container-background-pattern" aria-hidden="true" style="${escapeHtml(
@@ -434,7 +434,9 @@ export function renderContainer(
 
   const tag = getTagName(element.role);
   const pattern = renderedElement.style?.background?.pattern;
-  const patternLayer = pattern ? renderPatternLayer(pattern) : "";
+  const patternLayer = pattern
+    ? renderPatternLayer(pattern, renderedElement.style?.background?.color)
+    : "";
   const children = element.children
     .map((child, index) => {
       const rendered = renderChild(child);

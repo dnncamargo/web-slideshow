@@ -54,6 +54,37 @@ describe("Container background patterns", () => {
     );
   });
 
+  it("renders the effective Container Background variable only when requested", () => {
+    const image = "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))";
+    expect(renderBackgroundPattern({ image, colors: ["#111"] }, "#e5e5f7")).toBe(
+      "--presentation-pattern-color-1:#111;" +
+        "--presentation-pattern-background-color:#e5e5f7;" +
+        `background-image:${image}`,
+    );
+    expect(renderBackgroundPattern({ image, colors: ["#111"] }, { kind: "palette", colorId: "accent" })).toContain(
+      "--presentation-pattern-background-color:var(--ps-palette-0061006300630065006e0074)",
+    );
+    expect(renderBackgroundPattern({ image })).toContain("--presentation-pattern-background-color:transparent");
+    expect(renderBackgroundPattern({ image: PATTERN_IMAGE })).not.toContain("presentation-pattern-background-color");
+  });
+
+  it("passes the effective background to the rotated Pattern paint", () => {
+    const html = renderElement(createContainerElement({
+      style: {
+        background: {
+          color: "#123456",
+          pattern: {
+            image: "linear-gradient(var(--presentation-pattern-background-color), transparent)",
+            rotation: 20,
+          },
+        },
+      },
+    }));
+
+    expect(html).toContain("--presentation-pattern-background-color:#123456");
+    expect(html).toContain("presentation-container-background-pattern-paint");
+  });
+
   it("keeps zero rotation output identical to absent rotation", () => {
     const withoutRotation = renderElement(createContainerElement({
       style: { background: { pattern: { image: PATTERN_IMAGE } } },
@@ -241,8 +272,9 @@ describe("Container background patterns", () => {
             name: "Pattern style",
             style: {
               background: {
+                color: "#123456",
                 pattern: {
-                  image: "linear-gradient(var(--presentation-pattern-color-1), transparent)",
+                  image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))",
                   colors: ["#111"],
                   rotation: -30,
                 },
@@ -255,6 +287,7 @@ describe("Container background patterns", () => {
     );
 
     expect(html).toContain("--presentation-pattern-color-1:#111");
+    expect(html).toContain("--presentation-pattern-background-color:#123456");
     expect(html).toContain("transform:rotate(-30deg)");
   });
 

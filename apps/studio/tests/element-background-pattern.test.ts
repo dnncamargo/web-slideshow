@@ -51,7 +51,7 @@ describe("Container background pattern authoring primitives", () => {
     expect(preset?.pattern.image).toMatch(/gradient\(/);
     expect(BackgroundPatternSchema.safeParse(preset.pattern).success).toBe(true);
     expect(findBackgroundPatternPreset(preset.pattern)).toBe(preset.id);
-    expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : ["circuit-grid", "paper", "dashed-paper", "cross", "crossed-axes"].includes(preset.id) ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
+    expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : ["circuit-grid", "paper", "crossed-axes"].includes(preset.id) ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
     if (!["circuit-grid", "paper", "graph-paper-dotted", "dashed-paper", "cross", "crossed-axes", "triple-axis-overlay"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     expect(preset.pattern.repeat).toBe("repeat");
     if (!["paper", "graph-paper-dotted", "dashed-paper", "cross", "crossed-axes", "triple-axis-overlay", "chevron"].includes(preset.id)) {
@@ -167,7 +167,9 @@ describe("Container background pattern authoring primitives", () => {
 
   it("uses the supplied parametric Dashed Paper and Cross formulas", () => {
     const dashed = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "dashed-paper")!.pattern;
-    expect(dashed.colors).toEqual(["#444cf7", "#e5e5f7"]);
+    expect(dashed.colors).toEqual(["#444cf7"]);
+    expect(dashed.image).toContain("--presentation-pattern-background-color");
+    expect(dashed.image).not.toContain("--presentation-pattern-color-2");
     expect(dashed.size).toBe("100% 100%, 100% 100%, 40px 40px, 40px 40px");
     expect(dashed.position).toBe("0 0, 0 0, 0 -0.4px, -0.4px 0");
     expect(dashed.image).toBe(createDashedPaperPattern(20).image);
@@ -184,7 +186,9 @@ describe("Container background pattern authoring primitives", () => {
     expect(findBackgroundPatternPreset({ ...dashed30, rotation: 20 })).toBe("dashed-paper");
 
     const cross = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "cross")!.pattern;
-    expect(cross.colors).toEqual(["#444cf7", "#e5e5f7"]);
+    expect(cross.colors).toEqual(["#444cf7"]);
+    expect(cross.image).toContain("--presentation-pattern-background-color");
+    expect(cross.image).not.toContain("--presentation-pattern-color-2");
     expect(cross.size).toBe("100px 100px, 100px 100px, 50px 50px, 50px 50px");
     expect(cross.position).toBe("0 0, 50px 50px, 0 -2px, -2px 0");
     expect(cross.image).toBe(createCrossPattern(20).image);

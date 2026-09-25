@@ -119,7 +119,7 @@ const BackgroundPatternImageSchema =
       if (
         variableFunctions.some(
           (variable) =>
-            !/^var\s*\(\s*--presentation-pattern-color-[1-4]\s*\)$/.test(
+            !/^var\s*\(\s*(?:--presentation-pattern-color-[1-4]|--presentation-pattern-background-color)\s*\)$/.test(
               variable,
             ),
         )

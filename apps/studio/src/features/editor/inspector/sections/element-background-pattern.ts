@@ -44,8 +44,8 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "circuit-grid", pattern: { image: createCircuitGridImage(20), size: "80px 80px", repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
   { id: "paper", pattern: { ...PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
   { id: "graph-paper-dotted", pattern: { ...GRAPH_PAPER_DOTTED_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
-  { id: "dashed-paper", pattern: { ...DASHED_PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7", "#e5e5f7"] } },
-  { id: "cross", pattern: { ...CROSS_PATTERN, repeat: "repeat", colors: ["#444cf7", "#e5e5f7"] } },
+  { id: "dashed-paper", pattern: { ...DASHED_PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
+  { id: "cross", pattern: { ...CROSS_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
   { id: "crossed-axes", pattern: { ...CROSSED_AXES_PATTERN, repeat: "repeat", colors: ["#444cf7", "#22d1ee"] } },
   { id: "triple-axis-overlay", pattern: { ...TRIPLE_AXIS_OVERLAY_PATTERN, repeat: "repeat", colors: ["#444cf7", "#22d1ee", "#df53ff"] } },
   { id: "chevron", pattern: { ...CHEVRON_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
@@ -193,7 +193,7 @@ export function createDashedPaperPattern(size: number): GeneratedPatternGeometry
   const offset = size * 0.02;
   const css = (value: number) => `${formatCssNumber(value)}px`;
   const line = "var(--presentation-pattern-color-1)";
-  const mask = "var(--presentation-pattern-color-2)";
+  const mask = "var(--presentation-pattern-background-color)";
   const dash = (direction: "to right" | "to bottom") => `repeating-linear-gradient(${direction}, transparent 0, transparent ${css(dashStart)}, ${mask} ${css(dashStart)}, ${mask} ${css(maskEnd)}, transparent ${css(maskEnd)}, transparent ${css(period)})`;
   return {
     image: [dash("to right"), dash("to bottom"), `linear-gradient(to bottom, ${line} ${css(lineWidth)}, transparent ${css(lineWidth)})`, `linear-gradient(to right, ${line} ${css(lineWidth)}, transparent ${css(lineWidth)})`].join(", "),
@@ -210,7 +210,7 @@ export function createCrossPattern(size: number): GeneratedPatternGeometry {
   const offset = size * 0.1;
   const css = (value: number) => `${formatCssNumber(value)}px`;
   const strokeColor = "var(--presentation-pattern-color-1)";
-  const maskColor = "var(--presentation-pattern-color-2)";
+  const maskColor = "var(--presentation-pattern-background-color)";
   const radial = `radial-gradient(circle, transparent 20%, ${maskColor} 20%, ${maskColor} 80%, transparent 80%, transparent)`;
   return {
     image: [radial, radial, `linear-gradient(${strokeColor} ${css(stroke)}, transparent ${css(stroke)})`, `linear-gradient(90deg, ${strokeColor} ${css(stroke)}, ${maskColor} ${css(stroke)})`].join(", "),

@@ -78,6 +78,16 @@ describe("BackgroundPatternSchema", () => {
     }).success).toBe(true);
   });
 
+  it("accepts the controlled Container Background pattern variable", () => {
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(var(--presentation-pattern-background-color), transparent)",
+    }).success).toBe(true);
+    expect(BackgroundPatternSchema.safeParse({
+      image: "linear-gradient(var(--presentation-pattern-color-1), var(--presentation-pattern-background-color))",
+      colors: ["#111"],
+    }).success).toBe(true);
+  });
+
   it.each([
     {
       name: "more than four colors",
@@ -121,6 +131,14 @@ describe("BackgroundPatternSchema", () => {
     {
       name: "arbitrary custom property",
       pattern: { image: "linear-gradient(var(--background-pattern), transparent)" },
+    },
+    {
+      name: "misspelled controlled background property",
+      pattern: { image: "linear-gradient(var(--presentation-pattern-background), transparent)" },
+    },
+    {
+      name: "controlled background fallback",
+      pattern: { image: "linear-gradient(var(--presentation-pattern-background-color, red), transparent)" },
     },
     {
       name: "slot greater than four",
