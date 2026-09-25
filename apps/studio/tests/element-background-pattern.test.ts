@@ -5,8 +5,13 @@ import {
   BACKGROUND_PATTERN_PRESETS,
   applyPresetPatternColors,
   createCircuitGridImage,
+  createCrossPattern,
+  createCrossedAxesImage,
+  createDashedPaperPattern,
+  createChevronPattern,
   createGraphPaperDottedPattern,
   createPaperPattern,
+  createTripleAxisOverlayImage,
   findBackgroundPatternPreset,
   getPatternSizeValue,
   materializeBackgroundPatternPreset,
@@ -17,7 +22,7 @@ import {
 } from "../src/features/editor/inspector/sections/element-background-pattern";
 
 describe("Container background pattern authoring primitives", () => {
-  it("defines all twelve deterministic presets without a persisted identity", () => {
+  it("defines all fourteen deterministic presets without a persisted identity", () => {
     expect(BACKGROUND_PATTERN_PRESETS.map((preset) => preset.id)).toEqual([
       "grid",
       "fine-grid",
@@ -28,7 +33,9 @@ describe("Container background pattern authoring primitives", () => {
       "circuit-grid",
       "paper",
       "graph-paper-dotted",
+      "dashed-paper",
       "cross",
+      "crossed-axes",
       "triple-axis-overlay",
       "chevron",
     ]);
@@ -44,10 +51,10 @@ describe("Container background pattern authoring primitives", () => {
     expect(preset?.pattern.image).toMatch(/gradient\(/);
     expect(BackgroundPatternSchema.safeParse(preset.pattern).success).toBe(true);
     expect(findBackgroundPatternPreset(preset.pattern)).toBe(preset.id);
-    expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : preset.id === "circuit-grid" || preset.id === "paper" ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
-    if (!["circuit-grid", "paper", "graph-paper-dotted"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : ["circuit-grid", "paper", "dashed-paper", "cross", "crossed-axes"].includes(preset.id) ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
+    if (!["circuit-grid", "paper", "graph-paper-dotted", "dashed-paper", "cross", "crossed-axes", "triple-axis-overlay"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     expect(preset.pattern.repeat).toBe("repeat");
-    if (!["paper", "graph-paper-dotted"].includes(preset.id)) {
+    if (!["paper", "graph-paper-dotted", "dashed-paper", "cross", "crossed-axes", "triple-axis-overlay", "chevron"].includes(preset.id)) {
       expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
     }
   });
@@ -156,6 +163,79 @@ describe("Container background pattern authoring primitives", () => {
     expect(size30.image).toBe(createGraphPaperDottedPattern(30).image);
     expect(size30.image).toContain("2.4px");
     expect(findBackgroundPatternPreset({ ...size30, rotation: 20 })).toBe("graph-paper-dotted");
+  });
+
+  it("uses the supplied parametric Dashed Paper and Cross formulas", () => {
+    const dashed = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "dashed-paper")!.pattern;
+    expect(dashed.colors).toEqual(["#444cf7", "#e5e5f7"]);
+    expect(dashed.size).toBe("100% 100%, 100% 100%, 40px 40px, 40px 40px");
+    expect(dashed.position).toBe("0 0, 0 0, 0 -0.4px, -0.4px 0");
+    expect(dashed.image).toBe(createDashedPaperPattern(20).image);
+    expect(dashed.image).toContain("3.33px");
+    expect(dashed.image).toContain("10px");
+    expect(dashed.image).toContain("13.33px");
+    expect(dashed.image).toContain("1.2px");
+    const dashed30 = updateBackgroundPatternSize(dashed, "dashed-paper", 30);
+    expect(dashed30).toMatchObject({ size: "100% 100%, 100% 100%, 60px 60px, 60px 60px", position: "0 0, 0 0, 0 -0.6px, -0.6px 0", colors: dashed.colors });
+    expect(dashed30.image).toContain("5px");
+    expect(dashed30.image).toContain("15px");
+    expect(dashed30.image).toContain("20px");
+    expect(dashed30.image).toContain("1.8px");
+    expect(findBackgroundPatternPreset({ ...dashed30, rotation: 20 })).toBe("dashed-paper");
+
+    const cross = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "cross")!.pattern;
+    expect(cross.colors).toEqual(["#444cf7", "#e5e5f7"]);
+    expect(cross.size).toBe("100px 100px, 100px 100px, 50px 50px, 50px 50px");
+    expect(cross.position).toBe("0 0, 50px 50px, 0 -2px, -2px 0");
+    expect(cross.image).toBe(createCrossPattern(20).image);
+    expect(cross.image).toContain("20%");
+    expect(cross.image).toContain("80%");
+    expect(cross.image).toContain("4px");
+    const cross30 = updateBackgroundPatternSize(cross, "cross", 30);
+    expect(cross30).toMatchObject({ size: "150px 150px, 150px 150px, 75px 75px, 75px 75px", position: "0 0, 75px 75px, 0 -3px, -3px 0", colors: cross.colors });
+    expect(cross30.image).toContain("6px");
+    expect(findBackgroundPatternPreset({ ...cross30, rotation: 20 })).toBe("cross");
+  });
+
+  it("uses the supplied Crossed Axes, Triple-Axis, and Chevron geometry", () => {
+    const crossed = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "crossed-axes")!.pattern;
+    expect(crossed.colors).toEqual(["#444cf7", "#22d1ee"]);
+    expect(crossed.size).toBeUndefined();
+    expect(crossed.image).toBe(createCrossedAxesImage(20));
+    expect(crossed.image).toContain("10px");
+    expect(crossed.image).toContain("30px");
+    const crossed30 = updateBackgroundPatternSize(crossed, "crossed-axes", 30);
+    expect(crossed30.image).toBe(createCrossedAxesImage(30));
+    expect(crossed30.image).toContain("15px");
+    expect(crossed30.image).toContain("45px");
+    expect(findBackgroundPatternPreset({ ...crossed30, colors: ["#1", "#2"], rotation: 20 })).toBe("crossed-axes");
+
+    const triple = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "triple-axis-overlay")!.pattern;
+    expect(triple.colors).toEqual(["#444cf7", "#22d1ee", "#df53ff"]);
+    expect(triple.size).toBeUndefined();
+    expect(triple.image).toBe(createTripleAxisOverlayImage(20));
+    expect(triple.image).toContain("45deg");
+    expect(triple.image).toContain("-45deg");
+    expect(triple.image).toContain("90deg");
+    expect(triple.image).toContain("70px");
+    expect(triple.image).toContain("80px");
+    const triple30 = updateBackgroundPatternSize(triple, "triple-axis-overlay", 30);
+    expect(triple30.image).toBe(createTripleAxisOverlayImage(30));
+    expect(triple30.image).toContain("105px");
+    expect(triple30.image).toContain("120px");
+    expect(findBackgroundPatternPreset({ ...triple30, colors: ["#1", "#2", "#3"], rotation: 20 })).toBe("triple-axis-overlay");
+
+    const chevron = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "chevron")!.pattern;
+    expect(chevron.colors).toEqual(["#444cf7"]);
+    expect(chevron.image).toBe(createChevronPattern(20).image);
+    expect(chevron.size).toBe("40px 40px, 40px 40px, 40px 40px, 40px 40px");
+    expect(chevron.position).toBe("-20px 0, -20px 0, 0 0, 0 0");
+    expect(chevron.image.match(/linear-gradient\((?:135|225|315|45)deg/g)).toHaveLength(4);
+    const chevron30 = updateBackgroundPatternSize(chevron, "chevron", 30);
+    expect(chevron30.image).toBe(chevron.image);
+    expect(chevron30.size).toBe("60px 60px, 60px 60px, 60px 60px, 60px 60px");
+    expect(chevron30.position).toBe("-30px 0, -30px 0, 0 0, 0 0");
+    expect(findBackgroundPatternPreset({ ...chevron30, colors: ["#123456"], rotation: 20 })).toBe("chevron");
   });
 
   it("parses MagicPattern Grid CSS", () => {
@@ -420,14 +500,30 @@ describe("Container background pattern authoring primitives", () => {
     } else if (preset.id === "graph-paper-dotted") {
       expect(updated.image).toBe(createGraphPaperDottedPattern(40).image);
       expect(updated.position).toBe(createGraphPaperDottedPattern(40).position);
+    } else if (preset.id === "dashed-paper") {
+      expect(updated.image).toBe(createDashedPaperPattern(40).image);
+      expect(updated.position).toBe(createDashedPaperPattern(40).position);
+    } else if (preset.id === "cross") {
+      expect(updated.image).toBe(createCrossPattern(40).image);
+      expect(updated.position).toBe(createCrossPattern(40).position);
+    } else if (preset.id === "crossed-axes") {
+      expect(updated.image).toBe(createCrossedAxesImage(40));
+      expect(updated.position).toBeUndefined();
+    } else if (preset.id === "triple-axis-overlay") {
+      expect(updated.image).toBe(createTripleAxisOverlayImage(40));
+      expect(updated.position).toBeUndefined();
     } else {
       expect(updated.image).toBe(preset.pattern.image);
     }
     expect(updated.colors).toEqual(preset.pattern.colors);
     expect(updated.rotation).toBe(preset.pattern.rotation);
     expect(updated.repeat).toBe(preset.pattern.repeat);
-    expect(updated.size).not.toBe(preset.pattern.size);
-    if (!["circuit-grid", "paper", "graph-paper-dotted"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    if (["crossed-axes", "triple-axis-overlay"].includes(preset.id)) {
+      expect(updated.size).toBeUndefined();
+    } else {
+      expect(updated.size).not.toBe(preset.pattern.size);
+    }
+    if (!["circuit-grid", "paper", "graph-paper-dotted", "dashed-paper", "cross", "crossed-axes", "triple-axis-overlay"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     if (preset.id === "dots" || preset.id === "offset-dots") {
       expect(preset.pattern.image).toContain("circle closest-side");
     }

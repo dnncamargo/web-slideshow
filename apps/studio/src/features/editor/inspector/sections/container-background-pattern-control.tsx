@@ -195,7 +195,9 @@ export function ContainerBackgroundPatternControl({
           <option value="circuit-grid">{t("inspector.pattern.circuitGrid")}</option>
           <option value="paper">{t("inspector.pattern.paper")}</option>
           <option value="graph-paper-dotted">{t("inspector.pattern.graphPaperDotted")}</option>
+          <option value="dashed-paper">{t("inspector.pattern.dashedPaper")}</option>
           <option value="cross">{t("inspector.pattern.cross")}</option>
+          <option value="crossed-axes">{t("inspector.pattern.crossedAxes")}</option>
           <option value="triple-axis-overlay">{t("inspector.pattern.tripleAxisOverlay")}</option>
           <option value="chevron">{t("inspector.pattern.chevron")}</option>
           <option value="custom">{t("inspector.pattern.custom")}</option>

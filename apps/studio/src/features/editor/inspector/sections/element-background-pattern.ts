@@ -11,7 +11,9 @@ export type BackgroundPatternPresetId =
   | "circuit-grid"
   | "paper"
   | "graph-paper-dotted"
+  | "dashed-paper"
   | "cross"
+  | "crossed-axes"
   | "triple-axis-overlay"
   | "chevron";
 export interface BackgroundPatternPreset { id: BackgroundPatternPresetId; pattern: BackgroundPattern }
@@ -26,9 +28,11 @@ const DIAGONAL_IMAGE = "linear-gradient(90deg, var(--presentation-pattern-color-
 const ART_DECO_IMAGE = "linear-gradient(45deg, transparent 0% 35%, var(--presentation-pattern-color-1) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-1) 62% 65%, transparent 65% 100%), linear-gradient(135deg, transparent 0% 35%, var(--presentation-pattern-color-2) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-2) 62% 65%, transparent 65% 100%), linear-gradient(45deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-3) 53% 56%, transparent 56% 100%), linear-gradient(135deg, transparent 0% 47%, var(--presentation-pattern-color-4) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-4) 53% 56%, transparent 56% 100%)";
 const PAPER_PATTERN = createPaperPattern(20);
 const GRAPH_PAPER_DOTTED_PATTERN = createGraphPaperDottedPattern(20);
-const CROSS_IMAGE = "linear-gradient(0deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%), linear-gradient(90deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%)";
-const TRIPLE_AXIS_OVERLAY_IMAGE = "linear-gradient(0deg, transparent 0% 47%, var(--presentation-pattern-color-1) 47% 53%, transparent 53% 100%), linear-gradient(60deg, transparent 0% 47%, var(--presentation-pattern-color-2) 47% 53%, transparent 53% 100%), linear-gradient(120deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 53%, transparent 53% 100%)";
-const CHEVRON_IMAGE = "linear-gradient(45deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%), linear-gradient(135deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%)";
+const DASHED_PAPER_PATTERN = createDashedPaperPattern(20);
+const CROSS_PATTERN = createCrossPattern(20);
+const CROSSED_AXES_PATTERN = { image: createCrossedAxesImage(20) };
+const TRIPLE_AXIS_OVERLAY_PATTERN = { image: createTripleAxisOverlayImage(20) };
+const CHEVRON_PATTERN = createChevronPattern(20);
 
 export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "grid", pattern: { image: GRID_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#cbd5e1"] } },
@@ -40,9 +44,11 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "circuit-grid", pattern: { image: createCircuitGridImage(20), size: "80px 80px", repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
   { id: "paper", pattern: { ...PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
   { id: "graph-paper-dotted", pattern: { ...GRAPH_PAPER_DOTTED_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
-  { id: "cross", pattern: { image: CROSS_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
-  { id: "triple-axis-overlay", pattern: { image: TRIPLE_AXIS_OVERLAY_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#f97316", "#22c55e", "#3b82f6"] } },
-  { id: "chevron", pattern: { image: CHEVRON_IMAGE, size: "40px 40px", repeat: "repeat", colors: ["#cbd5e1"] } },
+  { id: "dashed-paper", pattern: { ...DASHED_PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7", "#e5e5f7"] } },
+  { id: "cross", pattern: { ...CROSS_PATTERN, repeat: "repeat", colors: ["#444cf7", "#e5e5f7"] } },
+  { id: "crossed-axes", pattern: { ...CROSSED_AXES_PATTERN, repeat: "repeat", colors: ["#444cf7", "#22d1ee"] } },
+  { id: "triple-axis-overlay", pattern: { ...TRIPLE_AXIS_OVERLAY_PATTERN, repeat: "repeat", colors: ["#444cf7", "#22d1ee", "#df53ff"] } },
+  { id: "chevron", pattern: { ...CHEVRON_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
 ];
 
 const LEGACY_BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
@@ -58,6 +64,11 @@ function isSquarePixelSize(size: string | undefined): boolean {
 }
 
 const ART_DECO_CELL_RATIO = 148 / 106;
+type GeneratedGeometryPresetId = "paper" | "graph-paper-dotted" | "dashed-paper" | "cross";
+
+function isGeneratedGeometryPresetId(id: BackgroundPatternPresetId): id is GeneratedGeometryPresetId {
+  return id === "paper" || id === "graph-paper-dotted" || id === "dashed-paper" || id === "cross";
+}
 
 function pixelSizeParts(size: string | undefined): [number, number] | undefined {
   const match = size?.match(/^(\d+(?:\.\d+)?)px (\d+(?:\.\d+)?)px$/);
@@ -79,9 +90,24 @@ function exactPattern(left: BackgroundPattern, right: BackgroundPattern): boolea
 
 function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPreset): boolean {
   if (pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity) return false;
-  if (preset.id === "paper" || preset.id === "graph-paper-dotted") {
+  if (isGeneratedGeometryPresetId(preset.id)) {
     const size = generatedPatternSizeValue(pattern, preset.id);
-    return size !== undefined && pattern.image === (preset.id === "paper" ? createPaperPattern(size) : createGraphPaperDottedPattern(size)).image;
+    const expected = preset.id === "paper"
+      ? createPaperPattern(size ?? 0)
+      : preset.id === "graph-paper-dotted"
+        ? createGraphPaperDottedPattern(size ?? 0)
+        : preset.id === "dashed-paper"
+          ? createDashedPaperPattern(size ?? 0)
+          : createCrossPattern(size ?? 0);
+    return size !== undefined && pattern.image === expected.image;
+  }
+  if (preset.id === "crossed-axes") return pattern.position === undefined && pattern.size === undefined && imageSizeValue(pattern.image, createCrossedAxesImage, 0.5) !== undefined;
+  if (preset.id === "triple-axis-overlay") return pattern.position === undefined && pattern.size === undefined && imageSizeValue(pattern.image, createTripleAxisOverlayImage, 3.5) !== undefined;
+  if (preset.id === "chevron") {
+    const parts = pattern.size?.split(", ");
+    const first = parts?.[0]?.match(/^(\d+(?:\.\d+)?)px \1px$/);
+    const size = first ? Number(first[1]) / 2 : undefined;
+    return size !== undefined && pattern.image === createChevronPattern(size).image && pattern.size === createChevronPattern(size).size && pattern.position === createChevronPattern(size).position;
   }
   if (pattern.position !== undefined) return false;
   if (preset.id === "art-deco") return pattern.image === preset.pattern.image && artDecoSizeValue(pattern.size) !== undefined;
@@ -158,14 +184,84 @@ export function createGraphPaperDottedPattern(size: number): GeneratedPatternGeo
   };
 }
 
-function generatedPatternSizeValue(pattern: BackgroundPattern, presetId: "paper" | "graph-paper-dotted"): number | undefined {
+export function createDashedPaperPattern(size: number): GeneratedPatternGeometry {
+  const dashStart = size / 6;
+  const maskEnd = size / 2;
+  const period = size * 2 / 3;
+  const lineWidth = size * 0.06;
+  const cell = size * 2;
+  const offset = size * 0.02;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const line = "var(--presentation-pattern-color-1)";
+  const mask = "var(--presentation-pattern-color-2)";
+  const dash = (direction: "to right" | "to bottom") => `repeating-linear-gradient(${direction}, transparent 0, transparent ${css(dashStart)}, ${mask} ${css(dashStart)}, ${mask} ${css(maskEnd)}, transparent ${css(maskEnd)}, transparent ${css(period)})`;
+  return {
+    image: [dash("to right"), dash("to bottom"), `linear-gradient(to bottom, ${line} ${css(lineWidth)}, transparent ${css(lineWidth)})`, `linear-gradient(to right, ${line} ${css(lineWidth)}, transparent ${css(lineWidth)})`].join(", "),
+    size: `100% 100%, 100% 100%, ${css(cell)} ${css(cell)}, ${css(cell)} ${css(cell)}`,
+    position: `0 0, 0 0, 0 ${css(-offset)}, ${css(-offset)} 0`,
+  };
+}
+
+export function createCrossPattern(size: number): GeneratedPatternGeometry {
+  const largeCell = size * 5;
+  const smallCell = size * 2.5;
+  const stroke = size * 0.2;
+  const halfCell = size * 2.5;
+  const offset = size * 0.1;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const strokeColor = "var(--presentation-pattern-color-1)";
+  const maskColor = "var(--presentation-pattern-color-2)";
+  const radial = `radial-gradient(circle, transparent 20%, ${maskColor} 20%, ${maskColor} 80%, transparent 80%, transparent)`;
+  return {
+    image: [radial, radial, `linear-gradient(${strokeColor} ${css(stroke)}, transparent ${css(stroke)})`, `linear-gradient(90deg, ${strokeColor} ${css(stroke)}, ${maskColor} ${css(stroke)})`].join(", "),
+    size: `${css(largeCell)} ${css(largeCell)}, ${css(largeCell)} ${css(largeCell)}, ${css(smallCell)} ${css(smallCell)}, ${css(smallCell)} ${css(smallCell)}`,
+    position: `0 0, ${css(halfCell)} ${css(halfCell)}, 0 ${css(-offset)}, ${css(-offset)} 0`,
+  };
+}
+
+export function createCrossedAxesImage(size: number): string {
+  const stripe = size * 0.5;
+  const period = size * 1.5;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  return `repeating-linear-gradient(45deg, var(--presentation-pattern-color-1) 0, var(--presentation-pattern-color-1) ${css(stripe)}, transparent ${css(stripe)}, transparent ${css(period)}), repeating-linear-gradient(-45deg, var(--presentation-pattern-color-2) 0, var(--presentation-pattern-color-2) ${css(stripe)}, transparent ${css(stripe)}, transparent ${css(period)})`;
+}
+
+export function createTripleAxisOverlayImage(size: number): string {
+  const extent = size * 3.5;
+  const period = size * 4;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const layer = (angle: "45deg" | "-45deg" | "90deg", slot: 1 | 2 | 3) => `repeating-linear-gradient(${angle}, transparent 0, transparent ${css(extent)}, var(--presentation-pattern-color-${slot}) ${css(extent)}, var(--presentation-pattern-color-${slot}) ${css(period)})`;
+  return [layer("45deg", 1), layer("-45deg", 2), layer("90deg", 3)].join(", ");
+}
+
+export function createChevronPattern(size: number): GeneratedPatternGeometry {
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const color = "var(--presentation-pattern-color-1)";
+  return {
+    image: [`linear-gradient(135deg, ${color} 25%, transparent 25%)`, `linear-gradient(225deg, ${color} 25%, transparent 25%)`, `linear-gradient(315deg, ${color} 25%, transparent 25%)`, `linear-gradient(45deg, ${color} 25%, transparent 25%)`].join(", "),
+    size: `${css(size * 2)} ${css(size * 2)}, ${css(size * 2)} ${css(size * 2)}, ${css(size * 2)} ${css(size * 2)}, ${css(size * 2)} ${css(size * 2)}`,
+    position: `${css(-size)} 0, ${css(-size)} 0, 0 0, 0 0`,
+  };
+}
+
+function imageSizeValue(image: string | undefined, generator: (size: number) => string, ratio: number): number | undefined {
+  if (image === undefined) return undefined;
+  const match = image.match(/(\d+(?:\.\d+)?)px/);
+  if (!match) return undefined;
+  const size = Number(match[1]) / ratio;
+  return generator(size) === image ? size : undefined;
+}
+
+function generatedPatternSizeValue(pattern: BackgroundPattern, presetId: GeneratedGeometryPresetId): number | undefined {
   const sizes = pattern.size?.split(", ");
   const positions = pattern.position?.split(", ");
-  if (!sizes || !positions || sizes.length !== (presetId === "paper" ? 4 : 2) || positions.length !== sizes.length) return undefined;
-  const match = sizes[0]?.match(/^(\d+(?:\.\d+)?)px (\d+(?:\.\d+)?)px$/);
-  if (!match || Number(match[1]) <= 0 || (presetId === "paper" && Number(match[1]) !== Number(match[2]))) return undefined;
-  const value = Number(match[1]) / (presetId === "paper" ? 5 : 0.5);
-  const expected = presetId === "paper" ? createPaperPattern(value) : createGraphPaperDottedPattern(value);
+  const layerCount = presetId === "paper" || presetId === "dashed-paper" || presetId === "cross" ? 4 : 2;
+  if (!sizes || !positions || sizes.length !== layerCount || positions.length !== sizes.length) return undefined;
+  const source = presetId === "dashed-paper" ? sizes[2] : sizes[0];
+  const match = source?.match(/^(\d+(?:\.\d+)?)px (\d+(?:\.\d+)?)px$/);
+  if (!match || Number(match[1]) <= 0) return undefined;
+  const value = Number(match[1]) / (presetId === "paper" ? 5 : presetId === "cross" ? 5 : presetId === "dashed-paper" ? 2 : 0.5);
+  const expected = presetId === "paper" ? createPaperPattern(value) : presetId === "graph-paper-dotted" ? createGraphPaperDottedPattern(value) : presetId === "dashed-paper" ? createDashedPaperPattern(value) : createCrossPattern(value);
   return expected.size === pattern.size && expected.position === pattern.position ? value : undefined;
 }
 
@@ -175,7 +271,13 @@ export function getPatternSizeValue(pattern: BackgroundPattern, presetId: Backgr
     const parts = pixelSizeParts(pattern.size);
     return parts && parts[0] === parts[1] ? parts[0] / 4 : 20;
   }
-  if (presetId === "paper" || presetId === "graph-paper-dotted") return generatedPatternSizeValue(pattern, presetId) ?? 20;
+  if (isGeneratedGeometryPresetId(presetId)) return generatedPatternSizeValue(pattern, presetId) ?? 20;
+  if (presetId === "crossed-axes") return imageSizeValue(pattern.image, createCrossedAxesImage, 0.5) ?? 20;
+  if (presetId === "triple-axis-overlay") return imageSizeValue(pattern.image, createTripleAxisOverlayImage, 3.5) ?? 20;
+  if (presetId === "chevron") {
+    const width = pattern.size?.split(", ")[0]?.match(/^(\d+(?:\.\d+)?)px \1px$/);
+    return width ? Number(width[1]) / 2 : 20;
+  }
   const match = pattern.size?.match(/^(\d+(?:\.\d+)?)px \1px$/);
   if (match) return Number(match[1]);
   return presetId === "fine-grid" ? 16 : presetId === "grid" ? 32 : presetId === "diagonal-lines" ? 18 : 24;
@@ -233,10 +335,13 @@ export function updateBackgroundPatternSize(pattern: BackgroundPattern, presetId
       size: `${formatCssNumber(tile)}px ${formatCssNumber(tile)}px`,
     };
   }
-  if (presetId === "paper" || presetId === "graph-paper-dotted") {
-    const geometry = presetId === "paper" ? createPaperPattern(bounded) : createGraphPaperDottedPattern(bounded);
+  if (["paper", "graph-paper-dotted", "dashed-paper", "cross"].includes(presetId)) {
+    const geometry = presetId === "paper" ? createPaperPattern(bounded) : presetId === "graph-paper-dotted" ? createGraphPaperDottedPattern(bounded) : presetId === "dashed-paper" ? createDashedPaperPattern(bounded) : createCrossPattern(bounded);
     return { ...pattern, ...geometry };
   }
+  if (presetId === "crossed-axes") return { ...pattern, image: createCrossedAxesImage(bounded), size: undefined, position: undefined };
+  if (presetId === "triple-axis-overlay") return { ...pattern, image: createTripleAxisOverlayImage(bounded), size: undefined, position: undefined };
+  if (presetId === "chevron") return { ...pattern, ...createChevronPattern(bounded) };
   return {
     ...pattern,
     size: `${formatCssNumber(bounded)}px ${formatCssNumber(bounded)}px`,
