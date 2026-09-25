@@ -18,11 +18,26 @@ import type {
 } from "./inspector-types";
 import { ColorControl } from "./sections/color-control";
 import { parseOptionalNumber } from "./inspector-helpers";
+import { ElementGradientControl } from "./sections/element-gradient-control";
 
 import { EffectiveLengthInput } from "./sections/effective-length-input";
 import { useAuthoringHistory } from "../authoring-history-context";
 
 type DividerOrientation = DividerElement["orientation"];
+
+type DividerBackgroundKey = "color" | "gradient";
+
+function updateDividerBackground(
+  style: DividerElement["style"] | undefined,
+  key: DividerBackgroundKey,
+  value: NonNullable<NonNullable<DividerElement["style"]>["background"]>[DividerBackgroundKey] | undefined,
+): DividerElement["style"] {
+  const background = { ...style?.background, [key]: value };
+  if (background.color === undefined && background.gradient === undefined) {
+    return { ...style, background: undefined };
+  }
+  return { ...style, background };
+}
 
 interface DividerGeometryDefault {
   value: number;
@@ -229,14 +244,19 @@ export function DividerInspector({
               id="divider-background"
               name="dividerBackground"
               value={element.style?.background?.color}
-              onChange={(color) => updateStyle((current) => ({
-                ...current,
-                background: { color },
-              }))}
-              secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStyle((current) => ({ ...current, background: undefined })) }}
+              onChange={(color) => updateStyle((current) => updateDividerBackground(current, "color", color))}
+              secondaryAction={{
+                label: t("inspector.remove"),
+                onClick: () => updateStyle((current) => updateDividerBackground(current, "color", undefined)),
+              }}
             />
           </label>
         </div>
+        <ElementGradientControl
+          gradient={element.style?.background?.gradient}
+          controlPrefix="divider-background"
+          onChange={(gradient) => updateStyle((current) => updateDividerBackground(current, "gradient", gradient))}
+        />
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
             <label

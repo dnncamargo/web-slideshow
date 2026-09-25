@@ -131,6 +131,14 @@ describe("DividerInspector", () => {
     return input;
   }
 
+  function gradientTypeSelect(): HTMLSelectElement {
+    const select = container.querySelector<HTMLSelectElement>(
+      "#divider-background-gradient-type",
+    );
+    if (!select) throw new Error("divider-background-gradient-type select not found");
+    return select;
+  }
+
   function setNumberInputValue(input: HTMLInputElement, value: string) {
     const setter = Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
@@ -148,6 +156,12 @@ describe("DividerInspector", () => {
   function setOrientation(orientation: "horizontal" | "vertical") {
     const select = orientationSelect();
     select.value = orientation;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function setGradientType(type: "none" | "linear" | "radial") {
+    const select = gradientTypeSelect();
+    select.value = type;
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
@@ -295,6 +309,91 @@ describe("DividerInspector", () => {
     expect(updates[0]?.orientation).toBe("horizontal");
   });
 
+  it("exposes an unstyled Divider gradient control with None selected", async () => {
+    await act(async () => mount(dividerElement()));
+
+    expect(gradientTypeSelect().value).toBe("none");
+  });
+
+  it("creates the canonical default linear gradient", async () => {
+    await act(async () => mount(dividerElement()));
+
+    await act(async () => setGradientType("linear"));
+
+    expect(updates[0]?.style?.background?.gradient).toEqual({
+      type: "linear",
+      angle: 135,
+      stops: [
+        { color: "#7c3aed", position: 0 },
+        { color: "#06b6d4", position: 100 },
+      ],
+    });
+  });
+
+  it("preserves color, radius, and className when creating a gradient", async () => {
+    await act(async () => mount(dividerElement({
+      style: {
+        background: { color: "#123456" },
+        borderRadius: 8,
+        className: "preserve-me",
+      },
+    })));
+
+    await act(async () => setGradientType("linear"));
+
+    expect(updates[0]?.style).toMatchObject({
+      background: {
+        color: "#123456",
+        gradient: {
+          type: "linear",
+          angle: 135,
+        },
+      },
+      borderRadius: 8,
+      className: "preserve-me",
+    });
+  });
+
+  it("preserves a gradient when editing Color", async () => {
+    const gradient = {
+      type: "linear" as const,
+      angle: 45,
+      stops: [
+        { color: "#111111", position: 0 },
+        { color: "#eeeeee", position: 100 },
+      ],
+    };
+    await act(async () => mount(dividerElement({ style: { background: { color: "#123456", gradient } } })));
+
+    const backgroundInput = container.querySelector<HTMLInputElement>("#divider-background-value");
+    if (!backgroundInput) throw new Error("divider-background-value input not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("Unable to set input value");
+      setter.call(backgroundInput, "#22d3ee");
+      backgroundInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(updates[0]?.style?.background).toEqual({ color: "#22d3ee", gradient });
+  });
+
+  it("preserves a gradient when removing Color", async () => {
+    const gradient = {
+      type: "linear" as const,
+      angle: 45,
+      stops: [
+        { color: "#111111", position: 0 },
+        { color: "#eeeeee", position: 100 },
+      ],
+    };
+    await act(async () => mount(dividerElement({ style: { background: { color: "#123456", gradient } } })));
+
+    const clear = container.querySelector<HTMLInputElement>("#divider-background")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+    await act(async () => clear?.click());
+
+    expect(updates[0]?.style?.background).toEqual({ gradient });
+  });
+
   it("displays authored background and clears only the canonical background", async () => {
     await act(async () => {
       mount(dividerElement({
@@ -315,6 +414,49 @@ describe("DividerInspector", () => {
     expect(updates[0]?.style?.background).toBeUndefined();
     expect(updates[0]?.style?.borderRadius).toBe(8);
     expect(updates[0]?.style?.className).toBe("preserve-me");
+  });
+
+  it("preserves Color when removing Gradient", async () => {
+    await act(async () => mount(dividerElement({
+      style: {
+        background: {
+          color: "#123456",
+          gradient: {
+            type: "linear",
+            angle: 45,
+            stops: [
+              { color: "#111111", position: 0 },
+              { color: "#eeeeee", position: 100 },
+            ],
+          },
+        },
+      },
+    })));
+
+    await act(async () => setGradientType("none"));
+
+    expect(updates[0]?.style?.background).toEqual({ color: "#123456" });
+  });
+
+  it("collapses the background when removing the only Gradient", async () => {
+    await act(async () => mount(dividerElement({
+      style: {
+        background: {
+          gradient: {
+            type: "linear",
+            angle: 45,
+            stops: [
+              { color: "#111111", position: 0 },
+              { color: "#eeeeee", position: 100 },
+            ],
+          },
+        },
+      },
+    })));
+
+    await act(async () => setGradientType("none"));
+
+    expect(updates[0]?.style?.background).toBeUndefined();
   });
 
   it("uses the effective radius baseline without persisting it", async () => {

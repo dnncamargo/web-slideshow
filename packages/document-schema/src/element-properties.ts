@@ -471,7 +471,7 @@ export const DividerLayoutSchema = z.object({
 }).strict().superRefine(requireAbsoluteEdges);
 
 export const DividerVisualStyleSchema = z.object({
-  background: z.object({ color: ColorValueSchema.optional() }).strict().optional(),
+  background: GradientSurfaceBackgroundSchema.optional(),
   borderRadius: LengthSchema.optional(),
   className: z.string().optional(),
 }).strict();

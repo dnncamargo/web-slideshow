@@ -76,6 +76,65 @@ describe("Divider element schema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a canonical linear background gradient", () => {
+    const result = PresentationElementSchema.safeParse(
+      divider({
+        style: {
+          background: {
+            gradient: {
+              type: "linear",
+              angle: 135,
+              stops: [
+                { color: "#7c3aed", position: 0 },
+                { color: "#06b6d4", position: 100 },
+              ],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts canonical background color and gradient together", () => {
+    const result = PresentationElementSchema.safeParse(
+      divider({
+        style: {
+          background: {
+            color: "#0f172a",
+            gradient: {
+              type: "linear",
+              stops: [
+                { color: "#7c3aed", position: 0 },
+                { color: "#06b6d4", position: 100 },
+              ],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects malformed canonical gradients", () => {
+    const result = PresentationElementSchema.safeParse(
+      divider({
+        style: {
+          background: {
+            gradient: {
+              type: "linear",
+              stops: [{ color: "#7c3aed", position: 0 }],
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.success).toBe(false);
+  });
+
   it.each([
     { style: { width: 10 } },
     { style: { opacity: 0.5 } },
