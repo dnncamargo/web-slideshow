@@ -54,7 +54,7 @@ describe("Container background pattern authoring primitives", () => {
 
     expect(image).not.toContain("radial-gradient(");
     expect(image).not.toContain("ellipse");
-    expect(image).toContain("linear-gradient(90deg");
+    expect(image).not.toContain("linear-gradient(90deg");
     expect(image).toContain("linear-gradient(45deg");
     expect(image).toContain("linear-gradient(135deg");
     expect(image).not.toContain("transparent 50% 53% 100%");
