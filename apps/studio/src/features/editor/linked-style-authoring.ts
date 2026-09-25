@@ -1,14 +1,28 @@
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
+  resolveLinkedCodeStyle,
+  resolveLinkedDividerStyle,
+  resolveLinkedTableStyle,
+  resolveLinkedTerminalStyle,
   type ContainerElement,
   type ContainerLayout,
+  type CodeElement,
+  type DividerElement,
   type ElementEffect,
   type ElementTypography,
   type ElementVisualStyle,
+  type LinkedCodeStyle,
   type LinkedContainerStyle,
+  type LinkedDividerStyle,
+  type LinkedTableStyle,
+  type LinkedTerminalStyle,
   type LinkedTopicsStyle,
   type Presentation,
+  type SimpleTableElement,
+  type StructuredTableElement,
+  type TableElement,
+  type TerminalElement,
   type TopicsElement,
   isLinkedContainerStyle,
 } from "@web-slideshow/document-schema";
@@ -568,6 +582,190 @@ export function detachLinkedContainerStyleFromElement(
     ...(resolved.effect === undefined ? {} : { effect: resolved.effect }),
   };
 }
+
+// Target-specific authoring primitives. These deliberately operate on one element so
+// Editor History can own traversal and undo/redo without duplicating slide lookup here.
+type TargetElement = CodeElement | TerminalElement | SimpleTableElement | StructuredTableElement | DividerElement;
+type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedTableStyle | LinkedDividerStyle;
+
+function copyBag<T extends object>(value: T | undefined): PropertyBag | undefined {
+  return value === undefined ? undefined : { ...(value as PropertyBag) };
+}
+
+function removeOwnedBag(value: PropertyBag | undefined, owned: PropertyBag | undefined): PropertyBag | undefined {
+  if (value === undefined) return undefined;
+  const next: PropertyBag = { ...value };
+  for (const key of Object.keys(owned ?? {})) {
+    if (key !== "className" && key !== "background") delete next[key];
+  }
+  if (owned?.background !== undefined && next.background !== undefined) {
+    const background = { ...(next.background as PropertyBag) };
+    const linkedBackground = owned.background as PropertyBag;
+    for (const key of ["color", "gradient"] as const) {
+      if (linkedBackground[key] !== undefined) delete background[key];
+    }
+    if (Object.keys(background).length === 0) delete next.background;
+    else next.background = background;
+  }
+  return Object.keys(next).length === 0 ? undefined : next;
+}
+
+function removeTargetOwnedProperties<T extends TargetElement>(element: T, linked: TargetLinkedStyle): T {
+  const layout = removeOwnedBag(copyBag(element.layout), copyBag(linked.layout));
+  const style = removeOwnedBag(copyBag(element.style), copyBag(linked.style));
+  const typography = "typography" in element
+    ? removeOwnedBag(copyBag(element.typography), "typography" in linked ? copyBag(linked.typography) : undefined)
+    : undefined;
+  const titleTypography = element.type === "terminal"
+    ? removeOwnedBag(copyBag(element.titleTypography), linked.target === "terminal" ? copyBag(linked.titleTypography) : undefined)
+    : undefined;
+  const effect = removeOwnedBag(copyBag(element.effect), copyBag(linked.effect));
+  const hasLocalEdge = [layout?.top, layout?.right, layout?.bottom, layout?.left].some((value) => value !== undefined);
+  const finalLayout = hasLocalEdge && layout?.position === undefined && linked.layout?.position !== undefined
+    ? { ...layout, position: "absolute" as const }
+    : layout;
+  const { layout: _layout, style: _style, effect: _effect, ...structural } = element;
+  const local = structural as PropertyBag;
+  delete local.typography;
+  delete local.titleTypography;
+  return {
+    ...local,
+    ...(finalLayout === undefined ? {} : { layout: finalLayout }),
+    ...(style === undefined ? {} : { style }),
+    ...(typography === undefined ? {} : { typography }),
+    ...(titleTypography === undefined ? {} : { titleTypography }),
+    ...(effect === undefined ? {} : { effect }),
+    linkedStyleId: linked.id,
+  } as T;
+}
+
+function linkedForTarget(presentation: Presentation, element: TargetElement, linkedStyleId: string): TargetLinkedStyle | null {
+  const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
+  if (linked === undefined || !("target" in linked)) return null;
+  if (element.type === "code" && linked.target === "code") return linked;
+  if (element.type === "terminal" && linked.target === "terminal") return linked;
+  if (element.type === "divider" && linked.target === "divider") return linked;
+  if (element.type === "table" && linked.target === "table" && linked.mode === element.mode) return linked;
+  return null;
+}
+
+export function attachLinkedCodeStyleToElement(presentation: Presentation, element: CodeElement, linkedStyleId: string): CodeElement | null {
+  const linked = linkedForTarget(presentation, element, linkedStyleId);
+  return linked?.target === "code" ? removeTargetOwnedProperties(element, linked) : null;
+}
+
+export function attachLinkedTerminalStyleToElement(presentation: Presentation, element: TerminalElement, linkedStyleId: string): TerminalElement | null {
+  const linked = linkedForTarget(presentation, element, linkedStyleId);
+  return linked?.target === "terminal" ? removeTargetOwnedProperties(element, linked) : null;
+}
+
+export function attachLinkedTableStyleToElement(presentation: Presentation, element: TableElement, linkedStyleId: string): TableElement | null {
+  const linked = linkedForTarget(presentation, element, linkedStyleId);
+  return linked?.target === "table" ? removeTargetOwnedProperties(element, linked) : null;
+}
+
+export function attachLinkedDividerStyleToElement(presentation: Presentation, element: DividerElement, linkedStyleId: string): DividerElement | null {
+  const linked = linkedForTarget(presentation, element, linkedStyleId);
+  return linked?.target === "divider" ? removeTargetOwnedProperties(element, linked) : null;
+}
+
+function targetStyle(element: TargetElement): PropertyBag | undefined {
+  if (element.style === undefined) return undefined;
+  const { className: _className, ...shareable } = element.style as ElementVisualStyle;
+  return authoredObject(shareable) as PropertyBag | undefined;
+}
+
+function targetHasShareableProperties(element: TargetElement): boolean {
+  return [authoredObject(element.layout), targetStyle(element),
+    "typography" in element ? authoredObject(element.typography) : undefined,
+    element.type === "terminal" ? authoredObject(element.titleTypography) : undefined,
+    authoredObject(element.effect)].some((value) => value !== undefined);
+}
+
+export function canCreateLinkedStyleFromCode(code: CodeElement): boolean {
+  return code.linkedStyleId === undefined && targetHasShareableProperties(code);
+}
+
+export function canCreateLinkedStyleFromTerminal(terminal: TerminalElement): boolean {
+  return terminal.linkedStyleId === undefined && targetHasShareableProperties(terminal);
+}
+
+export function canCreateLinkedStyleFromSimpleTable(table: SimpleTableElement): boolean {
+  return table.linkedStyleId === undefined && targetHasShareableProperties(table);
+}
+
+export function canCreateLinkedStyleFromStructuredTable(table: StructuredTableElement): boolean {
+  return table.linkedStyleId === undefined && targetHasShareableProperties(table);
+}
+
+export function canCreateLinkedStyleFromDivider(divider: DividerElement): boolean {
+  return divider.linkedStyleId === undefined && targetHasShareableProperties(divider);
+}
+
+export interface CreatedLinkedCodeStyleFromElement { presentation: Presentation; element: CodeElement; }
+export interface CreatedLinkedTerminalStyleFromElement { presentation: Presentation; element: TerminalElement; }
+export interface CreatedLinkedSimpleTableStyleFromElement { presentation: Presentation; element: SimpleTableElement; }
+export interface CreatedLinkedStructuredTableStyleFromElement { presentation: Presentation; element: StructuredTableElement; }
+export interface CreatedLinkedDividerStyleFromElement { presentation: Presentation; element: DividerElement; }
+
+function appendTargetStyle(presentation: Presentation, style: TargetLinkedStyle): Presentation {
+  return PresentationSchema.parse({ ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), style] });
+}
+
+export function createLinkedStyleFromCodeElement(presentation: Presentation, element: CodeElement, name: string): CreatedLinkedCodeStyleFromElement | null {
+  const trimmedName = name.trim();
+  if (!trimmedName || !canCreateLinkedStyleFromCode(element)) return null;
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const { layout, style, typography, effect, ...local } = element;
+  const linked: LinkedCodeStyle = { target: "code", id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedCodeStyle["style"] } : {}), ...(authoredObject(typography) ? { typography: authoredObject(typography) } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) };
+  return { presentation: appendTargetStyle(presentation, linked), element: { ...local, linkedStyleId: id, ...(element.style?.className === undefined ? {} : { style: { className: element.style.className } }) } };
+}
+
+export function createLinkedStyleFromTerminalElement(presentation: Presentation, element: TerminalElement, name: string): CreatedLinkedTerminalStyleFromElement | null {
+  const trimmedName = name.trim();
+  if (!trimmedName || !canCreateLinkedStyleFromTerminal(element)) return null;
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const { layout, style, typography, titleTypography, effect, ...local } = element;
+  const linked: LinkedTerminalStyle = { target: "terminal", id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedTerminalStyle["style"] } : {}), ...(authoredObject(typography) ? { typography: authoredObject(typography) } : {}), ...(authoredObject(titleTypography) ? { titleTypography: authoredObject(titleTypography) } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) };
+  return { presentation: appendTargetStyle(presentation, linked), element: { ...local, linkedStyleId: id, ...(element.style?.className === undefined ? {} : { style: { className: element.style.className } }) } };
+}
+
+function createTableStyle<T extends SimpleTableElement | StructuredTableElement>(presentation: Presentation, element: T, name: string): { presentation: Presentation; element: T } | null {
+  const trimmedName = name.trim();
+  if (!trimmedName || element.linkedStyleId !== undefined || !targetHasShareableProperties(element)) return null;
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const { layout, style, effect, ...local } = element;
+  const metadata = element.mode === "simple" ? { mode: "simple" as const } : { mode: "structured" as const };
+  const linked: LinkedTableStyle = { target: "table", ...metadata, id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedTableStyle["style"] } : {}), ...(element.mode === "simple" && "typography" in element && authoredObject(element.typography) ? { typography: authoredObject(element.typography) } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) } as LinkedTableStyle;
+  return { presentation: appendTargetStyle(presentation, linked), element: { ...local, linkedStyleId: id, ...(element.style?.className === undefined ? {} : { style: { className: element.style.className } }) } as T };
+}
+
+export function createLinkedStyleFromSimpleTableElement(presentation: Presentation, element: SimpleTableElement, name: string): CreatedLinkedSimpleTableStyleFromElement | null { return createTableStyle(presentation, element, name); }
+export function createLinkedStyleFromStructuredTableElement(presentation: Presentation, element: StructuredTableElement, name: string): CreatedLinkedStructuredTableStyleFromElement | null { return createTableStyle(presentation, element, name); }
+
+export function createLinkedStyleFromDividerElement(presentation: Presentation, element: DividerElement, name: string): CreatedLinkedDividerStyleFromElement | null {
+  const trimmedName = name.trim();
+  if (!trimmedName || !canCreateLinkedStyleFromDivider(element)) return null;
+  const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const { layout, style, effect, ...local } = element;
+  const linked: LinkedDividerStyle = { target: "divider", id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedDividerStyle["style"] } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) };
+  return { presentation: appendTargetStyle(presentation, linked), element: { ...local, linkedStyleId: id, ...(element.style?.className === undefined ? {} : { style: { className: element.style.className } }) } };
+}
+
+function materializeTarget<T extends TargetElement>(presentation: Presentation, element: T): T | null {
+  if (element.linkedStyleId === undefined) return null;
+  const resolved = element.type === "code" ? resolveLinkedCodeStyle(presentation, element)
+    : element.type === "terminal" ? resolveLinkedTerminalStyle(presentation, element)
+      : element.type === "table" ? resolveLinkedTableStyle(presentation, element)
+        : resolveLinkedDividerStyle(presentation, element);
+  const { linkedStyleId: _linkedStyleId, ...local } = element;
+  return { ...local, ...(resolved.layout === undefined ? {} : { layout: resolved.layout }), ...(resolved.style === undefined ? {} : { style: resolved.style }), ...(resolved.effect === undefined ? {} : { effect: resolved.effect }), ...("typography" in resolved && resolved.typography !== undefined ? { typography: resolved.typography } : {}), ...("titleTypography" in resolved && resolved.titleTypography !== undefined ? { titleTypography: resolved.titleTypography } : {}) } as T;
+}
+
+export function detachLinkedCodeStyleFromElement(presentation: Presentation, element: CodeElement): CodeElement | null { return materializeTarget(presentation, element) as CodeElement | null; }
+export function detachLinkedTerminalStyleFromElement(presentation: Presentation, element: TerminalElement): TerminalElement | null { return materializeTarget(presentation, element) as TerminalElement | null; }
+export function detachLinkedTableStyleFromElement(presentation: Presentation, element: TableElement): TableElement | null { return materializeTarget(presentation, element) as TableElement | null; }
+export function detachLinkedDividerStyleFromElement(presentation: Presentation, element: DividerElement): DividerElement | null { return materializeTarget(presentation, element) as DividerElement | null; }
 
 export type LinkedStylePatch = Pick<LinkedContainerStyle, "layout" | "style" | "typography" | "effect">;
 
