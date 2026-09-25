@@ -15,6 +15,39 @@ describe("Linked Style correction contracts", () => {
     expect(document.slides[0]!.elements[0]).toMatchObject({ id: "root", linkedStyleId: "card" });
   });
 
+  it("counts every supported Linked Style element reference", () => {
+    const document = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [
+        { target: "code", id: "code", name: "Code", style: { color: "#fff" } },
+        { target: "terminal", id: "terminal", name: "Terminal", style: { commandColor: "#fff" } },
+        { target: "table", mode: "simple", id: "simple", name: "Simple", typography: { fontSize: 14 } },
+        { target: "table", mode: "structured", id: "structured", name: "Structured", style: { headerBackground: "#fff" } },
+        { target: "divider", id: "divider", name: "Divider", style: { background: { color: "#fff" } } },
+      ],
+      slides: [{ id: "s", title: "S", elements: [
+        { id: "code", type: "code", code: "x", linkedStyleId: "code" },
+        { id: "terminal", type: "terminal", lines: [], linkedStyleId: "terminal" },
+        { id: "simple", type: "table", columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], linkedStyleId: "simple" },
+        {
+          id: "structured", type: "table", mode: "structured", linkedStyleId: "structured",
+          columns: [{ id: "column", header: { id: "header", children: [] } }],
+          rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+        },
+        { id: "divider", type: "divider", linkedStyleId: "divider" },
+      ] }],
+    });
+    expect(Object.fromEntries(collectLinkedStyleReferenceCounts(document.slides[0]!.elements))).toEqual({
+      code: 1,
+      terminal: 1,
+      simple: 1,
+      structured: 1,
+      divider: 1,
+    });
+  });
+
   it("trims names, preserves IDs, allows duplicates, and rejects blank names", () => {
     const document = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "a", name: "A", layout: { children: { gap: 1 } } }, { id: "b", name: "B", layout: { children: { gap: 2 } } }] });
     const renamed = renameLinkedStyle(document, "a", "  Same  ");

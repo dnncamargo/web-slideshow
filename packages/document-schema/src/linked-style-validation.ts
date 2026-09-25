@@ -24,6 +24,33 @@ function validateTopic(
   );
 }
 
+type LinkedStyleTarget = "container" | "topics" | "code" | "terminal" | "table" | "divider";
+
+function validateLinkedStyleReference(
+  presentation: Presentation,
+  linkedStyleId: string,
+  target: LinkedStyleTarget,
+  mode: "simple" | "structured" | undefined,
+  path: (string | number)[],
+  addIssue: (path: (string | number)[], message: string) => void,
+): void {
+  const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
+  const compatible = target === "container"
+    ? linked !== undefined && !("target" in linked)
+    : linked !== undefined && "target" in linked && linked.target === target &&
+      (target !== "table" || ("mode" in linked && linked.mode === mode));
+
+  if (linked === undefined) {
+    addIssue([...path, "linkedStyleId"], `Linked ${target} style reference does not resolve.`);
+  } else if (!compatible) {
+    const modeSuffix = mode === undefined ? "" : ` with mode ${mode}`;
+    addIssue(
+      [...path, "linkedStyleId"],
+      `Linked ${target}${modeSuffix} style reference is incompatible with the element.`,
+    );
+  }
+}
+
 function validateElement(
   presentation: Presentation,
   element: PresentationElement,
@@ -32,23 +59,23 @@ function validateElement(
 ): void {
   if (element.type === "container") {
     if (element.linkedStyleId !== undefined) {
-      const linked = presentation.linkedStyles?.find((style) => style.id === element.linkedStyleId);
-      if (linked === undefined) {
-        addIssue(
-          [...path, "linkedStyleId"],
-          "Linked container style reference does not resolve.",
-        );
-      } else if ("target" in linked) {
-        addIssue(
-          [...path, "linkedStyleId"],
-          "Container linked style reference must target Container.",
-        );
-      }
+      validateLinkedStyleReference(presentation, element.linkedStyleId, "container", undefined, path, addIssue);
     }
     element.children.forEach((child, index) =>
       validateElement(presentation, child, [...path, "children", index], addIssue),
     );
-  } else if (element.type === "table" && element.mode === "structured") {
+  } else if (element.type === "table") {
+    if (element.linkedStyleId !== undefined) {
+      validateLinkedStyleReference(
+        presentation,
+        element.linkedStyleId,
+        "table",
+        element.mode === "structured" ? "structured" : "simple",
+        path,
+        addIssue,
+      );
+    }
+    if (element.mode !== "structured") return;
     element.columns.forEach((column, index) =>
       validateSlot(presentation, column.header, [...path, "columns", index, "header"], addIssue),
     );
@@ -59,22 +86,15 @@ function validateElement(
     );
   } else if (element.type === "topics") {
     if (element.linkedStyleId !== undefined) {
-      const linked = presentation.linkedStyles?.find((style) => style.id === element.linkedStyleId);
-      if (linked === undefined) {
-        addIssue(
-          [...path, "linkedStyleId"],
-          "Linked topics style reference does not resolve.",
-        );
-      } else if (!("target" in linked) || linked.target !== "topics") {
-        addIssue(
-          [...path, "linkedStyleId"],
-          "Topics linked style reference must target Topics.",
-        );
-      }
+      validateLinkedStyleReference(presentation, element.linkedStyleId, "topics", undefined, path, addIssue);
     }
     element.items.forEach((item, index) =>
       validateTopic(presentation, item, [...path, "items", index], addIssue),
     );
+  } else if (element.type === "code" || element.type === "terminal" || element.type === "divider") {
+    if (element.linkedStyleId !== undefined) {
+      validateLinkedStyleReference(presentation, element.linkedStyleId, element.type, undefined, path, addIssue);
+    }
   }
 }
 

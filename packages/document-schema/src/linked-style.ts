@@ -2,9 +2,21 @@ import { z } from "zod";
 
 import {
   ContainerLayoutSchema,
+  CodeTypographySchema,
+  CodeVisualStyleSchema,
   ElementEffectSchema,
   ElementTypographySchema,
   ElementVisualStyleSchema,
+  DividerEffectSchema,
+  DividerLayoutSchema,
+  DividerVisualStyleSchema,
+  ResizablePositionedLayoutSchema,
+  SimpleTableTypographySchema,
+  SimpleTableVisualStyleSchema,
+  StructuredTableVisualStyleSchema,
+  TerminalTitleTypographySchema,
+  TerminalTypographySchema,
+  TerminalVisualStyleSchema,
   TopicsLayoutSchema,
 } from "./element-properties";
 import { ColorValueSchema } from "./palette";
@@ -46,7 +58,47 @@ export type LinkedTopicsStyle = {
   effect?: never | undefined;
 };
 
-export type LinkedStyle = LinkedContainerStyle | LinkedTopicsStyle;
+/** Compatibility view used by the existing Container-oriented authoring APIs. */
+type LinkedTargetStyleBase = {
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ContainerLayoutSchema> | undefined;
+  style?: LinkedContainerStyleVisual | undefined;
+  typography?: z.infer<typeof ElementTypographySchema> | undefined;
+  titleTypography?: z.infer<typeof TerminalTitleTypographySchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+type LinkedTargetStyle =
+  | (LinkedTargetStyleBase & {
+      target: "code" | "terminal" | "divider";
+      mode?: never | undefined;
+    })
+  | (LinkedTargetStyleBase & {
+      target: "table";
+      mode: "simple" | "structured";
+    });
+
+/** Linked visual styles exclude runtime CSS hooks, which remain local to elements. */
+export const LinkedCodeStyleVisualSchema = CodeVisualStyleSchema.omit({
+  className: true,
+});
+
+export const LinkedTerminalStyleVisualSchema = TerminalVisualStyleSchema.omit({
+  className: true,
+});
+
+export const LinkedSimpleTableStyleVisualSchema = SimpleTableVisualStyleSchema.omit({
+  className: true,
+});
+
+export const LinkedStructuredTableStyleVisualSchema = StructuredTableVisualStyleSchema.omit({
+  className: true,
+});
+
+export const LinkedDividerStyleVisualSchema = DividerVisualStyleSchema.omit({
+  className: true,
+});
 
 function hasAuthoredLeaf(value: unknown): boolean {
   if (value === undefined) {
@@ -105,9 +157,159 @@ export const LinkedTopicsStyleSchema: z.ZodType<LinkedTopicsStyle> = z
     { message: "Linked topics style cannot be empty." },
   );
 
+export type LinkedCodeStyle = {
+  target: "code";
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ResizablePositionedLayoutSchema> | undefined;
+  style?: z.infer<typeof LinkedCodeStyleVisualSchema> | undefined;
+  typography?: z.infer<typeof CodeTypographySchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+export const LinkedCodeStyleSchema: z.ZodType<LinkedCodeStyle> = z
+  .object({
+    target: z.literal("code"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: LinkedCodeStyleVisualSchema.optional(),
+    typography: CodeTypographySchema.optional(),
+    effect: ElementEffectSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (style) => hasAuthoredLeaf(style.layout) || hasAuthoredLeaf(style.style) ||
+      hasAuthoredLeaf(style.typography) || hasAuthoredLeaf(style.effect),
+    { message: "Linked code style cannot be empty." },
+  );
+
+export type LinkedTerminalStyle = {
+  target: "terminal";
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ResizablePositionedLayoutSchema> | undefined;
+  style?: z.infer<typeof LinkedTerminalStyleVisualSchema> | undefined;
+  typography?: z.infer<typeof TerminalTypographySchema> | undefined;
+  titleTypography?: z.infer<typeof TerminalTitleTypographySchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+export const LinkedTerminalStyleSchema: z.ZodType<LinkedTerminalStyle> = z
+  .object({
+    target: z.literal("terminal"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: LinkedTerminalStyleVisualSchema.optional(),
+    typography: TerminalTypographySchema.optional(),
+    titleTypography: TerminalTitleTypographySchema.optional(),
+    effect: ElementEffectSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (style) => hasAuthoredLeaf(style.layout) || hasAuthoredLeaf(style.style) ||
+      hasAuthoredLeaf(style.typography) || hasAuthoredLeaf(style.titleTypography) ||
+      hasAuthoredLeaf(style.effect),
+    { message: "Linked terminal style cannot be empty." },
+  );
+
+export type LinkedSimpleTableStyle = {
+  target: "table";
+  mode: "simple";
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ResizablePositionedLayoutSchema> | undefined;
+  style?: z.infer<typeof LinkedSimpleTableStyleVisualSchema> | undefined;
+  typography?: z.infer<typeof SimpleTableTypographySchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+export const LinkedSimpleTableStyleSchema: z.ZodType<LinkedSimpleTableStyle> = z
+  .object({
+    target: z.literal("table"),
+    mode: z.literal("simple"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: LinkedSimpleTableStyleVisualSchema.optional(),
+    typography: SimpleTableTypographySchema.optional(),
+    effect: ElementEffectSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (style) => hasAuthoredLeaf(style.layout) || hasAuthoredLeaf(style.style) ||
+      hasAuthoredLeaf(style.typography) || hasAuthoredLeaf(style.effect),
+    { message: "Linked simple table style cannot be empty." },
+  );
+
+export type LinkedStructuredTableStyle = {
+  target: "table";
+  mode: "structured";
+  id: string;
+  name: string;
+  layout?: z.infer<typeof ResizablePositionedLayoutSchema> | undefined;
+  style?: z.infer<typeof LinkedStructuredTableStyleVisualSchema> | undefined;
+  effect?: z.infer<typeof ElementEffectSchema> | undefined;
+};
+
+export const LinkedStructuredTableStyleSchema: z.ZodType<LinkedStructuredTableStyle> = z
+  .object({
+    target: z.literal("table"),
+    mode: z.literal("structured"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: ResizablePositionedLayoutSchema.optional(),
+    style: LinkedStructuredTableStyleVisualSchema.optional(),
+    effect: ElementEffectSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (style) => hasAuthoredLeaf(style.layout) || hasAuthoredLeaf(style.style) ||
+      hasAuthoredLeaf(style.effect),
+    { message: "Linked structured table style cannot be empty." },
+  );
+
+export type LinkedTableStyle = LinkedSimpleTableStyle | LinkedStructuredTableStyle;
+
+export type LinkedDividerStyle = {
+  target: "divider";
+  id: string;
+  name: string;
+  layout?: z.infer<typeof DividerLayoutSchema> | undefined;
+  style?: z.infer<typeof LinkedDividerStyleVisualSchema> | undefined;
+  effect?: z.infer<typeof DividerEffectSchema> | undefined;
+};
+
+export const LinkedDividerStyleSchema: z.ZodType<LinkedDividerStyle> = z
+  .object({
+    target: z.literal("divider"),
+    id: NonEmptyTrimmedStringSchema,
+    name: NonEmptyTrimmedStringSchema,
+    layout: DividerLayoutSchema.optional(),
+    style: LinkedDividerStyleVisualSchema.optional(),
+    effect: DividerEffectSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (style) => hasAuthoredLeaf(style.layout) || hasAuthoredLeaf(style.style) ||
+      hasAuthoredLeaf(style.effect),
+    { message: "Linked divider style cannot be empty." },
+  );
+
+export type LinkedStyle =
+  | LinkedContainerStyle
+  | LinkedTopicsStyle
+  | LinkedTargetStyle;
+
 export const LinkedStyleSchema: z.ZodType<LinkedStyle> = z.union([
   LinkedContainerStyleSchema,
   LinkedTopicsStyleSchema,
+  LinkedCodeStyleSchema,
+  LinkedTerminalStyleSchema,
+  LinkedSimpleTableStyleSchema,
+  LinkedStructuredTableStyleSchema,
+  LinkedDividerStyleSchema,
 ]);
 
 export const LinkedContainerStylesSchema: z.ZodType<LinkedStyle[]> = z

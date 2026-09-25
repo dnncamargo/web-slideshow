@@ -26,7 +26,12 @@ import type {
 import type { Slide, SlideBackground } from "./slide";
 import type { Presentation } from "./presentation";
 import type { TextStyle } from "./text-style";
-import type { LinkedStyle } from "./linked-style";
+import type {
+  LinkedSimpleTableStyle,
+  LinkedStyle,
+  LinkedStructuredTableStyle,
+  LinkedTerminalStyle,
+} from "./linked-style";
 
 export type PaletteColorPath = (string | number)[];
 
@@ -201,6 +206,65 @@ export function visitPresentationColorValues(
     }
   }
 
+  const visitLinkedStyle = (linkedStyle: LinkedStyle, path: PaletteColorPath): void => {
+    if (!("target" in linkedStyle)) {
+      visitStyle(linkedStyle.style, [...path, "style"]);
+      visitTypography(linkedStyle.typography, [...path, "typography"]);
+      visitEffect(linkedStyle.effect, [...path, "effect"]);
+      return;
+    }
+
+    switch (linkedStyle.target) {
+      case "topics":
+        visitColor({
+          value: linkedStyle.markerColor,
+          set: (value) => { linkedStyle.markerColor = value; },
+        }, [...path, "markerColor"]);
+        break;
+      case "code":
+        visitStyle(linkedStyle.style, [...path, "style"]);
+        visitTypography(linkedStyle.typography, [...path, "typography"]);
+        visitEffect(linkedStyle.effect, [...path, "effect"]);
+        break;
+      case "terminal":
+        {
+          const terminalStyle = linkedStyle as LinkedTerminalStyle;
+          visitStyle(terminalStyle.style, [...path, "style"]);
+          visitTypography(terminalStyle.typography, [...path, "typography"]);
+          visitTypography(terminalStyle.titleTypography, [...path, "titleTypography"]);
+          for (const key of ["commandColor", "promptColor", "outputColor", "commentColor", "errorColor"] as const) {
+            visitColor({
+              value: terminalStyle.style?.[key],
+              set: (value) => { terminalStyle.style = { ...terminalStyle.style, [key]: value }; },
+            }, [...path, "style", key]);
+          }
+          visitEffect(terminalStyle.effect, [...path, "effect"]);
+        }
+        break;
+      case "table":
+        if (linkedStyle.mode === "simple") {
+          const simpleTableStyle = linkedStyle as LinkedSimpleTableStyle;
+          visitStyle(simpleTableStyle.style, [...path, "style"]);
+          visitTypography(simpleTableStyle.typography, [...path, "typography"]);
+          visitEffect(simpleTableStyle.effect, [...path, "effect"]);
+        } else {
+          const structuredTableStyle = linkedStyle as LinkedStructuredTableStyle;
+          visitStyle(structuredTableStyle.style, [...path, "style"]);
+          for (const key of ["headerBackground", "bodyRowAlternateBackground"] as const) {
+            visitColor({
+              value: structuredTableStyle.style?.[key],
+              set: (value) => { structuredTableStyle.style = { ...structuredTableStyle.style, [key]: value }; },
+            }, [...path, "style", key]);
+          }
+          visitEffect(structuredTableStyle.effect, [...path, "effect"]);
+        }
+        break;
+      case "divider":
+        visitStyle(linkedStyle.style, [...path, "style"]);
+        break;
+    }
+  };
+
   presentation.slides.forEach((slide, slideIndex) => {
     visitSlideBackground(slide.background, ["slides", slideIndex, "background"]);
     slide.elements.forEach((element, elementIndex) => visitElement(element, ["slides", slideIndex, "elements", elementIndex]));
@@ -221,19 +285,7 @@ export function visitPresentationColorValues(
   });
 
   presentation.linkedStyles?.forEach((linkedStyle, index) => {
-    if ("target" in linkedStyle) {
-      visitColor(
-        {
-          value: linkedStyle.markerColor,
-          set: (value) => { linkedStyle.markerColor = value; },
-        },
-        ["linkedStyles", index, "markerColor"],
-      );
-      return;
-    }
-    visitStyle(linkedStyle.style, ["linkedStyles", index, "style"]);
-    visitTypography(linkedStyle.typography, ["linkedStyles", index, "typography"]);
-    visitEffect(linkedStyle.effect, ["linkedStyles", index, "effect"]);
+    visitLinkedStyle(linkedStyle, ["linkedStyles", index]);
   });
 }
 

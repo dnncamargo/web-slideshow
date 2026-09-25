@@ -214,6 +214,8 @@ export const CodeElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("code"),
 
+    linkedStyleId: z.string().trim().min(1).optional(),
+
     style: CodeVisualStyleSchema.optional(),
 
     typography: CodeTypographySchema.optional(),
@@ -235,6 +237,8 @@ export type CodeElement =
 export const TerminalElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("terminal"),
+
+    linkedStyleId: z.string().trim().min(1).optional(),
 
     style: TerminalVisualStyleSchema.optional(),
 
@@ -328,6 +332,8 @@ export const DividerElementSchema =
   z.object({
     id: ElementIdSchema,
     type: z.literal("divider"),
+
+    linkedStyleId: z.string().trim().min(1).optional(),
 
     hidden: z.boolean().default(false),
 
@@ -550,6 +556,8 @@ export const SimpleTableElementSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
 
+    linkedStyleId: z.string().trim().min(1).optional(),
+
     style: SimpleTableVisualStyleSchema.optional(),
 
     typography: SimpleTableTypographySchema.optional(),
@@ -601,6 +609,7 @@ export type StructuredTableRow =
 const StructuredTableElementBaseSchema =
   CanonicalDataElementBaseSchema.extend({
     type: z.literal("table"),
+    linkedStyleId: z.string().trim().min(1).optional(),
     style: StructuredTableVisualStyleSchema.optional(),
     mode: z.literal("structured"),
     showHeader: z.boolean().default(true),

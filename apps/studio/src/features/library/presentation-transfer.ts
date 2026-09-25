@@ -170,14 +170,33 @@ function normalizeElement(
           normalizeTopicItem(item, counters, textStyleIds, linkedStyleIds, structuralIds),
         ),
       };
+    case "code":
+    case "terminal":
+    case "divider":
+      return {
+        ...element,
+        id: normalizedId,
+        linkedStyleId: element.linkedStyleId === undefined
+          ? undefined
+          : linkedStyleIds.get(element.linkedStyleId) ?? element.linkedStyleId,
+      };
     case "table":
       if (element.mode !== "structured") {
-        return { ...element, id: normalizedId };
+        return {
+          ...element,
+          id: normalizedId,
+          linkedStyleId: element.linkedStyleId === undefined
+            ? undefined
+            : linkedStyleIds.get(element.linkedStyleId) ?? element.linkedStyleId,
+        };
       }
 
       return {
         ...element,
         id: normalizedId,
+        linkedStyleId: element.linkedStyleId === undefined
+          ? undefined
+          : linkedStyleIds.get(element.linkedStyleId) ?? element.linkedStyleId,
         columns: element.columns.map((column) => {
           const normalizedColumnId = nextId(counters, "table-column");
           structuralIds?.set(column.id, normalizedColumnId);

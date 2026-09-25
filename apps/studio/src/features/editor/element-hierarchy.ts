@@ -1039,21 +1039,18 @@ function visitContainersInTopicItems(
   }
 }
 
-/** Counts linked Container references using the canonical hierarchy traversal. */
+/** Counts linked style references using the canonical hierarchy traversal. */
 export function collectLinkedStyleReferenceCounts(
   elements: readonly PresentationElement[],
   counts: Map<string, number> = new Map(),
 ): Map<string, number> {
   for (const element of elements) {
-    if (element.type === "container") {
-      if (element.linkedStyleId !== undefined) {
-        counts.set(element.linkedStyleId, (counts.get(element.linkedStyleId) ?? 0) + 1);
-      }
-      collectLinkedStyleReferenceCounts(element.children, counts);
+    if ("linkedStyleId" in element && element.linkedStyleId !== undefined) {
+      counts.set(element.linkedStyleId, (counts.get(element.linkedStyleId) ?? 0) + 1);
     }
 
-    if (element.type === "topics" && element.linkedStyleId !== undefined) {
-      counts.set(element.linkedStyleId, (counts.get(element.linkedStyleId) ?? 0) + 1);
+    if (element.type === "container") {
+      collectLinkedStyleReferenceCounts(element.children, counts);
     }
 
     if (isStructuredTable(element)) {
