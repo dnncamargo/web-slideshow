@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PresentationElementSchema, PresentationSchema, type ContainerElement, type PresentationElement, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -147,7 +148,7 @@ describe("Container canonical appearance and effects inspector", () => {
     await act(async () => renderInspector());
     await act(async () => changeInput(host.querySelector("#container-shadow-blur")!, "60"));
     expect(state.effect?.shadow).toEqual({ x: 20, y: 30, blur: 60, color: "#ff0000" });
-    expect(presentation.linkedStyles?.[0]?.effect?.shadow).toEqual({ x: 20, y: 30, blur: 50, color: "#ff0000" });
+    expect(containerLinkedStyle(presentation.linkedStyles?.[0])?.effect?.shadow).toEqual({ x: 20, y: 30, blur: 50, color: "#ff0000" });
     expect((host.querySelector("#container-shadow-mode") as HTMLSelectElement).querySelector("option[value=none]")).toHaveProperty("disabled", true);
     const reset = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Reset");
     expect(reset).toBeDefined();

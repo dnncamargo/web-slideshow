@@ -1,4 +1,4 @@
-import type { ContainerElement, LinkedContainerStyle, LinkedTopicsStyle, Presentation, TopicsElement } from "@web-slideshow/document-schema";
+import { isLinkedContainerStyle, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type Presentation, type TopicsElement } from "@web-slideshow/document-schema";
 
 export type LinkedSource = "local" | "linked" | "theme";
 export type ContainerShareableProperty =
@@ -17,7 +17,9 @@ export type TopicsShareableProperty =
   | "rootMarkerStyle" | "markerColor";
 
 export function linkedStyleForContainer(presentation: Pick<Presentation, "linkedStyles"> | undefined, element: ContainerElement) {
-  return element.linkedStyleId === undefined ? undefined : presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+  if (element.linkedStyleId === undefined) return undefined;
+  const linked = presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+  return linked !== undefined && isLinkedContainerStyle(linked) ? linked : undefined;
 }
 
 /** Source inspection only; effective values remain owned by resolveLinkedContainerStyle. */

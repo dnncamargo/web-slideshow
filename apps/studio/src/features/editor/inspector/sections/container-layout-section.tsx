@@ -14,7 +14,7 @@ import {
 import type { ContainerFitMode } from "../../container-fit-authoring";
 
 import { InspectorSection } from "../inspector-section";
-import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { getContainerShareablePropertySource, linkedStyleForContainer } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 type ContainerDistribution = "packed" | "space-between" | "space-around" | "space-evenly";
@@ -71,7 +71,7 @@ export function ContainerLayoutSection({
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
   const isStack = element.layout?.children?.mode === "stack";
-  const linked = presentation?.linkedStyles?.find((style) => style.id === localElement.linkedStyleId);
+  const linked = presentation === undefined ? undefined : linkedStyleForContainer(presentation, localElement);
   const linkedMode = linked?.layout?.children?.mode;
   const linkedDirection = linked?.layout?.children?.direction;
   const linkedDistribution = linked?.layout?.children?.distribution;

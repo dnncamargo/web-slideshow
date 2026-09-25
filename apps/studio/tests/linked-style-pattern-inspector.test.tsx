@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PresentationSchema, type ContainerElement, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -78,7 +79,7 @@ describe("Linked Container Pattern inspector", () => {
       size: "192px 134.04px",
     });
     expect(state.style?.background?.pattern?.rotation).toBeUndefined();
-    expect(presentation.linkedStyles?.[0]?.style?.background?.pattern).toEqual(linkedPattern);
+    expect(containerLinkedStyle(presentation.linkedStyles?.[0])?.style?.background?.pattern).toEqual(linkedPattern);
     expect(host.textContent).toContain("Local override");
     expect(host.textContent).toContain("Linked");
 
@@ -88,7 +89,7 @@ describe("Linked Container Pattern inspector", () => {
     await act(async () => reset?.click());
 
     expect(state.style?.background?.pattern).toBeUndefined();
-    expect(presentation.linkedStyles?.[0]?.style?.background?.pattern).toEqual(linkedPattern);
+    expect(containerLinkedStyle(presentation.linkedStyles?.[0])?.style?.background?.pattern).toEqual(linkedPattern);
     expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("80");
   });
 });

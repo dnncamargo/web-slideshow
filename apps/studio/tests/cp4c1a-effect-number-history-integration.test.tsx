@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -175,7 +176,7 @@ describe("CP4C1A continuous effect number history", () => {
     expect(input("container-shadow-x").value).toBe("4");
     await editNumber("container-shadow-x", ["5", "4"]);
     expect(host.textContent).toContain("Local override");
-    expect(initial.linkedStyles?.[0]?.effect?.shadow?.x).toBe(4);
+    expect(containerLinkedStyle(initial.linkedStyles?.[0])?.effect?.shadow?.x).toBe(4);
 
     const undo = key("z", { ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));

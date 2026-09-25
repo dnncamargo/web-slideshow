@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -275,7 +276,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!color) throw new Error("shared Linked Style ColorControl was not rendered");
     await act(async () => { color.focus(); setInputValue(color, "#222222"); color.blur(); });
     const changed = await save(saved);
-    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.style?.color).toBe("#222222");
+    expect(containerLinkedStyle(changed.linkedStyles?.find((style) => style.id === "style-1"))?.style?.color).toBe("#222222");
     await undo();
     expect(await save(saved)).toEqual(initial);
     await redo();
@@ -291,7 +292,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!remove) throw new Error("legacy typography remove button was not rendered");
     await act(async () => remove.click());
     const changed = await save(saved);
-    const changedStyle = changed.linkedStyles?.find((style) => style.id === "style-1");
+    const changedStyle = containerLinkedStyle(changed.linkedStyles?.find((style) => style.id === "style-1"));
     expect(changedStyle).toMatchObject({ layout: { children: { gap: 4 } } });
     expect(changedStyle?.typography).toBeUndefined();
     await undo();
@@ -320,7 +321,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!gap) throw new Error("shared definition gap input was not rendered");
     await act(async () => { gap.focus(); setInputValue(gap, "18"); gap.blur(); });
     const changed = await save(saved);
-    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(18);
+    expect(containerLinkedStyle(changed.linkedStyles?.find((style) => style.id === "style-1"))?.layout?.children?.gap).toBe(18);
     expect(changed.slides[0]?.elements).toEqual(initialElements);
     expect(changed.slides[0]?.elements.map((element) => element.type === "container" ? element.linkedStyleId : undefined)).toEqual(["style-1", "style-1"]);
     await undo();
@@ -390,7 +391,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(elements[1]).not.toHaveProperty("layout.children.gap");
     expect(elements[2]).toEqual(initial.slides[0]?.elements[2]);
     expect(elements[3]).toEqual(initial.slides[0]?.elements[3]);
-    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(16);
+    expect(containerLinkedStyle(changed.linkedStyles?.find((style) => style.id === "style-1"))?.layout?.children?.gap).toBe(16);
     await undo();
     expect(await save(saved)).toEqual(initial);
     await redo();
@@ -415,7 +416,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!marginTop) throw new Error("Margin top option was not rendered");
     await act(async () => marginTop.click());
     const added = await save(saved);
-    expect(added.linkedStyles?.find((style) => style.id === "style-1")?.layout?.marginTop).toBe(0);
+    expect(containerLinkedStyle(added.linkedStyles?.find((style) => style.id === "style-1"))?.layout?.marginTop).toBe(0);
     expect(added.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 } });
     expect(added.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
     expect(added.slides[0]?.elements[1]).not.toHaveProperty("layout.marginTop");
@@ -428,7 +429,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!remove) throw new Error("Margin top remove action was not rendered");
     await act(async () => remove.click());
     const removed = await save(saved);
-    expect(removed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.marginTop).toBeUndefined();
+    expect(containerLinkedStyle(removed.linkedStyles?.find((style) => style.id === "style-1"))?.layout?.marginTop).toBeUndefined();
     expect(removed.slides[0]?.elements[0]).not.toHaveProperty("layout.marginTop");
     expect(removed.slides[0]?.elements[1]).not.toHaveProperty("layout.marginTop");
     expect(removed.slides[0]?.elements[0]).toMatchObject({ layout: { marginRight: 7 } });
@@ -453,7 +454,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!gap) throw new Error("continuous gap input was not rendered");
     await act(async () => { gap.focus(); setInputValue(gap, "10"); setInputValue(gap, "12"); setInputValue(gap, "16"); gap.blur(); });
     const changed = await save(saved);
-    expect(changed.linkedStyles?.find((style) => style.id === "style-1")?.layout?.children?.gap).toBe(16);
+    expect(containerLinkedStyle(changed.linkedStyles?.find((style) => style.id === "style-1"))?.layout?.children?.gap).toBe(16);
     expect(changed.slides[0]?.elements[0]).toMatchObject({ layout: { marginBottom: 30 } });
     expect(changed.slides[0]?.elements[0]).not.toHaveProperty("layout.children.gap");
     expect(changed.slides[0]?.elements[1]).not.toHaveProperty("layout.children.gap");
@@ -480,7 +481,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     await act(async () => { borderWidth.focus(); setInputValue(borderWidth, "2"); borderWidth.blur(); });
     const edited = await save(saved);
     const editedElement = edited.slides[0]?.elements[0];
-    expect(edited.linkedStyles?.find((style) => style.id === "style-1")?.style?.border?.width).toBe(2);
+    expect(containerLinkedStyle(edited.linkedStyles?.find((style) => style.id === "style-1"))?.style?.border?.width).toBe(2);
     expect(editedElement).not.toHaveProperty("style.border");
     expect(editedElement).toMatchObject({ layout: { padding: 8 }, style: { background: { color: "#00ff00" }, borderRadius: 12 }, effect: { opacity: 0.5 }, children: [{ content: "Keep me" }] });
     await undo();
@@ -492,7 +493,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!remove) throw new Error("border remove action was not rendered");
     await act(async () => remove.click());
     const removed = await save(saved);
-    expect(removed.linkedStyles?.find((style) => style.id === "style-1")?.style?.border).toBeUndefined();
+    expect(containerLinkedStyle(removed.linkedStyles?.find((style) => style.id === "style-1"))?.style?.border).toBeUndefined();
     expect(removed.slides[0]?.elements[0]).not.toHaveProperty("style.border");
     expect(removed.slides[0]?.elements[0]).toMatchObject({ style: { background: { color: "#00ff00" }, borderRadius: 12 }, children: [{ content: "Keep me" }] });
     await undo();
@@ -519,7 +520,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     if (!remove) throw new Error("pre-existing master border remove action was not rendered");
     await act(async () => remove.click());
     const removed = await save(saved);
-    const removedStyle = removed.linkedStyles?.find((style) => style.id === "style-1");
+    const removedStyle = containerLinkedStyle(removed.linkedStyles?.find((style) => style.id === "style-1"));
     const removedElement = removed.slides[0]?.elements[0];
     expect(removedStyle?.style?.border).toBeUndefined();
     expect(removedElement).not.toHaveProperty("style.border");

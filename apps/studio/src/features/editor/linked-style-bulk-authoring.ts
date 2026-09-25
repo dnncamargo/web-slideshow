@@ -4,6 +4,7 @@ import {
   type LinkedContainerStyle,
   type Presentation,
   type PresentationElement,
+  isLinkedContainerStyle,
 } from "@web-slideshow/document-schema";
 
 import { updateElementById } from "./element-tree";
@@ -107,7 +108,9 @@ function locationsFor(presentation: Presentation, predicate: (container: Contain
 
 export function findMatchingContainersForLinkedStyle(presentation: Presentation, linkedStyleId: string): LinkedStyleContainerLocation[] {
   const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
-  return linked === undefined ? [] : locationsFor(presentation, (container) => matchesLinkedContainerStyle(container, linked));
+  return linked === undefined || !isLinkedContainerStyle(linked)
+    ? []
+    : locationsFor(presentation, (container) => matchesLinkedContainerStyle(container, linked));
 }
 
 export function findContainersLinkedToStyle(presentation: Presentation, linkedStyleId: string): LinkedStyleContainerLocation[] {
@@ -160,7 +163,7 @@ export function findLinkedStyleUsageLocations(
 
 export function attachLinkedStyleToMatchingContainers(presentation: Presentation, linkedStyleId: string): { presentation: Presentation; attachedLocations: LinkedStyleContainerLocation[] } {
   const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
-  if (linked === undefined) return { presentation, attachedLocations: [] };
+  if (linked === undefined || !isLinkedContainerStyle(linked)) return { presentation, attachedLocations: [] };
   const attachedLocations = findMatchingContainersForLinkedStyle(presentation, linkedStyleId);
   if (attachedLocations.length === 0) return { presentation, attachedLocations };
   const candidate = updatePresentationAuthoringTrees(presentation, (elements) => {

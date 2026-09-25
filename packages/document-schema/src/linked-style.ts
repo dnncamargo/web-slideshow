@@ -58,27 +58,6 @@ export type LinkedTopicsStyle = {
   effect?: never | undefined;
 };
 
-/** Compatibility view used by the existing Container-oriented authoring APIs. */
-type LinkedTargetStyleBase = {
-  id: string;
-  name: string;
-  layout?: z.infer<typeof ContainerLayoutSchema> | undefined;
-  style?: LinkedContainerStyleVisual | undefined;
-  typography?: z.infer<typeof ElementTypographySchema> | undefined;
-  titleTypography?: z.infer<typeof TerminalTitleTypographySchema> | undefined;
-  effect?: z.infer<typeof ElementEffectSchema> | undefined;
-};
-
-type LinkedTargetStyle =
-  | (LinkedTargetStyleBase & {
-      target: "code" | "terminal" | "divider";
-      mode?: never | undefined;
-    })
-  | (LinkedTargetStyleBase & {
-      target: "table";
-      mode: "simple" | "structured";
-    });
-
 /** Linked visual styles exclude runtime CSS hooks, which remain local to elements. */
 export const LinkedCodeStyleVisualSchema = CodeVisualStyleSchema.omit({
   className: true,
@@ -300,7 +279,15 @@ export const LinkedDividerStyleSchema: z.ZodType<LinkedDividerStyle> = z
 export type LinkedStyle =
   | LinkedContainerStyle
   | LinkedTopicsStyle
-  | LinkedTargetStyle;
+  | LinkedCodeStyle
+  | LinkedTerminalStyle
+  | LinkedSimpleTableStyle
+  | LinkedStructuredTableStyle
+  | LinkedDividerStyle;
+
+export function isLinkedContainerStyle(style: LinkedStyle): style is LinkedContainerStyle {
+  return !("target" in style);
+}
 
 export const LinkedStyleSchema: z.ZodType<LinkedStyle> = z.union([
   LinkedContainerStyleSchema,

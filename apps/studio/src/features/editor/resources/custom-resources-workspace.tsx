@@ -583,6 +583,7 @@ function LinkedStylesWorkspace({
       if ("target" in linkedStyle && linkedStyle.target === "topics") {
         return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} authoringHistory={authoringHistory} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRenameTopics} onUpdate={onUpdateTopics} onRemove={onRemoveTopics} />;
       }
+      if ("target" in linkedStyle) return null;
       const linkedLocations = presentation ? findContainerLinkedStyleUsageLocations(presentation, linkedStyle.id) : [];
       const matchingLocations = presentation ? findMatchingContainersForLinkedStyle(presentation, linkedStyle.id) : [];
       const editing = editingId === linkedStyle.id;

@@ -10,6 +10,7 @@ import {
   type LinkedTopicsStyle,
   type Presentation,
   type TopicsElement,
+  isLinkedContainerStyle,
 } from "@web-slideshow/document-schema";
 import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow/theme/element-style-defaults";
 
@@ -322,7 +323,7 @@ export function attachLinkedContainerStyleToElement(
   linkedStyleId: string,
 ): ContainerElement | null {
   const linked = presentation.linkedStyles?.find((style) => style.id === linkedStyleId);
-  return linked === undefined ? null : adoptLinkedContainerStyle(container, linked);
+  return linked === undefined || !isLinkedContainerStyle(linked) ? null : adoptLinkedContainerStyle(container, linked);
 }
 
 type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
@@ -556,7 +557,7 @@ export function detachLinkedContainerStyleFromElement(
 ): ContainerElement | null {
   if (container.linkedStyleId === undefined) return null;
   const linked = presentation.linkedStyles?.find((style) => style.id === container.linkedStyleId);
-  if (linked === undefined) return null;
+  if (linked === undefined || !isLinkedContainerStyle(linked)) return null;
   const resolved = resolveLinkedContainerStyle(presentation, container);
   const { linkedStyleId: _linkedStyleId, ...unlinked } = container;
   return {
@@ -579,7 +580,7 @@ export function updateLinkedStyle(
   if (styles === undefined) return presentation;
   // Parse through the canonical boundary; partial patches replace semantic bags.
   const candidate = styles.find((style) => style.id === linkedStyleId);
-  if (candidate === undefined) return presentation;
+  if (candidate === undefined || !isLinkedContainerStyle(candidate)) return presentation;
   const updated = {
     ...candidate,
     ...patch,
@@ -599,7 +600,7 @@ export function canUpdateLinkedStyle(
 ): boolean {
   const styles = presentation.linkedStyles;
   const current = styles?.find((style) => style.id === linkedStyleId);
-  if (!styles || !current) return false;
+  if (!styles || !current || !isLinkedContainerStyle(current)) return false;
   return PresentationSchema.safeParse({
     ...presentation,
     linkedStyles: styles.map((style) => style.id === linkedStyleId ? {

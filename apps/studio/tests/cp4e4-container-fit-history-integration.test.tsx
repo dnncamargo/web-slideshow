@@ -9,6 +9,7 @@ import {
   type ContainerElement,
   type Presentation,
 } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -301,14 +302,14 @@ describe("CP4E4 Container Fit history integration", () => {
       sourceWidth: 800,
       sourceHeight: 600,
     });
-    expect(overridden.linkedStyles?.[0]?.layout?.children?.fit).toEqual(LINKED_FIT);
+    expect(containerLinkedStyle(overridden.linkedStyles?.[0])?.layout?.children?.fit).toEqual(LINKED_FIT);
 
     const undo = key({ ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));
     const undone = await save(saved);
     expect(containerFrom(undone).layout?.children?.fit).toBeUndefined();
     expect(fitSelect().value).toBe("contain");
-    expect(undone.linkedStyles?.[0]?.layout?.children?.fit).toEqual(LINKED_FIT);
+    expect(containerLinkedStyle(undone.linkedStyles?.[0])?.layout?.children?.fit).toEqual(LINKED_FIT);
 
     const redo = key({ ctrlKey: true, shiftKey: true });
     await act(async () => window.dispatchEvent(redo));
@@ -333,7 +334,7 @@ describe("CP4E4 Container Fit history integration", () => {
     const reset = await save(saved);
     expect(containerFrom(reset).layout?.children?.fit).toBeUndefined();
     expect(fitSelect().value).toBe("contain");
-    expect(reset.linkedStyles?.[0]?.layout?.children?.fit).toEqual(LINKED_FIT);
+    expect(containerLinkedStyle(reset.linkedStyles?.[0])?.layout?.children?.fit).toEqual(LINKED_FIT);
 
     const undo = key({ ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));
