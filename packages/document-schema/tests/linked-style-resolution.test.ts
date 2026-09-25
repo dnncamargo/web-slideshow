@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   PresentationSchema,
   resolveLinkedContainerStyle,
+  resolveLinkedCodeStyle,
+  resolveLinkedTerminalStyle,
+  resolveLinkedTableStyle,
+  resolveLinkedDividerStyle,
   resolveLinkedTopicsStyle,
   type ContainerElement,
   type Presentation,
@@ -189,5 +193,43 @@ describe("resolveLinkedContainerStyle", () => {
     const target = { id: "topics-element", type: "topics" as const, hidden: false, kind: "unordered" as const, items: [], linkedStyleId: "missing" };
     expect(() => resolveLinkedTopicsStyle(presentation(), target)).toThrow("Unresolved linked topics style: missing");
     expect(() => resolveLinkedTopicsStyle(presentation([{ id: "container", name: "Container", layout: { padding: 1 } }]), { ...target, linkedStyleId: "container" })).toThrow("not compatible");
+  });
+});
+
+describe("resolveLinked target styles", () => {
+  it("merges Code and Terminal namespaces without resolving canonical data", () => {
+    const source = presentation([
+      { target: "code", id: "code", name: "Code", layout: { width: 320 }, style: { color: "#111111", background: { color: "#222222", gradient: { type: "linear", stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] } } }, typography: { fontSize: 18 }, effect: { opacity: 0.5 } },
+      { target: "terminal", id: "terminal", name: "Terminal", style: { commandColor: "#ff0000", outputColor: "#00ff00" }, typography: { fontSize: 16 }, titleTypography: { fontWeight: 700, fontSize: 12 } },
+    ]);
+    const code = { id: "code-element", type: "code" as const, hidden: false, linkedStyleId: "code", code: "local", language: "ts", showLineNumbers: true, highlightedLines: [], style: { background: { color: "#333333" } }, effect: { opacity: 0 } };
+    const terminal = { id: "terminal-element", type: "terminal" as const, hidden: false, linkedStyleId: "terminal", lines: [], titleTypography: { fontSize: 20 } };
+    expect(resolveLinkedCodeStyle(source, code)).toMatchObject({ layout: { width: 320 }, style: { color: "#111111", background: { color: "#333333", gradient: expect.any(Object) } }, typography: { fontSize: 18 }, effect: { opacity: 0 } });
+    expect(resolveLinkedTerminalStyle(source, terminal)).toMatchObject({ style: { commandColor: "#ff0000", outputColor: "#00ff00" }, typography: { fontSize: 16 }, titleTypography: { fontSize: 20, fontWeight: 700 } });
+    expect(code.code).toBe("local");
+  });
+
+  it("resolves both Table modes and Divider geometry while preserving local ownership", () => {
+    const source = presentation([
+      { target: "table", mode: "simple", id: "simple", name: "Simple", style: { color: "#fff" }, typography: { fontSize: 16 } },
+      { target: "table", mode: "structured", id: "structured", name: "Structured", style: { headerBackground: "#111", bodyRowAlternateBackground: "#222", dividerOpacity: 0.2 } },
+      { target: "divider", id: "divider", name: "Divider", layout: { width: 40 }, style: { background: { color: "#abc", gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } } } },
+    ]);
+    const simple = { id: "simple-element", type: "table" as const, hidden: false, linkedStyleId: "simple", columns: [], rows: [] };
+    const structured = { id: "structured-element", type: "table" as const, hidden: false, linkedStyleId: "structured", mode: "structured" as const, showHeader: false, columns: [], rows: [] };
+    const divider = { id: "divider-element", type: "divider" as const, hidden: false, linkedStyleId: "divider", orientation: "vertical" as const, style: { background: { color: "#def" } } };
+    expect(resolveLinkedTableStyle(source, simple)).toMatchObject({ style: { color: "#ffffff" }, typography: { fontSize: 16 } });
+    expect(resolveLinkedTableStyle(source, structured)).toMatchObject({ style: { headerBackground: "#111111", bodyRowAlternateBackground: "#222222", dividerOpacity: 0.2 } });
+    expect(resolveLinkedDividerStyle(source, divider)).toMatchObject({ layout: { width: 40 }, style: { background: { color: "#def", gradient: expect.any(Object) } } });
+  });
+
+  it("fails loudly for missing and incompatible target references without mutation", () => {
+    const source = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111" } }, { target: "table", mode: "structured", id: "structured", name: "Structured", style: { dividerOpacity: 0.2 } }]);
+    const code = { id: "code-element", type: "code" as const, hidden: false, linkedStyleId: "code", code: "x", language: "text", showLineNumbers: true, highlightedLines: [] };
+    const snapshot = structuredClone({ source, code });
+    expect(() => resolveLinkedCodeStyle(source, { ...code, linkedStyleId: "missing" })).toThrow("Unresolved linked code style: missing");
+    expect(() => resolveLinkedTableStyle(source, { id: "simple", type: "table", hidden: false, linkedStyleId: "structured", columns: [], rows: [] })).toThrow("incompatible");
+    resolveLinkedCodeStyle(source, code);
+    expect({ source, code }).toEqual(snapshot);
   });
 });

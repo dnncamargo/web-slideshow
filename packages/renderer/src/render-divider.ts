@@ -1,6 +1,8 @@
 import type {
   DividerElement,
+  Presentation,
 } from "@web-slideshow/document-schema";
+import { resolveLinkedDividerStyle } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderLength } from "./render-length";
@@ -37,14 +39,22 @@ const DIVIDER_DEFAULT_GEOMETRY: Readonly<
 
 export function renderDivider(
   element: DividerElement,
+  presentation?: Presentation,
 ): string {
   if (element.hidden) {
     return "";
   }
 
+  if (element.linkedStyleId !== undefined && presentation === undefined) {
+    throw new Error(`Cannot render linked divider style without presentation context: ${element.linkedStyleId}`);
+  }
+  const resolved = element.linkedStyleId === undefined
+    ? {}
+    : resolveLinkedDividerStyle(presentation!, element);
+  const effectiveElement = { ...element, ...resolved };
   const styles: string[] = [];
 
-  const layout = element.layout;
+  const layout = effectiveElement.layout;
   if (layout) {
     if (layout.width !== undefined) styles.push(`width:${renderLength(layout.width)}`);
     if (layout.height !== undefined) styles.push(`height:${renderLength(layout.height)}`);
@@ -56,7 +66,7 @@ export function renderDivider(
 
   const defaults =
     DIVIDER_DEFAULT_GEOMETRY[
-      element.orientation
+      effectiveElement.orientation
     ];
 
   if (layout?.width === undefined) {
@@ -67,24 +77,24 @@ export function renderDivider(
     styles.push(`height:${defaults.height}`);
   }
 
-  if (element.style?.background?.color === undefined) {
+  if (effectiveElement.style?.background?.color === undefined) {
     styles.push("background:currentColor");
   }
 
-  if (element.style?.background !== undefined) {
-    styles.push(...renderBackground(element.style.background));
+  if (effectiveElement.style?.background !== undefined) {
+    styles.push(...renderBackground(effectiveElement.style.background));
   }
 
-  if (element.style?.borderRadius !== undefined) styles.push(`border-radius:${renderLength(element.style.borderRadius)}`);
-  if (element.effect?.opacity !== undefined) styles.push(`opacity:${element.effect.opacity}`);
+  if (effectiveElement.style?.borderRadius !== undefined) styles.push(`border-radius:${renderLength(effectiveElement.style.borderRadius)}`);
+  if (effectiveElement.effect?.opacity !== undefined) styles.push(`opacity:${effectiveElement.effect.opacity}`);
 
   const customClass =
-    element.style?.className?.trim();
+    effectiveElement.style?.className?.trim();
 
   const classes = [
     "presentation-element",
     "presentation-divider",
-    `presentation-divider-${element.orientation}`,
+    `presentation-divider-${effectiveElement.orientation}`,
   ];
 
   if (customClass) {
@@ -98,7 +108,7 @@ export function renderDivider(
     )}"` +
     ` role="separator"` +
     ` aria-orientation="${escapeHtml(
-      element.orientation,
+      effectiveElement.orientation,
     )}"` +
     ` data-presentation-id="${escapeHtml(
       element.id,

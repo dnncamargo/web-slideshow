@@ -357,19 +357,19 @@ export function renderElement(
       );
 
     case "code":
-      return renderCode(element);
+      return renderCode(element, context?.presentation);
 
     case "terminal":
-      return renderTerminal(element);
+      return renderTerminal(element, context?.presentation);
 
     case "table":
-      return renderTable(element, (child) => renderElement(child, context));
+      return renderTable(element, (child) => renderElement(child, context), context?.presentation);
 
     case "topics":
       return renderTopics(element, (child) => renderElement(child, context), context?.presentation);
 
     case "divider":
-      return renderDivider(element);
+      return renderDivider(element, context?.presentation);
 
     case "gallery":
       return renderGallery(element);
