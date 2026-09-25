@@ -445,6 +445,21 @@ describe("TableInspector", () => {
     expect(input?.placeholder).toBe("Inherited from Container");
     expect(container.querySelector<HTMLInputElement>("#table-color")?.value).toBe("#ff00ff");
     expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
+    expect(Array.from(input?.closest("label")?.querySelectorAll("button") ?? [])
+      .find((button) => button.textContent?.trim() === "Use inherited color")).toBeUndefined();
+  });
+
+  it("labels a local Simple Table color reset as returning to Container inheritance", async () => {
+    await act(async () => mount(simpleTable({ style: { color: "#0000ff" } })));
+    parent = { type: "container", id: "parent", hidden: false, style: { color: "#ff00ff" }, children: [] };
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+    const input = container.querySelector<HTMLInputElement>("#table-color-value");
+    const button = Array.from(input?.closest("label")?.querySelectorAll("button") ?? [])
+      .find((candidate) => candidate.textContent?.trim() === "Use inherited color");
+    expect(button).toBeDefined();
+    await act(async () => button?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect((elementState as SimpleTableElement).style?.color).toBeUndefined();
   });
 
   it("uses the nearest colored ancestor through uncolored Containers", async () => {

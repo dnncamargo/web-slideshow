@@ -375,6 +375,20 @@ describe("TopicsInspector", () => {
     expect(container.querySelector<HTMLInputElement>("#topics-marker-color-value")?.placeholder).toBe("Inherited from Container");
     expect(container.querySelector<HTMLInputElement>("#topics-text-color")?.value).toBe("#ff00ff");
     expect(container.querySelector<HTMLInputElement>("#topics-marker-color")?.value).toBe("#ff00ff");
+    expect(container.querySelector<HTMLInputElement>("#topics-text-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+    expect(container.querySelector<HTMLInputElement>("#topics-marker-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+  });
+
+  it("labels local Topics color resets as returning to Container inheritance", async () => {
+    await act(async () => mount(topicsElement({ style: { color: "#0000ff" }, markerColor: "#00ff00" }), {
+      type: "container", id: "parent", hidden: false, style: { color: "#ff00ff" }, children: [],
+    }));
+    presentation = { linkedStyles: [] };
+    await act(async () => renderInspector());
+    const labels = ["#topics-text-color-value", "#topics-marker-color-value"].map((id) =>
+      container.querySelector<HTMLInputElement>(id)?.closest("label"),
+    );
+    expect(labels.every((label) => label?.textContent?.includes("Use inherited color"))).toBe(true);
   });
 
   it("uses the nearest colored ancestor through uncolored Containers", async () => {

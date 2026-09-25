@@ -121,6 +121,21 @@ describe("Text Inspector typography style attachment", () => {
     expect(input?.placeholder).toBe("Inherited from Container");
     expect(host.querySelector<HTMLInputElement>("#text-color")?.value).toBe("#ff00ff");
     expect(current.style?.color).toBeUndefined();
+    expect(host.querySelector("#text-color-value")?.closest("label")?.querySelector("button")).toBeNull();
+  });
+
+  it("labels a local Text color reset as returning to Container inheritance", async () => {
+    await mount(text({ style: { color: "#0000ff" } }), presentation(), {
+      id: "parent",
+      type: "container",
+      hidden: false,
+      style: { color: "#ff00ff" },
+      children: [],
+    });
+    const label = host.querySelector<HTMLInputElement>("#text-color-value")?.closest("label");
+    expect(label?.textContent).toContain("Use inherited color");
+    await act(async () => Array.from(label?.querySelectorAll("button") ?? []).find((button) => button.textContent?.trim() === "Use inherited color")?.click());
+    expect(current.style?.color).toBeUndefined();
   });
 
   it("displays Presentation-effective values without writing on mount", async () => {

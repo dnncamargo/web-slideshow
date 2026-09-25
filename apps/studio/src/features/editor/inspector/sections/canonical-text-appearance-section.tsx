@@ -28,6 +28,7 @@ interface CanonicalTextAppearanceSectionProps {
   controlPrefix: string;
   effectiveTextColor?: TextVisualStyle["color"];
   effectiveTextColorSource?: InheritedColorSource;
+  fallbackTextColorSource?: InheritedColorSource;
   textColorDisabled?: boolean;
   textColorSource?: TextStylePropertyInfo;
   onResetTextColor?: () => void;
@@ -48,6 +49,7 @@ export function CanonicalTextAppearanceSection({
   controlPrefix,
   effectiveTextColor,
   effectiveTextColorSource,
+  fallbackTextColorSource,
   textColorDisabled = false,
   textColorSource,
   onResetTextColor,
@@ -82,8 +84,8 @@ export function CanonicalTextAppearanceSection({
             onChange={(color) =>
               onUpdateStyle((current) => ({ ...current, color }))
             }
-            secondaryAction={textColorSource === undefined ? {
-              label: t("inspector.useThemeDefault"),
+            secondaryAction={style?.color !== undefined && (fallbackTextColorSource === "container" || textColorSource === undefined) ? {
+              label: fallbackTextColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"),
               onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
             } : undefined}
           />

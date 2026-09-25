@@ -169,6 +169,7 @@ export function TextInspector({
     : inheritedContainerColor === undefined
       ? "theme"
       : "container";
+  const fallbackTextColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
   const effectiveTextColor = resolvedTextStyle?.style?.color
     ?? inheritedContainerColor
     ?? themeTextColor;
@@ -307,6 +308,7 @@ export function TextInspector({
         controlPrefix="text"
         effectiveTextColor={effectiveTextColor}
         effectiveTextColorSource={effectiveTextColorSource}
+        fallbackTextColorSource={fallbackTextColorSource}
         textColorSource={textColorSource}
         onResetTextColor={() => resetTextStyleProperty("color")}
       />

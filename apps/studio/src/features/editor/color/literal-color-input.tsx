@@ -56,12 +56,14 @@ export function LiteralColorInput({
   const [draft, setDraft] = useState<Color | "">(value ?? "");
   const [format, setFormat] = useState<ColorFormat>(() => getColorFormat(value ?? previewValue ?? "#f8fafc"));
   const [lastValue, setLastValue] = useState(value);
-  const pickerStateRef = useRef({ draft, value, format, onChange, onCommit });
-  pickerStateRef.current = { draft, value, format, onChange, onCommit };
+  const [lastPreviewValue, setLastPreviewValue] = useState(previewValue);
+  const pickerStateRef = useRef({ draft, value, previewValue, format, onChange, onCommit });
+  pickerStateRef.current = { draft, value, previewValue, format, onChange, onCommit };
 
-  if (value !== lastValue) {
+  if (value !== lastValue || (value === undefined && previewValue !== lastPreviewValue)) {
     setLastValue(value);
-    setDraft(value ?? "");
+    setLastPreviewValue(previewValue);
+    if (value !== undefined || lastValue !== undefined) setDraft(value ?? "");
     setFormat(getColorFormat(value ?? previewValue ?? "#f8fafc"));
   }
 
@@ -71,7 +73,7 @@ export function LiteralColorInput({
     const current = pickerStateRef.current;
     const pickerBase = parseColor(current.draft)
       ? current.draft
-      : current.value ?? previewValue ?? "#f8fafc";
+      : current.value ?? current.previewValue ?? "#f8fafc";
     const next = replaceColorRgb(pickerBase, pickerValue, current.format);
 
     if (next) {

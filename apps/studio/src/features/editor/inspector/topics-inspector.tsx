@@ -742,7 +742,7 @@ function addChildTopic(topicItemId: string) {
                     markerColor,
                   }));
                 }}
-                secondaryAction={element.linkedStyleId === undefined ? { label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
+                secondaryAction={element.linkedStyleId === undefined && resolvedTopics.markerColor !== undefined ? { label: effectiveMarkerColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
               />
               <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
             </label>
@@ -770,7 +770,7 @@ function addChildTopic(topicItemId: string) {
                     : "apply";
                   updateCurrentTopics((current) => updateTopicsTextColor(current, color, mode));
                 }}
-                secondaryAction={{ label: t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => updateTopicsTextColor(current, undefined, "preserve-overrides")) }}
+                secondaryAction={element.style?.color !== undefined ? { label: effectiveTopicColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => updateTopicsTextColor(current, undefined, "preserve-overrides")) } : undefined}
               />
             </label>
           </div>
