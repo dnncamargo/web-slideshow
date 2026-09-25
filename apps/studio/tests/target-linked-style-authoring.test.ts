@@ -129,48 +129,67 @@ describe("target linked-style authoring primitives", () => {
   });
 
   it("switches Code ownership without materializing the source style", () => {
-    const code = presentation({ id: "code-switch", type: "code", hidden: false, code: "x", style: { color: "#101010", border: { width: 1, style: "solid", color: "#202020" }, className: "code" }, effect: { shadow: { x: 1, y: 1, blur: 2, color: "#303030" } } }).slides[0]!.elements[0]!;
+    const code = presentation({ id: "code-switch", type: "code", hidden: false, code: "x", style: { color: "#101010", background: { gradient: { type: "linear", angle: 90, stops: [{ color: "#111111", position: 0 }, { color: "#222222", position: 1 }] } }, border: { width: 1, style: "solid", color: "#202020" }, className: "code" }, effect: { shadow: { x: 1, y: 1, blur: 2, color: "#303030" } } }).slides[0]!.elements[0]!;
     if (code.type !== "code") throw new Error("Expected Code");
     const withStyles: Presentation = PresentationSchema.parse({ ...presentation(code), slides: [{ id: "slide", title: "", elements: [{ ...code, linkedStyleId: "source" }] }], linkedStyles: [
-      { target: "code" as const, id: "source", name: "Source", style: { color: "#404040" } },
+      { target: "code" as const, id: "source", name: "Source", style: { background: { color: "#404040" } } },
       { target: "code" as const, id: "destination", name: "Destination", style: { border: { width: 4, style: "solid", color: "#505050" } }, effect: { shadow: { x: 2, y: 2, blur: 4, color: "#606060" } } },
     ] });
-    const switched = attachLinkedCodeStyleToElement(withStyles, code, "destination")!;
+    const current = withStyles.slides[0]!.elements[0]!;
+    if (current.type !== "code") throw new Error("Expected linked Code");
+    expect(current.linkedStyleId).toBe("source");
+    const switched = attachLinkedCodeStyleToElement(withStyles, current, "destination")!;
     expect(switched).toMatchObject({ linkedStyleId: "destination", style: { color: "#101010", className: "code" } });
+    expect(switched).toMatchObject({ style: { background: { gradient: code.style?.background?.gradient } } });
+    expect(switched).not.toHaveProperty("style.background.color");
     expect(switched).not.toHaveProperty("style.border");
     expect(switched).not.toHaveProperty("effect.shadow");
     expect(switched).not.toHaveProperty("style.color", "#404040");
   });
 
   it("switches Simple, Structured and Divider styles while preserving local identity", () => {
-    const simple = presentation({ id: "simple-switch", type: "table", columns: [{ key: "name", label: "Name" }], rows: [{ name: "Ada" }], style: { color: "#707070", className: "simple" } }).slides[0]!.elements[0]!;
+    const simple = presentation({ id: "simple-switch", type: "table", columns: [{ key: "name", label: "Name" }], rows: [{ name: "Ada" }], effect: { opacity: 0.5 }, style: { color: "#707070", className: "simple" } }).slides[0]!.elements[0]!;
     if (simple.type !== "table") throw new Error("Expected Table");
     const simplePresentation: Presentation = PresentationSchema.parse({ ...presentation(simple), slides: [{ id: "slide", title: "", elements: [{ ...simple, linkedStyleId: "simple-source" }] }], linkedStyles: [
-      { target: "table" as const, mode: "simple" as const, id: "simple-source", name: "Source", style: { color: "#808080" } },
+      { target: "table" as const, mode: "simple" as const, id: "simple-source", name: "Source", style: { background: { color: "#808080" } } },
       { target: "table" as const, mode: "simple" as const, id: "simple-destination", name: "Destination", effect: { opacity: 0 } },
     ] });
-    const simpleSwitch = attachLinkedTableStyleToElement(simplePresentation, simple, "simple-destination")!;
+    const simpleCurrent = simplePresentation.slides[0]!.elements[0]!;
+    if (simpleCurrent.type !== "table") throw new Error("Expected linked Simple Table");
+    expect(simpleCurrent.linkedStyleId).toBe("simple-source");
+    const simpleSwitch = attachLinkedTableStyleToElement(simplePresentation, simpleCurrent, "simple-destination")!;
     expect(simpleSwitch).toMatchObject({ linkedStyleId: "simple-destination", style: { color: "#707070", className: "simple" } });
+    expect(simpleSwitch).not.toHaveProperty("style.background.color");
     expect(simpleSwitch).not.toHaveProperty("mode");
     expect(simpleSwitch).not.toHaveProperty("effect");
 
-    const structured = presentation({ id: "structured-switch", type: "table", mode: "structured", hidden: false, columns: [{ id: "c", header: { id: "h", children: [] } }], rows: [{ id: "r", cells: [{ id: "cell", children: [] }] }], style: { headerBackground: "#909090", className: "structured" } }).slides[0]!.elements[0]!;
+    const structured = presentation({ id: "structured-switch", type: "table", mode: "structured", hidden: false, columns: [{ id: "c", header: { id: "h", children: [] } }], rows: [{ id: "r", cells: [{ id: "cell", children: [] }] }], style: { headerBackground: "#909090", className: "structured", dividerOpacity: 0.7 } }).slides[0]!.elements[0]!;
     if (structured.type !== "table" || structured.mode !== "structured") throw new Error("Expected Structured Table");
     const structuredPresentation: Presentation = PresentationSchema.parse({ ...presentation(structured), slides: [{ id: "slide", title: "", elements: [{ ...structured, linkedStyleId: "structured-source" }] }], linkedStyles: [
-      { target: "table" as const, mode: "structured" as const, id: "structured-source", name: "Source", style: { headerBackground: "#a0a0a0" } },
+      { target: "table" as const, mode: "structured" as const, id: "structured-source", name: "Source", style: { bodyRowAlternateBackground: "#a0a0a0" } },
       { target: "table" as const, mode: "structured" as const, id: "structured-destination", name: "Destination", style: { dividerOpacity: 0.3 } },
     ] });
-    const structuredSwitch = attachLinkedTableStyleToElement(structuredPresentation, structured, "structured-destination")!;
+    const structuredCurrent = structuredPresentation.slides[0]!.elements[0]!;
+    if (structuredCurrent.type !== "table" || structuredCurrent.mode !== "structured") throw new Error("Expected linked Structured Table");
+    expect(structuredCurrent.linkedStyleId).toBe("structured-source");
+    const structuredSwitch = attachLinkedTableStyleToElement(structuredPresentation, structuredCurrent, "structured-destination")!;
     expect(structuredSwitch).toMatchObject({ linkedStyleId: "structured-destination", style: { headerBackground: "#909090", className: "structured" }, columns: structured.columns, rows: structured.rows });
+    expect(structuredSwitch).not.toHaveProperty("style.dividerOpacity");
+    expect(structuredSwitch).not.toHaveProperty("style.bodyRowAlternateBackground");
 
-    const divider = presentation({ id: "divider-switch", type: "divider", hidden: false, orientation: "vertical", style: { className: "divider" } }).slides[0]!.elements[0]!;
+    const divider = presentation({ id: "divider-switch", type: "divider", hidden: false, orientation: "vertical", layout: { width: 2 }, style: { className: "divider" } }).slides[0]!.elements[0]!;
     if (divider.type !== "divider") throw new Error("Expected Divider");
     const dividerPresentation: Presentation = PresentationSchema.parse({ ...presentation(divider), slides: [{ id: "slide", title: "", elements: [{ ...divider, linkedStyleId: "divider-source" }] }], linkedStyles: [
       { target: "divider" as const, id: "divider-source", name: "Source", style: { background: { color: "#b0b0b0" } } },
       { target: "divider" as const, id: "divider-destination", name: "Destination", layout: { width: 4 }, effect: { opacity: 0 } },
     ] });
-    const dividerSwitch = attachLinkedDividerStyleToElement(dividerPresentation, divider, "divider-destination")!;
+    const dividerCurrent = dividerPresentation.slides[0]!.elements[0]!;
+    if (dividerCurrent.type !== "divider") throw new Error("Expected linked Divider");
+    expect(dividerCurrent.linkedStyleId).toBe("divider-source");
+    const dividerSwitch = attachLinkedDividerStyleToElement(dividerPresentation, dividerCurrent, "divider-destination")!;
     expect(dividerSwitch).toMatchObject({ linkedStyleId: "divider-destination", orientation: "vertical", style: { className: "divider" } });
     expect(dividerSwitch).not.toHaveProperty("effect");
+    expect(dividerSwitch).not.toHaveProperty("style.background.color");
+    expect(dividerSwitch).not.toHaveProperty("layout.width");
   });
 });
