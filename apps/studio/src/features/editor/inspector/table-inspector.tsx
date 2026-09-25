@@ -1000,9 +1000,8 @@ function SimpleTableInspector({
             ===================================================== */}
       </InspectorSection>
 
-      <ElementSpacingSection
+      <CanonicalElementSizeSection
         layout={element.layout}
-        controlPrefix="table"
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
@@ -1012,8 +1011,9 @@ function SimpleTableInspector({
         }}
       />
 
-      <CanonicalElementSizeSection
+      <ElementSpacingSection
         layout={element.layout}
+        controlPrefix="table"
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
@@ -1183,9 +1183,8 @@ function StructuredTableInspector({
         </label>
       </InspectorSection>
 
-      <ElementSpacingSection
+      <CanonicalElementSizeSection
         layout={element.layout}
-        controlPrefix="table"
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
@@ -1195,8 +1194,9 @@ function StructuredTableInspector({
         }}
       />
 
-      <CanonicalElementSizeSection
+      <ElementSpacingSection
         layout={element.layout}
+        controlPrefix="table"
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
