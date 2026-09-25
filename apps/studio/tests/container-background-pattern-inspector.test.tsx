@@ -275,6 +275,35 @@ describe("Container canonical background pattern inspector", () => {
     expect(currentContainer().style?.background?.gradient).toBe(gradient);
   });
 
+  it("uses parametric Paper and Graph Paper Dotted Size authoring", async () => {
+    await act(async () => mount(containerElement({ style: { background: { color: "#111", gradient } } })));
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "paper"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "100px 100px, 100px 100px, 20px 20px, 20px 20px",
+      position: "-2px -2px, -2px -2px, -1px -1px, -1px -1px",
+    });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "150px 150px, 150px 150px, 30px 30px, 30px 30px",
+      position: "-3px -3px, -3px -3px, -1.5px -1.5px, -1.5px -1.5px",
+    });
+
+    await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "graph-paper-dotted"));
+    expect(host.querySelector<HTMLInputElement>("#container-background-pattern-size")?.value).toBe("20");
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "10px 40px, 40px 10px",
+      position: "-5px -20px, -20px -5px",
+    });
+    await act(async () => setValue(host.querySelector("#container-background-pattern-size")!, "30"));
+    expect(currentContainer().style?.background?.pattern).toMatchObject({
+      size: "15px 60px, 60px 15px",
+      position: "-7.5px -30px, -30px -7.5px",
+    });
+    expect(currentContainer().style?.background).toMatchObject({ color: "#111", gradient });
+  });
+
   it("keeps Custom CSS authoring separate from structured parameters", async () => {
     await act(async () => mount(containerElement()));
     await act(async () => changeSelect(host.querySelector("#container-background-pattern")!, "custom"));

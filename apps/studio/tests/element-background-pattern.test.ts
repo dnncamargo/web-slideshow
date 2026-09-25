@@ -5,6 +5,8 @@ import {
   BACKGROUND_PATTERN_PRESETS,
   applyPresetPatternColors,
   createCircuitGridImage,
+  createGraphPaperDottedPattern,
+  createPaperPattern,
   findBackgroundPatternPreset,
   getPatternSizeValue,
   materializeBackgroundPatternPreset,
@@ -43,9 +45,11 @@ describe("Container background pattern authoring primitives", () => {
     expect(BackgroundPatternSchema.safeParse(preset.pattern).success).toBe(true);
     expect(findBackgroundPatternPreset(preset.pattern)).toBe(preset.id);
     expect(preset.pattern.colors).toHaveLength(preset.id === "art-deco" ? 4 : preset.id === "circuit-grid" || preset.id === "paper" ? 2 : preset.id === "triple-axis-overlay" ? 3 : 1);
-    if (preset.id !== "circuit-grid") expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    if (!["circuit-grid", "paper", "graph-paper-dotted"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     expect(preset.pattern.repeat).toBe("repeat");
-    expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
+    if (!["paper", "graph-paper-dotted"].includes(preset.id)) {
+      expect(preset.pattern.size).toMatch(/^\d+(?:\.\d+)?px \d+(?:\.\d+)?px$/);
+    }
   });
 
   it("uses valid structured geometry for Art Deco", () => {
@@ -108,6 +112,50 @@ describe("Container background pattern authoring primitives", () => {
     expect(size30.image).toContain("3.6px");
     expect(size30.image).toContain("4.1px");
     expect(findBackgroundPatternPreset({ ...size30, colors: ["#123456", "#654321"], rotation: 20 })).toBe("circuit-grid");
+  });
+
+  it("uses the supplied parametric Paper formula", () => {
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "paper")!.pattern;
+
+    expect(pattern.colors).toEqual(["#444cf7", "#444cf7"]);
+    expect(pattern.size).toBe("100px 100px, 100px 100px, 20px 20px, 20px 20px");
+    expect(pattern.position).toBe("-2px -2px, -2px -2px, -1px -1px, -1px -1px");
+    expect(pattern.image).toBe(createPaperPattern(20).image);
+    expect(pattern.image).toContain("--presentation-pattern-color-1) 2px");
+    expect(pattern.image).toContain("--presentation-pattern-color-2) 1px");
+    expect(pattern.image).not.toContain("#E5E5F7");
+    expect(BackgroundPatternSchema.safeParse(pattern).success).toBe(true);
+
+    const size30 = updateBackgroundPatternSize(pattern, "paper", 30);
+    expect(size30).toMatchObject({
+      colors: pattern.colors,
+      size: "150px 150px, 150px 150px, 30px 30px, 30px 30px",
+      position: "-3px -3px, -3px -3px, -1.5px -1.5px, -1.5px -1.5px",
+    });
+    expect(size30.image).toBe(createPaperPattern(30).image);
+    expect(findBackgroundPatternPreset({ ...size30, colors: ["#123456", "#654321"], rotation: 20 })).toBe("paper");
+  });
+
+  it("uses the supplied parametric Graph Paper Dotted formula", () => {
+    const pattern = BACKGROUND_PATTERN_PRESETS.find((preset) => preset.id === "graph-paper-dotted")!.pattern;
+
+    expect(pattern.colors).toEqual(["#444cf7"]);
+    expect(pattern.size).toBe("10px 40px, 40px 10px");
+    expect(pattern.position).toBe("-5px -20px, -20px -5px");
+    expect(pattern.image).toBe(createGraphPaperDottedPattern(20).image);
+    expect(pattern.image.match(/--presentation-pattern-color-1/g)).toHaveLength(2);
+    expect(pattern.image).toContain("1.6px");
+    expect(BackgroundPatternSchema.safeParse(pattern).success).toBe(true);
+
+    const size30 = updateBackgroundPatternSize(pattern, "graph-paper-dotted", 30);
+    expect(size30).toMatchObject({
+      colors: pattern.colors,
+      size: "15px 60px, 60px 15px",
+      position: "-7.5px -30px, -30px -7.5px",
+    });
+    expect(size30.image).toBe(createGraphPaperDottedPattern(30).image);
+    expect(size30.image).toContain("2.4px");
+    expect(findBackgroundPatternPreset({ ...size30, rotation: 20 })).toBe("graph-paper-dotted");
   });
 
   it("parses MagicPattern Grid CSS", () => {
@@ -366,6 +414,12 @@ describe("Container background pattern authoring primitives", () => {
     if (preset.id === "circuit-grid") {
       expect(updated.image).toBe(createCircuitGridImage(40));
       expect(updated.image).not.toBe(preset.pattern.image);
+    } else if (preset.id === "paper") {
+      expect(updated.image).toBe(createPaperPattern(40).image);
+      expect(updated.position).toBe(createPaperPattern(40).position);
+    } else if (preset.id === "graph-paper-dotted") {
+      expect(updated.image).toBe(createGraphPaperDottedPattern(40).image);
+      expect(updated.position).toBe(createGraphPaperDottedPattern(40).position);
     } else {
       expect(updated.image).toBe(preset.pattern.image);
     }
@@ -373,7 +427,7 @@ describe("Container background pattern authoring primitives", () => {
     expect(updated.rotation).toBe(preset.pattern.rotation);
     expect(updated.repeat).toBe(preset.pattern.repeat);
     expect(updated.size).not.toBe(preset.pattern.size);
-    if (preset.id !== "circuit-grid") expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
+    if (!["circuit-grid", "paper", "graph-paper-dotted"].includes(preset.id)) expect(preset.pattern.image).not.toMatch(/\b\d+px\b/);
     if (preset.id === "dots" || preset.id === "offset-dots") {
       expect(preset.pattern.image).toContain("circle closest-side");
     }

@@ -24,8 +24,8 @@ const DOT_IMAGE = "radial-gradient(circle closest-side at 50% 50%, var(--present
 const OFFSET_DOT_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 16.6667%, transparent 16.6667% 100%)";
 const DIAGONAL_IMAGE = "linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 6.25%, transparent 6.25% 100%)";
 const ART_DECO_IMAGE = "linear-gradient(45deg, transparent 0% 35%, var(--presentation-pattern-color-1) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-1) 62% 65%, transparent 65% 100%), linear-gradient(135deg, transparent 0% 35%, var(--presentation-pattern-color-2) 35% 38%, transparent 38% 62%, var(--presentation-pattern-color-2) 62% 65%, transparent 65% 100%), linear-gradient(45deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-3) 53% 56%, transparent 56% 100%), linear-gradient(135deg, transparent 0% 47%, var(--presentation-pattern-color-4) 47% 50%, transparent 50% 53%, var(--presentation-pattern-color-4) 53% 56%, transparent 56% 100%)";
-const PAPER_IMAGE = "linear-gradient(0deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(90deg, var(--presentation-pattern-color-1) 0% 1.5%, transparent 1.5% 100%), linear-gradient(45deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%), linear-gradient(135deg, transparent 0% 49%, var(--presentation-pattern-color-2) 49% 50%, transparent 50% 100%)";
-const GRAPH_PAPER_DOTTED_IMAGE = "radial-gradient(circle closest-side at 25% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 25%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 25% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%), radial-gradient(circle closest-side at 75% 75%, var(--presentation-pattern-color-1) 0% 5%, transparent 5% 100%)";
+const PAPER_PATTERN = createPaperPattern(20);
+const GRAPH_PAPER_DOTTED_PATTERN = createGraphPaperDottedPattern(20);
 const CROSS_IMAGE = "linear-gradient(0deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%), linear-gradient(90deg, transparent 0% 43%, var(--presentation-pattern-color-1) 43% 57%, transparent 57% 100%)";
 const TRIPLE_AXIS_OVERLAY_IMAGE = "linear-gradient(0deg, transparent 0% 47%, var(--presentation-pattern-color-1) 47% 53%, transparent 53% 100%), linear-gradient(60deg, transparent 0% 47%, var(--presentation-pattern-color-2) 47% 53%, transparent 53% 100%), linear-gradient(120deg, transparent 0% 47%, var(--presentation-pattern-color-3) 47% 53%, transparent 53% 100%)";
 const CHEVRON_IMAGE = "linear-gradient(45deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%), linear-gradient(135deg, transparent 0% 46%, var(--presentation-pattern-color-1) 46% 54%, transparent 54% 100%)";
@@ -38,8 +38,8 @@ export const BACKGROUND_PATTERN_PRESETS: readonly BackgroundPatternPreset[] = [
   { id: "diagonal-lines", pattern: { image: DIAGONAL_IMAGE, size: "18px 18px", repeat: "repeat", colors: ["#cbd5e1"], rotation: 135 } },
   { id: "art-deco", pattern: { image: ART_DECO_IMAGE, size: "160px 111.7px", repeat: "repeat", colors: ["#e5e5e5", "#99a1ac", "#b69e85", "#e1cfc3"] } },
   { id: "circuit-grid", pattern: { image: createCircuitGridImage(20), size: "80px 80px", repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
-  { id: "paper", pattern: { image: PAPER_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#cbd5e1", "#e2e8f0"] } },
-  { id: "graph-paper-dotted", pattern: { image: GRAPH_PAPER_DOTTED_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
+  { id: "paper", pattern: { ...PAPER_PATTERN, repeat: "repeat", colors: ["#444cf7", "#444cf7"] } },
+  { id: "graph-paper-dotted", pattern: { ...GRAPH_PAPER_DOTTED_PATTERN, repeat: "repeat", colors: ["#444cf7"] } },
   { id: "cross", pattern: { image: CROSS_IMAGE, size: "32px 32px", repeat: "repeat", colors: ["#94a3b8"] } },
   { id: "triple-axis-overlay", pattern: { image: TRIPLE_AXIS_OVERLAY_IMAGE, size: "48px 48px", repeat: "repeat", colors: ["#f97316", "#22c55e", "#3b82f6"] } },
   { id: "chevron", pattern: { image: CHEVRON_IMAGE, size: "40px 40px", repeat: "repeat", colors: ["#cbd5e1"] } },
@@ -78,7 +78,12 @@ function exactPattern(left: BackgroundPattern, right: BackgroundPattern): boolea
 }
 
 function familyMatches(pattern: BackgroundPattern, preset: BackgroundPatternPreset): boolean {
-  if (pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity || pattern.position !== undefined) return false;
+  if (pattern.repeat !== preset.pattern.repeat || pattern.opacity !== preset.pattern.opacity) return false;
+  if (preset.id === "paper" || preset.id === "graph-paper-dotted") {
+    const size = generatedPatternSizeValue(pattern, preset.id);
+    return size !== undefined && pattern.image === (preset.id === "paper" ? createPaperPattern(size) : createGraphPaperDottedPattern(size)).image;
+  }
+  if (pattern.position !== undefined) return false;
   if (preset.id === "art-deco") return pattern.image === preset.pattern.image && artDecoSizeValue(pattern.size) !== undefined;
   if (preset.id === "circuit-grid") {
     const parts = pixelSizeParts(pattern.size);
@@ -117,12 +122,60 @@ export function createCircuitGridImage(size: number): string {
   ].join(", ");
 }
 
+type GeneratedPatternGeometry = Pick<BackgroundPattern, "image" | "size" | "position">;
+
+export function createPaperPattern(size: number): GeneratedPatternGeometry {
+  const majorWidth = size * 0.1;
+  const minorWidth = size * 0.05;
+  const majorCell = size * 5;
+  const minorCell = size;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const majorColor = "var(--presentation-pattern-color-1)";
+  const minorColor = "var(--presentation-pattern-color-2)";
+  return {
+    image: [
+      `linear-gradient(${majorColor} ${css(majorWidth)}, transparent ${css(majorWidth)})`,
+      `linear-gradient(90deg, ${majorColor} ${css(majorWidth)}, transparent ${css(majorWidth)})`,
+      `linear-gradient(${minorColor} ${css(minorWidth)}, transparent ${css(minorWidth)})`,
+      `linear-gradient(90deg, ${minorColor} ${css(minorWidth)}, transparent ${css(minorWidth)})`,
+    ].join(", "),
+    size: `${css(majorCell)} ${css(majorCell)}, ${css(majorCell)} ${css(majorCell)}, ${css(minorCell)} ${css(minorCell)}, ${css(minorCell)} ${css(minorCell)}`,
+    position: `${css(-majorWidth)} ${css(-majorWidth)}, ${css(-majorWidth)} ${css(-majorWidth)}, ${css(-minorWidth)} ${css(-minorWidth)}, ${css(-minorWidth)} ${css(-minorWidth)}`,
+  };
+}
+
+export function createGraphPaperDottedPattern(size: number): GeneratedPatternGeometry {
+  const radius = size * 0.08;
+  const css = (value: number) => `${formatCssNumber(value)}px`;
+  const color = "var(--presentation-pattern-color-1)";
+  return {
+    image: [
+      `radial-gradient(circle, ${color} ${css(radius)}, transparent ${css(radius)})`,
+      `radial-gradient(circle, ${color} ${css(radius)}, transparent ${css(radius)})`,
+    ].join(", "),
+    size: `${css(size * 0.5)} ${css(size * 2)}, ${css(size * 2)} ${css(size * 0.5)}`,
+    position: `${css(-size * 0.25)} ${css(-size)}, ${css(-size)} ${css(-size * 0.25)}`,
+  };
+}
+
+function generatedPatternSizeValue(pattern: BackgroundPattern, presetId: "paper" | "graph-paper-dotted"): number | undefined {
+  const sizes = pattern.size?.split(", ");
+  const positions = pattern.position?.split(", ");
+  if (!sizes || !positions || sizes.length !== (presetId === "paper" ? 4 : 2) || positions.length !== sizes.length) return undefined;
+  const match = sizes[0]?.match(/^(\d+(?:\.\d+)?)px (\d+(?:\.\d+)?)px$/);
+  if (!match || Number(match[1]) <= 0 || (presetId === "paper" && Number(match[1]) !== Number(match[2]))) return undefined;
+  const value = Number(match[1]) / (presetId === "paper" ? 5 : 0.5);
+  const expected = presetId === "paper" ? createPaperPattern(value) : createGraphPaperDottedPattern(value);
+  return expected.size === pattern.size && expected.position === pattern.position ? value : undefined;
+}
+
 export function getPatternSizeValue(pattern: BackgroundPattern, presetId: BackgroundPatternPresetId): number {
   if (presetId === "art-deco") return artDecoSizeValue(pattern.size) ?? 80;
   if (presetId === "circuit-grid") {
     const parts = pixelSizeParts(pattern.size);
     return parts && parts[0] === parts[1] ? parts[0] / 4 : 20;
   }
+  if (presetId === "paper" || presetId === "graph-paper-dotted") return generatedPatternSizeValue(pattern, presetId) ?? 20;
   const match = pattern.size?.match(/^(\d+(?:\.\d+)?)px \1px$/);
   if (match) return Number(match[1]);
   return presetId === "fine-grid" ? 16 : presetId === "grid" ? 32 : presetId === "diagonal-lines" ? 18 : 24;
@@ -179,6 +232,10 @@ export function updateBackgroundPatternSize(pattern: BackgroundPattern, presetId
       image: createCircuitGridImage(bounded),
       size: `${formatCssNumber(tile)}px ${formatCssNumber(tile)}px`,
     };
+  }
+  if (presetId === "paper" || presetId === "graph-paper-dotted") {
+    const geometry = presetId === "paper" ? createPaperPattern(bounded) : createGraphPaperDottedPattern(bounded);
+    return { ...pattern, ...geometry };
   }
   return {
     ...pattern,
