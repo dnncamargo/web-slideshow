@@ -19,7 +19,6 @@ import { renderBackground, renderGradientBorder } from "./render-visual";
 import { renderRichText, renderTextContent } from "./render-rich-text";
 
 type RenderChild = (element: PresentationElement) => string;
-type EffectiveTableStyle = SimpleTableVisualStyle & Partial<StructuredTableVisualStyle>;
 
 function renderCellValue(
   value:
@@ -56,9 +55,17 @@ export function renderTable(
     ? {}
     : resolveLinkedTableStyle(presentation!, element);
   const effectiveLayout = resolved.layout ?? element.layout;
-  const effectiveStyle = (resolved.style ?? element.style) as EffectiveTableStyle | undefined;
+  const effectiveSimpleStyle = element.mode !== "structured"
+    ? (resolved.style ?? element.style) as SimpleTableVisualStyle | undefined
+    : undefined;
+  const effectiveStructuredStyle = element.mode === "structured"
+    ? (resolved.style ?? element.style) as StructuredTableVisualStyle | undefined
+    : undefined;
+  const effectiveStyle = effectiveSimpleStyle ?? effectiveStructuredStyle;
   const effectiveEffect = resolved.effect ?? element.effect;
-  const effectiveTypography = resolved.typography ?? (element.mode === "structured" ? undefined : element.typography);
+  const effectiveTypography = element.mode !== "structured"
+    ? ("typography" in resolved ? resolved.typography : undefined) ?? element.typography
+    : undefined;
   const classes = [
     "presentation-element",
     "presentation-table",
@@ -73,8 +80,8 @@ export function renderTable(
 
   const styleParts = [renderCanonicalDataStyle({ layout: effectiveLayout, style: effectiveStyle, effect: effectiveEffect })];
 
-  if (element.mode === "structured" && effectiveStyle?.dividerOpacity !== undefined) {
-    styleParts.push(`--presentation-table-divider-opacity:${effectiveStyle.dividerOpacity}`);
+  if (element.mode === "structured" && effectiveStructuredStyle?.dividerOpacity !== undefined) {
+    styleParts.push(`--presentation-table-divider-opacity:${effectiveStructuredStyle.dividerOpacity}`);
   }
 
   if (element.mode !== "structured") {
@@ -92,8 +99,8 @@ export function renderTable(
       styleParts.push(`line-height:${typography.lineHeight}`);
     }
 
-    if (effectiveStyle?.color !== undefined) {
-      const color = renderColorValue(effectiveStyle.color);
+    if (effectiveSimpleStyle?.color !== undefined) {
+      const color = renderColorValue(effectiveSimpleStyle.color);
       styleParts.push(`color:${color}`);
       styleParts.push(`--presentation-table-color:${color}`);
     }
@@ -160,13 +167,13 @@ export function renderTable(
       includeBorder: false,
       includeRadius: false,
     }),
-    effectiveStyle?.borderRadius !== undefined
-      ? `--presentation-table-frame-radius:${renderLength(effectiveStyle!.borderRadius)}`
+    effectiveStructuredStyle?.borderRadius !== undefined
+      ? `--presentation-table-frame-radius:${renderLength(effectiveStructuredStyle.borderRadius)}`
       : "",
     "--presentation-table-border-width:1px",
     "--presentation-table-border-color:var(--presentation-border)",
   ];
-  const border = effectiveStyle?.border;
+  const border = effectiveStructuredStyle?.border;
   if (border) {
     frameStyleParts.push(`--presentation-table-border-width:${renderLength(border.width)}`);
     if (border.gradient) {
@@ -181,20 +188,20 @@ export function renderTable(
       }
     }
   }
-  if (effectiveStyle?.borderRadius !== undefined) {
-    frameStyleParts.push(`border-radius:${renderLength(effectiveStyle.borderRadius)}`);
+  if (effectiveStructuredStyle?.borderRadius !== undefined) {
+    frameStyleParts.push(`border-radius:${renderLength(effectiveStructuredStyle.borderRadius)}`);
   }
   const frameStyle = frameStyleParts.filter(Boolean).join(";");
   const frameStyleAttribute = frameStyle ? ` style="${escapeHtml(frameStyle)}"` : "";
 
   const tableClasses = ["presentation-table", "presentation-table-structured"];
-  if (effectiveStyle?.background !== undefined) tableClasses.push("presentation-table-has-surface");
+  if (effectiveStructuredStyle?.background !== undefined) tableClasses.push("presentation-table-has-surface");
   if (effectiveLayout?.height !== undefined) tableClasses.push("presentation-table-fills-frame");
   const tableStyleParts = [
-    effectiveStyle?.background ? renderBackground(effectiveStyle.background).join(";") : "",
+    effectiveStructuredStyle?.background ? renderBackground(effectiveStructuredStyle.background).join(";") : "",
   ];
-  if (effectiveStyle?.dividerOpacity !== undefined) {
-    tableStyleParts.push(`--presentation-table-divider-opacity:${effectiveStyle.dividerOpacity}`);
+  if (effectiveStructuredStyle?.dividerOpacity !== undefined) {
+    tableStyleParts.push(`--presentation-table-divider-opacity:${effectiveStructuredStyle.dividerOpacity}`);
   }
   const tableStyle = tableStyleParts.filter(Boolean).join(";");
   const tableStyleAttribute = tableStyle ? ` style="${escapeHtml(tableStyle)}"` : "";
@@ -243,16 +250,16 @@ export function renderTable(
           column.header,
           "th",
           column.id,
-          effectiveStyle?.headerBackground,
+          effectiveStructuredStyle?.headerBackground,
         ),
       ).join("")}</tr></thead>`
     : "";
 
-  const bodyParityOffset = element.showHeader && effectiveStyle?.headerBackground === undefined ? 1 : 0;
+  const bodyParityOffset = element.showHeader && effectiveStructuredStyle?.headerBackground === undefined ? 1 : 0;
   const rows = element.rows.map((row, rowIndex) =>
     `<tr data-presentation-table-row-id="${escapeHtml(row.id)}">${row.cells.map((cell) => {
       const background = (rowIndex + bodyParityOffset) % 2 === 1
-        ? effectiveStyle?.bodyRowAlternateBackground
+        ? effectiveStructuredStyle?.bodyRowAlternateBackground
         : undefined;
       return renderSlot(cell, "td", undefined, background);
     }).join("")}</tr>`,

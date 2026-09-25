@@ -21,6 +21,8 @@ import type {
   CodeElement,
   ContainerElement,
   DividerElement,
+  SimpleTableElement,
+  StructuredTableElement,
   TableElement,
   TerminalElement,
   TopicsElement,
@@ -58,12 +60,22 @@ export type ResolvedLinkedTerminalStyle = {
   effect?: ElementEffect;
 };
 
-export type ResolvedLinkedTableStyle = {
+export type ResolvedLinkedSimpleTableStyle = {
   layout?: ResizablePositionedLayout;
-  style?: SimpleTableVisualStyle | StructuredTableVisualStyle;
+  style?: SimpleTableVisualStyle;
   typography?: SimpleTableTypography;
   effect?: ElementEffect;
 };
+
+export type ResolvedLinkedStructuredTableStyle = {
+  layout?: ResizablePositionedLayout;
+  style?: StructuredTableVisualStyle;
+  effect?: ElementEffect;
+};
+
+export type ResolvedLinkedTableStyle =
+  | ResolvedLinkedSimpleTableStyle
+  | ResolvedLinkedStructuredTableStyle;
 
 export type ResolvedLinkedDividerStyle = {
   layout?: DividerLayout;
@@ -284,6 +296,18 @@ export function resolveLinkedTerminalStyle(
 
 export function resolveLinkedTableStyle(
   presentation: Pick<Presentation, "linkedStyles">,
+  element: SimpleTableElement,
+): ResolvedLinkedSimpleTableStyle;
+export function resolveLinkedTableStyle(
+  presentation: Pick<Presentation, "linkedStyles">,
+  element: StructuredTableElement,
+): ResolvedLinkedStructuredTableStyle;
+export function resolveLinkedTableStyle(
+  presentation: Pick<Presentation, "linkedStyles">,
+  element: TableElement,
+): ResolvedLinkedTableStyle;
+export function resolveLinkedTableStyle(
+  presentation: Pick<Presentation, "linkedStyles">,
   element: TableElement,
 ): ResolvedLinkedTableStyle {
   const linked = findLinkedStyle(presentation, element.linkedStyleId, "table");
@@ -293,15 +317,26 @@ export function resolveLinkedTableStyle(
   }
   const tableLinked = linked !== undefined && "target" in linked && linked.target === "table" ? linked : undefined;
   const layout = resolveResizableLayout(tableLinked?.layout, element.layout);
-  const style = resolveStyle(tableLinked?.style, element.style) as SimpleTableVisualStyle | StructuredTableVisualStyle | undefined;
-  const typography = element.mode !== "structured" && tableLinked?.mode === "simple"
+
+  if (element.mode === "structured") {
+    const style = resolveStyle(tableLinked?.style, element.style) as StructuredTableVisualStyle | undefined;
+    const effect = resolveEffect(tableLinked?.effect, element.effect);
+    return {
+      ...(layout === undefined ? {} : { layout }),
+      ...(style === undefined ? {} : { style }),
+      ...(effect === undefined ? {} : { effect }),
+    };
+  }
+
+  const style = resolveStyle(tableLinked?.style, element.style) as SimpleTableVisualStyle | undefined;
+  const typography = tableLinked?.mode === "simple"
     ? resolveTypography(tableLinked.typography, element.typography) as SimpleTableTypography | undefined
-    : undefined;
+    : element.typography;
   const effect = resolveEffect(tableLinked?.effect, element.effect);
   return {
     ...(layout === undefined ? {} : { layout }),
-    ...(style === undefined ? {} : { style: style as SimpleTableVisualStyle | StructuredTableVisualStyle }),
-    ...(typography === undefined ? {} : { typography: typography as SimpleTableTypography }),
+    ...(style === undefined ? {} : { style }),
+    ...(typography === undefined ? {} : { typography }),
     ...(effect === undefined ? {} : { effect }),
   };
 }
