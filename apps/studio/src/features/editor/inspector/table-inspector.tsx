@@ -25,6 +25,7 @@ import type {
 
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
+import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
@@ -999,6 +1000,17 @@ function SimpleTableInspector({
             ===================================================== */}
       </InspectorSection>
 
+      <CanonicalElementSizeSection
+        layout={element.layout}
+        onUpdateLayout={(update) => {
+          updateTable((table) => ({
+            ...table,
+
+            layout: update(table.layout),
+          }));
+        }}
+      />
+
       <ElementSpacingSection
         layout={element.layout}
         controlPrefix="table"
@@ -1170,6 +1182,17 @@ function StructuredTableInspector({
           <span>{t("table.showHeader")}</span>
         </label>
       </InspectorSection>
+
+      <CanonicalElementSizeSection
+        layout={element.layout}
+        onUpdateLayout={(update) => {
+          updateTable((table) => ({
+            ...table,
+
+            layout: update(table.layout),
+          }));
+        }}
+      />
 
       <ElementSpacingSection
         layout={element.layout}
