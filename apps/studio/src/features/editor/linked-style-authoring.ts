@@ -588,6 +588,10 @@ export function detachLinkedContainerStyleFromElement(
 type TargetElement = CodeElement | TerminalElement | SimpleTableElement | StructuredTableElement | DividerElement;
 type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedTableStyle | LinkedDividerStyle;
 
+function effectiveTableMode(element: SimpleTableElement | StructuredTableElement): "simple" | "structured" {
+  return element.mode === "structured" ? "structured" : "simple";
+}
+
 function copyBag<T extends object>(value: T | undefined): PropertyBag | undefined {
   return value === undefined ? undefined : { ...(value as PropertyBag) };
 }
@@ -645,7 +649,7 @@ function linkedForTarget(presentation: Presentation, element: TargetElement, lin
   if (element.type === "code" && linked.target === "code") return linked;
   if (element.type === "terminal" && linked.target === "terminal") return linked;
   if (element.type === "divider" && linked.target === "divider") return linked;
-  if (element.type === "table" && linked.target === "table" && linked.mode === element.mode) return linked;
+  if (element.type === "table" && linked.target === "table" && linked.mode === effectiveTableMode(element)) return linked;
   return null;
 }
 
@@ -734,9 +738,18 @@ function createTableStyle<T extends SimpleTableElement | StructuredTableElement>
   const trimmedName = name.trim();
   if (!trimmedName || element.linkedStyleId !== undefined || !targetHasShareableProperties(element)) return null;
   const id = createLinkedStyleId(trimmedName, (presentation.linkedStyles ?? []).map((style) => style.id));
-  const { layout, style, effect, ...local } = element;
-  const metadata = element.mode === "simple" ? { mode: "simple" as const } : { mode: "structured" as const };
-  const linked: LinkedTableStyle = { target: "table", ...metadata, id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedTableStyle["style"] } : {}), ...(element.mode === "simple" && "typography" in element && authoredObject(element.typography) ? { typography: authoredObject(element.typography) } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) } as LinkedTableStyle;
+  const mode = effectiveTableMode(element);
+  const metadata = mode === "simple" ? { mode: "simple" as const } : { mode: "structured" as const };
+  const layout = element.layout;
+  const style = element.style;
+  const effect = element.effect;
+  const typography = mode === "simple" ? (element as SimpleTableElement).typography : undefined;
+  const local = { ...element } as PropertyBag;
+  delete local.layout;
+  delete local.style;
+  delete local.effect;
+  if (mode === "simple") delete local.typography;
+  const linked: LinkedTableStyle = { target: "table", ...metadata, id, name: trimmedName, ...(authoredObject(layout) ? { layout: authoredObject(layout) } : {}), ...(targetStyle(element) ? { style: targetStyle(element) as LinkedTableStyle["style"] } : {}), ...(mode === "simple" && authoredObject(typography) ? { typography: authoredObject(typography) } : {}), ...(authoredObject(effect) ? { effect: authoredObject(effect) } : {}) } as LinkedTableStyle;
   return { presentation: appendTargetStyle(presentation, linked), element: { ...local, linkedStyleId: id, ...(element.style?.className === undefined ? {} : { style: { className: element.style.className } }) } as T };
 }
 
