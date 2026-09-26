@@ -16,7 +16,7 @@ import {
 } from "./element-hierarchy";
 import { findElementById } from "./element-tree";
 
-interface ParentTarget {
+export interface ParentTarget {
   id: string | null;
   label: string;
 }

@@ -22,6 +22,7 @@ import { ElementPropertiesPanel } from "./element-properties-panel";
 import {
   findElementSiblingPosition,
   getTopicItemHierarchyActionState,
+  type ElementSiblingPosition,
   type MoveElementOptions,
 } from "./element-operations";
 import { findElementById } from "./element-tree";
@@ -33,6 +34,7 @@ import {
   getParentTargets,
   getTreeActionState,
   resolveTreeDrop,
+  type ParentTarget,
   type TreeDropIntent,
 } from "./element-tree-helpers";
 import { getTextContentPlainText } from "./rich-text-authoring";
@@ -48,6 +50,19 @@ import {
   type TableStructuralSelection,
 } from "./table-tree-helpers";
 
+export interface ElementTreeMovementPolicy {
+  isElementMovable?: (elementId: string) => boolean;
+  getSiblingPosition?: (elementId: string) => ElementSiblingPosition | null;
+  resolveDrop?: (
+    elements: PresentationElement[],
+    sourceElementId: string,
+    targetElementId: string,
+    intent: TreeDropIntent,
+    workspaceRootContainerId?: string | null,
+  ) => MoveElementOptions | null;
+  getParentTargets?: (selectedElement: PresentationElement) => readonly ParentTarget[];
+}
+
 interface ElementTreePanelProps {
   slide: Slide;
   selectedElementId: string | null;
@@ -62,6 +77,7 @@ interface ElementTreePanelProps {
   onGalleryStructureDrop: (options: GalleryStructureDrop) => void;
   onMoveTableColumn?: (tableId: string, columnId: string, offset: -1 | 1) => void;
   onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
+  movementPolicy?: ElementTreeMovementPolicy;
   workspaceRootContainerId?: string | null;
   disableMovement?: boolean;
   customLibraryRepository?: CustomLibraryRepository;
@@ -132,6 +148,7 @@ interface ElementTreeNodeProps {
   onMoveTableRow?: (tableId: string, rowId: string, offset: -1 | 1) => void;
   contentSlotId?: string;
   isDraggable: boolean;
+  canDragElement: (elementId: string) => boolean;
 }
 
 interface GalleryItemTreeNodeProps {
@@ -179,6 +196,7 @@ interface TopicItemTreeNodeProps {
     canIndent: boolean;
     canOutdent: boolean;
   };
+  canDragElement: (elementId: string) => boolean;
 }
 
 function isStructuralTopicSelection(
@@ -323,6 +341,7 @@ function ElementTreeNode({
   onMoveTableRow,
   contentSlotId,
   isDraggable,
+  canDragElement,
 }: ElementTreeNodeProps) {
   const { t } = useStudioI18n();
   const isExpandable =
@@ -499,7 +518,8 @@ function ElementTreeNode({
                 onMoveTableColumn={onMoveTableColumn}
                 onMoveTableRow={onMoveTableRow}
                 contentSlotId={contentSlotId}
-                isDraggable={true}
+                isDraggable={canDragElement(child.id)}
+                canDragElement={canDragElement}
               />
             ))}
           {element.type === "topics" &&
@@ -528,6 +548,7 @@ function ElementTreeNode({
                 onIndentTopicItem={onIndentTopicItem}
                 onOutdentTopicItem={onOutdentTopicItem}
                 getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
+                canDragElement={canDragElement}
               />
             ))}
           {element.type === "gallery" &&
@@ -583,6 +604,7 @@ function ElementTreeNode({
                 onMoveTableColumn,
                 onMoveTableRow,
                 isDraggable: true,
+                canDragElement,
               }}
             />
           )}
@@ -769,6 +791,7 @@ function TopicItemTreeNode({
   onIndentTopicItem,
   onOutdentTopicItem,
   getTopicItemHierarchyActionState,
+  canDragElement,
 }: TopicItemTreeNodeProps) {
   const { t } = useStudioI18n();
   const displayInfo = getTopicItemDisplayInfo(item, t("tree.topic"));
@@ -851,7 +874,8 @@ function TopicItemTreeNode({
               onIndentTopicItem={onIndentTopicItem}
               onOutdentTopicItem={onOutdentTopicItem}
               getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
-              isDraggable={true}
+              isDraggable={canDragElement(child.id)}
+              canDragElement={canDragElement}
             />
           ))}
           {structuralChildren.map((child, childIndex) => (
@@ -879,6 +903,7 @@ function TopicItemTreeNode({
                   onIndentTopicItem={onIndentTopicItem}
                   onOutdentTopicItem={onOutdentTopicItem}
                   getTopicItemHierarchyActionState={getTopicItemHierarchyActionState}
+                  canDragElement={canDragElement}
             />
           ))}
         </ul>
@@ -901,6 +926,7 @@ export function ElementTreePanel({
   onGalleryStructureDrop,
   onMoveTableColumn,
   onMoveTableRow,
+  movementPolicy,
   workspaceRootContainerId,
   disableMovement = false,
   selectedTableStructuralNode,
@@ -938,10 +964,14 @@ export function ElementTreePanel({
     selectedElementId === null
       ? null
       : findElementById(slide.elements, selectedElementId);
+  const isElementMovable = (elementId: string): boolean =>
+    movementPolicy?.isElementMovable?.(elementId) ?? true;
   const selectedPosition =
     selectedElementId === null
       ? null
-      : findElementSiblingPosition(slide.elements, selectedElementId);
+      : movementPolicy?.getSiblingPosition
+        ? movementPolicy.getSiblingPosition(selectedElementId)
+        : findElementSiblingPosition(slide.elements, selectedElementId);
   const isStructuralTopicRow = isStructuralTopicSelection(
     slide,
     selectedElementId,
@@ -949,14 +979,18 @@ export function ElementTreePanel({
   );
   const selectedElementForMovement = isStructuralTopicRow
     ? null
-    : selectedElement;
+    : selectedElement && isElementMovable(selectedElement.id)
+      ? selectedElement
+      : null;
   const selectedGallery =
     selectedGalleryItemIndex !== null && selectedElement?.type === "gallery"
       ? selectedElement
       : null;
   const selectedPositionForMovement = isStructuralTopicRow
     ? null
-    : selectedPosition;
+    : selectedElementForMovement
+      ? selectedPosition
+      : null;
   const selectedTopicItemPosition = isStructuralTopicRow
     ? findTopicItemSiblingPosition(
         slide.elements,
@@ -966,8 +1000,10 @@ export function ElementTreePanel({
     : null;
   const selectedStructuralTopicItemId =
     isStructuralTopicRow ? selectedTopicItemPosition?.topicItemId ?? null : null;
+  const selectedStructuralElementMovable = selectedElementId !== null && isElementMovable(selectedElementId);
   const selectedTargets = selectedElementForMovement
-    ? getParentTargets(slide, selectedElementForMovement, (key) => t(key), workspaceRootContainerId)
+    ? movementPolicy?.getParentTargets?.(selectedElementForMovement) ??
+      getParentTargets(slide, selectedElementForMovement, (key) => t(key), workspaceRootContainerId)
     : [];
   const selectedActionState = selectedPositionForMovement
     ? getTreeActionState(
@@ -1038,7 +1074,11 @@ export function ElementTreePanel({
               }}
               onSelectElement={selectRealElement}
               onDragStart={(element, event) => {
-                if (disableMovement || (workspaceRootContainerId !== undefined && element.id === workspaceRootContainerId)) return;
+                if (
+                  disableMovement ||
+                  !isElementMovable(element.id) ||
+                  (workspaceRootContainerId !== undefined && element.id === workspaceRootContainerId)
+                ) return;
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("text/plain", element.id);
                 setDragSource({ kind: "element", elementId: element.id });
@@ -1048,7 +1088,11 @@ export function ElementTreePanel({
                 });
               }}
               onDragOver={(target, event) => {
-                if (disableMovement || !dragSource) {
+                if (
+                  disableMovement ||
+                  !dragSource ||
+                  (dragSource.kind === "element" && !isElementMovable(dragSource.elementId))
+                ) {
                   return;
                 }
 
@@ -1063,6 +1107,10 @@ export function ElementTreePanel({
                   return;
                 }
                 if (dragSource.kind === "gallery-item") {
+                  if (!isElementMovable(target.id)) {
+                    setDropTarget(null);
+                    return;
+                  }
                   if (target.type === "gallery" && intent === "inside") {
                     setDropTarget(null);
                     return;
@@ -1081,7 +1129,7 @@ export function ElementTreePanel({
                   }
                   return;
                 }
-                const resolved = resolveTreeDrop(
+                const resolved = (movementPolicy?.resolveDrop ?? resolveTreeDrop)(
                   slide.elements,
                   dragSource.elementId,
                   target.id,
@@ -1119,7 +1167,7 @@ export function ElementTreePanel({
                     intent: dropTarget.intent,
                   });
                 } else {
-                  const resolved = resolveTreeDrop(slide.elements, dragSource.elementId, target.id, dropTarget.intent, workspaceRootContainerId);
+                  const resolved = (movementPolicy?.resolveDrop ?? resolveTreeDrop)(slide.elements, dragSource.elementId, target.id, dropTarget.intent, workspaceRootContainerId);
                   if (resolved) onMoveElement(resolved);
 
                   if (
@@ -1140,12 +1188,18 @@ export function ElementTreePanel({
                 setDropTarget(null);
               }}
               onGalleryItemDragStart={(galleryId, itemIndex, event) => {
+                if (disableMovement || !isElementMovable(galleryId)) return;
                 event.dataTransfer.effectAllowed = "move";
                 setDragSource({ kind: "gallery-item", galleryId, itemIndex });
                 selectRealElement({ id: galleryId, type: "gallery", galleryItemIndex: itemIndex });
               }}
               onGalleryItemDragOver={(galleryId, itemIndex, event) => {
-                if (disableMovement || !dragSource) return;
+                if (
+                  disableMovement ||
+                  !dragSource ||
+                  !isElementMovable(galleryId) ||
+                  (dragSource.kind === "gallery-item" && !isElementMovable(dragSource.galleryId))
+                ) return;
                 const intent: TreeDropIntent = event.clientY - event.currentTarget.getBoundingClientRect().top < event.currentTarget.getBoundingClientRect().height / 2 ? "before" : "after";
                 const valid =
                   (dragSource.kind === "gallery-item" && dragSource.galleryId === galleryId && dragSource.itemIndex !== itemIndex) ||
@@ -1170,16 +1224,19 @@ export function ElementTreePanel({
               onIndentTopicItem={onIndentTopicItem}
               onOutdentTopicItem={onOutdentTopicItem}
               getTopicItemHierarchyActionState={(topicsId, topicItemId) =>
-                getTopicItemHierarchyActionState(
-                  slide.elements,
-                  topicsId,
-                  topicItemId,
-                )}
+                selectedStructuralElementMovable
+                  ? getTopicItemHierarchyActionState(slide.elements, topicsId, topicItemId)
+                  : { canIndent: false, canOutdent: false }}
               selectedTableStructuralNode={currentSelectedTableStructuralNode}
               onSelectTableStructuralNode={setSelectedTableStructuralNode}
               onMoveTableColumn={onMoveTableColumn}
               onMoveTableRow={onMoveTableRow}
-              isDraggable={!disableMovement && (workspaceRootContainerId === undefined || element.id !== workspaceRootContainerId)}
+              isDraggable={
+                !disableMovement &&
+                isElementMovable(element.id) &&
+                (workspaceRootContainerId === undefined || element.id !== workspaceRootContainerId)
+              }
+              canDragElement={isElementMovable}
             />
           ))}
         </ul>
@@ -1192,13 +1249,13 @@ export function ElementTreePanel({
           disabled={
             disableMovement || (
             currentSelectedTableStructuralNode?.kind === "column"
-              ? selectedTableColumnIndex <= 0
+              ? !selectedStructuralElementMovable || selectedTableColumnIndex <= 0
               : currentSelectedTableStructuralNode?.kind === "row"
-                ? selectedTableRowIndex <= 0
+                ? !selectedStructuralElementMovable || selectedTableRowIndex <= 0
                 : selectedGallery
-              ? selectedGalleryItemIndex === 0
+              ? !isElementMovable(selectedGallery.id) || selectedGalleryItemIndex === 0
               : selectedTopicItemPosition
-                ? selectedTopicItemPosition.index === 0
+                ? !selectedStructuralElementMovable || selectedTopicItemPosition.index === 0
               : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveUp)
           }
           onClick={() => {
@@ -1232,11 +1289,11 @@ export function ElementTreePanel({
           disabled={
             disableMovement || (
             currentSelectedTableStructuralNode?.kind === "column"
-              ? selectedTableColumnIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableColumnIndex >= selectedTable.columns.length - 1
+              ? !selectedStructuralElementMovable || selectedTableColumnIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableColumnIndex >= selectedTable.columns.length - 1
               : currentSelectedTableStructuralNode?.kind === "row"
-                ? selectedTableRowIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableRowIndex >= selectedTable.rows.length - 1
+                ? !selectedStructuralElementMovable || selectedTableRowIndex < 0 || selectedTable?.type !== "table" || selectedTable.mode !== "structured" || selectedTableRowIndex >= selectedTable.rows.length - 1
                 : selectedGallery
-              ? selectedGalleryItemIndex === selectedGallery.items.length - 1
+              ? !isElementMovable(selectedGallery.id) || selectedGalleryItemIndex === selectedGallery.items.length - 1
               : selectedTopicItemPosition
                 ? selectedTopicItemPosition.index === selectedTopicItemPosition.count - 1
               : isSelectedWorkspaceRoot || !selectedElementId || !selectedPositionForMovement || !selectedActionState?.canMoveDown)

@@ -72,7 +72,7 @@ import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
 
 import { ElementInspector } from "./element-inspector";
 import { AuthoringHistoryContext, type AuthoringHistoryContextValue } from "./authoring-history-context";
-import { ElementTreePanel } from "./element-tree-panel";
+import { ElementTreePanel, type ElementTreeMovementPolicy } from "./element-tree-panel";
 import { ClipboardPanel, HistoryPanel } from "./clipboard-panel";
 import {
   addClipboardEntry,
@@ -171,7 +171,7 @@ import { editorDemoPresentation } from "./editor-demo-presentation";
 
 import { findElementById, updateElementById } from "./element-tree";
 import { findAncestorContainers, findElementLocation, visitElements, type ElementParentRef } from "./element-hierarchy";
-import { getElementLabel } from "./element-tree-helpers";
+import { getElementLabel, getParentTargets, resolveTreeDrop } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
 import { presentationUsesFontFamily } from "./font-resource-helpers";
@@ -248,9 +248,9 @@ import {
   detachGalleryItemToImage,
   duplicateElement,
   findElementSiblingPosition,
+  type ElementSiblingPosition,
   insertElementAfterId,
   moveElement,
-  moveElementToSiblingIndexById,
   moveColumnInStructuredTable,
   moveRowInStructuredTable,
   reorderGalleryItem,
@@ -307,6 +307,9 @@ import {
   findLocalRootChildOwner,
   resolveOwnedAuthoringTree,
   replaceOwnedAuthoringTree,
+  resolveStructuralMovementOwner,
+  replaceStructuralMovementOwner,
+  normalizeRootBackedMoveOptions,
   updateOwnedAuthoringTree,
   updateLocalRootChildren,
   updateLocalRootElement,
@@ -1482,6 +1485,77 @@ export function EditorWorkspace({
   const rootBackedSlide = authoringTarget.kind === "slide"
     && selectedSlide !== undefined
     && (selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+  const resolveStructuralSiblingPosition = (
+    sourcePresentation: Presentation,
+    target: AuthoringTarget,
+    elementId: string,
+  ): ElementSiblingPosition | null => {
+    const owned = resolveStructuralMovementOwner(sourcePresentation, target, elementId);
+    if (!owned) return null;
+    const position = findElementSiblingPosition(owned.elements, elementId);
+    if (
+      position &&
+      owned.kind === "slide-local-root" &&
+      position.parentRef.kind === "slide"
+    ) {
+      return {
+        ...position,
+        parentRef: { kind: "container", id: owned.targetContainerId! },
+      };
+    }
+    return position;
+  };
+  const rootBackedMovementPolicy: ElementTreeMovementPolicy | undefined = rootBackedSlide
+    ? {
+        isElementMovable: (elementId) => {
+          const rootId = effectiveElements[0]?.type === "container"
+            ? effectiveElements[0].id
+            : null;
+          return materializedOwnership?.has(elementId) === true && elementId !== rootId;
+        },
+        getSiblingPosition: (elementId) => {
+          return resolveStructuralSiblingPosition(presentation, authoringTarget, elementId);
+        },
+        resolveDrop: (elements, sourceElementId, targetElementId, intent, workspaceRootContainerId) => {
+          const sourceOwner = resolveStructuralMovementOwner(presentation, authoringTarget, sourceElementId);
+          const targetOwner = resolveStructuralMovementOwner(presentation, authoringTarget, targetElementId);
+          const ownersMatch = sourceOwner !== null && targetOwner !== null &&
+            sourceOwner.kind === targetOwner.kind &&
+            (sourceOwner.kind !== "root-definition" || sourceOwner.rootDefinitionId === targetOwner.rootDefinitionId) &&
+            (sourceOwner.kind !== "slide-local-root" || (
+              sourceOwner.slideIndex === targetOwner.slideIndex &&
+              sourceOwner.targetContainerId === targetOwner.targetContainerId
+            ));
+          if (!ownersMatch) return null;
+          const resolved = resolveTreeDrop(
+            elements,
+            sourceElementId,
+            targetElementId,
+            intent,
+            workspaceRootContainerId,
+          );
+          return resolved
+            ? normalizeRootBackedMoveOptions(presentation, authoringTarget, effectiveElements, resolved)
+            : null;
+        },
+        getParentTargets: (selected) => {
+          const owned = resolveStructuralMovementOwner(presentation, authoringTarget, selected.id);
+          const ownerElement = owned ? findElementById(owned.elements, selected.id) : null;
+          if (!selectedSlide || !owned || !ownerElement) return [];
+          const ownerBoundary = owned.kind === "root-definition"
+            ? owned.elements[0]?.type === "container" ? owned.elements[0].id : null
+            : owned.kind === "slide-local-root"
+              ? owned.targetContainerId ?? null
+              : undefined;
+          return getParentTargets(
+            { ...selectedSlide, elements: owned.elements },
+            ownerElement,
+            (key) => t(key),
+            ownerBoundary,
+          );
+        },
+      }
+    : undefined;
   const slideRootDefinitionAssignmentBlocker = selectedSlide
     ? getSlideRootDefinitionAssignmentBlocker(presentation, selectedSlide)
     : null;
@@ -1638,7 +1712,7 @@ export function EditorWorkspace({
     ? materializedOwnership.get(selectedDocumentElement.id)
     : undefined;
   const selectedMasterElement = rootBackedSlide && selectedDocumentElement !== null
-    && findLocalRootChildOwner(presentation, selectedSlideIndex, selectedDocumentElement.id) === null;
+    && selectedElementOwner !== "slide";
   const elementStyleApplyAllowed = rootDefinitionMode
     ? selectedDocumentElement !== null
     : !rootBackedSlide
@@ -2109,16 +2183,23 @@ export function EditorWorkspace({
   // disponíveis sem colocar essa lógica na UI.
   // ==========================================================
 
+  const selectedElementAuthoringElements = useMemo(() => {
+    if (!selectedSlide || !selectedElement) return null;
+    if (rootBackedSlide) {
+      return resolveStructuralMovementOwner(presentation, authoringTarget, selectedElement.id)?.elements ?? null;
+    }
+    return effectiveElements;
+  }, [authoringTarget, effectiveElements, presentation, rootBackedSlide, selectedElement, selectedSlide]);
+
   const selectedElementPosition = useMemo(() => {
     if (!selectedSlide || !selectedElement) {
       return null;
     }
 
-    return findElementSiblingPosition(
-      effectiveElements,
-      selectedElement.id,
-    );
-  }, [effectiveElements, selectedElement, selectedSlide]);
+    return rootBackedSlide
+      ? resolveStructuralSiblingPosition(presentation, authoringTarget, selectedElement.id)
+      : findElementSiblingPosition(selectedElementAuthoringElements ?? [], selectedElement.id);
+  }, [authoringTarget, effectiveElements, presentation, rootBackedSlide, selectedElement, selectedElementAuthoringElements, selectedSlide]);
 
   const selectedElementParent = useMemo(() => {
     if (
@@ -2129,17 +2210,17 @@ export function EditorWorkspace({
     }
 
     const parent = findElementById(
-      effectiveElements,
+      selectedElementAuthoringElements ?? [],
       selectedElementPosition.parentRef.id,
     );
 
     return parent?.type === "container" ? parent : null;
-  }, [effectiveElements, selectedElementPosition, selectedSlide]);
+  }, [selectedElementAuthoringElements, selectedElementPosition, selectedSlide]);
 
   const selectedAncestorContainers = useMemo(() => {
     if (!selectedDocumentElement) return [];
-    return findAncestorContainers(effectiveElements, selectedDocumentElement.id);
-  }, [effectiveElements, selectedDocumentElement]);
+    return findAncestorContainers(selectedElementAuthoringElements ?? [], selectedDocumentElement.id);
+  }, [selectedDocumentElement, selectedElementAuthoringElements]);
 
   // ==========================================================
   // END: POSIÇÃO DO ELEMENTO SELECIONADO
@@ -5431,28 +5512,11 @@ export function EditorWorkspace({
       return;
     }
 
-    commitPresentationAction(
-      { kind: "element.move", labelKey: "history.element.move" },
-      (current) => {
-        const currentSlide = current.slides[selectedSlideIndex];
-        if (!currentSlide) return current;
-
-        const nextElements = moveElementToSiblingIndexById(
-          currentSlide.elements,
-          selectedElement.id,
-          targetIndex,
-        );
-
-        if (nextElements === currentSlide.elements) return current;
-
-        return {
-          ...current,
-          slides: current.slides.map((slide, index) =>
-            index === selectedSlideIndex ? { ...slide, elements: nextElements } : slide,
-          ),
-        };
-      },
-    );
+    moveElementInTree({
+      elementId: selectedElement.id,
+      targetParentRef: selectedElementPosition.parentRef,
+      targetIndex,
+    });
   }
 
   function moveElementInTree(options: Parameters<typeof moveElement>[1]) {
@@ -5461,16 +5525,33 @@ export function EditorWorkspace({
       target,
       { kind: "element.move", labelKey: "history.element.move" },
       (current, authoringTarget) => {
-        const currentElements = resolveAuthoringElements(current, authoringTarget);
-        if (!currentElements) return current;
+        const owned = resolveStructuralMovementOwner(current, authoringTarget, options.elementId);
+        if (!owned) return current;
+        const currentElements = owned.elements;
+        const currentSlide = authoringTarget.kind === "slide"
+          ? current.slides[authoringTarget.slideIndex]
+          : undefined;
+        const normalizedOptions = owned.kind !== "ordinary" && currentSlide
+          ? normalizeRootBackedMoveOptions(
+              current,
+              authoringTarget,
+              materializeSlide(current, currentSlide).slide.elements,
+              options,
+            )
+          : options;
+        if (!normalizedOptions) return current;
 
-        const source = findElementLocation(currentElements, options.elementId);
+        const source = findElementLocation(currentElements, normalizedOptions.elementId);
         if (!source) return current;
 
         const canonicalRootId = resolveCanonicalRootContainerId(current, authoringTarget);
+        const ownedRootId = owned.kind === "root-definition"
+          ? owned.elements[0]?.type === "container" ? owned.elements[0].id : null
+          : null;
         if (
-          canonicalRootId !== null &&
-          (options.elementId === canonicalRootId || options.targetParentRef.kind === "slide")
+          (canonicalRootId !== null &&
+            (normalizedOptions.elementId === canonicalRootId || normalizedOptions.targetParentRef.kind === "slide")) ||
+          (ownedRootId !== null && normalizedOptions.elementId === ownedRootId)
         ) {
           return current;
         }
@@ -5490,17 +5571,17 @@ export function EditorWorkspace({
         };
 
         if (
-          areElementParentRefsEqual(source.parentRef, options.targetParentRef) &&
-          ((options.targetIndex !== undefined && options.targetIndex === source.index) ||
-            (options.targetIndex === undefined && source.index === source.count - 1))
+          areElementParentRefsEqual(source.parentRef, normalizedOptions.targetParentRef) &&
+          ((normalizedOptions.targetIndex !== undefined && normalizedOptions.targetIndex === source.index) ||
+            (normalizedOptions.targetIndex === undefined && source.index === source.count - 1))
         ) {
           return current;
         }
 
-        const result = moveElement(currentElements, options);
+        const result = moveElement(currentElements, normalizedOptions);
         if (!result.moved) return current;
 
-        return replaceAuthoringElements(current, authoringTarget, result.elements);
+        return replaceStructuralMovementOwner(current, authoringTarget, normalizedOptions.elementId, result.elements);
       },
     );
   }
@@ -5519,7 +5600,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.move" },
       },
       (current, authoringTarget) => {
-        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        const currentElements = resolveStructuralMovementOwner(current, authoringTarget, topicsId)?.elements ?? null;
         if (!currentElements) return current;
 
         const nextElements = moveTopicItemToSiblingIndex(
@@ -5531,7 +5612,7 @@ export function EditorWorkspace({
 
         return nextElements === currentElements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceStructuralMovementOwner(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -5546,7 +5627,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.indent" },
       },
       (current, authoringTarget) => {
-        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        const currentElements = resolveStructuralMovementOwner(current, authoringTarget, topicsId)?.elements ?? null;
         if (!currentElements) return current;
 
         const nextElements = indentTopicItem(
@@ -5557,7 +5638,7 @@ export function EditorWorkspace({
 
         return nextElements === currentElements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceStructuralMovementOwner(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
@@ -5572,7 +5653,7 @@ export function EditorWorkspace({
         labelParams: { setting: "topics.outdent" },
       },
       (current, authoringTarget) => {
-        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        const currentElements = resolveStructuralMovementOwner(current, authoringTarget, topicsId)?.elements ?? null;
         if (!currentElements) return current;
 
         const nextElements = outdentTopicItem(
@@ -5583,14 +5664,17 @@ export function EditorWorkspace({
 
         return nextElements === currentElements
           ? current
-          : replaceAuthoringElements(current, authoringTarget, nextElements);
+          : replaceStructuralMovementOwner(current, authoringTarget, topicsId, nextElements);
       },
     );
   }
 
   function applyGalleryStructureDrop(options: Parameters<Parameters<typeof ElementTreePanel>[0]["onGalleryStructureDrop"]>[0]) {
     const authoringTargetAtStart = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, authoringTargetAtStart);
+    const sourceAnchorId = options.source.kind === "gallery-item"
+      ? options.source.galleryId
+      : options.source.elementId;
+    const elements = resolveStructuralMovementOwner(presentation, authoringTargetAtStart, sourceAnchorId)?.elements ?? null;
     if (!elements) return;
 
     const source = options.source;
@@ -5695,7 +5779,7 @@ export function EditorWorkspace({
 
     closeCanvasMediaEditing();
     commitAuthoringAction(authoringTargetAtStart, meta, (current, authoringTarget) => {
-      const currentElements = resolveAuthoringElements(current, authoringTarget);
+      const currentElements = resolveStructuralMovementOwner(current, authoringTarget, sourceAnchorId)?.elements ?? null;
       if (!currentElements) return current;
 
       const currentResolved = resolveOperation(
@@ -5708,7 +5792,7 @@ export function EditorWorkspace({
         (expectedImageId !== undefined && currentResolved.outcome.imageId !== expectedImageId)
       ) return current;
 
-      return replaceAuthoringElements(current, authoringTarget, currentResolved.outcome.elements);
+      return replaceStructuralMovementOwner(current, authoringTarget, sourceAnchorId, currentResolved.outcome.elements);
     });
 
     if (resolved.outcome.imageId) {
@@ -5728,7 +5812,7 @@ export function EditorWorkspace({
     offset: -1 | 1,
   ) {
     const target = authoringTarget;
-    const elements = resolveAuthoringElements(presentation, target);
+    const elements = resolveStructuralMovementOwner(presentation, target, galleryId)?.elements ?? null;
     if (!elements) return;
     const outcome = reorderGalleryItem(
       elements,
@@ -5747,7 +5831,7 @@ export function EditorWorkspace({
         labelParams: { setting: "gallery.move" },
       },
       (current, authoringTarget) => {
-        const currentElements = resolveAuthoringElements(current, authoringTarget);
+        const currentElements = resolveStructuralMovementOwner(current, authoringTarget, galleryId)?.elements ?? null;
         if (!currentElements) return current;
 
         const currentOutcome = reorderGalleryItem(
@@ -5758,7 +5842,7 @@ export function EditorWorkspace({
         );
         if (!currentOutcome.changed) return current;
 
-        return replaceAuthoringElements(current, authoringTarget, currentOutcome.elements);
+        return replaceStructuralMovementOwner(current, authoringTarget, galleryId, currentOutcome.elements);
       },
     );
     setSelectedElement({ id: galleryId, type: "gallery" });
@@ -5782,7 +5866,7 @@ export function EditorWorkspace({
     target: AuthoringTarget,
     tableId: string,
   ): Extract<PresentationElement, { type: "table"; mode: "structured" }> | null {
-    const elements = resolveOwnedAuthoringTree(current, target, tableId)?.elements ?? null;
+    const elements = resolveStructuralMovementOwner(current, target, tableId)?.elements ?? null;
     const element = elements ? findElementById(elements, tableId) : null;
     return element?.type === "table" && element.mode === "structured" ? element : null;
   }
@@ -5799,13 +5883,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
+          const elements = resolveStructuralMovementOwner(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addColumnToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
+            : replaceStructuralMovementOwner(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5826,12 +5910,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.columns[index]?.id !== expectedColumnId) return current;
-          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
+          const elements = resolveStructuralMovementOwner(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeColumnFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
+            : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5847,13 +5931,13 @@ export function EditorWorkspace({
         },
         (current, authoringTarget) => {
           const prepared = ensureStructuredTableTextStyles(current).presentation;
-          const elements = resolveOwnedAuthoringTree(prepared, authoringTarget, tableId)?.elements ?? null;
+          const elements = resolveStructuralMovementOwner(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
           const nextElements = addRowToStructuredTable(elements, tableId, usedIds);
           return nextElements === elements
             ? current
-            : replaceOwnedAuthoringTree(prepared, authoringTarget, tableId, nextElements);
+            : replaceStructuralMovementOwner(prepared, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5874,12 +5958,12 @@ export function EditorWorkspace({
         (current, authoringTarget) => {
           const table = resolveStructuredTableInTarget(current, authoringTarget, tableId);
           if (table?.rows[index]?.id !== expectedRowId) return current;
-          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
+          const elements = resolveStructuralMovementOwner(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = removeRowFromStructuredTable(elements, tableId, index);
           return nextElements === elements
             ? current
-            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
+            : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5892,12 +5976,12 @@ export function EditorWorkspace({
         target,
         { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "table.showHeader" } },
         (current, authoringTarget) => {
-          const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
+          const elements = resolveStructuralMovementOwner(current, authoringTarget, tableId)?.elements ?? null;
           if (!elements) return current;
           const nextElements = setStructuredTableShowHeader(elements, tableId, showHeader);
           return nextElements === elements
             ? current
-            : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
+            : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
         },
       );
     },
@@ -5909,12 +5993,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveColumn", labelKey: "history.element.setting", labelParams: { setting: "table.moveColumn" } },
       (current, authoringTarget) => {
-        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
+        const elements = resolveStructuralMovementOwner(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveColumnInStructuredTable(elements, tableId, columnId, offset);
         return nextElements === elements
           ? current
-          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
+          : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -5925,12 +6009,12 @@ export function EditorWorkspace({
       target,
       { kind: "table.moveRow", labelKey: "history.element.setting", labelParams: { setting: "table.moveRow" } },
       (current, authoringTarget) => {
-        const elements = resolveOwnedAuthoringTree(current, authoringTarget, tableId)?.elements ?? null;
+        const elements = resolveStructuralMovementOwner(current, authoringTarget, tableId)?.elements ?? null;
         if (!elements) return current;
         const nextElements = moveRowInStructuredTable(elements, tableId, rowId, offset);
         return nextElements === elements
           ? current
-          : replaceOwnedAuthoringTree(current, authoringTarget, tableId, nextElements);
+          : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
       },
     );
   }
@@ -6723,7 +6807,7 @@ export function EditorWorkspace({
                       setSelectedElement({
                         id: selection.id,
                         type: selection.type,
-                        contentSlotId: selection.contentSlotId,
+                        contentSlotId: selection.contentSlotId ?? null,
                       });
                     }
                   }}
@@ -6735,8 +6819,20 @@ export function EditorWorkspace({
                   onGalleryStructureDrop={applyGalleryStructureDrop}
                   onMoveTableColumn={moveTableColumnInTree}
                   onMoveTableRow={moveTableRowInTree}
-                  workspaceRootContainerId={rootDefinitionMode ? resolveCanonicalRootContainerId(presentation, authoringTarget) : undefined}
-                  disableMovement={rootBackedSlide}
+                  movementPolicy={rootBackedMovementPolicy}
+                  workspaceRootContainerId={
+                    rootDefinitionMode || rootBackedSlide
+                      ? resolveCanonicalRootContainerId(
+                          presentation,
+                          rootDefinitionMode
+                            ? authoringTarget
+                            : {
+                                kind: "root-definition",
+                                rootDefinitionId: selectedSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId!,
+                              },
+                        )
+                      : undefined
+                  }
                    selectedTableStructuralNode={selectedTableStructuralNode}
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
