@@ -7413,6 +7413,8 @@ export function EditorWorkspace({
             cancelLabel={t("elementCrud.cancel")}
             deleteAllLabel={t("elementCrud.deleteContainerAndChildren")}
             preserveChildrenLabel={t("elementCrud.deleteContainerPreserveChildren")}
+            deleteAllDisabled={rootPreserveResult?.ok === true}
+            notice={rootPreserveResult?.ok === true ? t("elementCrud.deleteContainerLocalContentNotice") : undefined}
             onCancel={() => setPendingElementDeletion(null)}
             onDeleteAll={confirmElementDeletion}
             onPreserveChildren={confirmContainerDeletionPreservingChildren}

@@ -12,6 +12,8 @@ export function ContainerDeletionDialog({
   cancelLabel,
   deleteAllLabel,
   preserveChildrenLabel,
+  deleteAllDisabled = false,
+  notice,
   onCancel,
   onDeleteAll,
   onPreserveChildren,
@@ -21,6 +23,8 @@ export function ContainerDeletionDialog({
   cancelLabel: ReactNode;
   deleteAllLabel: ReactNode;
   preserveChildrenLabel: ReactNode;
+  deleteAllDisabled?: boolean;
+  notice?: ReactNode;
   onCancel: () => void;
   onDeleteAll: () => void;
   onPreserveChildren: () => void;
@@ -46,10 +50,21 @@ export function ContainerDeletionDialog({
       >
         <h2 id={titleId} className={styles.title}>{title}</h2>
         <p id={messageId} className={styles.message}>{message}</p>
+        {notice ? <p className={styles.message} role="alert">{notice}</p> : null}
         <div className={styles.actions}>
           <Button size="compact" onClick={onCancel}>{cancelLabel}</Button>
-          <Button variant="danger" size="compact" autoFocus onClick={onDeleteAll}>{deleteAllLabel}</Button>
-          <Button size="compact" onClick={onPreserveChildren}>{preserveChildrenLabel}</Button>
+          <Button
+            variant="danger"
+            size="compact"
+            disabled={deleteAllDisabled}
+            autoFocus={!deleteAllDisabled}
+            onClick={onDeleteAll}
+          >
+            {deleteAllLabel}
+          </Button>
+          <Button size="compact" autoFocus={deleteAllDisabled} onClick={onPreserveChildren}>
+            {preserveChildrenLabel}
+          </Button>
         </div>
       </div>
     </div>

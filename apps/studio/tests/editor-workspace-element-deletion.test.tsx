@@ -255,9 +255,20 @@ describe("EditorWorkspace element deletion", () => {
     await act(async () => receiver!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
 
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("keep its children");
-    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
-      .some((button) => button.textContent?.trim() === "Delete container, keep children")).toBe(true);
+    const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("receives Slide-local content");
+    const deleteAll = Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete container and children")!;
+    const preserve = Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete container, keep children")!;
+    expect(deleteAll.disabled).toBe(true);
+    expect(preserve.disabled).toBe(false);
+    expect(document.activeElement).toBe(preserve);
+
+    await act(async () => deleteAll.click());
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).not.toBeNull();
+    await act(async () => preserve.click());
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).toBeNull();
   });
 
   it("transfers Root Definition local content as one history action with exact undo and redo", async () => {

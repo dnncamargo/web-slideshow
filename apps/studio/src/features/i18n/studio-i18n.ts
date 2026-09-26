@@ -377,6 +377,7 @@ const englishMessages = {
     'Delete container "{id}". Choose whether to delete or keep its children.',
   "elementCrud.deleteContainerAndChildren": "Delete container and children",
   "elementCrud.deleteContainerPreserveChildren": "Delete container, keep children",
+  "elementCrud.deleteContainerLocalContentNotice": "Delete container and children is unavailable because this Container receives Slide-local content. Keep children to preserve it.",
   "elementCrud.deleteContainerPreserveUnavailable": "This container has Slide-local content, but its current position cannot preserve the effective order. Move or restructure the content before deleting it.",
   "elementCrud.deleteElementConfirm": 'Delete {type} "{id}"?',
 
@@ -1596,6 +1597,7 @@ const portugueseMessages = {
     'Excluir o contêiner "{id}". Escolha se deseja excluir ou manter seus elementos filhos.',
   "elementCrud.deleteContainerAndChildren": "Excluir contêiner e elementos filhos",
   "elementCrud.deleteContainerPreserveChildren": "Excluir contêiner, manter elementos filhos",
+  "elementCrud.deleteContainerLocalContentNotice": "Excluir o contêiner e seus elementos filhos não está disponível porque este contêiner recebe conteúdo local do Slide. Mantenha os elementos filhos para preservá-lo.",
   "elementCrud.deleteContainerPreserveUnavailable": "Este contêiner tem conteúdo local do Slide, mas sua posição atual não permite preservar a ordem efetiva. Mova ou reorganize o conteúdo antes de excluí-lo.",
   "elementCrud.deleteElementConfirm": 'Excluir {type} "{id}"?',
 
