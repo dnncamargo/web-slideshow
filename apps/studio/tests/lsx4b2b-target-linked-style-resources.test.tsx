@@ -166,6 +166,19 @@ describe("LSX4B2B target Linked Style Resources", () => {
     expect(terminal.querySelector("[data-linked-style-property='titleTypography.fontSize']")).not.toBeNull();
   });
 
+  it("rerenders the preview from the changed Presentation definition", async () => {
+    const initial = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111111", borderRadius: "2px" } }]);
+    await mount(initial);
+    await openResources();
+    const row = await openRow("code");
+    const preview = () => row.querySelector<HTMLElement>("[data-linked-style-preview] .presentation-code");
+    expect(preview()?.getAttribute("style")).toContain("border-radius:2px");
+    const radius = row.querySelector<HTMLInputElement>("[data-linked-style-property='style.borderRadius'] input");
+    if (!radius) throw new Error("Border radius control was not rendered");
+    await act(async () => { inputValue(radius, "8"); });
+    expect(preview()?.getAttribute("style")).toContain("border-radius:8px");
+  });
+
   it("adds a property through Resources and propagates ownership across all authoring owners with Undo/Redo", async () => {
     const initial = PresentationSchema.parse({
       schemaVersion: 1, id: "owners", title: "Owners", linkedStyles: [{ target: "code", id: "code", name: "Code", typography: { fontSize: 16 } }],
