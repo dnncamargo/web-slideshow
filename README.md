@@ -135,7 +135,13 @@ Linked Style property precedence:
 3. element / Theme / role default
 ```
 
-Linked Styles are Presentation-scoped, self-contained and currently support Container and Topics targets; they do not imply support for every element type. Inspector edits remain local to the selected element. Resources edits modify the shared Style, and adding, editing or removing property `P` clears local `P` from all currently linked applicable usages while leaving unrelated `Q` untouched.
+Linked Styles are Presentation-scoped, self-contained and target-specific. The supported targets are Container, Topics, Code, Terminal, Table (with separate `simple` and `structured` contracts) and Divider; this is not generic support for every element type. Container remains targetless in persisted representation, while the other targets persist their target and Table also persists its mode. Inspector edits remain local to the selected element. Resources edits modify the shared Style, and adding, editing or removing property `P` clears local `P` from all currently linked applicable usages while leaving unrelated `Q` untouched. Removing a definition property does not materialize the old linked value; only Detach materializes the effective linked values locally.
+
+Target contracts are intentionally different: Code owns layout, visual surface, body typography and effects; Terminal additionally owns semantic terminal colors and title typography; Simple Table owns simple-table appearance, limited typography and effects; Structured Table owns structured appearance such as header, alternate rows and divider opacity, without a top-level typography contract; Divider owns position/size, background/radius and opacity. Runtime CSS hooks such as `className` remain local, as do Code content/config, Terminal title/lines/titleStyle, Table content/config/mode and Divider orientation.
+
+Resources creates a Linked Style by selecting the element type first, entering a name and choosing a compatible first property; Add to Linked Styles infers the selected element type and does not expose an editable type selector. Definitions support typed categorization, renderer-backed transient previews, property editing, usage counts/navigation, detach and protected removal. Target and Table mode are immutable after creation, and Simple and Structured Table definitions are incompatible.
+
+Matching is authored-value matching, not visual/effective equality: the candidate must be unlinked, have the compatible target/mode, and locally author every property in the definition with exact canonical persisted values; extra local properties are allowed. Bulk Attach recomputes current matches, attaches them atomically, removes only newly owned local properties, preserves local content/config and unrelated properties, and records one History action. Target Linked Style resource actions such as create, rename, property add/change/remove, detach and bulk attach participate in Editor History; continuous controls retain the existing coalescing behavior. Previews use transient representative elements through the shared renderer and resolver and are not persisted.
 
 Switching from Style A to Style B uses destination ownership only: destination-defined properties take effect, while destination-omitted properties do not inherit or copy Style A values. Detach is different: it removes the relationship while preserving effective state by materializing required values locally.
 
@@ -518,17 +524,19 @@ Container preserve-children deletion (#171)       ✅
 Historical identity cleanup (#172)                ✅
 Import-time ID normalization (#173)                ✅
 Root Definitions / structural normalization              ✅
-NEXT: Table Size
-Queued: Divider gradient; Linked Styles — Table, Code, Terminal, Divider; Text effects — shadow / glow
+Table Size                                               ✅
+Divider gradient                                         ✅
+Linked Styles target expansion                           ✅
+NEXT: Text effects — shadow / glow
 ```
 
 Immediate execution order:
 
-1. Table Size ← NEXT
-2. Divider gradient
-3. Linked Styles: Table, Code, Terminal, Divider
-4. Text effects: shadow and/or glow
+1. Table Size ✅
+2. Divider gradient ✅
+3. Linked Styles target expansion ✅
+4. Text effects: shadow / glow ← NEXT
 
-Table Size begins with an audit of the current Table canonical/layout, renderer and Inspector ownership before implementation. The next implementation chat starts from a fully closed local `main` and audits the current Simple Table and Structured Table layout capabilities, sizing controls, renderer ownership, Canvas/resizing integration, ContentSlot implications and reusable shared layout primitives. Reuse the existing canonical layout contract if it already expresses the product need; do not create a parallel Table sizing contract before evidence.
+The next implementation chat starts with the Text effects — shadow / glow audit, covering the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions.
 
 Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements. The explicit Text shadow/glow work is now in the immediate queue rather than this generic backlog.

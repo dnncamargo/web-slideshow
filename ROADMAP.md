@@ -199,7 +199,7 @@ Permanent P10 invariants include:
 
 References: PRs #69–#71, #85–#105, with later refinement in PRs #125 and #129.
 
-Delivered shared Studio/Library shell, private folders, Custom Library resources, Presentation-local Palette/FontResources/Text Styles, target-aware Linked Styles for Container and Topics, refined usage/navigation and compact shared resource actions. The resource system now provides local-over-master property ownership, Inspector local overrides, master property propagation, and categorized property authoring parity where relevant.
+Delivered shared Studio/Library shell, private folders, Custom Library resources, Presentation-local Palette/FontResources/Text Styles, and target-specific Linked Styles for Container, Topics, Code, Terminal, Table (Simple and Structured) and Divider. The resource system now provides local-over-master property ownership, Inspector local overrides, master property propagation, and categorized property authoring parity where relevant.
 
 Style property precedence:
 
@@ -211,7 +211,7 @@ local authored property
 
 Inspector edits the selected element locally; Resources edits the shared master and propagates property ownership to currently linked applicable usages. Master Add/Edit/Remove clears the matching local property while preserving unrelated properties. Attach and destination-owned Switch semantics are distinct from Detach, which preserves effective state by materializing required values locally.
 
-Text content and rich content remain outside Text Style ownership. Linked Styles currently target Container and Topics.
+Text content and rich content remain outside Text Style ownership. Linked Styles now support the seven completed target contracts: Container, Topics, Code, Terminal, Simple Table, Structured Table and Divider. Table modes remain incompatible and target/mode are immutable after creation; the expansion is not a generic all-elements abstraction.
 
 Attach / Switch / Detach semantics:
 
@@ -638,36 +638,27 @@ The current authoring and rendering model includes:
 - Studio distinction between authored Color, Inherited from Container / Herdado do Container and Theme default / Padrão do tema, without persisting inherited/effective child Color;
 - Plot axis labels using explicit Axis Color > Container foreground > theme primary for 2D x/y/f(x) and 3D x/y/z, with the 2D x label framed beyond the mathematical endpoint without changing curve geometry.
 
-Do not infer rejected intermediate Pattern geometry or a generic Linked Style target from this refinement. Linked Styles currently target Container and Topics.
+Do not infer rejected intermediate Pattern geometry or a generic Linked Style target from this refinement. The completed Linked Style expansion remains target-specific: Container, Topics, Code, Terminal, Simple Table, Structured Table and Divider.
 
 ---
 
-# Immediate next execution queue
+# Recorded execution order and immediate next area
 
-The order is frozen for the next implementation chat:
+The recorded execution order is:
 
-## 1. Table Size ← NEXT
+## 1. Table Size ✅
 
-Begin with an audit of:
+Completed using the existing canonical layout, renderer, Inspector, Canvas/resizing and Structured Table ContentSlot boundaries.
 
-- current Simple Table and Structured Table canonical/layout capabilities;
-- current Table Inspector sizing controls, if any;
-- renderer ownership of width, height and layout;
-- Canvas/resizing integration;
-- ContentSlot implications for Structured Table;
-- existing shared layout primitives that can be reused.
+## 2. Divider gradient ✅
 
-Reuse the existing canonical layout contract if it already expresses the product need. Do not define a Table-specific parallel sizing contract before evidence.
+Completed using the existing Divider visual/style schema, Gradient and ColorValue primitives, renderer behavior and Inspector conventions.
 
-## 2. Divider gradient
+## 3. Linked Styles target expansion ✅
 
-Audit the current Divider visual/style schema, existing Gradient and ColorValue primitives, renderer behavior, Inspector conventions and future Linked Style implications before implementation. Use existing visual primitives where compatible; do not define a second gradient contract.
+Completed the target-specific expansion for Code, Terminal, Simple Table, Structured Table and Divider, while preserving Container and Topics. The completed implementation covers each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. The result is not a generic all-elements abstraction, and the target contracts are intentionally not identical.
 
-## 3. Linked Styles — Table, Code, Terminal, Divider
-
-Current Linked Style targets remain Container and Topics. The planned expansion is target-specific, not a generic all-elements abstraction. Audit each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. Reuse existing ownership semantics and do not assume identical property sets.
-
-## 4. Text effects — shadow / glow
+## 4. Text effects — shadow / glow ← NEXT
 
 Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
 
@@ -738,12 +729,12 @@ P12   UX / Properties refinement                            ✅
        Root Definitions / structural normalization            ✅
 
 NEXT:
-  1. Table Size
+  1. Text effects — shadow / glow
 
 IMMEDIATE QUEUE:
-  2. Divider gradient
-  3. Linked Styles — Table, Code, Terminal, Divider
-  4. Text effects — shadow / glow
+  1. Table Size ✅
+  2. Divider gradient ✅
+  3. Linked Styles target expansion ✅
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -761,4 +752,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Table Size audit before changing production code.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — shadow / glow audit before changing production code.
