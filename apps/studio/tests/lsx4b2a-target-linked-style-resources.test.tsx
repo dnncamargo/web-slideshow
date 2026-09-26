@@ -140,15 +140,15 @@ describe("LSX4B2A target Linked Style Resources", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
   }
 
-  it("shows owner-aware target usage, exact count, source metadata, and no B2B editor surface", async () => {
+  it("shows owner-aware target usage alongside the B2B editor surface", async () => {
     await mount();
     await openLinkedStyles();
     const row = await openRow("code-style");
     expect(row.textContent).toContain("Used by 3 elements");
     expect(row.querySelectorAll("[data-linked-style-usage-source]")).toHaveLength(3);
     expect(Array.from(row.querySelectorAll<HTMLElement>("[data-linked-style-usage-source]"), (item) => item.dataset.linkedStyleUsageSource)).toEqual(["slide", "slide-local-root", "root-definition"]);
-    expect(row.querySelector("[data-linked-style-preview]")).toBeNull();
-    expect(row.querySelector("[data-linked-style-property]")).toBeNull();
+    expect(row.querySelector("[data-linked-style-preview]")).not.toBeNull();
+    expect(row.querySelector("[data-linked-style-property]")).not.toBeNull();
     expect(row.textContent).not.toContain("matching");
     expect(Array.from(row.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Remove")?.disabled).toBe(true);
   });

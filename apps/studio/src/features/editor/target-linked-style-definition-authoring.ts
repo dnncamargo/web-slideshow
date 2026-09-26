@@ -187,7 +187,7 @@ function mergeBag(current: unknown, patch: Bag | undefined): unknown {
 function applyDefinitionPatch(style: TargetLinkedStyle, patch: TargetLinkedStyleDefinitionPatch): TargetLinkedStyle {
   const next: Bag = { ...(style as Bag) };
   for (const key of ["layout", "style", "typography", "titleTypography", "effect"] as const) {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) next[key] = mergeBag(next[key], (patch as Bag)[key] as Bag | undefined);
+    if (Object.prototype.hasOwnProperty.call(patch, key) && (patch as Bag)[key] !== undefined) next[key] = mergeBag(next[key], (patch as Bag)[key] as Bag);
   }
   return next as TargetLinkedStyle;
 }

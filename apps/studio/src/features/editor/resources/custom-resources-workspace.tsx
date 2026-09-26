@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement } from "@web-slideshow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
 import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -39,7 +39,8 @@ import { AuthoringHistoryContext, useAuthoringHistory, type AuthoringHistoryCont
 import { findTextStyleUsageLocations, listPresentationTextStyles, normalizeTextStyleLayoutProperties, normalizeTextStyleTypographyProperties, normalizeTextStyleVisualProperties, type TextStyleUsageLocation } from "../text-style-helpers";
 import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canCreateLinkedStyleFromCode, canCreateLinkedStyleFromTerminal, canCreateLinkedStyleFromSimpleTable, canCreateLinkedStyleFromStructuredTable, canCreateLinkedStyleFromDivider, canUpdateLinkedStyle, listAvailableLinkedTopicsStyleProperties, type LinkedTopicsStyleAuthorableProperty } from "../linked-style-authoring";
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleCreationProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
-import { listTargetLinkedStyleCreationProperties, type CodeLinkedStyleAuthorableProperty, type DividerLinkedStyleAuthorableProperty, type SimpleTableLinkedStyleAuthorableProperty, type StructuredTableLinkedStyleAuthorableProperty, type TerminalLinkedStyleAuthorableProperty } from "../target-linked-style-property-authoring";
+import { addTargetLinkedStyleProperty, listAvailableTargetLinkedStyleProperties, listTargetLinkedStyleAuthoredProperties, listTargetLinkedStyleCreationProperties, removeTargetLinkedStyleProperty, setTargetLinkedStylePropertyValue, type CodeLinkedStyleAuthorableProperty, type DividerLinkedStyleAuthorableProperty, type SimpleTableLinkedStyleAuthorableProperty, type StructuredTableLinkedStyleAuthorableProperty, type TerminalLinkedStyleAuthorableProperty } from "../target-linked-style-property-authoring";
+import type { TargetLinkedStyleDefinitionPatch, TargetLinkedStyleProperty } from "../target-linked-style-definition-authoring";
 import type { LinkedStyleCreationKind, LinkedStyleCreationRequest } from "../linked-style-creation";
 import { findContainerLinkedStyleUsageLocations, findLinkedStyleUsageLocations, findMatchingContainersForLinkedStyle, findTargetLinkedStyleUsageLocations, type LinkedStyleUsageLocation, type TargetLinkedStyleUsageLocation } from "../linked-style-bulk-authoring";
 import type { AuthoringTarget } from "../authoring-target";
@@ -77,6 +78,7 @@ interface CustomResourcesWorkspaceProps {
   onRemoveTextStyle?: (id: string) => void;
   isTextStyleInUse?: (id: string) => boolean;
   onUpdateLinkedStyle?: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
+  onUpdateTargetLinkedStyle?: (id: string, patch: TargetLinkedStyleDefinitionPatch) => void;
   onUpdateLinkedTopicsStyle?: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreateLinkedStyle?: (request: LinkedStyleCreationRequest) => void;
   onRenameLinkedStyle?: (id: string, name: string) => void;
@@ -159,6 +161,33 @@ function createLinkedStylePreviewTopics(linkedStyleId: string): TopicsElement {
   };
 }
 
+type TargetResourceStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedSimpleTableStyle | LinkedStructuredTableStyle | LinkedDividerStyle;
+
+export function createLinkedTargetStylePreview(style: TargetResourceStyle): PresentationElement {
+  const id = `linked-style-preview-${style.id}`;
+  if (style.target === "code") return { id, type: "code", hidden: false, linkedStyleId: style.id, code: "const answer = 42;", language: "javascript", showLineNumbers: true, highlightedLines: [] };
+  if (style.target === "terminal") return { id, type: "terminal", hidden: false, linkedStyleId: style.id, title: "build", lines: [{ type: "command", content: "pnpm test" }, { type: "output", content: "passed" }, { type: "comment", content: "# checking" }, { type: "error", content: "no errors" }] };
+  if (style.target === "divider") return { id, type: "divider", hidden: false, linkedStyleId: style.id, orientation: "horizontal" };
+  if (style.mode === "simple") return { id, type: "table", hidden: false, linkedStyleId: style.id, mode: "simple", columns: [{ key: "name", label: "Name" }, { key: "value", label: "Value" }], rows: [{ name: "alpha", value: "1" }, { name: "beta", value: "2" }] };
+  return { id, type: "table", hidden: false, linkedStyleId: style.id, mode: "structured", showHeader: true, columns: [{ id: `${id}-name`, header: { id: `${id}-name-slot`, children: [{ id: `${id}-name-text`, type: "text", hidden: false, variant: "body", content: "Name" }] } }, { id: `${id}-value`, header: { id: `${id}-value-slot`, children: [{ id: `${id}-value-text`, type: "text", hidden: false, variant: "body", content: "Value" }] } }], rows: [{ id: `${id}-row-1`, cells: [{ id: `${id}-cell-1`, children: [{ id: `${id}-cell-1-text`, type: "text", hidden: false, variant: "body", content: "alpha" }] }, { id: `${id}-cell-2`, children: [{ id: `${id}-cell-2-text`, type: "text", hidden: false, variant: "body", content: "1" }] }] }, { id: `${id}-row-2`, cells: [{ id: `${id}-cell-3`, children: [{ id: `${id}-cell-3-text`, type: "text", hidden: false, variant: "body", content: "beta" }] }, { id: `${id}-cell-4`, children: [{ id: `${id}-cell-4-text`, type: "text", hidden: false, variant: "body", content: "2" }] }] }] };
+}
+
+function targetDefinitionPatch(style: TargetResourceStyle): TargetLinkedStyleDefinitionPatch {
+  if (style.target === "code") return { target: "code", layout: style.layout, style: style.style, typography: style.typography, effect: style.effect };
+  if (style.target === "terminal") return { target: "terminal", layout: style.layout, style: style.style, typography: style.typography, titleTypography: style.titleTypography, effect: style.effect };
+  if (style.target === "divider") return { target: "divider", layout: style.layout, style: style.style, effect: style.effect };
+  return style.mode === "simple" ? { target: "table", mode: "simple", layout: style.layout, style: style.style, typography: style.typography, effect: style.effect } : { target: "table", mode: "structured", layout: style.layout, style: style.style, effect: style.effect };
+}
+
+function targetPropertyDefinitionPatch(style: TargetResourceStyle, property: TargetLinkedStyleProperty, value: unknown): TargetLinkedStyleDefinitionPatch {
+  const patch = targetDefinitionPatch(style) as Record<string, unknown>;
+  const [namespace, key, nested] = property.split(".");
+  const namespacePatch: Record<string, unknown> = {};
+  if (nested === undefined) namespacePatch[key] = value;
+  else namespacePatch[key] = { [nested]: value };
+  return { ...patch, [namespace]: namespacePatch } as TargetLinkedStyleDefinitionPatch;
+}
+
 export function CustomResourcesWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
@@ -185,6 +214,7 @@ export function CustomResourcesWorkspace({
   onRemoveTextStyle = () => undefined,
   isTextStyleInUse = () => false,
   onUpdateLinkedStyle = () => undefined,
+  onUpdateTargetLinkedStyle = () => undefined,
   onUpdateLinkedTopicsStyle = () => undefined,
   onCreateLinkedStyle = () => undefined,
   onRenameLinkedStyle = () => undefined,
@@ -356,7 +386,7 @@ export function CustomResourcesWorkspace({
               ) : <p className={styles.status}>{t("customResources.noRootDefinitions")}</p>}
             </InspectorSection>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} authoringHistory={authoringHistory} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRenameTopics={onRenameLinkedTopicsStyle} onRemove={onRemoveLinkedStyle} onRemoveTopics={onRemoveLinkedTopicsStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onSelectElement={onSelectLinkedStyleElement} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} authoringHistory={authoringHistory} onUpdate={onUpdateLinkedStyle} onUpdateTarget={onUpdateTargetLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRenameTopics={onRenameLinkedTopicsStyle} onRemove={onRemoveLinkedStyle} onRemoveTopics={onRemoveLinkedTopicsStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onSelectElement={onSelectLinkedStyleElement} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
               <InspectorSection title={t("customResources.textStyles")} count={listPresentationTextStyles({ textStyles: presentationTextStyles }).length} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -530,11 +560,12 @@ function RootDefinitionUsageLocations({ presentation, locations, onSelect, t }: 
 }
 
 function LinkedStylesWorkspace({
-  presentation, authoringHistory, onUpdate: dispatchUpdate, onUpdateTopics, onCreate, onRename, onRenameTopics, onRemove, onRemoveTopics, onAttach, onSelectContainer, onSelectElement, onRequestDetach, selectedElement, onCreateFromSelected,
+  presentation, authoringHistory, onUpdate: dispatchUpdate, onUpdateTarget, onUpdateTopics, onCreate, onRename, onRenameTopics, onRemove, onRemoveTopics, onAttach, onSelectContainer, onSelectElement, onRequestDetach, selectedElement, onCreateFromSelected,
 }: {
   presentation?: Presentation;
   authoringHistory: AuthoringHistoryContextValue | null;
   onUpdate: (id: string, patch: { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] }) => void;
+  onUpdateTarget: (id: string, patch: TargetLinkedStyleDefinitionPatch) => void;
   onUpdateTopics: (id: string, patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void;
   onCreate: (request: LinkedStyleCreationRequest) => void;
   onRename: (id: string, name: string) => void;
@@ -651,7 +682,6 @@ function LinkedStylesWorkspace({
       ? listAvailableLinkedTopicsStyleProperties()
       : listTargetLinkedStyleCreationProperties(creationKind.kind === "table" ? creationKind.mode === "simple" ? "simpleTable" : "structuredTable" : creationKind.kind);
   const chooserGroups = creationKind?.kind === "container" ? null : [{ id: "properties", label: t("customResources.linkedStyleCompatibleProperties"), items: creationProperties.map((property) => ({ id: property, label: propertyLabel(property) })) }];
-  type TargetResourceStyle = Extract<LinkedStyle, { target: "code" | "terminal" | "table" | "divider" }>;
   const renderTargetRow = (linkedStyle: TargetResourceStyle) => {
     const locations = presentation ? findTargetLinkedStyleUsageLocations(presentation, linkedStyle.id) : [];
     const editing = editingId === linkedStyle.id;
@@ -662,6 +692,10 @@ function LinkedStylesWorkspace({
         <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
       </button>
       {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
+        <LinkedStyleNameField style={linkedStyle} onRename={(id, name) => runDefinitionDiscrete(() => onRename(id, name))} />
+        <div className={styles.linkedStylePreview} data-linked-style-preview={linkedStyle.id} aria-hidden="true" style={Object.fromEntries((presentation?.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value]))} dangerouslySetInnerHTML={{ __html: presentation ? renderElement(createLinkedTargetStylePreview(linkedStyle), { presentation }) : "" }} />
+        {targetPropertyGroups(linkedStyle).map((group) => group.properties.length === 0 ? null : <section className={styles.linkedStyleSection} data-linked-style-section={group.id} key={group.id}><h3 className={styles.linkedStyleSectionTitle}>{t(group.label)}</h3>{group.properties.map((property) => <TargetLinkedStylePropertyRow key={property} style={linkedStyle} property={property} onChange={(next) => onUpdateTarget(linkedStyle.id, targetDefinitionPatch(next))} onRemove={() => runDefinitionDiscrete(() => onUpdateTarget(linkedStyle.id, targetPropertyDefinitionPatch(linkedStyle, property, undefined)))} canRemove={removeTargetLinkedStyleProperty(linkedStyle, property) !== linkedStyle} />)}</section>)}
+        {listAvailableTargetLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><CategorizedPropertyChooser groups={[{ id: "target-properties", label: t("customResources.linkedStyleCompatibleProperties"), items: listAvailableTargetLinkedStyleProperties(linkedStyle).map((property) => ({ id: property, label: linkedStylePropertyLabel(t, property) })) }]} onSelect={(property) => { const next = addTargetLinkedStyleProperty(linkedStyle, property as TargetLinkedStyleProperty); if (next !== linkedStyle) runDefinitionDiscrete(() => onUpdateTarget(linkedStyle.id, targetDefinitionPatch(next))); }} dataAttribute="linked-style" /></div> : null}
         <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><ResourceUsageLocations presentation={presentation} locations={locations} onSelect={(location) => onSelectElement(location, linkedStyle.id)} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(linkedStyle.id))}>{t("customResources.linkedStyleRemove")}</button></div></div>
       </div> : null}
     </div>;
@@ -857,13 +891,15 @@ function topicsLinkedStyleAuthoredPropertyCount(style: LinkedTopicsStyle): numbe
     + (style.itemGap === undefined ? 0 : 1);
 }
 
-function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], property: LinkedStyleProperty): string {
-  switch (property) {
+function linkedStylePropertyLabel(t: ReturnType<typeof useStudioI18n>["t"], property: string): string {
+  const normalized = property.includes(".") ? property.split(".").pop() ?? property : property;
+  switch (normalized as LinkedStyleProperty) {
     case "layoutMode": return t("inspector.layoutMode"); case "direction": return t("inspector.direction"); case "gap": return t("inspector.gap"); case "distribution": return t("inspector.distribution"); case "horizontalAlign": return t("inspector.horizontalAlignment"); case "verticalAlign": return t("inspector.verticalAlignment"); case "overflow": return t("inspector.overflow"); case "fit": return t("inspector.childrenFit");
     case "position": return t("inspector.position"); case "top": return t("inspector.top"); case "right": return t("inspector.right"); case "bottom": return t("inspector.bottom"); case "left": return t("inspector.left"); case "width": return t("inspector.width"); case "height": return t("inspector.height"); case "preserveSize": return t("inspector.preserveSize");
     case "padding": return t("inspector.padding"); case "paddingTop": return t("inspector.paddingTop"); case "paddingRight": return t("inspector.paddingRight"); case "paddingBottom": return t("inspector.paddingBottom"); case "paddingLeft": return t("inspector.paddingLeft"); case "margin": return t("inspector.margin"); case "marginTop": return t("inspector.marginTop"); case "marginRight": return t("inspector.marginRight"); case "marginBottom": return t("inspector.marginBottom"); case "marginLeft": return t("inspector.marginLeft");
     case "color": return t("inspector.color"); case "backgroundColor": return t("inspector.background"); case "gradient": return t("inspector.gradient"); case "pattern": return t("inspector.pattern"); case "border": return t("inspector.border"); case "borderRadius": return t("inspector.roundedCorners"); case "opacity": return t("inspector.opacity"); case "shadow": return t("inspector.shadow");
   }
+  return normalized;
 }
 
 function LinkedStylePropertyChooser({ properties, onChoose, openInitially = false, withTrigger = true }: { properties: readonly LinkedStyleAuthorableProperty[]; onChoose: (property: LinkedStyleAuthorableProperty) => void; openInitially?: boolean; withTrigger?: boolean }) {
@@ -957,6 +993,66 @@ function LinkedStyleNameField({ style, labelKey = "customResources.linkedStyleNa
   return <label className={styles.field}><span>{t(labelKey)}</span><input value={draft} onChange={(event) => { setDraft(event.target.value); onDraftChange?.(); }} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); event.currentTarget.blur(); } if (event.key === "Escape") { setDraft(style.name); onDraftChange?.(); event.currentTarget.blur(); } }} /></label>;
 }
 
+function targetPropertyValue(style: TargetResourceStyle, property: TargetLinkedStyleProperty): unknown {
+  const [namespace, key, nested] = property.split(".");
+  const bag = (style as Record<string, unknown>)[namespace] as Record<string, unknown> | undefined;
+  if (bag === undefined) return undefined;
+  return nested === undefined ? bag[key] : (bag[key] as Record<string, unknown> | undefined)?.[nested];
+}
+
+function targetPropertyGroups(style: TargetResourceStyle): readonly { id: string; label: Parameters<ReturnType<typeof useStudioI18n>["t"]>[0]; properties: readonly TargetLinkedStyleProperty[] }[] {
+  const authored = listTargetLinkedStyleAuthoredProperties(style);
+  const inGroup = (group: "layout" | "position" | "size" | "spacing" | "typography" | "titleTypography" | "appearance" | "effects") => authored.filter((property) => {
+    if (group === "position") return ["layout.position", "layout.top", "layout.right", "layout.bottom", "layout.left"].includes(property);
+    if (group === "size") return ["layout.width", "layout.height"].includes(property);
+    if (group === "spacing") return property.startsWith("layout.margin");
+    if (group === "typography") return property.startsWith("typography.");
+    if (group === "titleTypography") return property.startsWith("titleTypography.");
+    if (group === "appearance") return property.startsWith("style.");
+    if (group === "effects") return property.startsWith("effect.");
+    return property === "layout.position";
+  });
+  return [
+    { id: "position", label: "inspector.position", properties: inGroup("position") },
+    { id: "size", label: "inspector.size", properties: inGroup("size") },
+    { id: "spacing", label: "inspector.spacing", properties: inGroup("spacing") },
+    { id: "typography", label: "inspector.typography", properties: inGroup("typography") },
+    { id: "title-typography", label: "inspector.typography", properties: inGroup("titleTypography") },
+    { id: "appearance", label: "inspector.appearance", properties: inGroup("appearance") },
+    { id: "effects", label: "inspector.effects", properties: inGroup("effects") },
+  ];
+}
+
+function TargetLinkedStylePropertyRow({ style, property, onChange, onRemove, canRemove }: { style: TargetResourceStyle; property: TargetLinkedStyleProperty; onChange: (style: TargetResourceStyle) => void; onRemove: () => void; canRemove: boolean }) {
+  const { t } = useStudioI18n();
+  const value = targetPropertyValue(style, property);
+  const label = linkedStylePropertyLabel(t, property);
+  const update = (next: unknown) => onChange(setTargetLinkedStylePropertyValue(style, property, next));
+  let control: ReactNode;
+  if (property === "style.color" || property === "style.background.color" || property.endsWith("Background") || property.endsWith("Color")) {
+    control = <ColorControl id={`linked-target-${style.id}-${property}`} name={label} value={value as ColorValue | undefined} onChange={update as (color: ColorValue) => void} />;
+  } else if (property === "style.background.gradient") {
+    control = <ElementGradientControl allowNone={false} gradient={value as NonNullable<NonNullable<LinkedCodeStyle["style"]>["background"]>["gradient"] | undefined} controlPrefix={`linked-target-${style.id}`} onChange={update} />;
+  } else if (property === "style.border") {
+    control = <ElementBorderControl allowNone={false} border={value as NonNullable<LinkedCodeStyle["style"]>["border"] | undefined} controlPrefix={`linked-target-${style.id}`} onChange={update} />;
+  } else if (property.startsWith("typography.") || property.startsWith("titleTypography.")) {
+    const typography = property.startsWith("titleTypography.")
+      ? style.target === "terminal" ? style.titleTypography as ElementTypography | undefined : undefined
+      : style.target === "code" || style.target === "terminal" || (style.target === "table" && style.mode === "simple") ? style.typography as ElementTypography | undefined : undefined;
+    const typographyProperty = property.split(".")[1] as CoreTypographyProperty;
+    control = <ElementTypographyFields typography={typography} effectiveDefaults={{}} fontResources={[]} visibleProperties={[typographyProperty]} controlPrefix={`linked-target-${style.id}-${property}`} onUpdateTypography={(updateTypography) => update(updateTypography(typography)[typographyProperty])} />;
+  } else if (property === "layout.position") {
+    control = <select value={typeof value === "string" ? value : "absolute"} onChange={(event) => update(event.target.value)}><option value="absolute">{t("inspector.absolute")}</option></select>;
+  } else if (property === "style.borderRadius" || property.startsWith("layout.")) {
+    control = <LinkedStyleLengthField id={`linked-target-${style.id}-${property}`} label={label} value={value as Length | undefined} onChange={update as (value: Length | undefined) => void} />;
+  } else if (property === "effect.opacity" || property === "style.dividerOpacity") {
+    control = <input type="number" min="0" max="100" value={typeof value === "number" ? value * 100 : ""} onChange={(event) => update(event.target.value === "" ? undefined : Number(event.target.value) / 100)} />;
+  } else {
+    control = <input type={typeof value === "number" ? "number" : "text"} value={value === undefined ? "" : String(value)} onChange={(event) => update(typeof value === "number" ? Number(event.target.value) : event.target.value)} />;
+  }
+  return <div className={styles.resourcePropertyCard} data-linked-style-property={property}><div className={styles.resourcePropertyHeader}><span className={styles.resourcePropertyLabel}>{label}</span><button type="button" className={styles.resourceIconAction} data-resource-action="remove" data-linked-style-property-remove disabled={!canRemove} onClick={onRemove} aria-label={t("customResources.removeProperty", { property: label })}>×</button></div><div className={styles.resourcePropertyControl}>{control}</div></div>;
+}
+
 function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false, historyScope = "linkedStyle" }: { id: string; label: string; value: Length | undefined; onChange: (value: Length | undefined) => void; hideLabel?: boolean; historyScope?: "linkedStyle" | "textStyle" }) {
   const authoringHistory = useAuthoringHistory();
   const numberHistoryKey = `number:${id}`;
@@ -965,8 +1061,8 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false,
     ? { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } } as const
     : { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } } as const;
   const parsed = value === undefined ? undefined : parseAuthoringLength(value);
-  const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit === "rem" ? "rem" : "px");
-  useEffect(() => setUnit(parsed?.unit === "rem" ? "rem" : "px"), [parsed?.unit]);
+  const [unit, setUnit] = useState<AuthoringLengthUnit>(parsed?.unit ?? "px");
+  useEffect(() => setUnit(parsed?.unit ?? "px"), [parsed?.unit]);
   const numericValue = value === undefined ? "" : (convertAuthoringLength(value, unit) ?? "");
 
   return <label className={styles.field}>
@@ -1005,6 +1101,8 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false,
       }}>
         <option value="px">px</option>
         <option value="rem">rem</option>
+        <option value="em">em</option>
+        <option value="%">%</option>
       </select>
     </div>
   </label>;

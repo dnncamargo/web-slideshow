@@ -211,11 +211,15 @@ import {
   createLinkedStyleFromDividerElement,
   updateLinkedTopicsStyle,
   updateLinkedStyle,
+  updateTargetLinkedStyleDefinition,
+  propagateTargetLinkedStyleDefinitionChanges,
+  changedTargetLinkedStyleProperties,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
   clearLinkedContainerStyleProperty,
   clearLinkedTopicsStyleProperty,
   type LinkedTopicsStyleProperty,
+  type TargetLinkedStyleDefinitionPatch,
 } from "./linked-style-authoring";
 import { attachLinkedStyleToMatchingContainers, isTargetLinkedStyleCompatible, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation, type TargetLinkedStyle, type TargetLinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
 import { LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleProperty } from "./linked-style-property-authoring";
@@ -4361,6 +4365,21 @@ export function EditorWorkspace({
       },
     );
   }
+  function updatePresentationTargetLinkedStyle(id: string, patch: TargetLinkedStyleDefinitionPatch): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target === "topics") return current;
+        const candidate = updateTargetLinkedStyleDefinition(current, id, patch);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target === "topics") return current;
+        return changedTargetLinkedStyleProperties(before, after).length === 0
+          ? current
+          : propagateTargetLinkedStyleDefinitionChanges(candidate, id, before, after);
+      },
+    );
+  }
   function createPresentationLinkedStyle(request: LinkedStyleCreationRequest): void {
     applyLinkedStyleDefinitionUpdate(
       { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } },
@@ -4449,9 +4468,9 @@ export function EditorWorkspace({
         if (before === undefined || ("target" in before && before.target === "topics")) return current;
         const afterPresentation = renameLinkedStyle(current, id, name);
         const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
-        return after !== undefined && !(("target" in after) && after.target === "topics") && !areLinkedContainerStyleDefinitionsEqual(before, after)
-          ? afterPresentation
-          : current;
+        if (after === undefined || ("target" in after && after.target === "topics")) return current;
+        if (!("target" in before) && !("target" in after)) return areLinkedContainerStyleDefinitionsEqual(before, after) ? current : afterPresentation;
+        return before.name === after.name ? current : afterPresentation;
       },
     );
   }
@@ -6769,6 +6788,7 @@ export function EditorWorkspace({
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onUpdateTargetLinkedStyle={updatePresentationTargetLinkedStyle}
              onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}

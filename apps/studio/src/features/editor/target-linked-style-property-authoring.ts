@@ -1,5 +1,6 @@
 import {
   PresentationSchema,
+  LinkedStyleSchema,
   type Presentation,
 } from "@web-slideshow/document-schema";
 import {
@@ -26,6 +27,7 @@ import {
   type TerminalTargetLinkedStyleProperty,
   type TargetLinkedStyleProperty,
 } from "./target-linked-style-definition-authoring";
+import type { LinkedCodeStyle, LinkedDividerStyle, LinkedSimpleTableStyle, LinkedStructuredTableStyle, LinkedTerminalStyle } from "@web-slideshow/document-schema";
 
 type PropertyBag = Record<string, unknown>;
 type PositionEdgeProperty = "layout.top" | "layout.right" | "layout.bottom" | "layout.left";
@@ -52,6 +54,25 @@ export type TargetLinkedStyleAuthorableProperty =
 
 const POSITION_EDGES = new Set<PositionEdgeProperty>(["layout.top", "layout.right", "layout.bottom", "layout.left"]);
 
+type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedSimpleTableStyle | LinkedStructuredTableStyle | LinkedDividerStyle;
+
+function kindForStyle(style: TargetLinkedStyle): TargetLinkedStyleCreationKind {
+  if (style.target === "table") return style.mode === "simple" ? "simpleTable" : "structuredTable";
+  return style.target;
+}
+
+function valueAt(style: TargetLinkedStyle, property: TargetLinkedStyleProperty): unknown {
+  const [namespace, key, nested] = property.split(".");
+  const bag = (style as PropertyBag)[namespace] as PropertyBag | undefined;
+  if (bag === undefined) return undefined;
+  if (nested === undefined) return bag[key];
+  return (bag[key] as PropertyBag | undefined)?.[nested];
+}
+
+function authoredLeaves(style: TargetLinkedStyle): TargetLinkedStyleProperty[] {
+  return listTargetLinkedStyleSupportedProperties(style).filter((property) => valueAt(style, property) !== undefined) as TargetLinkedStyleProperty[];
+}
+
 function contractFor(kind: TargetLinkedStyleCreationKind): TargetLinkedStyleContract {
   if (kind === "simpleTable") return { target: "table", mode: "simple" };
   if (kind === "structuredTable") return { target: "table", mode: "structured" };
@@ -62,6 +83,20 @@ export function listTargetLinkedStyleCreationProperties<K extends TargetLinkedSt
   return listTargetLinkedStyleSupportedProperties(contractFor(kind)).filter((property) => !POSITION_EDGES.has(property as PositionEdgeProperty)) as never;
 }
 
+export function listTargetLinkedStyleAuthoredProperties(style: TargetLinkedStyle): readonly TargetLinkedStyleProperty[] {
+  return authoredLeaves(style);
+}
+
+export function listAvailableTargetLinkedStyleProperties(style: TargetLinkedStyle): readonly TargetLinkedStyleProperty[] {
+  const authored = new Set(authoredLeaves(style));
+  const positionIsAbsolute = style.layout?.position === "absolute";
+  return listTargetLinkedStyleSupportedProperties(style).filter((property) => {
+    if (authored.has(property)) return false;
+    if (POSITION_EDGES.has(property as PositionEdgeProperty) && !positionIsAbsolute) return false;
+    return true;
+  });
+}
+
 function setPath(target: PropertyBag, property: TargetLinkedStyleProperty, value: unknown): void {
   const [namespace, key, nested] = property.split(".");
   const namespaceBag = (target[namespace] ?? {}) as PropertyBag;
@@ -70,9 +105,13 @@ function setPath(target: PropertyBag, property: TargetLinkedStyleProperty, value
   target[namespace] = namespaceBag;
 }
 
-function defaultValue(kind: TargetLinkedStyleCreationKind, property: TargetLinkedStyleProperty): unknown {
+export function defaultTargetLinkedStylePropertyValue(kind: TargetLinkedStyleCreationKind, property: TargetLinkedStyleProperty): unknown {
   switch (property) {
     case "layout.position": return "absolute";
+    case "layout.top":
+    case "layout.right":
+    case "layout.bottom":
+    case "layout.left": return 0;
     case "layout.width":
     case "layout.height": return "100%";
     case "layout.margin":
@@ -110,6 +149,44 @@ function defaultValue(kind: TargetLinkedStyleCreationKind, property: TargetLinke
   }
 }
 
+function cloneWithPath(style: TargetLinkedStyle, property: TargetLinkedStyleProperty, value: unknown): TargetLinkedStyle {
+  const next = structuredClone(style) as TargetLinkedStyle;
+  setPath(next as PropertyBag, property, value);
+  const parsed = LinkedStyleSchema.safeParse(next);
+  return parsed.success ? parsed.data as TargetLinkedStyle : style;
+}
+
+export function addTargetLinkedStyleProperty(style: TargetLinkedStyle, property: TargetLinkedStyleProperty): TargetLinkedStyle {
+  if (!listAvailableTargetLinkedStyleProperties(style).includes(property)) return style;
+  const value = defaultTargetLinkedStylePropertyValue(kindForStyle(style), property);
+  return value === undefined ? style : cloneWithPath(style, property, value);
+}
+
+export function setTargetLinkedStylePropertyValue(style: TargetLinkedStyle, property: TargetLinkedStyleProperty, value: unknown): TargetLinkedStyle {
+  if (!listTargetLinkedStyleSupportedProperties(style).includes(property) || value === undefined) return style;
+  return cloneWithPath(style, property, value);
+}
+
+export function removeTargetLinkedStyleProperty(style: TargetLinkedStyle, property: TargetLinkedStyleProperty): TargetLinkedStyle {
+  if (!listTargetLinkedStyleSupportedProperties(style).includes(property) || valueAt(style, property) === undefined) return style;
+  if (authoredLeaves(style).length <= 1) return style;
+  if (property === "layout.position" && ["layout.top", "layout.right", "layout.bottom", "layout.left"].some((edge) => valueAt(style, edge as TargetLinkedStyleProperty) !== undefined)) return style;
+  const [namespace, key, nested] = property.split(".");
+  const next = structuredClone(style) as PropertyBag;
+  const bag = next[namespace] as PropertyBag | undefined;
+  if (bag === undefined) return style;
+  if (nested === undefined) delete bag[key];
+  else {
+    const nestedBag = bag[key] as PropertyBag | undefined;
+    if (nestedBag === undefined) return style;
+    delete nestedBag[nested];
+    if (Object.keys(nestedBag).length === 0) delete bag[key];
+  }
+  if (Object.keys(bag).length === 0) delete next[namespace];
+  const parsed = LinkedStyleSchema.safeParse(next);
+  return parsed.success ? parsed.data as TargetLinkedStyle : style;
+}
+
 function createTargetLinkedStyleWithProperty(
   presentation: Presentation,
   name: string,
@@ -122,7 +199,7 @@ function createTargetLinkedStyleWithProperty(
   const id = createLinkedStyleId(trimmed, ids);
   const contract = contractFor(kind);
   const candidate: PropertyBag = { ...contract, id, name: trimmed };
-  const value = defaultValue(kind, property);
+  const value = defaultTargetLinkedStylePropertyValue(kind, property);
   if (value === undefined) return { presentation };
   setPath(candidate, property, value);
   const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), candidate] });
