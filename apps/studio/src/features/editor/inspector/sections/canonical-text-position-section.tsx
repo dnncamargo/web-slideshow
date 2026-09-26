@@ -10,6 +10,8 @@ interface Props {
   parent: ContainerElement | null;
   onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => void;
   layerControls: ElementLayerControls;
+  effectiveLayout?: ResizablePositionedLayout;
+  disabledFields?: readonly ("position" | "top" | "right" | "bottom" | "left")[];
 }
 
 function edgeValue(value: string | number | undefined): string | number {
@@ -18,11 +20,12 @@ function edgeValue(value: string | number | undefined): string | number {
 
 const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 
-export function CanonicalElementPositionSection({ element, parent, onUpdateLayout, layerControls }: Props) {
+export function CanonicalElementPositionSection({ element, parent, onUpdateLayout, layerControls, effectiveLayout, disabledFields = [] }: Props) {
   const { t } = useStudioI18n();
   const layout = element.layout;
+  const displayedLayout = { ...(layout ?? {}), ...(effectiveLayout ?? {}) };
   const authoringHistory = useAuthoringHistory();
-  const isAbsolute = layout?.position === "absolute";
+  const isAbsolute = displayedLayout.position === "absolute";
   const layerVisible = shouldShowPositionLayerControls(isAbsolute, parent?.layout?.children?.mode);
 
   function runDiscrete(callback: () => void): void {
@@ -47,7 +50,9 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
           id="element-canonical-position-mode"
           name="elementCanonicalPositionMode"
           value={isAbsolute ? "absolute" : "flow"}
+          disabled={disabledFields.includes("position")}
           onChange={(event) => {
+            if (disabledFields.includes("position")) return;
             if (event.target.value === "absolute") {
               if (isAbsolute) return;
               runDiscrete(() => onUpdateLayout((current) => ({ ...current, position: "absolute" })));
@@ -76,13 +81,14 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
                 name={`elementCanonical${edge[0].toUpperCase()}${edge.slice(1)}`}
                 type="text"
                 inputMode="decimal"
-                value={edgeValue(layout?.[edge])}
+                value={edgeValue(displayedLayout[edge])}
+                disabled={disabledFields.includes(edge)}
                 onFocus={() => authoringHistory?.begin(`number:element-canonical-${edge}`, numberHistoryMeta)}
                 onBlur={() => authoringHistory?.finish(`number:element-canonical-${edge}`)}
                 onChange={(event) => {
                   const value = event.target.value.trim();
                   const nextValue = value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value);
-                  if (Object.is(layout?.[edge], nextValue)) {
+                  if (disabledFields.includes(edge) || Object.is(layout?.[edge], nextValue)) {
                     return;
                   }
 

@@ -33,6 +33,7 @@ import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 import type { TableStructuralSelection } from "./table-tree-helpers";
+import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
 
 interface ElementInspectorProps {
   element: PresentationElement;
@@ -334,6 +335,10 @@ export function ElementInspector({
   rootLocalContentReceiver,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
+  const targetInspection = (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
+    ? inspectTargetLinkedStyle(presentation, element)
+    : undefined;
+  const targetPositionProperties = targetInspection === undefined ? [] : (["position", "top", "right", "bottom", "left"] as const).filter((field) => targetInspection.getProperty(`layout.${field}` as never).owned);
 
   if (readOnly) {
     return (
@@ -449,6 +454,8 @@ export function ElementInspector({
               });
             }}
             layerControls={layerControls}
+            effectiveLayout={targetInspection?.resolved?.layout}
+            disabledFields={targetPositionProperties}
           />
         ) : null
       )}

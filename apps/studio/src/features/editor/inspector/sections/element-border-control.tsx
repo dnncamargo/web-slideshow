@@ -33,6 +33,8 @@ interface ElementBorderControlProps {
   allowNone?: boolean;
 
   label?: string;
+
+  disabled?: boolean;
 }
 
 type EnabledBorderStyle = NonNullable<Border["style"]>;
@@ -87,12 +89,14 @@ export function ElementBorderControl({
   allowGradient = true,
   allowNone = true,
   label,
+  disabled = false,
 }: ElementBorderControlProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 
   function runDiscrete(setting: string, callback: () => void): void {
+    if (disabled) return;
     const meta = {
       kind: "element.setting",
       labelKey: "history.element.setting",
@@ -125,7 +129,9 @@ export function ElementBorderControl({
           id={`${controlPrefix}-border-style`}
           name={getControlName(controlPrefix, "BorderStyle")}
           value={gradientPaint ? "solid" : getBorderSelection(border)}
+          disabled={disabled}
           onChange={(event) => {
+            if (disabled) return;
             const borderSelection = event.target.value;
 
             if (borderSelection === "none") {
@@ -182,7 +188,9 @@ export function ElementBorderControl({
                   id={`${controlPrefix}-border-paint`}
                   name={getControlName(controlPrefix, "BorderPaint")}
                   value={paintSelection}
+                  disabled={disabled}
                   onChange={(event) => {
+                    if (disabled) return;
                     const paint = event.target.value;
 
                     if (paint !== "color" && paint !== "gradient") {
@@ -227,9 +235,11 @@ export function ElementBorderControl({
                   type="number"
                   min="0"
                   value={readAbsoluteNumber(border.width)}
+                  disabled={disabled}
                   onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-border-width`, numberHistoryMeta)}
                   onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-border-width`)}
                   onChange={(event) => {
+                    if (disabled) return;
                     const width =
                       parseOptionalNumber(event.target.value) ??
                       DEFAULT_BORDER_WIDTH;
@@ -272,6 +282,7 @@ export function ElementBorderControl({
                 id={`${controlPrefix}-border-color`}
                 name={getControlName(controlPrefix, "BorderColor")}
                 value={border.color}
+                disabled={disabled}
                 onChange={(color) =>
                   onChange(
                     border === undefined
@@ -297,6 +308,7 @@ export function ElementBorderControl({
             : { authoredGradient: { value: authoredBorder.value?.gradient } })}
           controlPrefix={`${controlPrefix}-border`}
           allowNone={false}
+          disabled={disabled}
           onChange={(gradient) => {
             if (gradient === undefined) {
               return;

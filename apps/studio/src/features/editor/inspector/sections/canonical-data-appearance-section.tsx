@@ -34,6 +34,10 @@ type ColorCapableCanonicalDataStyle = CodeVisualStyle | SimpleTableVisualStyle;
 type DataElement = Extract<PresentationElement, { type: "code" | "terminal" | "table" | "blocks" }>;
 
 type BackgroundKey = "color" | "gradient";
+export type CanonicalDataAppearanceField =
+  | "color" | "background.color" | "background.gradient" | "borderRadius" | "border"
+  | "commandColor" | "promptColor" | "outputColor" | "commentColor" | "errorColor"
+  | "headerBackground" | "bodyRowAlternateBackground" | "dividerOpacity" | "opacity";
 
 export function suggestAlternatingSurfaceColor(
   value: ColorValue | undefined,
@@ -135,19 +139,25 @@ interface Props {
   controlPrefix: string;
   effectiveColor?: ColorValue;
   effectiveColorSource?: InheritedColorSource;
+  effectiveStyle?: CanonicalDataStyle;
+  effectiveEffect?: ElementEffect;
+  disabledFields?: readonly CanonicalDataAppearanceField[];
 }
 
-export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix, effectiveColor, effectiveColorSource }: Props) {
+export function CanonicalDataAppearanceSection({ element, style, effect, showColor = false, onUpdateStyle, onUpdateEffect, controlPrefix, effectiveColor, effectiveColorSource, effectiveStyle, effectiveEffect, disabledFields = [] }: Props) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const palette = usePresentationColorPalette();
-  const radius = resolveEffectiveElementStyleDefaults(element).borderRadius;
+  const displayedStyle = { ...(style ?? {}), ...(effectiveStyle ?? {}), background: { ...(style?.background ?? {}), ...(effectiveStyle?.background ?? {}) } } as CanonicalDataStyle | undefined;
+  const displayedEffect = { ...(effect ?? {}), ...(effectiveEffect ?? {}) };
+  const isDisabled = (field: CanonicalDataAppearanceField) => disabledFields.includes(field);
+  const radius = effectiveStyle?.borderRadius ?? resolveEffectiveElementStyleDefaults(element).borderRadius;
   const blocksStyle = element.type === "blocks" ? element.style : undefined;
   const usage = element.type === "blocks" ? blockUsage(element.source) : undefined;
   const categoryControls = usage === undefined ? [] : BLOCK_CATEGORY_ORDER.filter((category) => usage.categories.has(category) || blocksStyle?.categoryColors?.[category] !== undefined);
   const fallbackControls = usage === undefined ? [] : (["statement", "scope", "logic"] as const).filter((kind) => usage.fallbacks.has(kind) || blocksStyle?.[`${kind}Color`] !== undefined);
   const structuredStyle = element.type === "table" && element.mode === "structured"
-    ? (element.style ?? {})
+    ? (displayedStyle ?? {}) as StructuredTableVisualStyle
     : undefined;
   const updateStructuredStyle = (
     update: (style: StructuredTableVisualStyle | undefined) => StructuredTableVisualStyle,
@@ -199,7 +209,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <ElementBorderControl border={blocksStyle?.blockBorder} onChange={(blockBorder) => onUpdateStyle((current) => ({ ...current, blockBorder }))} controlPrefix={`${controlPrefix}-block`} allowGradient={false} label={t("inspector.blocks.blockStroke")} />
     </div>}
     {showColor && (element.type === "code" || (element.type === "table" && element.mode !== "structured")) && <div className={styles.colorControl}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={element.style?.color} effectiveValue={element.type === "table" ? effectiveColor : undefined} effectiveSource={element.type === "table" ? effectiveColorSource : undefined} onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), color } as ColorCapableCanonicalDataStyle))} secondaryAction={element.type === "table" && element.style?.color === undefined ? undefined : { label: element.type === "table" && effectiveColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as ColorCapableCanonicalDataStyle; delete next.color; return next; }) }} /></label>
+      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id={`${controlPrefix}-color`} name={getControlName(controlPrefix, "Color")} value={(displayedStyle as ColorCapableCanonicalDataStyle | undefined)?.color} effectiveValue={element.type === "table" ? effectiveColor : undefined} effectiveSource={element.type === "table" ? effectiveColorSource : undefined} disabled={isDisabled("color")} onChange={(color) => { if (!isDisabled("color")) onUpdateStyle((current) => ({ ...(current ?? {}), color } as ColorCapableCanonicalDataStyle)); }} secondaryAction={isDisabled("color") ? undefined : element.type === "table" && element.style?.color === undefined ? undefined : { label: element.type === "table" && effectiveColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => onUpdateStyle((current) => { const next = { ...(current ?? {}) } as ColorCapableCanonicalDataStyle; delete next.color; return next; }) }} /></label>
     </div>}
     {element.type === "terminal" && <div className={styles.colorControl}>
       {([
@@ -214,10 +224,11 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
           <ColorControl
             id={`${controlPrefix}-${property}`}
             name={getControlName(controlPrefix, property)}
-            value={element.style?.[property]}
+            value={(displayedStyle as TerminalVisualStyle | undefined)?.[property]}
+            disabled={isDisabled(property)}
             effectiveValue={effectiveValue}
-            onChange={(color) => onUpdateStyle((current) => ({ ...(current ?? {}), [property]: color } as TerminalVisualStyle))}
-            secondaryAction={{
+            onChange={(color) => { if (!isDisabled(property)) onUpdateStyle((current) => ({ ...(current ?? {}), [property]: color } as TerminalVisualStyle)); }}
+            secondaryAction={isDisabled(property) ? undefined : {
               label: t("inspector.useThemeDefault"),
               onClick: () => onUpdateStyle((current) => {
                 const next = { ...(current ?? {}) } as TerminalVisualStyle;
@@ -232,27 +243,27 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     <div className={structuredStyle !== undefined ? styles.appearanceSubgroup : undefined}>
       {structuredStyle !== undefined && <span className={styles.appearanceSubheading}>{t("table.appearance.table")}</span>}
       <div className={styles.colorControl}>
-      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={style?.background?.color} onChange={(color) => onUpdateStyle((current) => updateCanonicalBackground(current, "color", color))} secondaryAction={{ label: structuredStyle !== undefined ? t("inspector.reset") : t("inspector.remove"), onClick: () => structuredStyle !== undefined ? onUpdateStyle((current) => ({ ...current, background: undefined, bodyRowAlternateBackground: undefined })) : onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>
+      <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={displayedStyle?.background?.color} disabled={isDisabled("background.color")} onChange={(color) => { if (!isDisabled("background.color")) onUpdateStyle((current) => updateCanonicalBackground(current, "color", color)); }} secondaryAction={isDisabled("background.color") ? undefined : { label: structuredStyle !== undefined ? t("inspector.reset") : t("inspector.remove"), onClick: () => structuredStyle !== undefined ? onUpdateStyle((current) => ({ ...current, background: undefined, bodyRowAlternateBackground: undefined })) : onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>
       </div>
     {structuredStyle !== undefined && <>
       <div className={styles.colorControlActionRow}><button type="button" className={styles.colorPaletteDisclosure} onClick={suggestAlternate} disabled={suggestAlternatingSurfaceColor(resolvedStructuredBackground) === undefined}>{t("table.appearance.suggestAlternate")}</button></div>
-      {structuredStyle.bodyRowAlternateBackground !== undefined && <label className={styles.field}><span>{t("table.appearance.alternateBackground")}</span><ColorControl id={`${controlPrefix}-body-row-alternate-background`} name={getControlName(controlPrefix, "BodyRowAlternateBackground")} value={structuredStyle.bodyRowAlternateBackground} onChange={(color) => updateStructuredBackground("bodyRowAlternateBackground", color)} secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStructuredBackground("bodyRowAlternateBackground", undefined) }} /></label>}
+      {structuredStyle.bodyRowAlternateBackground !== undefined && <label className={styles.field}><span>{t("table.appearance.alternateBackground")}</span><ColorControl id={`${controlPrefix}-body-row-alternate-background`} name={getControlName(controlPrefix, "BodyRowAlternateBackground")} value={structuredStyle.bodyRowAlternateBackground} disabled={isDisabled("bodyRowAlternateBackground")} onChange={(color) => { if (!isDisabled("bodyRowAlternateBackground")) updateStructuredBackground("bodyRowAlternateBackground", color); }} secondaryAction={isDisabled("bodyRowAlternateBackground") ? undefined : { label: t("inspector.remove"), onClick: () => updateStructuredBackground("bodyRowAlternateBackground", undefined) }} /></label>}
     </>}
-    <ElementGradientControl gradient={style?.background?.gradient} controlPrefix={`${controlPrefix}-background`} onChange={(gradient) => onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient))} />
+    <ElementGradientControl gradient={displayedStyle?.background?.gradient} controlPrefix={`${controlPrefix}-background`} disabled={isDisabled("background.gradient")} onChange={(gradient) => { if (!isDisabled("background.gradient")) onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient)); }} />
     <div className={styles.fieldGrid}>
-      <div className={styles.field}><label htmlFor={`${controlPrefix}-border-radius`}>{t("inspector.roundedCorners")}</label><EffectiveLengthInput id={`${controlPrefix}-border-radius`} name={getControlName(controlPrefix, "BorderRadius")} min="0" value={style?.borderRadius} inheritedValue={radius} preferredUnit="px" units={["px", "rem"]} stepByUnit={{ px: "1", rem: "0.1" }} onChange={(borderRadius) => onUpdateStyle((current) => ({ ...current, borderRadius }))} onReset={() => onUpdateStyle((current) => ({ ...current, borderRadius: undefined }))} /></div>
-      <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(effect?.opacity ?? 1) * 100} onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(opacityHistoryKey)} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
+      <div className={styles.field}><label htmlFor={`${controlPrefix}-border-radius`}>{t("inspector.roundedCorners")}</label><EffectiveLengthInput id={`${controlPrefix}-border-radius`} name={getControlName(controlPrefix, "BorderRadius")} min="0" value={displayedStyle?.borderRadius} inheritedValue={radius} preferredUnit="px" units={["px", "rem"]} stepByUnit={{ px: "1", rem: "0.1" }} disabled={isDisabled("borderRadius")} onChange={(borderRadius) => { if (!isDisabled("borderRadius")) onUpdateStyle((current) => ({ ...current, borderRadius })); }} onReset={() => { if (!isDisabled("borderRadius")) onUpdateStyle((current) => ({ ...current, borderRadius: undefined })); }} /></div>
+      <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(displayedEffect.opacity ?? 1) * 100} disabled={isDisabled("opacity")} onFocus={() => { if (!isDisabled("opacity")) authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta); }} onBlur={() => { if (!isDisabled("opacity")) authoringHistory?.finish(opacityHistoryKey); }} onChange={(event) => { if (isDisabled("opacity")) return; const value = parseOptionalNumber(event.target.value); updateOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
     </div>
-      <ElementBorderControl border={style?.border} onChange={(border) => onUpdateStyle((current) => ({ ...current, border }))} controlPrefix={controlPrefix} />
+      <ElementBorderControl border={displayedStyle?.border} disabled={isDisabled("border")} onChange={(border) => { if (!isDisabled("border")) onUpdateStyle((current) => ({ ...current, border })); }} controlPrefix={controlPrefix} />
     </div>
     {structuredStyle !== undefined && <>
       <div className={styles.appearanceSubgroup} data-presentation-table-appearance="true">
         <span className={styles.appearanceSubheading}>{t("table.appearance.header")}</span>
-        <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-header-background`} name={getControlName(controlPrefix, "HeaderBackground")} value={structuredStyle.headerBackground} onChange={(color) => updateStructuredBackground("headerBackground", color)} secondaryAction={{ label: t("inspector.remove"), onClick: () => updateStructuredBackground("headerBackground", undefined) }} /></label>
+        <label className={styles.field}><span>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-header-background`} name={getControlName(controlPrefix, "HeaderBackground")} value={structuredStyle.headerBackground} disabled={isDisabled("headerBackground")} onChange={(color) => { if (!isDisabled("headerBackground")) updateStructuredBackground("headerBackground", color); }} secondaryAction={isDisabled("headerBackground") ? undefined : { label: t("inspector.remove"), onClick: () => updateStructuredBackground("headerBackground", undefined) }} /></label>
       </div>
       <div className={styles.appearanceSubgroup}>
         <span className={styles.appearanceSubheading}>{t("table.appearance.dividers")}</span>
-        <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-divider-opacity`} name={getControlName(controlPrefix, "DividerOpacity")} type="number" min="0" max="100" value={(structuredStyle.dividerOpacity ?? 1) * 100} onFocus={() => authoringHistory?.begin(dividerOpacityHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(dividerOpacityHistoryKey)} onChange={(event) => { const value = parseOptionalNumber(event.target.value); updateDividerOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
+        <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-divider-opacity`} name={getControlName(controlPrefix, "DividerOpacity")} type="number" min="0" max="100" value={(structuredStyle.dividerOpacity ?? 1) * 100} disabled={isDisabled("dividerOpacity")} onFocus={() => { if (!isDisabled("dividerOpacity")) authoringHistory?.begin(dividerOpacityHistoryKey, numberHistoryMeta); }} onBlur={() => { if (!isDisabled("dividerOpacity")) authoringHistory?.finish(dividerOpacityHistoryKey); }} onChange={(event) => { if (isDisabled("dividerOpacity")) return; const value = parseOptionalNumber(event.target.value); updateDividerOpacity(value === undefined ? undefined : Math.max(0, Math.min(1, value / 100))); }} /><span>%</span></div></label>
       </div>
     </>}
   </InspectorSection>;

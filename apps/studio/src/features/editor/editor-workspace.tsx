@@ -110,6 +110,7 @@ import {
   resolveCanvasPointerSelection,
 } from "./canvas-pointer-selection-helpers";
 import { isAuthoredPresentationLink } from "./canvas-link-interception";
+import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
 import {
   isInsideContainerFitSurface,
   measureContainerFitSourceSize,
@@ -2645,6 +2646,34 @@ export function EditorWorkspace({
     clearCanvasGuides();
   }
 
+  function preserveTargetOwnedCanvasLayout(
+    presentationValue: Presentation,
+    before: PresentationElement,
+    after: PresentationElement,
+  ): PresentationElement {
+    if (before.type !== "code" && before.type !== "terminal" && before.type !== "table" && before.type !== "divider") {
+      return after;
+    }
+    if (after.type !== before.type) return after;
+    const inspection = inspectTargetLinkedStyle(presentationValue, before);
+    const ownedFields = (["position", "top", "right", "bottom", "left", "width", "height"] as const)
+      .filter((field) => inspection.getProperty(`layout.${field}` as never).owned);
+    if (ownedFields.length === 0) return after;
+    const nextLayout = { ...(after.layout ?? {}) } as typeof after.layout;
+    for (const field of ownedFields) {
+      if (field === "position") {
+        if (before.layout?.position === undefined) delete nextLayout?.position;
+        else if (nextLayout !== undefined) nextLayout.position = before.layout.position;
+        continue;
+      }
+      const localValue = before.layout?.[field];
+      if (localValue === undefined) delete nextLayout?.[field];
+      else if (nextLayout !== undefined) nextLayout[field] = localValue;
+    }
+    const normalizedLayout = nextLayout !== undefined && Object.keys(nextLayout).length > 0 ? nextLayout : undefined;
+    return { ...after, ...(normalizedLayout === undefined ? { layout: undefined } : { layout: normalizedLayout }) } as PresentationElement;
+  }
+
   function getCanvasLayoutParent(
     canvas: HTMLDivElement,
     elementId: string,
@@ -3100,9 +3129,14 @@ export function EditorWorkspace({
           return currentElement;
         });
 
-        return nextElements === elements
+        const filteredElements = updateElementById(nextElements, drag.elementId, (currentElement) => {
+          const beforeElement = findElementById(elements, drag.elementId);
+          return beforeElement === null ? currentElement : preserveTargetOwnedCanvasLayout(current, beforeElement, currentElement);
+        });
+
+        return filteredElements === elements
           ? current
-          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, filteredElements);
       },
     );
   }
@@ -3546,8 +3580,9 @@ export function EditorWorkspace({
                 : element;
             }
 
-            return hasCanvasResizeLayoutChange(element, nextElement)
-              ? nextElement
+            const filteredNextElement = preserveTargetOwnedCanvasLayout(current, element, nextElement);
+            return hasCanvasResizeLayoutChange(element, filteredNextElement)
+              ? filteredNextElement
               : element;
           },
         );

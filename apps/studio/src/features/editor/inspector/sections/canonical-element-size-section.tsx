@@ -14,6 +14,8 @@ import { EffectiveLengthInput } from "./effective-length-input";
 
 interface CanonicalElementSizeSectionProps {
   layout: ResizablePositionedLayout | undefined;
+  effectiveLayout?: ResizablePositionedLayout;
+  disabledFields?: readonly ("width" | "height")[];
   onUpdateLayout: (
     update: (
       layout: ResizablePositionedLayout | undefined,
@@ -45,11 +47,14 @@ function updateDimension(
 
 export function CanonicalElementSizeSection({
   layout,
+  effectiveLayout,
+  disabledFields = [],
   onUpdateLayout,
 }: CanonicalElementSizeSectionProps) {
   const { t } = useStudioI18n();
-  const widthUnit = getInitialUnit(layout?.width, "%");
-  const heightUnit = getInitialUnit(layout?.height, "px");
+  const displayedLayout = { ...(layout ?? {}), ...(effectiveLayout ?? {}) };
+  const widthUnit = getInitialUnit(displayedLayout.width, "%");
+  const heightUnit = getInitialUnit(displayedLayout.height, "px");
 
   return (
     <InspectorSection title={t("inspector.size")}>
@@ -59,7 +64,8 @@ export function CanonicalElementSizeSection({
           <EffectiveLengthInput
             id="element-width"
             name="elementWidth"
-            value={layout?.width}
+            value={displayedLayout.width}
+            disabled={disabledFields.includes("width")}
             inheritedValue={0}
             preferredUnit={widthUnit}
             units={["%", "px"]}
@@ -74,7 +80,8 @@ export function CanonicalElementSizeSection({
           <EffectiveLengthInput
             id="element-height"
             name="elementHeight"
-            value={layout?.height}
+            value={displayedLayout.height}
+            disabled={disabledFields.includes("height")}
             inheritedValue={0}
             preferredUnit={heightUnit}
             units={["%", "px"]}

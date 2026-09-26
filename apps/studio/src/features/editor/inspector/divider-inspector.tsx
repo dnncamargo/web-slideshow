@@ -24,6 +24,7 @@ import { ElementGradientControl } from "./sections/element-gradient-control";
 import { EffectiveLengthInput } from "./sections/effective-length-input";
 import { useAuthoringHistory } from "../authoring-history-context";
 import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
+import { inspectTargetLinkedStyle } from "./linked-style-inspector";
 
 type DividerOrientation = DividerElement["orientation"];
 
@@ -122,6 +123,15 @@ export function DividerInspector({
 
   const geometry =
     DIVIDER_GEOMETRY_DEFAULTS[element.orientation];
+  const linkedInspection = inspectTargetLinkedStyle(presentation, element);
+  const resolved = linkedInspection.resolved as { layout?: DividerElement["layout"]; style?: DividerElement["style"]; effect?: DividerElement["effect"] } | undefined;
+  const property = linkedInspection.getProperty;
+  const widthOwned = property("layout.width").owned;
+  const heightOwned = property("layout.height").owned;
+  const backgroundColorOwned = property("style.background.color").owned;
+  const gradientOwned = property("style.background.gradient").owned;
+  const radiusOwned = property("style.borderRadius").owned;
+  const opacityOwned = property("effect.opacity").owned;
 
   return (
     <>
@@ -190,11 +200,12 @@ export function DividerInspector({
               id="divider-width"
               name="dividerWidth"
               value={element.layout?.width}
-              inheritedValue={geometry.width.value}
+              inheritedValue={resolved?.layout?.width ?? geometry.width.value}
               preferredUnit={geometry.width.unit}
               units={["px", "%"]}
               min="0"
               stepByUnit={{ px: "1", "%": "1" }}
+              disabled={widthOwned}
               onChange={(width) => {
                 updateLayout((currentStyle) => ({
                   ...currentStyle,
@@ -219,11 +230,12 @@ export function DividerInspector({
               id="divider-height"
               name="dividerHeight"
               value={element.layout?.height}
-              inheritedValue={geometry.height.value}
+              inheritedValue={resolved?.layout?.height ?? geometry.height.value}
               preferredUnit={geometry.height.unit}
               units={["px", "%"]}
               min="0"
               stepByUnit={{ px: "1", "%": "1" }}
+              disabled={heightOwned}
               onChange={(height) => {
                 updateLayout((currentStyle) => ({
                   ...currentStyle,
@@ -250,9 +262,10 @@ export function DividerInspector({
             <ColorControl
               id="divider-background"
               name="dividerBackground"
-              value={element.style?.background?.color}
-              onChange={(color) => updateStyle((current) => updateDividerBackground(current, "color", color))}
-              secondaryAction={{
+              value={resolved?.style?.background?.color}
+              disabled={backgroundColorOwned}
+              onChange={(color) => { if (!backgroundColorOwned) updateStyle((current) => updateDividerBackground(current, "color", color)); }}
+              secondaryAction={backgroundColorOwned ? undefined : {
                 label: t("inspector.remove"),
                 onClick: () => updateStyle((current) => updateDividerBackground(current, "color", undefined)),
               }}
@@ -260,9 +273,10 @@ export function DividerInspector({
           </label>
         </div>
         <ElementGradientControl
-          gradient={element.style?.background?.gradient}
+          gradient={resolved?.style?.background?.gradient}
+          disabled={gradientOwned}
           controlPrefix="divider-background"
-          onChange={(gradient) => updateStyle((current) => updateDividerBackground(current, "gradient", gradient))}
+          onChange={(gradient) => { if (!gradientOwned) updateStyle((current) => updateDividerBackground(current, "gradient", gradient)); }}
         />
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
@@ -276,11 +290,12 @@ export function DividerInspector({
               id="divider-border-radius"
               name="dividerBorderRadius"
               min="0"
-              value={element.style?.borderRadius}
-              inheritedValue={resolveEffectiveElementStyleDefaults(element).borderRadius}
+              value={resolved?.style?.borderRadius}
+              inheritedValue={resolved?.style?.borderRadius ?? resolveEffectiveElementStyleDefaults(element).borderRadius}
               preferredUnit="px"
               units={["px", "rem"]}
               stepByUnit={{ px: "1", rem: "0.1" }}
+              disabled={radiusOwned}
               onChange={(borderRadius) => updateStyle((current) => ({
                 ...current,
                 borderRadius,
@@ -300,8 +315,10 @@ export function DividerInspector({
                 type="number"
                 min="0"
                 max="100"
-                value={(element.effect?.opacity ?? 1) * 100}
+                value={(resolved?.effect?.opacity ?? 1) * 100}
+                disabled={opacityOwned}
                 onChange={(event) => {
+                  if (opacityOwned) return;
                   const value = parseOptionalNumber(event.target.value);
                   updateEffect((current) => ({
                     ...current,

@@ -13,11 +13,12 @@ import type { TypedInspectorProps } from "./inspector-types";
 
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
-import { ElementTypographyFields } from "./sections/element-typography-control";
+import { ElementTypographyFields, type CoreTypographyProperty } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
 import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
+import { inspectTargetLinkedStyle } from "./linked-style-inspector";
 
 type CodeElement = Extract<PresentationElement, { type: "code" }>;
 
@@ -136,6 +137,12 @@ export function CodeInspector({
   };
 
   const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
+  const linkedInspection = inspectTargetLinkedStyle(presentation, element);
+  const resolved = linkedInspection.resolved as { layout?: typeof element.layout; style?: CanonicalDataStyle; typography?: CodeTypography; effect?: ElementEffect } | undefined;
+  const property = linkedInspection.getProperty;
+  const disabledLayout = (["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
+  const disabledTypography = (["fontFamily", "fontSize", "lineHeight", "letterSpacing"] as const).filter((field) => property(`typography.${field}` as never).owned) as CoreTypographyProperty[];
+  const disabledAppearance = (["color", "background.color", "background.gradient", "borderRadius", "border", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
 
   return (
     <>
@@ -283,6 +290,8 @@ export function CodeInspector({
           controlPrefix="code"
           fontResources={fontResources}
           visibleProperties={["fontFamily", "fontSize", "lineHeight", "letterSpacing"]}
+          effectiveTypography={resolved?.typography}
+          disabledProperties={disabledTypography}
         />
       </InspectorSection>
 
@@ -294,6 +303,8 @@ export function CodeInspector({
             ? { ...current, layout: update(current.layout) }
             : current);
         }}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout}
       />
 
       <CanonicalDataAppearanceSection
@@ -304,12 +315,17 @@ export function CodeInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="code"
         onUpdateEffect={updateEffect}
+        effectiveStyle={resolved?.style}
+        effectiveEffect={resolved?.effect}
+        disabledFields={disabledAppearance}
       />
 
       <CanonicalElementEffectsSection
         effect={element.effect}
         onUpdateEffect={updateEffect}
         controlPrefix="code"
+        effectiveEffect={resolved?.effect}
+        disabledFields={property("effect.shadow").owned ? ["shadow"] : []}
       />
     </>
   );

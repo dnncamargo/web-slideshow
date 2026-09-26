@@ -1,4 +1,24 @@
-import { isLinkedContainerStyle, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type Presentation, type TopicsElement } from "@web-slideshow/document-schema";
+import {
+  isLinkedContainerStyle,
+  resolveLinkedCodeStyle,
+  resolveLinkedDividerStyle,
+  resolveLinkedTableStyle,
+  resolveLinkedTerminalStyle,
+  type CodeElement,
+  type ContainerElement,
+  type DividerElement,
+  type LinkedCodeStyle,
+  type LinkedContainerStyle,
+  type LinkedDividerStyle,
+  type LinkedSimpleTableStyle,
+  type LinkedStructuredTableStyle,
+  type LinkedTerminalStyle,
+  type LinkedTopicsStyle,
+  type Presentation,
+  type TableElement,
+  type TerminalElement,
+  type TopicsElement,
+} from "@web-slideshow/document-schema";
 
 export type LinkedSource = "local" | "linked" | "theme";
 export type ContainerShareableProperty =
@@ -15,6 +35,78 @@ export type TopicsShareableProperty =
   | "kind" | "layout.margin" | "layout.marginTop" | "layout.marginRight"
   | "layout.marginBottom" | "layout.marginLeft" | "layout.itemGap"
   | "rootMarkerStyle" | "markerColor";
+
+export type TargetElement = CodeElement | TerminalElement | TableElement | DividerElement;
+export type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedSimpleTableStyle | LinkedStructuredTableStyle | LinkedDividerStyle;
+export type TargetShareableProperty =
+  | "layout.position" | "layout.top" | "layout.right" | "layout.bottom" | "layout.left" | "layout.width" | "layout.height"
+  | "layout.margin" | "layout.marginTop" | "layout.marginRight" | "layout.marginBottom" | "layout.marginLeft"
+  | "style.color" | "style.background.color" | "style.background.gradient" | "style.borderRadius" | "style.border"
+  | "style.commandColor" | "style.promptColor" | "style.outputColor" | "style.commentColor" | "style.errorColor"
+  | "style.headerBackground" | "style.bodyRowAlternateBackground" | "style.dividerOpacity"
+  | "typography.fontFamily" | "typography.fontSize" | "typography.lineHeight" | "typography.letterSpacing"
+  | "titleTypography.fontFamily" | "titleTypography.fontSize" | "titleTypography.lineHeight" | "titleTypography.letterSpacing"
+  | "effect.opacity" | "effect.shadow";
+
+export type TargetLinkedStyleInspection = {
+  linked: TargetLinkedStyle | undefined;
+  resolved: ReturnType<typeof resolveLinkedCodeStyle> | ReturnType<typeof resolveLinkedTerminalStyle> | ReturnType<typeof resolveLinkedTableStyle> | ReturnType<typeof resolveLinkedDividerStyle> | undefined;
+  getProperty: (property: TargetShareableProperty) => { localValue: unknown; linkedValue: unknown; effectiveValue: unknown; source: LinkedSource; owned: boolean };
+};
+
+function targetLinkedStyleForElement(
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
+  element: TargetElement,
+): TargetLinkedStyle | undefined {
+  const candidate = element.linkedStyleId === undefined
+    ? undefined
+    : presentation?.linkedStyles?.find((style) => style.id === element.linkedStyleId);
+  if (candidate === undefined || !("target" in candidate)) return undefined;
+  if (element.type === "code" && candidate.target === "code") return candidate;
+  if (element.type === "terminal" && candidate.target === "terminal") return candidate;
+  if (element.type === "divider" && candidate.target === "divider") return candidate;
+  if (element.type === "table" && candidate.target === "table" && candidate.mode === (element.mode === "structured" ? "structured" : "simple")) return candidate;
+  return undefined;
+}
+
+function readTargetProperty(value: TargetElement | TargetLinkedStyle | undefined, property: TargetShareableProperty): unknown {
+  if (value === undefined) return undefined;
+  const parts = property.split(".");
+  const namespace = parts[0];
+  const key = parts[1];
+  if (namespace === "layout") return value.layout?.[key as keyof NonNullable<typeof value.layout>];
+  if (namespace === "style") {
+    if (key === "background") return value.style?.background?.[parts[2] as keyof NonNullable<typeof value.style.background>];
+    return value.style?.[key as keyof NonNullable<typeof value.style>];
+  }
+  if (namespace === "effect") return value.effect?.[key as keyof NonNullable<typeof value.effect>];
+  if (namespace === "typography" && "typography" in value) return value.typography?.[key as keyof NonNullable<typeof value.typography>];
+  if (namespace === "titleTypography" && "titleTypography" in value) return value.titleTypography?.[key as keyof NonNullable<typeof value.titleTypography>];
+  return undefined;
+}
+
+export function inspectTargetLinkedStyle(
+  presentation: Pick<Presentation, "linkedStyles"> | undefined,
+  element: TargetElement,
+): TargetLinkedStyleInspection {
+  const linked = targetLinkedStyleForElement(presentation, element);
+  const resolved = linked === undefined && element.linkedStyleId !== undefined ? undefined
+    : element.type === "code" ? resolveLinkedCodeStyle(presentation ?? { linkedStyles: [] }, element)
+      : element.type === "terminal" ? resolveLinkedTerminalStyle(presentation ?? { linkedStyles: [] }, element)
+        : element.type === "table" ? resolveLinkedTableStyle(presentation ?? { linkedStyles: [] }, element)
+          : resolveLinkedDividerStyle(presentation ?? { linkedStyles: [] }, element);
+  return {
+    linked,
+    resolved,
+    getProperty: (property) => {
+      const localValue = readTargetProperty(element, property);
+      const linkedValue = readTargetProperty(linked, property);
+      const effectiveValue = readTargetProperty(resolved as TargetElement | TargetLinkedStyle | undefined, property);
+      const owned = linkedValue !== undefined;
+      return { localValue, linkedValue, effectiveValue, source: owned ? "linked" : localValue !== undefined ? "local" : "theme", owned };
+    },
+  };
+}
 
 export function linkedStyleForContainer(presentation: Pick<Presentation, "linkedStyles"> | undefined, element: ContainerElement) {
   if (element.linkedStyleId === undefined) return undefined;

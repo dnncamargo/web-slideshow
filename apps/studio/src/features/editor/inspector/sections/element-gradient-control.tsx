@@ -26,6 +26,8 @@ interface ElementGradientControlProps {
   controlPrefix: string;
 
   allowNone?: boolean;
+
+  disabled?: boolean;
 }
 
 const MIN_GRADIENT_STOPS = 2;
@@ -179,6 +181,7 @@ export function ElementGradientControl({
   onChange,
   controlPrefix,
   allowNone = true,
+  disabled = false,
 }: ElementGradientControlProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -189,6 +192,7 @@ export function ElementGradientControl({
     nextGradient: Gradient,
     unchanged: boolean,
   ): void {
+    if (disabled) return;
     if (unchanged) {
       return;
     }
@@ -204,6 +208,7 @@ export function ElementGradientControl({
   }
 
   function runDiscrete(setting: string, callback: () => void): void {
+    if (disabled) return;
     const meta = {
       kind: "element.setting",
       labelKey: "history.element.setting",
@@ -221,7 +226,7 @@ export function ElementGradientControl({
     index: number,
     update: (currentStop: GradientStop) => GradientStop,
   ): void {
-    if (gradient === undefined) {
+    if (disabled || gradient === undefined) {
       return;
     }
 
@@ -246,7 +251,9 @@ export function ElementGradientControl({
           id={`${controlPrefix}-gradient-type`}
           name={getControlName(controlPrefix, "GradientType")}
           value={gradient?.type ?? "none"}
+          disabled={disabled}
           onChange={(event) => {
+            if (disabled) return;
             const gradientMode = event.target.value;
 
             if (gradientMode === "none") {
@@ -299,7 +306,9 @@ export function ElementGradientControl({
               min={MIN_GRADIENT_ANGLE}
               max={MAX_GRADIENT_ANGLE}
               value={gradient.angle ?? ""}
+              disabled={disabled}
               onChange={(event) => {
+                if (disabled) return;
                 const parsedAngle = parseOptionalNumber(event.target.value);
 
                 const angle =
@@ -353,7 +362,9 @@ export function ElementGradientControl({
             id={`${controlPrefix}-gradient-shape`}
             name={getControlName(controlPrefix, "GradientShape")}
             value={gradient.shape ?? "ellipse"}
+            disabled={disabled}
             onChange={(event) => {
+              if (disabled) return;
               const shape = event.target.value;
 
               if (!isRadialShape(shape)) {
@@ -415,7 +426,7 @@ export function ElementGradientControl({
                     id={`${controlPrefix}-gradient-stop-${index}-remove`}
                     className={styles.secondaryButton}
                     type="button"
-                    disabled={gradient.stops.length <= MIN_GRADIENT_STOPS}
+                    disabled={disabled || gradient.stops.length <= MIN_GRADIENT_STOPS}
                     onClick={() => {
                       if (gradient.stops.length <= MIN_GRADIENT_STOPS) {
                         return;
@@ -444,6 +455,7 @@ export function ElementGradientControl({
                       `GradientStop${index}Color`,
                     )}
                     value={stop.color}
+                    disabled={disabled}
                     onChange={(color) => {
                       updateStop(index, (currentStop) => ({
                         ...currentStop,
@@ -468,6 +480,7 @@ export function ElementGradientControl({
                       min={minimumPosition}
                       max={maximumPosition}
                       value={stop.position}
+                      disabled={disabled}
                       onChange={(event) => {
                         const parsedPosition = parseOptionalNumber(
                           event.target.value,
@@ -521,7 +534,7 @@ export function ElementGradientControl({
             id={`${controlPrefix}-gradient-add-stop`}
             className={styles.secondaryButton}
             type="button"
-            disabled={gradient.stops.length >= MAX_GRADIENT_STOPS}
+            disabled={disabled || gradient.stops.length >= MAX_GRADIENT_STOPS}
           onClick={() => {
               const nextGradient = addStop(gradient);
               if (nextGradient === gradient) return;
