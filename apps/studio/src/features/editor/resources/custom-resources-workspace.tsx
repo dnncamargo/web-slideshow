@@ -41,7 +41,7 @@ import { canCreateLinkedStyleFromContainer, canCreateLinkedStyleFromTopics, canC
 import { addLinkedStyleProperty, hasLinkedStyleProperty, listAvailableLinkedStyleProperties, listLinkedStyleAuthoredProperties, LINKED_STYLE_PROPERTY_GROUPS, removeLinkedStyleProperty, type LinkedStyleAuthorableProperty, type LinkedStyleCreationProperty, type LinkedStyleProperty } from "../linked-style-property-authoring";
 import { listTargetLinkedStyleCreationProperties, type CodeLinkedStyleAuthorableProperty, type DividerLinkedStyleAuthorableProperty, type SimpleTableLinkedStyleAuthorableProperty, type StructuredTableLinkedStyleAuthorableProperty, type TerminalLinkedStyleAuthorableProperty } from "../target-linked-style-property-authoring";
 import type { LinkedStyleCreationKind, LinkedStyleCreationRequest } from "../linked-style-creation";
-import { findContainerLinkedStyleUsageLocations, findLinkedStyleUsageLocations, findMatchingContainersForLinkedStyle, type LinkedStyleUsageLocation } from "../linked-style-bulk-authoring";
+import { findContainerLinkedStyleUsageLocations, findLinkedStyleUsageLocations, findMatchingContainersForLinkedStyle, findTargetLinkedStyleUsageLocations, type LinkedStyleUsageLocation, type TargetLinkedStyleUsageLocation } from "../linked-style-bulk-authoring";
 import type { AuthoringTarget } from "../authoring-target";
 import { resolveEffectiveRootDefinitionId, type RootDefinitionLifecycleFailure } from "../root-definition-lifecycle";
 
@@ -85,9 +85,10 @@ interface CustomResourcesWorkspaceProps {
   onRemoveLinkedTopicsStyle?: (id: string) => void;
   onAttachLinkedStyleMatches?: (id: string) => void;
   onSelectLinkedStyleContainer?: (location: LinkedStyleUsageLocation, linkedStyleId: string) => void;
+  onSelectLinkedStyleElement?: (location: TargetLinkedStyleUsageLocation, linkedStyleId: string) => void;
   onSelectTextStyleElement?: (location: TextStyleUsageLocation, styleId: string) => void;
   onSelectRootDefinitionSlide?: (slideIndex: number) => void;
-  onRequestDetachLinkedStyle?: (styleId: string, styleName: string, location: LinkedStyleUsageLocation) => void;
+  onRequestDetachLinkedStyle?: (styleId: string, styleName: string, location: LinkedStyleUsageLocation | TargetLinkedStyleUsageLocation) => void;
   onRequestDetachTextStyleElement?: (styleId: string, styleName: string, location: TextStyleUsageLocation) => void;
   selectedElement?: PresentationElement | null;
   onCreateLinkedStyleFromSelected?: (name: string) => void;
@@ -192,6 +193,7 @@ export function CustomResourcesWorkspace({
   onRemoveLinkedTopicsStyle = onRemoveLinkedStyle,
   onAttachLinkedStyleMatches = () => undefined,
   onSelectLinkedStyleContainer = () => undefined,
+  onSelectLinkedStyleElement = () => undefined,
   onSelectTextStyleElement = () => undefined,
   onSelectRootDefinitionSlide = () => undefined,
   onRequestDetachLinkedStyle = () => undefined,
@@ -354,7 +356,7 @@ export function CustomResourcesWorkspace({
               ) : <p className={styles.status}>{t("customResources.noRootDefinitions")}</p>}
             </InspectorSection>
             <InspectorSection title={t("customResources.linkedStyles")} count={presentation?.linkedStyles?.length ?? 0} open={resourceSections.linkedStyles} onOpenChange={(open) => onResourceSectionChange("linkedStyles", open)}>
-              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} authoringHistory={authoringHistory} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRenameTopics={onRenameLinkedTopicsStyle} onRemove={onRemoveLinkedStyle} onRemoveTopics={onRemoveLinkedTopicsStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
+              <PresentationColorPaletteProvider colors={presentationColors}><LinkedStylesWorkspace presentation={presentation} authoringHistory={authoringHistory} onUpdate={onUpdateLinkedStyle} onUpdateTopics={onUpdateLinkedTopicsStyle} onCreate={onCreateLinkedStyle} onRename={onRenameLinkedStyle} onRenameTopics={onRenameLinkedTopicsStyle} onRemove={onRemoveLinkedStyle} onRemoveTopics={onRemoveLinkedTopicsStyle} onAttach={onAttachLinkedStyleMatches} onSelectContainer={onSelectLinkedStyleContainer} onSelectElement={onSelectLinkedStyleElement} onRequestDetach={onRequestDetachLinkedStyle} selectedElement={selectedElement} onCreateFromSelected={onCreateLinkedStyleFromSelected} /></PresentationColorPaletteProvider>
             </InspectorSection>
             <PresentationColorPaletteProvider colors={presentationColors}>
               <InspectorSection title={t("customResources.textStyles")} count={listPresentationTextStyles({ textStyles: presentationTextStyles }).length} open={resourceSections.textStyles} onOpenChange={(open) => onResourceSectionChange("textStyles", open)}>
@@ -528,7 +530,7 @@ function RootDefinitionUsageLocations({ presentation, locations, onSelect, t }: 
 }
 
 function LinkedStylesWorkspace({
-  presentation, authoringHistory, onUpdate: dispatchUpdate, onUpdateTopics, onCreate, onRename, onRenameTopics, onRemove, onRemoveTopics, onAttach, onSelectContainer, onRequestDetach, selectedElement, onCreateFromSelected,
+  presentation, authoringHistory, onUpdate: dispatchUpdate, onUpdateTopics, onCreate, onRename, onRenameTopics, onRemove, onRemoveTopics, onAttach, onSelectContainer, onSelectElement, onRequestDetach, selectedElement, onCreateFromSelected,
 }: {
   presentation?: Presentation;
   authoringHistory: AuthoringHistoryContextValue | null;
@@ -541,7 +543,8 @@ function LinkedStylesWorkspace({
   onRemoveTopics: (id: string) => void;
   onAttach: (id: string) => void;
   onSelectContainer: (location: LinkedStyleUsageLocation, linkedStyleId: string) => void;
-  onRequestDetach: (styleId: string, styleName: string, location: LinkedStyleUsageLocation) => void;
+  onSelectElement: (location: TargetLinkedStyleUsageLocation, linkedStyleId: string) => void;
+  onRequestDetach: (styleId: string, styleName: string, location: LinkedStyleUsageLocation | TargetLinkedStyleUsageLocation) => void;
   selectedElement: PresentationElement | null;
   onCreateFromSelected: (name: string) => void;
 }) {
@@ -649,11 +652,20 @@ function LinkedStylesWorkspace({
       : listTargetLinkedStyleCreationProperties(creationKind.kind === "table" ? creationKind.mode === "simple" ? "simpleTable" : "structuredTable" : creationKind.kind);
   const chooserGroups = creationKind?.kind === "container" ? null : [{ id: "properties", label: t("customResources.linkedStyleCompatibleProperties"), items: creationProperties.map((property) => ({ id: property, label: propertyLabel(property) })) }];
   type TargetResourceStyle = Extract<LinkedStyle, { target: "code" | "terminal" | "table" | "divider" }>;
-  const renderTargetRow = (linkedStyle: TargetResourceStyle) => <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} data-linked-style-target={linkedStyle.target} className={styles.group}>
-    <div className={styles.typographyStyleDisclosure} data-linked-style-summary>
-      <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{linkedStyle.target === "table" ? linkedStyle.mode === "simple" ? t("customResources.linkedStyleSimpleTable") : t("customResources.linkedStyleStructuredTable") : kindLabel({ kind: linkedStyle.target })}</span></span>
-    </div>
-  </div>;
+  const renderTargetRow = (linkedStyle: TargetResourceStyle) => {
+    const locations = presentation ? findTargetLinkedStyleUsageLocations(presentation, linkedStyle.id) : [];
+    const editing = editingId === linkedStyle.id;
+    const editorId = `linked-style-${linkedStyle.id}-reuse`;
+    return <div key={linkedStyle.id} data-linked-style-id={linkedStyle.id} data-linked-style-target={linkedStyle.target} className={styles.group}>
+      <button type="button" className={styles.typographyStyleDisclosure} data-linked-style-summary aria-expanded={editing} aria-controls={editorId} onClick={() => setEditingId(editing ? null : linkedStyle.id)}>
+        <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{linkedStyle.target === "table" ? linkedStyle.mode === "simple" ? t("customResources.linkedStyleSimpleTable") : t("customResources.linkedStyleStructuredTable") : kindLabel({ kind: linkedStyle.target })} · {t(locations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: locations.length })}</span></span>
+        <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
+      </button>
+      {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
+        <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><ResourceUsageLocations presentation={presentation} locations={locations} onSelect={(location) => onSelectElement(location, linkedStyle.id)} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(linkedStyle.id))}>{t("customResources.linkedStyleRemove")}</button></div></div>
+      </div> : null}
+    </div>;
+  };
   const renderContainerOrTopics = (linkedStyle: LinkedStyle) => {
     if ("target" in linkedStyle && linkedStyle.target === "topics") return <TopicsLinkedStyleRow key={linkedStyle.id} style={linkedStyle} presentation={presentation} authoringHistory={authoringHistory} editing={editingId === linkedStyle.id} onEdit={() => setEditingId(editingId === linkedStyle.id ? null : linkedStyle.id)} onRename={onRenameTopics} onUpdate={onUpdateTopics} onRemove={onRemoveTopics} />;
     if ("target" in linkedStyle) return renderTargetRow(linkedStyle as TargetResourceStyle);
@@ -998,14 +1010,16 @@ function LinkedStyleLengthField({ id, label, value, onChange, hideLabel = false,
   </label>;
 }
 
-function ResourceUsageLocations({ presentation, locations, onSelect, onRequestDetach, styleName }: { presentation?: Presentation; locations: readonly { target: AuthoringTarget; elementId: string }[]; onSelect: (location: { target: AuthoringTarget; elementId: string }) => void; onRequestDetach?: (location: { target: AuthoringTarget; elementId: string }) => void; styleName?: string }) {
+type ResourceUsageLocation = LinkedStyleUsageLocation | TargetLinkedStyleUsageLocation;
+
+function ResourceUsageLocations<T extends ResourceUsageLocation>({ presentation, locations, onSelect, onRequestDetach, styleName }: { presentation?: Presentation; locations: readonly T[]; onSelect: (location: T) => void; onRequestDetach?: (location: T) => void; styleName?: string }) {
   const { t } = useStudioI18n();
   const ownerLabel = (target: AuthoringTarget): string => {
     if (target.kind === "slide") return t("slides.current", { number: target.slideIndex + 1 });
     const name = presentation?.rootDefinitions?.find((definition) => definition.id === target.rootDefinitionId)?.name ?? target.rootDefinitionId;
     return t("customResources.rootDefinitionLocation", { name });
   };
-  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.target.kind}:${location.target.kind === "slide" ? location.target.slideIndex : location.target.rootDefinitionId}:${location.elementId}`} className={styles.resourceItem}><button type="button" className={styles.resourceUsageTarget} onClick={() => onSelect(location)}><span className={styles.resourceItemDetailsStack}><strong>{ownerLabel(location.target)}</strong><span className={styles.masterPaletteCount}>{location.elementId}</span></span></button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceIconAction} data-resource-action="detach" aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>×</button> : null}</div>)}</div>;
+  return <div className={styles.resourceUsageLocations}><span className={styles.status}>{t(locations.length === 1 ? "customResources.textStyleUsedByOne" : "customResources.textStyleUsedByMany", { count: locations.length })}</span>{locations.map((location) => <div key={`${location.target.kind}:${location.target.kind === "slide" ? location.target.slideIndex : location.target.rootDefinitionId}:${location.elementId}`} className={styles.resourceItem} data-linked-style-usage-source={"source" in location ? location.source : undefined} data-linked-style-usage-target-container-id={"targetContainerId" in location ? location.targetContainerId : undefined}><button type="button" className={styles.resourceUsageTarget} onClick={() => onSelect(location)}><span className={styles.resourceItemDetailsStack}><strong>{ownerLabel(location.target)}</strong><span className={styles.masterPaletteCount}>{location.elementId}</span></span></button>{onRequestDetach && styleName ? <button type="button" className={styles.resourceIconAction} data-resource-action="detach" aria-label={t("customResources.detachStyleElement", { style: styleName })} onClick={(event) => { event.stopPropagation(); onRequestDetach(location); }}>×</button> : null}</div>)}</div>;
 }
 
 function TextStylesWorkspace({

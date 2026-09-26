@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PresentationSchema } from "@web-slideshow/document-schema";
 
-import { findContainerLinkedStyleUsageLocations, findElementsLinkedToStyle, findLinkedStyleUsageLocations } from "../src/features/editor/linked-style-bulk-authoring";
+import { findContainerLinkedStyleUsageLocations, findElementsLinkedToStyle, findLinkedStyleUsageLocations, findTargetLinkedStyleUsageLocations } from "../src/features/editor/linked-style-bulk-authoring";
 
 describe("Linked Style usage locations", () => {
   it("finds direct and nested Container and Topics references by linkedStyleId", () => {
@@ -72,5 +72,69 @@ describe("Linked Style usage locations", () => {
       { target: { kind: "slide", slideIndex: 0 }, elementId: "slide-topics" },
       { target: { kind: "root-definition", rootDefinitionId: "root-1" }, elementId: "root-topics" },
     ]);
+  });
+
+  it("finds target usages across every persisted owner in order and enforces exact compatibility", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-targets",
+      title: "Targets",
+      slides: [{
+        id: "slide",
+        title: "Slide",
+        elements: [
+          { id: "slide-code", type: "code" as const, hidden: false, code: "x", language: "text", linkedStyleId: "code-style" },
+          { id: "slide-terminal", type: "terminal" as const, hidden: false, lines: [], linkedStyleId: "terminal-style" },
+          { id: "slide-simple", type: "table" as const, hidden: false, columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], linkedStyleId: "simple-style" },
+          { id: "slide-structured", type: "table" as const, mode: "structured" as const, hidden: false, showHeader: true, columns: [], rows: [], linkedStyleId: "structured-style" },
+          { id: "slide-divider", type: "divider" as const, hidden: false, linkedStyleId: "divider-style" },
+        ],
+      }, {
+        id: "root-slide",
+        title: "Root slide",
+        elements: [],
+        rootDefinitionId: "root",
+        localRootChildren: [{ targetContainerId: "receiver", children: [
+          { id: "local-code", type: "code" as const, hidden: false, code: "local", language: "text", linkedStyleId: "code-style" },
+        ] }],
+      }],
+      rootDefinitions: [{
+        id: "root",
+        name: "Root",
+        localChildTargetIds: ["receiver"],
+        root: { id: "root-container", type: "container" as const, hidden: false, children: [
+          { id: "receiver", type: "container" as const, hidden: false, children: [] },
+          { id: "root-divider", type: "divider" as const, hidden: false, linkedStyleId: "divider-style" },
+        ] },
+      }],
+      linkedStyles: [
+        { target: "code" as const, id: "code-style", name: "Code", style: { color: "#111" } },
+        { target: "terminal" as const, id: "terminal-style", name: "Terminal", style: { outputColor: "#111" } },
+        { target: "table" as const, mode: "simple" as const, id: "simple-style", name: "Simple", style: { color: "#111" } },
+        { target: "table" as const, mode: "structured" as const, id: "structured-style", name: "Structured", style: { headerBackground: "#111" } },
+        { target: "divider" as const, id: "divider-style", name: "Divider", style: { background: { color: "#111" } } },
+      ],
+    });
+    const before = structuredClone(presentation);
+
+    expect(findTargetLinkedStyleUsageLocations(presentation, "code-style")).toEqual([
+      { source: "slide", target: { kind: "slide", slideIndex: 0 }, elementId: "slide-code" },
+      { source: "slide-local-root", target: { kind: "slide", slideIndex: 1 }, elementId: "local-code", targetContainerId: "receiver" },
+    ]);
+    expect(findTargetLinkedStyleUsageLocations(presentation, "terminal-style")).toEqual([
+      { source: "slide", target: { kind: "slide", slideIndex: 0 }, elementId: "slide-terminal" },
+    ]);
+    expect(findTargetLinkedStyleUsageLocations(presentation, "simple-style")).toEqual([
+      { source: "slide", target: { kind: "slide", slideIndex: 0 }, elementId: "slide-simple" },
+    ]);
+    expect(findTargetLinkedStyleUsageLocations(presentation, "structured-style")).toEqual([
+      { source: "slide", target: { kind: "slide", slideIndex: 0 }, elementId: "slide-structured" },
+    ]);
+    expect(findTargetLinkedStyleUsageLocations(presentation, "divider-style")).toEqual([
+      { source: "slide", target: { kind: "slide", slideIndex: 0 }, elementId: "slide-divider" },
+      { source: "root-definition", target: { kind: "root-definition", rootDefinitionId: "root" }, elementId: "root-divider" },
+    ]);
+    expect(findTargetLinkedStyleUsageLocations(presentation, "missing")).toEqual([]);
+    expect(presentation).toEqual(before);
   });
 });

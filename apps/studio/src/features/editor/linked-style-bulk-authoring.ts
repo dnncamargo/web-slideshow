@@ -1,9 +1,14 @@
 import {
   PresentationSchema,
   type ContainerElement,
+  type LinkedCodeStyle,
   type LinkedContainerStyle,
+  type LinkedDividerStyle,
+  type LinkedTableStyle,
+  type LinkedTerminalStyle,
   type Presentation,
   type PresentationElement,
+  type TableElement,
   isLinkedContainerStyle,
 } from "@web-slideshow/document-schema";
 
@@ -29,6 +34,15 @@ export type LinkedStyleUsageLocation = {
   target: AuthoringTarget;
   elementId: string;
 };
+
+type TargetLinkedStyleUsageOwner =
+  | { source: "slide"; target: Extract<AuthoringTarget, { kind: "slide" }> }
+  | { source: "slide-local-root"; target: Extract<AuthoringTarget, { kind: "slide" }>; targetContainerId: string }
+  | { source: "root-definition"; target: Extract<AuthoringTarget, { kind: "root-definition" }> };
+
+export type TargetLinkedStyleUsageLocation = TargetLinkedStyleUsageOwner & { elementId: string };
+export type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedTableStyle | LinkedDividerStyle;
+export type TargetLinkedStyleElement = Extract<PresentationElement, { type: "code" | "terminal" | "table" | "divider" }>;
 
 const LAYOUT_DIRECT_PROPERTIES = [
   "position", "top", "right", "bottom", "left", "width", "height",
@@ -156,6 +170,61 @@ export function findLinkedStyleUsageLocations(
       if ((element.type === "container" || element.type === "topics") && element.linkedStyleId === linkedStyleId) {
         locations.push({ target, elementId: element.id });
       }
+    });
+  });
+  return locations;
+}
+
+function effectiveTableMode(element: TableElement): "simple" | "structured" {
+  return element.mode === "structured" ? "structured" : "simple";
+}
+
+export function isTargetLinkedStyleCompatible(
+  linked: TargetLinkedStyle | undefined,
+  element: PresentationElement,
+): element is TargetLinkedStyleElement {
+  if (linked === undefined) return false;
+  if (linked.target === "code") return element.type === "code";
+  if (linked.target === "terminal") return element.type === "terminal";
+  if (linked.target === "divider") return element.type === "divider";
+  return element.type === "table" && linked.mode === effectiveTableMode(element);
+}
+
+/** Finds target Linked Style usages while preserving each persisted owner. */
+export function findTargetLinkedStyleUsageLocations(
+  presentation: Presentation,
+  linkedStyleId: string,
+): TargetLinkedStyleUsageLocation[] {
+  const linked = presentation.linkedStyles?.find((style): style is TargetLinkedStyle =>
+    "target" in style
+    && (style.target === "code" || style.target === "terminal" || style.target === "table" || style.target === "divider")
+    && style.id === linkedStyleId,
+  );
+  if (linked === undefined) return [];
+
+  const locations: TargetLinkedStyleUsageLocation[] = [];
+  const visitTree = (elements: readonly PresentationElement[], owner: TargetLinkedStyleUsageOwner): void => {
+    visitElements(elements, (element) => {
+      if ("linkedStyleId" in element && element.linkedStyleId === linkedStyleId && isTargetLinkedStyleCompatible(linked, element)) {
+        locations.push({ ...owner, elementId: element.id });
+      }
+    });
+  };
+
+  presentation.slides.forEach((slide, slideIndex) => {
+    visitTree(slide.elements, { source: "slide", target: { kind: "slide", slideIndex } });
+    slide.localRootChildren?.forEach((entry) => {
+      visitTree(entry.children, {
+        source: "slide-local-root",
+        target: { kind: "slide", slideIndex },
+        targetContainerId: entry.targetContainerId,
+      });
+    });
+  });
+  presentation.rootDefinitions?.forEach((rootDefinition) => {
+    visitTree([rootDefinition.root], {
+      source: "root-definition",
+      target: { kind: "root-definition", rootDefinitionId: rootDefinition.id },
     });
   });
   return locations;
