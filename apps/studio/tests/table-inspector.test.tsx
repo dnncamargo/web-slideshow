@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ContainerElement,
+  Presentation,
   PresentationElement,
   FontResource,
   SimpleTableElement,
@@ -139,7 +140,7 @@ describe("TableInspector", () => {
   let selectedTableStructuralNode: TableStructuralSelection = null;
   let parent: ContainerElement | null = null;
   let ancestorContainers: readonly ContainerElement[] = [];
-  let presentation: { linkedStyles: [] } | undefined;
+  let presentation: Pick<Presentation, "linkedStyles"> | undefined;
 
   function renderInspector() {
     root.render(
@@ -272,6 +273,34 @@ describe("TableInspector", () => {
     expect(updated.style?.background?.color).toEqual({ kind: "palette", colorId: "dark-surface" });
     expect(updated.style?.bodyRowAlternateBackground).toBe("#303030");
     expect(container.querySelector("#table-body-row-alternate-background")).not.toBeNull();
+  });
+
+  it("does not suggest a local Alternate when the linked style owns it", async () => {
+    await act(async () => mount({
+      ...structuredTable(),
+      linkedStyleId: "structured-style",
+      style: { background: { color: "#202020" } },
+    }));
+    presentation = {
+      linkedStyles: [{
+        target: "table",
+        mode: "structured",
+        id: "structured-style",
+        name: "Structured",
+        style: {
+          background: { color: "#202020" },
+          bodyRowAlternateBackground: "#303030",
+        },
+      }],
+    };
+    await act(async () => renderInspector());
+
+    const suggest = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Suggest alternate");
+    expect(suggest?.disabled).toBe(true);
+    await act(async () => suggest?.click());
+    expect((elementState as StructuredTableElement).style?.bodyRowAlternateBackground).toBeUndefined();
+    expect(updates).toHaveLength(0);
   });
 
   beforeEach(() => {

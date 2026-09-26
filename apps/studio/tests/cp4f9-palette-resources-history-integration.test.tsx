@@ -10,6 +10,7 @@ import {
   type Presentation,
   type PresentationElement,
 } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import type { CustomLibraryPaletteRecord, CustomLibraryPaletteRepository } from "../src/features/custom-library/custom-library-palette-repository";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
@@ -255,7 +256,7 @@ describe("CP4F9 Presentation Palette resource history", () => {
     const element = findElement(edited.slides[0]?.elements ?? [], "accent-element");
     expect(element?.type === "text" ? element.style?.color : undefined).toEqual(ref("accent"));
     expect(edited.textStyles?.[0]?.style?.color).toEqual(ref("accent"));
-    expect(edited.linkedStyles?.[0] && "style" in edited.linkedStyles[0] ? edited.linkedStyles[0].style?.color : undefined).toEqual(ref("accent"));
+    expect(containerLinkedStyle(edited.linkedStyles?.[0])?.style?.color).toEqual(ref("accent"));
     await undo();
     expect((await save()).palette?.colors[0]?.value).toBe("#336699");
     await redo();
@@ -310,7 +311,7 @@ describe("CP4F9 Presentation Palette resource history", () => {
     expect(removedElement?.type === "text" ? removedElement.style?.color : undefined).toBe("#336699");
     expect(removedElement?.type === "text" ? removedElement.style?.background?.gradient?.stops[0]?.color : undefined).toBe("#336699");
     expect(removed.textStyles?.[0]?.style?.color).toBe("#336699");
-    expect(removed.linkedStyles?.[0] && "style" in removed.linkedStyles[0] ? removed.linkedStyles[0].style?.color : undefined).toBe("#336699");
+    expect(containerLinkedStyle(removed.linkedStyles?.[0])?.style?.color).toBe("#336699");
     expect(removedElement?.type === "text" ? removedElement.style?.background?.gradient?.stops[1]?.color : undefined).toEqual(ref("other"));
     await undo();
     expect(await save()).toEqual(initial);

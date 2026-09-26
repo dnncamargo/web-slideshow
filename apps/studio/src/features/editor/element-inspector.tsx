@@ -33,6 +33,7 @@ import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 import type { TableStructuralSelection } from "./table-tree-helpers";
+import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
 
 interface ElementInspectorProps {
   element: PresentationElement;
@@ -56,6 +57,10 @@ interface ElementInspectorProps {
   onAttachLinkedTopicsStyle?: (linkedStyleId: string) => void;
 
   onDetachLinkedTopicsStyle?: () => void;
+
+  onAttachLinkedTargetStyle?: (linkedStyleId: string) => void;
+
+  onDetachLinkedTargetStyle?: () => void;
 
   preserveImageProportion: boolean;
 
@@ -125,6 +130,8 @@ function ElementTypeInspector({
   onDetachLinkedStyle = () => {},
   onAttachLinkedTopicsStyle,
   onDetachLinkedTopicsStyle,
+  onAttachLinkedTargetStyle = () => {},
+  onDetachLinkedTargetStyle = () => {},
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -181,14 +188,14 @@ function ElementTypeInspector({
 
     case "code":
       return (
-        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} />
+        <CodeInspector key={element.id} element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />
       );
 
     case "plot":
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "terminal":
-      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} />;
+      return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
 
     case "image":
       return (
@@ -225,11 +232,13 @@ function ElementTypeInspector({
           presentation={presentation}
           selectedTableStructuralNode={selectedTableStructuralNode}
           onSelectTableStructuralNode={onSelectTableStructuralNode}
+          onAttachLinkedStyle={onAttachLinkedTargetStyle}
+          onDetachLinkedStyle={onDetachLinkedTargetStyle}
         />
       );
 
     case "divider":
-      return <DividerInspector element={element} onUpdate={onUpdate} />;
+      return <DividerInspector element={element} onUpdate={onUpdate} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
 
     case "embed":
       return <EmbedInspector element={element} onUpdate={onUpdate} />;
@@ -301,6 +310,8 @@ export function ElementInspector({
   onDetachLinkedStyle,
   onAttachLinkedTopicsStyle,
   onDetachLinkedTopicsStyle,
+  onAttachLinkedTargetStyle,
+  onDetachLinkedTargetStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -324,6 +335,10 @@ export function ElementInspector({
   rootLocalContentReceiver,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
+  const targetInspection = (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
+    ? inspectTargetLinkedStyle(presentation, element)
+    : undefined;
+  const targetPositionProperties = targetInspection === undefined ? [] : (["position", "top", "right", "bottom", "left"] as const).filter((field) => targetInspection.getProperty(`layout.${field}` as never).owned);
 
   if (readOnly) {
     return (
@@ -383,6 +398,8 @@ export function ElementInspector({
         onDetachLinkedStyle={onDetachLinkedStyle}
         onAttachLinkedTopicsStyle={onAttachLinkedTopicsStyle}
         onDetachLinkedTopicsStyle={onDetachLinkedTopicsStyle}
+        onAttachLinkedTargetStyle={onAttachLinkedTargetStyle}
+        onDetachLinkedTargetStyle={onDetachLinkedTargetStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditing={focalEditing}
@@ -437,6 +454,8 @@ export function ElementInspector({
               });
             }}
             layerControls={layerControls}
+            effectiveLayout={targetInspection?.resolved?.layout}
+            disabledFields={targetPositionProperties}
           />
         ) : null
       )}

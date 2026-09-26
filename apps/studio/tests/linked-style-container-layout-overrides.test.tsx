@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type ContainerElement, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -61,6 +62,6 @@ describe("Linked Container layout override UI", () => {
     expect(state.layout?.children?.direction).toBeUndefined();
     act(() => resetFor("container-distribution")?.click());
     expect(state.layout?.children?.distribution).toBeUndefined();
-    expect(presentation.linkedStyles?.[0]?.layout?.children?.distribution).toBe("space-between");
+    expect(containerLinkedStyle(presentation.linkedStyles?.[0])?.layout?.children?.distribution).toBe("space-between");
   });
 });

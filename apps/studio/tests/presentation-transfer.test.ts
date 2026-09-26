@@ -484,6 +484,42 @@ describe("canonical presentation transfer", () => {
     expect(topics?.type === "topics" && topics.linkedStyleId).toBe("linked-style-2");
   });
 
+  it("remaps linked style references for Code, Terminal, Tables, and Divider", () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "source",
+      title: "Linked targets",
+      linkedStyles: [
+        { target: "code", id: "code-copy", name: "Code", style: { color: "#112233" } },
+        { target: "terminal", id: "terminal-copy", name: "Terminal", style: { commandColor: "#112233" } },
+        { target: "table", mode: "simple", id: "simple-copy", name: "Simple", typography: { fontSize: 14 } },
+        { target: "table", mode: "structured", id: "structured-copy", name: "Structured", style: { headerBackground: "#112233" } },
+        { target: "divider", id: "divider-copy", name: "Divider", style: { background: { color: "#112233" } } },
+      ],
+      slides: [{ id: "slide-copy", elements: [
+        { id: "code-copy", type: "code", code: "const x = 1", linkedStyleId: "code-copy" },
+        { id: "terminal-copy", type: "terminal", lines: [], linkedStyleId: "terminal-copy" },
+        { id: "simple-copy", type: "table", columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], linkedStyleId: "simple-copy" },
+        {
+          id: "structured-copy", type: "table", mode: "structured", linkedStyleId: "structured-copy",
+          columns: [{ id: "column-copy", header: { id: "header-copy", children: [] } }],
+          rows: [{ id: "row-copy", cells: [{ id: "cell-copy", children: [] }] }],
+        },
+        { id: "divider-copy", type: "divider", linkedStyleId: "divider-copy" },
+      ] }],
+    });
+    const imported = prepareImportedPresentation(source, "imported");
+    expect(imported.linkedStyles?.map((style) => style.id)).toEqual([
+      "linked-style-1", "linked-style-2", "linked-style-3", "linked-style-4", "linked-style-5",
+    ]);
+    expect(imported.slides[0]?.elements.map((element) => "linkedStyleId" in element ? element.linkedStyleId : undefined)).toEqual([
+      "linked-style-1", "linked-style-2", "linked-style-3", "linked-style-4", "linked-style-5",
+    ]);
+    const table = imported.slides[0]?.elements[3];
+    expect(table?.type === "table" && table.mode === "structured" && table.columns[0]?.id).toBe("table-column-1");
+    expect(PresentationSchema.safeParse(imported).success).toBe(true);
+  });
+
   it("preserves authored and explicitly stable identities", () => {
     const source = normalizationPresentation();
     const imported = normalizeImportedPresentation(source);

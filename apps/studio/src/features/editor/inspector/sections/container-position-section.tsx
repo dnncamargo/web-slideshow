@@ -21,7 +21,7 @@ import {
 
 import { readAbsoluteNumber, parseOptionalNumber } from "../inspector-helpers";
 import { InspectorSection } from "../inspector-section";
-import { getContainerShareablePropertySource } from "../linked-style-inspector";
+import { getContainerShareablePropertySource, linkedStyleForContainer } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
 
 interface ContainerPositionSectionProps {
@@ -72,7 +72,7 @@ export function ContainerPositionSection({
       parent?.layout?.children?.mode,
     );
   const showPreserveSize = shouldShowContainerPreserveSize(element, parent);
-  const linked = presentation?.linkedStyles?.find((style) => style.id === localElement.linkedStyleId);
+  const linked = presentation === undefined ? undefined : linkedStyleForContainer(presentation, localElement);
   const linkedPosition = linked?.layout?.position;
   const linkedFlexShrink = linked?.layout?.flexShrink;
   const source = (property: "layout.position" | "layout.top" | "layout.right" | "layout.bottom" | "layout.left" | "layout.flexShrink") => getContainerShareablePropertySource(presentation, localElement, property);

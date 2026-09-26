@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   LinkedContainerStyleSchema,
+  LinkedCodeStyleSchema,
+  LinkedDividerStyleSchema,
+  LinkedSimpleTableStyleSchema,
+  LinkedStructuredTableStyleSchema,
+  LinkedTerminalStyleSchema,
   LinkedTopicsStyleSchema,
   PresentationSchema,
   removePresentationPaletteColor,
@@ -169,6 +174,127 @@ describe("Linked Style references", () => {
   });
 });
 
+describe("target-specific Linked Style contracts", () => {
+  const targetSchemas = [
+    ["Code", LinkedCodeStyleSchema, {
+      target: "code", id: "code", name: "Code", layout: { width: "100%" },
+      style: { color: "#112233" }, typography: { fontFamily: "monospace" }, effect: { opacity: 0.8 },
+    }],
+    ["Terminal", LinkedTerminalStyleSchema, {
+      target: "terminal", id: "terminal", name: "Terminal", layout: { height: "20rem" },
+      style: { commandColor: "#112233" }, typography: { fontSize: 14 },
+      titleTypography: { fontWeight: 700 }, effect: { opacity: 0.8 },
+    }],
+    ["Simple Table", LinkedSimpleTableStyleSchema, {
+      target: "table", mode: "simple", id: "simple-table", name: "Simple table",
+      style: { color: "#112233" }, typography: { fontSize: 14 }, effect: { opacity: 0.8 },
+    }],
+    ["Structured Table", LinkedStructuredTableStyleSchema, {
+      target: "table", mode: "structured", id: "structured-table", name: "Structured table",
+      style: { headerBackground: "#112233" }, layout: { width: "100%" }, effect: { opacity: 0.8 },
+    }],
+    ["Divider", LinkedDividerStyleSchema, {
+      target: "divider", id: "divider", name: "Divider",
+      style: { background: { color: "#112233" } }, effect: { opacity: 0.8 },
+    }],
+  ] as const;
+
+  it.each(targetSchemas)("accepts the permitted namespaces for %s", (_label, schema, definition) => {
+    expect(schema.safeParse(definition).success).toBe(true);
+  });
+
+  it.each([
+    [LinkedCodeStyleSchema, { target: "code", id: "code", name: "Code" }],
+    [LinkedTerminalStyleSchema, { target: "terminal", id: "terminal", name: "Terminal" }],
+    [LinkedSimpleTableStyleSchema, { target: "table", mode: "simple", id: "table", name: "Table" }],
+    [LinkedStructuredTableStyleSchema, { target: "table", mode: "structured", id: "table", name: "Table" }],
+    [LinkedDividerStyleSchema, { target: "divider", id: "divider", name: "Divider" }],
+  ] as const)("rejects empty definitions", (schema, definition) => {
+    expect(schema.safeParse(definition).success).toBe(false);
+  });
+
+  it.each([
+    [LinkedCodeStyleSchema, { target: "code", id: "code", name: "Code", style: { className: "runtime" } }],
+    [LinkedTerminalStyleSchema, { target: "terminal", id: "terminal", name: "Terminal", style: { className: "runtime" } }],
+    [LinkedSimpleTableStyleSchema, { target: "table", mode: "simple", id: "table", name: "Table", style: { className: "runtime" } }],
+    [LinkedStructuredTableStyleSchema, { target: "table", mode: "structured", id: "table", name: "Table", style: { className: "runtime" } }],
+    [LinkedDividerStyleSchema, { target: "divider", id: "divider", name: "Divider", style: { className: "runtime" } }],
+  ] as const)("rejects runtime class hooks", (schema, definition) => {
+    expect(schema.safeParse(definition).success).toBe(false);
+  });
+
+  it.each([
+    [LinkedCodeStyleSchema, { target: "code", id: "code", name: "Code", style: { color: "#112233" }, code: "content" }],
+    [LinkedTerminalStyleSchema, { target: "terminal", id: "terminal", name: "Terminal", style: { color: "#112233" }, lines: [] }],
+    [LinkedSimpleTableStyleSchema, { target: "table", mode: "simple", id: "table", name: "Table", style: { color: "#112233" }, columns: [], rows: [] }],
+    [LinkedStructuredTableStyleSchema, { target: "table", mode: "structured", id: "table", name: "Table", style: { headerBackground: "#112233" }, showHeader: true }],
+    [LinkedDividerStyleSchema, { target: "divider", id: "divider", name: "Divider", style: { background: { color: "#112233" } }, orientation: "horizontal" }],
+  ] as const)("rejects content and local configuration", (schema, definition) => {
+    expect(schema.safeParse(definition).success).toBe(false);
+  });
+
+  it("keeps legacy Container and Topics definitions unchanged", () => {
+    expect(LinkedContainerStyleSchema.safeParse({ id: "container", name: "Container", layout: { padding: 4 } }).success).toBe(true);
+    expect(LinkedContainerStyleSchema.safeParse({ id: "container", name: "Container", target: "container", layout: { padding: 4 } }).success).toBe(false);
+    expect(LinkedTopicsStyleSchema.safeParse({ target: "topics", id: "topics", name: "Topics", itemGap: 4 }).success).toBe(true);
+  });
+});
+
+describe("target-specific Linked Style references", () => {
+  const targetStyles = [
+    { target: "code", id: "code-style", name: "Code", style: { color: "#112233" } },
+    { target: "terminal", id: "terminal-style", name: "Terminal", style: { commandColor: "#112233" } },
+    { target: "table", mode: "simple", id: "simple-table-style", name: "Simple table", typography: { fontSize: 14 } },
+    { target: "table", mode: "structured", id: "structured-table-style", name: "Structured table", style: { headerBackground: "#112233" } },
+    { target: "divider", id: "divider-style", name: "Divider", style: { background: { color: "#112233" } } },
+  ] as const;
+
+  const elementFor = (target: string, linkedStyleId: string): Record<string, unknown> => {
+    if (target === "code") return { id: "code", type: "code", code: "const x = 1", linkedStyleId };
+    if (target === "terminal") return { id: "terminal", type: "terminal", lines: [], linkedStyleId };
+    if (target === "divider") return { id: "divider", type: "divider", linkedStyleId };
+    if (linkedStyleId === "simple-table-style") {
+      return { id: "simple-table", type: "table", columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], linkedStyleId };
+    }
+    return {
+      id: "structured-table", type: "table", mode: "structured", linkedStyleId,
+      columns: [{ id: "column", header: { id: "header", children: [] } }],
+      rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+    };
+  };
+
+  it.each(targetStyles)("accepts a same-target $target reference", (style) => {
+    expect(PresentationSchema.safeParse(presentation([elementFor(style.target, style.id)], [style])).success).toBe(true);
+  });
+
+  it("rejects missing and cross-target references, including Table modes", () => {
+    for (const style of targetStyles) {
+      for (const other of targetStyles) {
+        const element = elementFor(style.target, other.id);
+        const expected = style.target === other.target &&
+          (style.target !== "table" || ("mode" in style && "mode" in other && style.mode === other.mode));
+        expect(PresentationSchema.safeParse(presentation([element], [style])).success).toBe(expected);
+      }
+    }
+    expect(PresentationSchema.safeParse(presentation([elementFor("code", "missing")], [])).success).toBe(false);
+  });
+
+  it("continues validating target references in Root Definitions and localRootChildren", () => {
+    const result = PresentationSchema.safeParse({
+      ...defaultsInput,
+      linkedStyles: [{ target: "code", id: "code-style", name: "Code", style: { color: "#112233" } }],
+      rootDefinitions: [{
+        id: "root",
+        name: "Root",
+        localChildTargetIds: ["target"],
+        root: { id: "root-container", type: "container", children: [elementFor("code", "code-style"), { id: "target", type: "container", children: [] }] },
+      }],
+      slides: [{ id: "slide", elements: [], rootDefinitionId: "root", localRootChildren: [{ targetContainerId: "target", children: [elementFor("code", "missing")] }] }],
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe("Linked Style palette integrity", () => {
   const reference = { kind: "palette" as const, colorId: "accent" };
   const linked = {
@@ -242,5 +368,88 @@ describe("Linked Style palette integrity", () => {
     expect(result.detachedCount).toBe(1);
     expect(result.presentation.linkedStyles?.[0]).toMatchObject({ markerColor: "#facc15" });
     expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
+});
+
+describe("target-specific Linked Style palette integrity", () => {
+  const reference = { kind: "palette" as const, colorId: "accent" };
+  const linkedStyles = [
+    {
+      target: "code" as const,
+      id: "code-palette",
+      name: "Code",
+      style: {
+        color: reference,
+        background: { gradient: { type: "linear" as const, stops: [{ color: reference, position: 0 }, { color: "#000000", position: 100 }] } },
+        border: { width: 1, color: reference },
+      },
+      effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+    },
+    {
+      target: "terminal" as const,
+      id: "terminal-palette",
+      name: "Terminal",
+      style: {
+        commandColor: reference,
+        promptColor: reference,
+        outputColor: reference,
+        commentColor: reference,
+        errorColor: reference,
+        background: { color: reference },
+        border: { width: 1, gradient: { type: "linear" as const, stops: [{ color: reference, position: 0 }, { color: "#000000", position: 100 }] } },
+      },
+      effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+    },
+    {
+      target: "table" as const,
+      mode: "simple" as const,
+      id: "simple-table-palette",
+      name: "Simple table",
+      style: { color: reference, background: { color: reference }, border: { width: 1, color: reference } },
+      effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+    },
+    {
+      target: "table" as const,
+      mode: "structured" as const,
+      id: "structured-table-palette",
+      name: "Structured table",
+      style: { background: { color: reference }, headerBackground: reference, bodyRowAlternateBackground: reference },
+      effect: { shadow: { x: 0, y: 1, blur: 2, color: reference } },
+    },
+    {
+      target: "divider" as const,
+      id: "divider-palette",
+      name: "Divider",
+      style: { background: { gradient: { type: "linear" as const, stops: [{ color: reference, position: 0 }, { color: "#000000", position: 100 }] } } },
+    },
+  ];
+
+  it("validates and materializes target-specific palette references", () => {
+    const parsed = PresentationSchema.parse({
+      ...presentation([], linkedStyles),
+      palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
+    });
+    const result = removePresentationPaletteColor(parsed, "accent");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.detachedCount).toBe(21);
+    expect(result.presentation.linkedStyles?.find((style) => style.id === "terminal-palette")).toMatchObject({
+      style: { commandColor: "#facc15", promptColor: "#facc15", errorColor: "#facc15", background: { color: "#facc15" } },
+    });
+    expect(result.presentation.linkedStyles?.find((style) => style.id === "structured-table-palette")).toMatchObject({
+      style: { headerBackground: "#facc15", bodyRowAlternateBackground: "#facc15" },
+    });
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+  });
+
+  it("rejects missing palette references in target-specific fields", () => {
+    expect(PresentationSchema.safeParse({
+      ...presentation([], [{ target: "terminal", id: "terminal", name: "Terminal", style: { commandColor: reference } }]),
+      palette: { colors: [{ id: "other", name: "Other", value: "#facc15" }] },
+    }).success).toBe(false);
+    expect(PresentationSchema.safeParse({
+      ...presentation([], [{ target: "table", mode: "structured", id: "table", name: "Table", style: { headerBackground: reference } }]),
+      palette: { colors: [{ id: "other", name: "Other", value: "#facc15" }] },
+    }).success).toBe(false);
   });
 });

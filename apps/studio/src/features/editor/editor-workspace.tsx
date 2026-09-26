@@ -110,6 +110,7 @@ import {
   resolveCanvasPointerSelection,
 } from "./canvas-pointer-selection-helpers";
 import { isAuthoredPresentationLink } from "./canvas-link-interception";
+import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
 import {
   isInsideContainerFitSurface,
   measureContainerFitSourceSize,
@@ -190,16 +191,39 @@ import {
   createLinkedStyleFromTopicsElement,
   canCreateLinkedStyleFromContainer,
   canCreateLinkedStyleFromTopics,
+  attachLinkedCodeStyleToElement,
+  attachLinkedTerminalStyleToElement,
+  attachLinkedTableStyleToElement,
+  attachLinkedDividerStyleToElement,
+  detachLinkedCodeStyleFromElement,
+  detachLinkedTerminalStyleFromElement,
+  detachLinkedTableStyleFromElement,
+  detachLinkedDividerStyleFromElement,
+  canCreateLinkedStyleFromCode,
+  canCreateLinkedStyleFromTerminal,
+  canCreateLinkedStyleFromSimpleTable,
+  canCreateLinkedStyleFromStructuredTable,
+  canCreateLinkedStyleFromDivider,
+  createLinkedStyleFromCodeElement,
+  createLinkedStyleFromTerminalElement,
+  createLinkedStyleFromSimpleTableElement,
+  createLinkedStyleFromStructuredTableElement,
+  createLinkedStyleFromDividerElement,
   updateLinkedTopicsStyle,
   updateLinkedStyle,
+  updateTargetLinkedStyleDefinition,
+  propagateTargetLinkedStyleDefinitionChanges,
+  changedTargetLinkedStyleProperties,
   renameLinkedStyle,
   removeUnusedLinkedStyle,
   clearLinkedContainerStyleProperty,
   clearLinkedTopicsStyleProperty,
   type LinkedTopicsStyleProperty,
+  type TargetLinkedStyleDefinitionPatch,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
-import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { attachLinkedStyleToMatchingContainers, attachTargetLinkedStyleToMatchingElements, isTargetLinkedStyleCompatible, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation, type TargetLinkedStyle, type TargetLinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
+import { LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { createLinkedStyleFromCreationRequest, type LinkedStyleCreationRequest } from "./linked-style-creation";
 import { updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 
 // ============================================================
@@ -824,12 +848,20 @@ interface PendingQrSelection {
   beforePresentation: Presentation;
 }
 
-interface PendingResourceSelection {
-  target: AuthoringTarget;
-  elementId: string;
-  elementType: "text" | "container";
-  styleId: string;
-}
+type PendingResourceSelection =
+  | {
+      kind: "text-style";
+      target: AuthoringTarget;
+      elementId: string;
+      styleId: string;
+    }
+  | {
+      kind: "linked-style";
+      target: AuthoringTarget;
+      elementId: string;
+      elementType: "container" | "code" | "terminal" | "table" | "divider";
+      styleId: string;
+    };
 
 function areAuthoringTargetsEqual(
   left: AuthoringTarget,
@@ -924,6 +956,22 @@ type CanvasResizeLayoutField =
   | "height";
 
 type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
+
+function areCanvasResizeLayoutsEqual(
+  before: CanvasResizeLayout | undefined,
+  after: CanvasResizeLayout | undefined,
+): boolean {
+  const fields: readonly CanvasResizeLayoutField[] = [
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "width",
+    "height",
+  ];
+  return fields.every((field) => before?.[field] === after?.[field]);
+}
 
 function hasCanvasResizeLayoutChange(
   before: PresentationElement,
@@ -1649,14 +1697,29 @@ export function EditorWorkspace({
       return;
     }
 
-    const elements = resolveAuthoringElements(presentation, pending.target);
+    const elements = pending.kind === "text-style"
+      ? resolveAuthoringElements(presentation, pending.target)
+      : resolveOwnedAuthoringTree(presentation, pending.target, pending.elementId)?.elements ?? null;
     const element = elements ? findElementById(elements, pending.elementId) : null;
-    const valid = pending.elementType === "text"
+    const valid = pending.kind === "text-style"
       ? element?.type === "text" && element.variant === pending.styleId && element.styleDetached !== true
-      : element?.type === "container" && element.linkedStyleId === pending.styleId;
+      : pending.elementType === "container"
+        ? element?.type === "container" && element.linkedStyleId === pending.styleId
+        : element !== null
+          && element.type === pending.elementType
+          && element.linkedStyleId === pending.styleId
+          && isTargetLinkedStyleCompatible(
+            presentation.linkedStyles?.find((style): style is TargetLinkedStyle =>
+              "target" in style
+              && (style.target === "code" || style.target === "terminal" || style.target === "table" || style.target === "divider")
+              && style.id === pending.styleId,
+            ),
+            element,
+          );
     pendingResourceSelectionRef.current = null;
     if (!valid || !element) return;
-    setSelectedElement({ id: element.id, type: pending.elementType });
+    setSelectedElement({ id: element.id, type: pending.kind === "text-style" ? "text" : pending.elementType });
+    if (pending.kind === "linked-style" && pending.elementType === "table") setSelectedTableStructuralNode(null);
   }, [authoringTarget, presentation]);
 
   useEffect(() => {
@@ -2546,7 +2609,7 @@ export function EditorWorkspace({
         : target;
       if (!appearanceTarget) {
         setCanvasCropAppearance(null);
-      } else {
+        } else {
         const computed = getComputedStyle(appearanceTarget);
         const bounds = getCanvasBounds(appearanceTarget);
       setCanvasCropAppearance({
@@ -2706,6 +2769,35 @@ export function EditorWorkspace({
 
     canvasDragRef.current = null;
     clearCanvasGuides();
+  }
+
+  function preserveTargetOwnedCanvasLayout(
+    presentationValue: Presentation,
+    before: PresentationElement,
+    after: PresentationElement,
+  ): PresentationElement {
+    if (before.type !== "code" && before.type !== "terminal" && before.type !== "table" && before.type !== "divider") {
+      return after;
+    }
+    if (after.type !== before.type) return after;
+    const inspection = inspectTargetLinkedStyle(presentationValue, before);
+    const ownedFields = (["position", "top", "right", "bottom", "left", "width", "height"] as const)
+      .filter((field) => inspection.getProperty(`layout.${field}` as never).owned);
+    if (ownedFields.length === 0) return after;
+    const nextLayout = { ...(after.layout ?? {}) } as typeof after.layout;
+    for (const field of ownedFields) {
+      if (field === "position") {
+        if (before.layout?.position === undefined) delete nextLayout?.position;
+        else if (nextLayout !== undefined) nextLayout.position = before.layout.position;
+        continue;
+      }
+      const localValue = before.layout?.[field];
+      if (localValue === undefined) delete nextLayout?.[field];
+      else if (nextLayout !== undefined) nextLayout[field] = localValue;
+    }
+    const normalizedLayout = nextLayout !== undefined && Object.keys(nextLayout).length > 0 ? nextLayout : undefined;
+    if (areCanvasResizeLayoutsEqual(before.layout, normalizedLayout)) return before;
+    return { ...after, ...(normalizedLayout === undefined ? { layout: undefined } : { layout: normalizedLayout }) } as PresentationElement;
   }
 
   function getCanvasLayoutParent(
@@ -3163,9 +3255,16 @@ export function EditorWorkspace({
           return currentElement;
         });
 
-        return nextElements === elements
+        const filteredElements = updateElementById(nextElements, drag.elementId, (currentElement) => {
+          const beforeElement = findElementById(elements, drag.elementId);
+          return beforeElement === null ? currentElement : preserveTargetOwnedCanvasLayout(current, beforeElement, currentElement);
+        });
+
+        const filteredElement = findElementById(filteredElements, drag.elementId);
+
+        return filteredElement === element
           ? current
-          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, nextElements);
+          : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, filteredElements);
       },
     );
   }
@@ -3609,13 +3708,16 @@ export function EditorWorkspace({
                 : element;
             }
 
-            return hasCanvasResizeLayoutChange(element, nextElement)
-              ? nextElement
+            const filteredNextElement = preserveTargetOwnedCanvasLayout(current, element, nextElement);
+            return hasCanvasResizeLayoutChange(element, filteredNextElement)
+              ? filteredNextElement
               : element;
           },
         );
 
-        return nextElements === elements
+        const resizedElement = findElementById(nextElements, resize.elementId);
+
+        return resizedElement === element
           ? current
           : replaceOwnedAuthoringTree(current, authoringTarget, resize.elementId, nextElements);
       },
@@ -3894,6 +3996,47 @@ export function EditorWorkspace({
           : replaceOwnedAuthoringTree(current, authoringTarget, topicsId, nextElements);
       },
     );
+  }
+
+  function attachSelectedLinkedTargetStyle(linkedStyleId: string): void {
+    const selected = selectedDocumentElement;
+    if (!selected || (selected.type !== "code" && selected.type !== "terminal" && selected.type !== "table" && selected.type !== "divider")) return;
+    const target = authoringTarget;
+    const elementId = selected.id;
+    const expectedType = selected.type;
+    commitAuthoringAction(target, { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle" } }, (current, currentTarget) => {
+      const elements = resolveOwnedAuthoringTree(current, currentTarget, elementId)?.elements ?? null;
+      if (!elements) return current;
+      const currentElement = findElementById(elements, elementId);
+      if (!currentElement || currentElement.type !== expectedType || currentElement.linkedStyleId === linkedStyleId) return current;
+      const nextElement = currentElement.type === "code" ? attachLinkedCodeStyleToElement(current, currentElement, linkedStyleId)
+        : currentElement.type === "terminal" ? attachLinkedTerminalStyleToElement(current, currentElement, linkedStyleId)
+          : currentElement.type === "table" ? attachLinkedTableStyleToElement(current, currentElement, linkedStyleId)
+            : attachLinkedDividerStyleToElement(current, currentElement, linkedStyleId);
+      if (nextElement === null) return current;
+      return replaceOwnedAuthoringTree(current, currentTarget, elementId, updateElementById(elements, elementId, () => nextElement));
+    });
+  }
+
+  function detachSelectedLinkedTargetStyle(): void {
+    const selected = selectedDocumentElement;
+    if (!selected || (selected.type !== "code" && selected.type !== "terminal" && selected.type !== "table" && selected.type !== "divider") || selected.linkedStyleId === undefined) return;
+    const target = authoringTarget;
+    const elementId = selected.id;
+    const expectedType = selected.type;
+    const expectedLinkedStyleId = selected.linkedStyleId;
+    commitAuthoringAction(target, { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle" } }, (current, currentTarget) => {
+      const elements = resolveOwnedAuthoringTree(current, currentTarget, elementId)?.elements ?? null;
+      if (!elements) return current;
+      const currentElement = findElementById(elements, elementId);
+      if (!currentElement || currentElement.type !== expectedType || currentElement.linkedStyleId !== expectedLinkedStyleId) return current;
+      const nextElement = currentElement.type === "code" ? detachLinkedCodeStyleFromElement(current, currentElement)
+        : currentElement.type === "terminal" ? detachLinkedTerminalStyleFromElement(current, currentElement)
+          : currentElement.type === "table" ? detachLinkedTableStyleFromElement(current, currentElement)
+            : detachLinkedDividerStyleFromElement(current, currentElement);
+      if (nextElement === null) return current;
+      return replaceOwnedAuthoringTree(current, currentTarget, elementId, updateElementById(elements, elementId, () => nextElement));
+    });
   }
 
   function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
@@ -4303,11 +4446,26 @@ export function EditorWorkspace({
       },
     );
   }
-  function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
+  function updatePresentationTargetLinkedStyle(id: string, patch: TargetLinkedStyleDefinitionPatch): void {
+    applyLinkedStyleDefinitionUpdate(
+      { kind: "linkedStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.definition" } },
+      (current) => {
+        const before = current.linkedStyles?.find((style) => style.id === id);
+        if (before === undefined || !("target" in before) || before.target === "topics") return current;
+        const candidate = updateTargetLinkedStyleDefinition(current, id, patch);
+        const after = candidate.linkedStyles?.find((style) => style.id === id);
+        if (after === undefined || !("target" in after) || after.target === "topics") return current;
+        return changedTargetLinkedStyleProperties(before, after).length === 0
+          ? current
+          : propagateTargetLinkedStyleDefinitionChanges(candidate, id, before, after);
+      },
+    );
+  }
+  function createPresentationLinkedStyle(request: LinkedStyleCreationRequest): void {
     applyLinkedStyleDefinitionUpdate(
       { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } },
       (current) => {
-        const created = createLinkedStyleWithProperty(current, name, property);
+        const created = createLinkedStyleFromCreationRequest(current, request);
         return created.linkedStyleId === undefined || created.presentation === current ? current : created.presentation;
       },
     );
@@ -4327,7 +4485,7 @@ export function EditorWorkspace({
   }
   function createLinkedStyleFromSelectedElement(name: string): void {
     if (!name.trim()) return;
-    if (selectedDocumentElement?.type !== "container" && selectedDocumentElement?.type !== "topics") return;
+    if (!selectedDocumentElement || !["container", "topics", "code", "terminal", "table", "divider"].includes(selectedDocumentElement.type)) return;
 
     const target = authoringTarget;
     const elementId = selectedDocumentElement.id;
@@ -4352,12 +4510,34 @@ export function EditorWorkspace({
             updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
           );
         }
-
-        if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
-        const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
-        return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
-          updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element),
-        );
+        if (expectedType === "topics") {
+          if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
+          const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element));
+        }
+        if (expectedType === "code" && currentElement.type === "code" && canCreateLinkedStyleFromCode(currentElement)) {
+          const candidate = createLinkedStyleFromCodeElement(current, currentElement, name);
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "code" ? candidate.element : element));
+        }
+        if (expectedType === "terminal" && currentElement.type === "terminal" && canCreateLinkedStyleFromTerminal(currentElement)) {
+          const candidate = createLinkedStyleFromTerminalElement(current, currentElement, name);
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "terminal" ? candidate.element : element));
+        }
+        if (expectedType === "table" && currentElement.type === "table") {
+          if (currentElement.mode === "structured" && canCreateLinkedStyleFromStructuredTable(currentElement)) {
+            const candidate = createLinkedStyleFromStructuredTableElement(current, currentElement, name);
+            return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "table" ? candidate.element : element));
+          }
+          if (currentElement.mode !== "structured" && canCreateLinkedStyleFromSimpleTable(currentElement)) {
+            const candidate = createLinkedStyleFromSimpleTableElement(current, currentElement, name);
+            return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "table" ? candidate.element : element));
+          }
+        }
+        if (expectedType === "divider" && currentElement.type === "divider" && canCreateLinkedStyleFromDivider(currentElement)) {
+          const candidate = createLinkedStyleFromDividerElement(current, currentElement, name);
+          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "divider" ? candidate.element : element));
+        }
+        return current;
       },
     );
   }
@@ -4369,9 +4549,9 @@ export function EditorWorkspace({
         if (before === undefined || ("target" in before && before.target === "topics")) return current;
         const afterPresentation = renameLinkedStyle(current, id, name);
         const after = afterPresentation.linkedStyles?.find((style) => style.id === id);
-        return after !== undefined && !(("target" in after) && after.target === "topics") && !areLinkedContainerStyleDefinitionsEqual(before, after)
-          ? afterPresentation
-          : current;
+        if (after === undefined || ("target" in after && after.target === "topics")) return current;
+        if (!("target" in before) && !("target" in after)) return areLinkedContainerStyleDefinitionsEqual(before, after) ? current : afterPresentation;
+        return before.name === after.name ? current : afterPresentation;
       },
     );
   }
@@ -4419,7 +4599,9 @@ export function EditorWorkspace({
         const linkedStyle = current.linkedStyles?.find((style) => style.id === id);
         if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
 
-        const result = attachLinkedStyleToMatchingContainers(current, id);
+        const result = "target" in linkedStyle
+          ? attachTargetLinkedStyleToMatchingElements(current, id)
+          : attachLinkedStyleToMatchingContainers(current, id);
         return result.attachedLocations.length === 0 || result.presentation === current ? current : result.presentation;
       },
     );
@@ -4430,12 +4612,32 @@ export function EditorWorkspace({
     if (element?.type !== "container" || element.linkedStyleId !== linkedStyleId) return;
     if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
     if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
-      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "container", styleId: linkedStyleId };
+      pendingResourceSelectionRef.current = { kind: "linked-style", target: location.target, elementId: element.id, elementType: "container", styleId: linkedStyleId };
       setAuthoringTarget(location.target);
       setSelectedElement(null);
       return;
     }
     setSelectedElement({ id: element.id, type: "container" });
+  }
+
+  function selectLinkedStyleElement(location: TargetLinkedStyleUsageLocation, linkedStyleId: string): void {
+    const elements = resolveOwnedAuthoringTree(presentation, location.target, location.elementId)?.elements ?? null;
+    const element = elements ? findElementById(elements, location.elementId) : null;
+    const linked = presentation.linkedStyles?.find((style): style is TargetLinkedStyle =>
+      "target" in style
+      && (style.target === "code" || style.target === "terminal" || style.target === "table" || style.target === "divider")
+      && style.id === linkedStyleId,
+    );
+    if (!element || !("linkedStyleId" in element) || element.linkedStyleId !== linkedStyleId || !isTargetLinkedStyleCompatible(linked, element)) return;
+    if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
+    if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
+      pendingResourceSelectionRef.current = { kind: "linked-style", target: location.target, elementId: element.id, elementType: element.type, styleId: linkedStyleId };
+      setAuthoringTarget(location.target);
+      setSelectedElement(null);
+      return;
+    }
+    setSelectedElement({ id: element.id, type: element.type });
+    if (element.type === "table") setSelectedTableStructuralNode(null);
   }
 
   function selectTextStyleElement(location: TextStyleUsageLocation, styleId: string): void {
@@ -4444,7 +4646,7 @@ export function EditorWorkspace({
     if (element?.type !== "text" || element.variant !== styleId || element.styleDetached === true) return;
     if (location.target.kind === "slide") setSelectedSlideIndex(location.target.slideIndex);
     if (!areAuthoringTargetsEqual(authoringTarget, location.target)) {
-      pendingResourceSelectionRef.current = { target: location.target, elementId: element.id, elementType: "text", styleId };
+      pendingResourceSelectionRef.current = { kind: "text-style", target: location.target, elementId: element.id, styleId };
       setAuthoringTarget(location.target);
       setSelectedElement(null);
       return;
@@ -4456,7 +4658,7 @@ export function EditorWorkspace({
     setPendingStyleDetach({ kind: "text-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
-  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleUsageLocation): void {
+  function requestLinkedStyleDetach(styleId: string, styleName: string, location: LinkedStyleUsageLocation | TargetLinkedStyleUsageLocation): void {
     setPendingStyleDetach({ kind: "linked-style", styleId, styleName, target: location.target, elementId: location.elementId });
   }
 
@@ -4494,15 +4696,30 @@ export function EditorWorkspace({
           labelParams: { setting: "container.linkedStyle" },
         },
         (current, target) => {
-          const elements = resolveAuthoringElements(current, target);
+          const elements = resolveOwnedAuthoringTree(current, target, pending.elementId)?.elements ?? null;
           const element = elements ? findElementById(elements, pending.elementId) : undefined;
-          if (element?.type !== "container" || element.linkedStyleId !== pending.styleId) return current;
+          if (!element || !("linkedStyleId" in element) || element.linkedStyleId !== pending.styleId) return current;
           const linkedStyle = current.linkedStyles?.find((style) => style.id === pending.styleId);
-          if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
-          const detached = detachLinkedContainerStyleFromElement(current, element);
+          if (linkedStyle === undefined) return current;
+          const detached = element.type === "container"
+            ? ("target" in linkedStyle ? null : detachLinkedContainerStyleFromElement(current, element))
+            : element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider"
+              ? isTargetLinkedStyleCompatible(
+                "target" in linkedStyle
+                  && (linkedStyle.target === "code" || linkedStyle.target === "terminal" || linkedStyle.target === "table" || linkedStyle.target === "divider")
+                  ? linkedStyle
+                  : undefined,
+                element,
+              )
+                ? element.type === "code" ? detachLinkedCodeStyleFromElement(current, element)
+                  : element.type === "terminal" ? detachLinkedTerminalStyleFromElement(current, element)
+                    : element.type === "table" ? detachLinkedTableStyleFromElement(current, element)
+                      : detachLinkedDividerStyleFromElement(current, element)
+                : null
+              : null;
           if (detached === null || !elements) return current;
-          const nextElements = updateElementById(elements, pending.elementId, (candidate) => candidate.type === "container" ? detached : candidate);
-          return nextElements === elements ? current : replaceAuthoringElements(current, target, nextElements);
+          const nextElements = updateElementById(elements, pending.elementId, (candidate) => candidate.id === pending.elementId ? detached : candidate);
+          return nextElements === elements ? current : replaceOwnedAuthoringTree(current, target, pending.elementId, nextElements);
         },
       );
     }
@@ -6657,6 +6874,7 @@ export function EditorWorkspace({
             onRemoveTextStyle={removeTextStyle}
              isTextStyleInUse={(id) => isTextStyleUsed(presentation, id)}
              onUpdateLinkedStyle={updatePresentationLinkedStyle}
+             onUpdateTargetLinkedStyle={updatePresentationTargetLinkedStyle}
              onUpdateLinkedTopicsStyle={updatePresentationLinkedTopicsStyle}
              onCreateLinkedStyle={createPresentationLinkedStyle}
              onRenameLinkedStyle={renamePresentationLinkedStyle}
@@ -6665,6 +6883,7 @@ export function EditorWorkspace({
              onRemoveLinkedTopicsStyle={removePresentationLinkedTopicsStyle}
              onAttachLinkedStyleMatches={attachLinkedStyleMatches}
              onSelectLinkedStyleContainer={selectLinkedStyleContainer}
+              onSelectLinkedStyleElement={selectLinkedStyleElement}
              onSelectTextStyleElement={selectTextStyleElement}
              onSelectRootDefinitionSlide={selectSlideFromResourceUsage}
              onRequestDetachLinkedStyle={requestLinkedStyleDetach}
@@ -6978,6 +7197,8 @@ export function EditorWorkspace({
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}
                           onDetachLinkedTopicsStyle={detachSelectedTopicsLinkedStyle}
+                          onAttachLinkedTargetStyle={attachSelectedLinkedTargetStyle}
+                          onDetachLinkedTargetStyle={detachSelectedLinkedTargetStyle}
                           parent={selectedElementParent}
                           ancestorContainers={selectedAncestorContainers}
                           layerControls={

@@ -122,6 +122,7 @@ export function presentationUsesFontFamily(
   return directElementUsage || (presentation.textStyles ?? []).some((style) =>
     matchesFontFamily(style.typography?.fontFamily, normalizedFamily),
   ) || (presentation.linkedStyles ?? []).some((style) =>
-    matchesFontFamily(style.typography?.fontFamily, normalizedFamily),
+    ("typography" in style && matchesFontFamily(style.typography?.fontFamily, normalizedFamily)) ||
+    ("target" in style && style.target === "terminal" && matchesFontFamily(style.titleTypography?.fontFamily, normalizedFamily)),
   );
 }

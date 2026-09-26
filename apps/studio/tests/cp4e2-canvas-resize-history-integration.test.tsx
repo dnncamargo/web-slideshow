@@ -89,11 +89,15 @@ function keyRedo(): KeyboardEvent {
   });
 }
 
-function makePresentation(elements: PresentationElement[]): Presentation {
+function makePresentation(
+  elements: PresentationElement[],
+  linkedStyles: Presentation["linkedStyles"] = [],
+): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e2-canvas-resize",
     title: "Canvas resize history",
+    linkedStyles,
     slides: [{ id: "slide-1", title: "Slide 1", elements }],
   });
 }
@@ -161,6 +165,20 @@ function galleryElement(): PresentationElement {
   };
 }
 
+function codeElement(layout: PresentationElement["layout"] = {}, linkedStyleId?: string): PresentationElement {
+  return {
+    type: "code",
+    id: "code-1",
+    hidden: false,
+    code: "const value = 1;",
+    language: "typescript",
+    showLineNumbers: true,
+    highlightedLines: [],
+    layout: { position: "absolute", width: 240, height: 120, left: 100, top: 80, ...layout },
+    ...(linkedStyleId ? { linkedStyleId } : {}),
+  };
+}
+
 describe("CP4E2 canvas resize History integration", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -188,6 +206,9 @@ describe("CP4E2 canvas resize History integration", () => {
       }
       if (this.dataset.presentationType === "gallery") {
         return canvasRect(this, 200, 120) as unknown as DOMRect;
+      }
+      if (this.dataset.presentationType === "code") {
+        return canvasRect(this, 240, 120) as unknown as DOMRect;
       }
       return originalGetBoundingClientRect.call(this);
     };
@@ -337,6 +358,37 @@ describe("CP4E2 canvas resize History integration", () => {
     expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.width).toBe("200px");
     await redo();
     expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.height).toBe("120px");
+  });
+
+  it("proves a real fully-owned Code resize is a canvas no-op", async () => {
+    const initial = makePresentation(
+      [codeElement({ width: undefined, height: undefined }, "owned-code")],
+      [{ target: "code", id: "owned-code", name: "Owned code", layout: { width: 240, height: 120 } }],
+    );
+    await mount(initial);
+    await resize("code-1", "se", { x: 340, y: 200 }, { x: 380, y: 240 });
+    const resized = container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')!;
+    expect(resized.style.width).toBe("240px");
+    expect(resized.style.height).toBe("120px");
+    const undoEvent = keyUndo();
+    await act(async () => window.dispatchEvent(undoEvent));
+    expect(undoEvent.defaultPrevented).toBe(false);
+  });
+
+  it("records only height for a real partially-owned Code resize", async () => {
+    const initial = makePresentation(
+      [codeElement({ width: 240, height: 120 }, "partial-code")],
+      [{ target: "code", id: "partial-code", name: "Partial code", layout: { width: 240 } }],
+    );
+    await mount(initial);
+    await resize("code-1", "se", { x: 340, y: 200 }, { x: 380, y: 240 });
+    const resized = container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')!;
+    expect(resized.style.width).toBe("240px");
+    expect(resized.style.height).toBe("160px");
+    await undo();
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')?.style.height).toBe("120px");
+    await redo();
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')?.style.height).toBe("160px");
   });
 
   it("routes a representative Gallery surface through History", async () => {

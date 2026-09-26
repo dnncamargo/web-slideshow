@@ -1,6 +1,7 @@
 import type {
   ElementEffect,
   FontResource,
+  Presentation,
   PresentationElement,
   TerminalTitleTypography,
   TerminalTypography,
@@ -19,12 +20,15 @@ import type { TypedInspectorProps } from "./inspector-types";
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { ElementTypographyFields } from "./sections/element-typography-control";
+import type { CoreTypographyProperty } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
   getTextContentPlainText,
 } from "../rich-text-authoring";
 import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 import { useAuthoringHistory } from "../authoring-history-context";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
+import { inspectTargetLinkedStyle } from "./linked-style-inspector";
 
 type TerminalElement = Extract<PresentationElement, { type: "terminal" }>;
 
@@ -38,7 +42,10 @@ export function TerminalInspector({
   element,
   onUpdate,
   fontResources = [],
-}: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[] }) {
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
+}: TypedInspectorProps<TerminalElement> & { fontResources?: readonly FontResource[]; presentation?: Presentation; onAttachLinkedStyle?: (id: string) => void; onDetachLinkedStyle?: () => void }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const runDiscrete = (callback: () => void): void => {
@@ -188,6 +195,13 @@ export function TerminalInspector({
   };
 
   const typographyDefaults = resolveEffectiveElementStyleDefaults(element).typography;
+  const linkedInspection = inspectTargetLinkedStyle(presentation, element);
+  const resolved = linkedInspection.resolved as { layout?: typeof element.layout; style?: CanonicalDataStyle; typography?: TerminalTypography; titleTypography?: TerminalTitleTypography; effect?: ElementEffect } | undefined;
+  const property = linkedInspection.getProperty;
+  const disabledLayout = (["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
+  const disabledBodyTypography = (["fontFamily", "fontSize", "lineHeight", "letterSpacing"] as const).filter((field) => property(`typography.${field}` as never).owned) as CoreTypographyProperty[];
+  const disabledTitleTypography = (["fontSize"] as const).filter((field) => property(`titleTypography.${field}` as never).owned) as CoreTypographyProperty[];
+  const disabledAppearance = (["commandColor", "promptColor", "outputColor", "commentColor", "errorColor", "background.color", "background.gradient", "borderRadius", "border", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
   const titleTypographyDefaults = {
     fontSize: 0.8125 * AUTHORING_ROOT_FONT_SIZE_PX,
   };
@@ -195,6 +209,8 @@ export function TerminalInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection title={t("inspector.content")} defaultOpen>
         <div className={styles.field}>
@@ -326,6 +342,8 @@ export function TerminalInspector({
           controlPrefix="terminal-title"
           fontResources={fontResources}
           visibleProperties={["fontSize"]}
+          effectiveTypography={resolved?.titleTypography}
+          disabledProperties={disabledTitleTypography}
         />
 
         <div className={styles.inspectorSectionHeader}>
@@ -349,6 +367,8 @@ export function TerminalInspector({
           controlPrefix="terminal"
           fontResources={fontResources}
           visibleProperties={["fontFamily", "fontSize", "lineHeight", "letterSpacing"]}
+          effectiveTypography={resolved?.typography}
+          disabledProperties={disabledBodyTypography}
         />
       </InspectorSection>
 
@@ -360,6 +380,8 @@ export function TerminalInspector({
             ? { ...current, layout: update(current.layout) }
             : current);
         }}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout}
       />
 
       <CanonicalDataAppearanceSection
@@ -369,12 +391,17 @@ export function TerminalInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="terminal"
         onUpdateEffect={updateEffect}
+        effectiveStyle={resolved?.style}
+        effectiveEffect={resolved?.effect}
+        disabledFields={disabledAppearance}
       />
 
       <CanonicalElementEffectsSection
         effect={element.effect}
         onUpdateEffect={updateEffect}
         controlPrefix="terminal"
+        effectiveEffect={resolved?.effect}
+        disabledFields={property("effect.shadow").owned ? ["shadow"] : []}
       />
     </>
   );

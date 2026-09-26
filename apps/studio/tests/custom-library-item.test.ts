@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { FontResource, PresentationElement } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import {
   createCustomLibraryItemDraft,
@@ -151,7 +152,7 @@ describe("createCustomLibraryItemDraft", () => {
       palette: { colors: [{ id: "accent", name: "Accent", value: "#facc15" }] },
     }));
 
-    expect(draft.dependencies?.linkedStyles?.[0]?.style?.color).toBe("#facc15");
+    expect(containerLinkedStyle(draft.dependencies?.linkedStyles?.[0])?.style?.color).toBe("#facc15");
     expect(JSON.stringify(draft.dependencies?.linkedStyles)).not.toContain('"kind":"palette"');
   });
 

@@ -3,6 +3,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type LinkedContainerStyle, type Presentation } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 import { CustomResourcesWorkspace } from "../src/features/editor/resources/custom-resources-workspace";
 import { updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -66,7 +67,7 @@ describe("Linked Styles Resources border radius", () => {
   it("clears radius when another authored property remains", async () => {
     await render(makePresentation({ borderRadius: 16, color: "#fff" }, { layout: { children: { gap: 12 } } })); await openEditor(); await edit("");
     expect(presentation.linkedStyles?.[0]?.style?.borderRadius).toBeUndefined();
-    expect(presentation.linkedStyles?.[0]?.layout?.children?.gap).toBe(12);
+    expect(containerLinkedStyle(presentation.linkedStyles?.[0])?.layout?.children?.gap).toBe(12);
   });
 
   it("rejects clearing the final authored property and shows feedback", async () => {

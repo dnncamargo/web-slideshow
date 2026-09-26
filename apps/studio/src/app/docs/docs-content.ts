@@ -153,9 +153,31 @@ export const docsGroups: readonly DocsGroup[] = [
             ],
           },
           {
-            title: "Linked Styles e Topics",
+            title: "Linked Styles: alvos, propriedades e ownership",
             paragraphs: [
-              "Linked Styles são target-aware e atualmente atendem Container e Topics. Eles não implicam suporte para todos os tipos de elemento. Em Topics, kind ausente é uma autoria diferente de kind = unordered; um unordered explícito pode ser propriedade do Linked Topics Style e aparecer como Linked no Inspector.",
+              "Um Linked Style é uma definição reutilizável no nível da Presentation. Ele fornece apenas as propriedades compatíveis com seu alvo e participa da precedência local → Linked Style compatível → baseline do elemento/tema/default. O suporte é específico por alvo, não é um mecanismo genérico para todos os elementos.",
+              "Os alvos suportados são Container, Topics, Code, Terminal, Table Simple, Table Structured e Divider. Container continua sem target na representação persistida. Code usa target = code; Terminal, target = terminal; Divider, target = divider; Table usa target = table e mode = simple ou structured. O target e o mode da definição não podem ser convertidos depois da criação, e Simple e Structured são contratos incompatíveis.",
+              "Os contratos não são iguais: Code compartilha layout, superfície visual, tipografia do corpo e efeitos; Terminal também compartilha cores semânticas do terminal e tipografia do título; Table Simple compartilha aparência de tabela simples, tipografia limitada e efeitos; Table Structured compartilha aparência estruturada, como cabeçalho, linhas alternadas e opacidade das divisórias, sem contrato de tipografia de topo; Divider compartilha posição/tamanho, background/radius e opacity. className e dados de conteúdo/configuração permanecem locais, assim como Code content/config, Terminal title/lines/titleStyle, Table content/config/mode e Divider orientation.",
+            ],
+            bullets: [
+              "Attach remove do elemento local as cópias das propriedades que passam a ser owned pelo Style de destino.",
+              "Switch usa somente a ownership do destino: valores omitidos pelo destino não materializam nem copiam valores do Style de origem.",
+              "Detach remove linkedStyleId e materializa localmente os valores efetivos do vínculo para preservar a aparência. Materialização pertence ao Detach, não à remoção de uma propriedade da definição.",
+              "Adicionar, alterar ou remover a propriedade P na definição limpa P local dos consumidores atualmente vinculados; remover P não materializa o antigo valor vinculado.",
+              "Em Topics, kind ausente continua sendo uma autoria diferente de kind = unordered; um unordered explícito pode ser propriedade do Linked Topics Style e aparecer como Linked no Inspector.",
+            ],
+          },
+          {
+            title: "Criar, editar e associar",
+            paragraphs: [
+              "Em Custom Resources → Linked Styles → Add Linked Style, escolha primeiro o tipo, informe o nome e selecione uma primeira propriedade compatível. As sete opções são Container, Topics, Code, Terminal, Table Simple, Table Structured e Divider; não existe um Container implícito. Em Add to Linked Styles, o elemento selecionado determina automaticamente o tipo e o campo é somente leitura.",
+              "Definitions podem ser categorizadas por tipo, renomeadas, editadas com Add Property e Remove Property, e exibem preview representativo por meio do renderer compartilhado e do resolver canônico. O preview é transitório e não cria elementos persistidos. A última propriedade authored não pode ser removida.",
+              "Matching usa autoria persistida exata, não igualdade visual ou efetiva: o candidato precisa estar sem vínculo, ter target/mode compatível e já autorar localmente todas as propriedades definidas pelo Style. Propriedades locais extras não impedem o match; por exemplo, 16 e \"16px\" podem renderizar de forma semelhante, mas não são o mesmo valor canônico persistido. Attach em massa recalcula os matches da Presentation atual, associa todos atomicamente, remove somente as propriedades que acabaram de se tornar owned, preserva conteúdo/configuração e propriedades não relacionadas e cria uma ação de History.",
+            ],
+            bullets: [
+              "Resources mostra contagem de uso e de matching, permite navegar para os usos, fazer Attach em massa e executar Detach.",
+              "A remoção da definição é protegida enquanto houver uso; target e mode permanecem imutáveis durante todo o ciclo de vida.",
+              "Create, create from selected, rename, Add/Change/Remove de propriedade, Detach e Attach em massa participam do Editor History. Edições contínuas de número, comprimento e cor mantêm o coalescing já existente; History não é persistido entre sessões.",
             ],
           },
         ],

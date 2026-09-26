@@ -1,6 +1,8 @@
 import type {
   CodeElement,
+  Presentation,
 } from "@web-slideshow/document-schema";
+import { resolveLinkedCodeStyle } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { quoteCssString } from "./escape-css-string";
@@ -16,15 +18,23 @@ import {
 
 export function renderCode(
   element: CodeElement,
+  presentation?: Presentation,
 ): string {
   if (element.hidden) {
     return "";
   }
 
+  if (element.linkedStyleId !== undefined && presentation === undefined) {
+    throw new Error(`Cannot render linked code style without presentation context: ${element.linkedStyleId}`);
+  }
+  const resolved = element.linkedStyleId === undefined
+    ? {}
+    : resolveLinkedCodeStyle(presentation!, element);
+  const effectiveElement = { ...element, ...resolved };
   const styles: string[] = [];
-  const gradientBorder = element.style?.border?.gradient;
+  const gradientBorder = effectiveElement.style?.border?.gradient;
 
-  const baseStyle = renderCanonicalDataStyle(element, {
+  const baseStyle = renderCanonicalDataStyle(effectiveElement, {
     includeBorder: gradientBorder === undefined,
   });
 
@@ -35,17 +45,17 @@ export function renderCode(
   if (gradientBorder) {
     styles.push(
       "border:0",
-      ...renderGradientBorder(gradientBorder, element.style?.border?.width ?? 0),
+      ...renderGradientBorder(gradientBorder, effectiveElement.style?.border?.width ?? 0),
     );
-    if (element.layout?.position === undefined) {
+    if (effectiveElement.layout?.position === undefined) {
       styles.push("position:relative");
     }
-    if (element.style?.borderRadius !== undefined) {
-      styles.push(`--presentation-code-outer-radius:${renderLength(element.style.borderRadius)}`);
+    if (effectiveElement.style?.borderRadius !== undefined) {
+      styles.push(`--presentation-code-outer-radius:${renderLength(effectiveElement.style.borderRadius)}`);
     }
   }
 
-  const typography = element.typography;
+  const typography = effectiveElement.typography;
 
   if (typography?.fontFamily !== undefined) {
     styles.push(`font-family:${quoteCssString(typography.fontFamily)}`);
@@ -63,12 +73,12 @@ export function renderCode(
     styles.push(`letter-spacing:${renderLength(typography.letterSpacing)}`);
   }
 
-  if (element.style?.color !== undefined) {
-    styles.push(`color:${renderColorValue(element.style.color)}`);
+  if (effectiveElement.style?.color !== undefined) {
+    styles.push(`color:${renderColorValue(effectiveElement.style.color)}`);
   }
 
   const customClass =
-    element.style?.className?.trim();
+    effectiveElement.style?.className?.trim();
 
   const classes = [
     "presentation-element",

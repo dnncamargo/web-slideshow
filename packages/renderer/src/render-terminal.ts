@@ -1,6 +1,8 @@
 import type {
   TerminalElement,
+  Presentation,
 } from "@web-slideshow/document-schema";
+import { resolveLinkedTerminalStyle } from "@web-slideshow/document-schema";
 
 import {
   escapeHtml,
@@ -102,18 +104,26 @@ function renderTitleTypography(element: TerminalElement): string[] {
 
 export function renderTerminal(
   element: TerminalElement,
+  presentation?: Presentation,
 ): string {
   if (element.hidden) {
     return "";
   }
 
+  if (element.linkedStyleId !== undefined && presentation === undefined) {
+    throw new Error(`Cannot render linked terminal style without presentation context: ${element.linkedStyleId}`);
+  }
+  const resolved = element.linkedStyleId === undefined
+    ? {}
+    : resolveLinkedTerminalStyle(presentation!, element);
+  const effectiveElement = { ...element, ...resolved };
   const classes = [
     "presentation-element",
     "presentation-terminal",
   ];
 
   const customClass =
-    element.style?.className?.trim();
+    effectiveElement.style?.className?.trim();
 
   if (customClass) {
     classes.push(customClass);
@@ -121,18 +131,18 @@ export function renderTerminal(
 
   const rootStyles: string[] = [];
 
-  const baseStyle = renderCanonicalDataStyle(element);
+  const baseStyle = renderCanonicalDataStyle(effectiveElement);
 
   if (baseStyle) {
     rootStyles.push(baseStyle);
   }
 
   const semanticColors = [
-    ["command", element.style?.commandColor],
-    ["prompt", element.style?.promptColor],
-    ["output", element.style?.outputColor],
-    ["comment", element.style?.commentColor],
-    ["error", element.style?.errorColor],
+    ["command", effectiveElement.style?.commandColor],
+    ["prompt", effectiveElement.style?.promptColor],
+    ["output", effectiveElement.style?.outputColor],
+    ["comment", effectiveElement.style?.commentColor],
+    ["error", effectiveElement.style?.errorColor],
   ] as const;
 
   for (const [name, color] of semanticColors) {
@@ -146,7 +156,7 @@ export function renderTerminal(
     : "";
 
   const bodyStyles: string[] = [];
-  const typography = element.typography;
+  const typography = effectiveElement.typography;
 
   if (typography?.fontFamily !== undefined) {
     bodyStyles.push(`font-family:${quoteCssString(typography.fontFamily)}`);
@@ -170,8 +180,8 @@ export function renderTerminal(
     : "";
 
   const titleStyles = [
-    ...renderTitleStyle(element),
-    ...renderTitleTypography(element),
+    ...renderTitleStyle(effectiveElement),
+    ...renderTitleTypography(effectiveElement),
   ];
   const titleStyleAttribute = titleStyles.length > 0
     ? ` style="${escapeHtml(titleStyles.join(";"))}"`

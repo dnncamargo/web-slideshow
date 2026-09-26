@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PresentationSchema, type ContainerElement } from "@web-slideshow/document-schema";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
 import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
@@ -129,13 +130,13 @@ describe("Container children fit Inspector", () => {
     const linkedPresentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", layout: { children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
     let state = container({ children: {} });
     state = { ...state, linkedStyleId: "linked" };
-    const rerender = () => root.render(<StudioI18nProvider><ContainerInspector element={state} presentation={linkedPresentation} onUpdate={(update) => { state = update(state) as ContainerElement; rerender(); }} onContainerFitModeChange={(mode) => { const linkedFit = linkedPresentation.linkedStyles?.[0]?.layout?.children?.fit; const base = state.layout?.children?.fit === undefined && linkedFit !== undefined ? { ...state, layout: { ...state.layout, children: { ...state.layout?.children, fit: { ...linkedFit } } } } : state; const next = updateContainerFit(base, mode); if (next === null) return false; state = next; rerender(); return true; }} /></StudioI18nProvider>);
+const rerender = () => root.render(<StudioI18nProvider><ContainerInspector element={state} presentation={linkedPresentation} onUpdate={(update) => { state = update(state) as ContainerElement; rerender(); }} onContainerFitModeChange={(mode) => { const linkedFit = containerLinkedStyle(linkedPresentation.linkedStyles?.[0])?.layout?.children?.fit; const base = state.layout?.children?.fit === undefined && linkedFit !== undefined ? { ...state, layout: { ...state.layout, children: { ...state.layout?.children, fit: { ...linkedFit } } } } : state; const next = updateContainerFit(base, mode); if (next === null) return false; state = next; rerender(); return true; }} /></StudioI18nProvider>);
     act(rerender);
     const select = host.querySelector<HTMLSelectElement>("#container-children-fit")!;
     expect(select.querySelector("option[value='']")).toBeNull();
     act(() => changeSelect(select, "cover"));
     expect(state.layout?.children?.fit).toEqual({ mode: "cover", sourceWidth: 800, sourceHeight: 600 });
-    expect(linkedPresentation.linkedStyles?.[0]?.layout?.children?.fit?.mode).toBe("contain");
+    expect(containerLinkedStyle(linkedPresentation.linkedStyles?.[0])?.layout?.children?.fit?.mode).toBe("contain");
     const reset = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Reset");
     expect(reset).toBeDefined();
     act(() => reset?.click());

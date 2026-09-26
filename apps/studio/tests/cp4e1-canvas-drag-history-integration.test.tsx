@@ -89,17 +89,35 @@ function keyRedo(): KeyboardEvent {
   });
 }
 
-function makePresentation(element: PresentationElement): Presentation {
+function makePresentation(
+  element: PresentationElement,
+  linkedStyles: Presentation["linkedStyles"] = [],
+): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e1-canvas-drag",
     title: "Canvas drag history",
+    linkedStyles,
     slides: [{
       id: "slide-1",
       title: "Slide 1",
       elements: [element],
     }],
   });
+}
+
+function codeElement(layout: PresentationElement["layout"] = {}, linkedStyleId?: string): PresentationElement {
+  return {
+    type: "code",
+    id: "code-1",
+    hidden: false,
+    code: "const value = 1;",
+    language: "typescript",
+    showLineNumbers: true,
+    highlightedLines: [],
+    layout: { position: "absolute", width: 240, height: 120, left: 100, top: 80, ...layout },
+    ...(linkedStyleId ? { linkedStyleId } : {}),
+  };
 }
 
 function containerElement(): PresentationElement {
@@ -306,6 +324,37 @@ describe("CP4E1 canvas drag History integration", () => {
     expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("100px");
     await redo();
     expect(container.querySelector<HTMLElement>('[data-presentation-id="image-1"]')?.style.left).toBe("140px");
+  });
+
+  it("proves a real fully-owned Code drag is a canvas no-op", async () => {
+    const initial = makePresentation(
+      codeElement({ left: undefined, top: undefined }, "owned-code"),
+      [{ target: "code", id: "owned-code", name: "Owned code", layout: { position: "absolute", left: 100, top: 80, width: 240, height: 120 } }],
+    );
+    await mount(initial);
+    await drag("code-1", { x: 150, y: 120 }, { x: 190, y: 150 });
+    const moved = container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')!;
+    expect(moved.style.left).toBe("100px");
+    expect(moved.style.top).toBe("80px");
+    const undoEvent = keyUndo();
+    await act(async () => window.dispatchEvent(undoEvent));
+    expect(undoEvent.defaultPrevented).toBe(false);
+  });
+
+  it("records only the unowned axis for a real partially-owned Code drag", async () => {
+    const initial = makePresentation(
+      codeElement({ left: 100, top: undefined }, "partial-code"),
+      [{ target: "code", id: "partial-code", name: "Partial code", layout: { position: "absolute", top: 80 } }],
+    );
+    await mount(initial);
+    await drag("code-1", { x: 150, y: 120 }, { x: 190, y: 150 });
+    const moved = container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')!;
+    expect(moved.style.left).toBe("140px");
+    expect(moved.style.top).toBe("80px");
+    await undo();
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')?.style.left).toBe("100px");
+    await redo();
+    expect(container.querySelector<HTMLElement>('[data-presentation-id="code-1"]')?.style.left).toBe("140px");
   });
 
   it("routes a generic Divider drag through canonical History", async () => {

@@ -169,3 +169,54 @@ describe("Linked Container Style rendering", () => {
     );
   });
 });
+
+describe("Linked target style rendering", () => {
+  it("consumes effective Code, Terminal, both Table modes, and Divider styles through renderPresentation", () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "target-linked-rendering",
+      title: "Target linked rendering",
+      linkedStyles: [
+        { target: "code", id: "code-style", name: "Code", layout: { width: 320 }, style: { color: "#00ff00" }, typography: { fontSize: 18 }, effect: { opacity: 0 } },
+        { target: "terminal", id: "terminal-style", name: "Terminal", style: { commandColor: "#ff0000" }, typography: { fontSize: 17 }, titleTypography: { fontWeight: 700 } },
+        { target: "table", mode: "simple", id: "simple-style", name: "Simple", style: { color: "#ffffff" }, typography: { fontSize: 16 } },
+        { target: "table", mode: "structured", id: "structured-style", name: "Structured", layout: { height: 240 }, style: { headerBackground: "#111111", bodyRowAlternateBackground: "#222222", dividerOpacity: 0.25 }, effect: { opacity: 0.8 } },
+        { target: "divider", id: "divider-style", name: "Divider", layout: { width: 40 }, style: { background: { color: "#abcdef" } }, effect: { opacity: 0.5 } },
+      ],
+      slides: [{ id: "slide", elements: [
+        { id: "code", type: "code", hidden: false, linkedStyleId: "code-style", code: "const x = 1", language: "ts", showLineNumbers: true, highlightedLines: [] },
+        { id: "terminal", type: "terminal", hidden: false, linkedStyleId: "terminal-style", title: "Shell", titleStyle: { color: "#ffffff" }, lines: [{ type: "command", content: "$ ls" }] },
+        { id: "simple", type: "table", hidden: false, linkedStyleId: "simple-style", columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }] },
+        { id: "structured", type: "table", hidden: false, linkedStyleId: "structured-style", mode: "structured", showHeader: true, columns: [{ id: "column", header: { id: "header", children: [] } }], rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }] },
+        { id: "divider", type: "divider", hidden: false, linkedStyleId: "divider-style", orientation: "vertical" },
+      ] }],
+    });
+
+    const html = renderPresentation(source);
+    expect(tagForId(html, "code")).toContain("width:320px");
+    expect(tagForId(html, "code")).toContain("color:#00ff00");
+    expect(tagForId(html, "code")).toContain("opacity:0");
+    expect(tagForId(html, "terminal")).toContain("--presentation-terminal-command-color:#ff0000");
+    expect(html).toContain("font-size:17px");
+    expect(tagForId(html, "simple")).toContain("font-size:16px");
+    expect(tagForId(html, "structured")).toContain("height:240px");
+    expect(html).toContain("background:#111111");
+    expect(html).toContain("--presentation-table-divider-opacity:0.25");
+    expect(tagForId(html, "divider")).toContain("width:40px");
+    expect(tagForId(html, "divider")).toContain("background:#abcdef");
+    expect(tagForId(html, "divider")).toContain("opacity:0.5");
+  });
+
+  it("requires presentation context only for linked low-level targets", () => {
+    const elements = [
+      { id: "code", type: "code" as const, hidden: false, linkedStyleId: "style", code: "x", language: "text", showLineNumbers: true, highlightedLines: [] },
+      { id: "terminal", type: "terminal" as const, hidden: false, linkedStyleId: "style", lines: [] },
+      { id: "table", type: "table" as const, hidden: false, linkedStyleId: "style", columns: [], rows: [] },
+      { id: "divider", type: "divider" as const, hidden: false, linkedStyleId: "style", orientation: "horizontal" as const },
+    ];
+    for (const element of elements) {
+      expect(() => renderElement(element)).toThrow("without presentation context");
+    }
+    expect(renderElement({ id: "plain-divider", type: "divider", hidden: false, orientation: "horizontal" })).toContain("data-presentation-id=\"plain-divider\"");
+  });
+});

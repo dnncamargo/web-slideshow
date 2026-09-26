@@ -207,6 +207,17 @@ describe("font resource traversal", () => {
   });
 
   it.each([
+    ["Code Linked Style", { target: "code", id: "code", name: "Code", typography: { fontFamily: "Space Grotesk" } }],
+    ["Terminal Linked Style body", { target: "terminal", id: "terminal", name: "Terminal", typography: { fontFamily: "Space Grotesk" } }],
+    ["Terminal Linked Style title", { target: "terminal", id: "terminal", name: "Terminal", titleTypography: { fontFamily: "Space Grotesk" } }],
+    ["Simple Table Linked Style", { target: "table", mode: "simple", id: "table", name: "Table", typography: { fontFamily: "Space Grotesk" } }],
+  ] as const)("detects %s font usage", (_label, linkedStyle) => {
+    const presentation = presentationWithElements([], { linkedStyles: [linkedStyle] });
+    expect(presentationUsesFontFamily(presentation, "Space Grotesk")).toBe(true);
+    expect(presentationUsesFontFamily(presentation, "Inter")).toBe(false);
+  });
+
+  it.each([
     ["Root Definition", {
       id: "root-text", type: "text", hidden: false, variant: "body", content: "Root", typography: { fontFamily: "Space Grotesk" },
     }],

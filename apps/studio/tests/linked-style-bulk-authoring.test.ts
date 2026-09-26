@@ -151,6 +151,19 @@ describe("linked style bulk authoring", () => {
     expect(attachLinkedStyleToMatchingContainers(document, "gap")).toEqual({ presentation: document, attachedLocations: [] });
   });
 
+  it("fails closed for a Code target in Container matching and bulk attachment", () => {
+    const document = presentation(
+      [container("candidate", { style: { color: "#fff" } })],
+      [linked("code-style", { target: "code", style: { color: "#fff" } })],
+    );
+
+    expect(findMatchingContainersForLinkedStyle(document, "code-style")).toEqual([]);
+    expect(attachLinkedStyleToMatchingContainers(document, "code-style")).toEqual({
+      presentation: document,
+      attachedLocations: [],
+    });
+  });
+
   it("retains the effective linked values after transfer", () => {
     const document = presentation([container("card", { layout: { children: { gap: 16 }, padding: 24 }, style: { borderRadius: 12 } })], [linked("card-style", { layout: { children: { gap: 16 } }, style: { borderRadius: 12 } })]);
     const result = attachLinkedStyleToMatchingContainers(document, "card-style").presentation;

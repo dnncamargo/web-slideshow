@@ -188,7 +188,7 @@ describe("CP4F7 create Linked Style from selected element history", () => {
       id: "shared-2",
       name: "Shared",
       layout: { position: "absolute", top: 4, margin: 9, children: { gap: 12 } },
-      style: { color: "#123456" },
+      style: { color: "#123456", borderRadius: 0 },
       typography: { fontSize: 22 },
       effect: { opacity: 0.7 },
     });

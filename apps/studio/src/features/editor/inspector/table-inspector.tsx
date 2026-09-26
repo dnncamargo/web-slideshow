@@ -26,7 +26,7 @@ import type {
 import { CanonicalDataAppearanceSection, type CanonicalDataStyle } from "./sections/canonical-data-appearance-section";
 import { CanonicalElementEffectsSection } from "./sections/canonical-element-effects-section";
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
-import { ElementTypographyFields } from "./sections/element-typography-control";
+import { ElementTypographyFields, type CoreTypographyProperty } from "./sections/element-typography-control";
 import { ElementSpacingSection } from "./sections/element-spacing-section";
 import {
   getTextContentPlainText,
@@ -38,6 +38,8 @@ import {
   type TableStructuralSelection,
 } from "../table-tree-helpers";
 import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
+import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
+import { inspectTargetLinkedStyle } from "./linked-style-inspector";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -70,6 +72,10 @@ interface TableInspectorProps {
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 
   presentation?: Pick<Presentation, "linkedStyles">;
+
+  onAttachLinkedStyle?: (id: string) => void;
+
+  onDetachLinkedStyle?: () => void;
 
   parent?: ContainerElement | null;
 
@@ -441,11 +447,13 @@ export function TableInspector({
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
   presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
   parent = null,
   ancestorContainers,
 }: TableInspectorProps) {
   if (element.mode !== "structured") {
-    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} parent={parent} ancestorContainers={ancestorContainers} />;
+    return <SimpleTableInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedStyle} onDetachLinkedStyle={onDetachLinkedStyle} parent={parent} ancestorContainers={ancestorContainers} />;
   }
 
   return (
@@ -455,6 +463,9 @@ export function TableInspector({
       tableAuthoringControls={tableAuthoringControls}
       selectedTableStructuralNode={selectedTableStructuralNode}
       onSelectTableStructuralNode={onSelectTableStructuralNode}
+      presentation={presentation}
+      onAttachLinkedStyle={onAttachLinkedStyle}
+      onDetachLinkedStyle={onDetachLinkedStyle}
     />
   );
 }
@@ -466,6 +477,8 @@ function SimpleTableInspector({
   presentation,
   parent,
   ancestorContainers,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
 }: {
   element: SimpleTableElement;
 
@@ -475,6 +488,8 @@ function SimpleTableInspector({
   presentation?: Pick<Presentation, "linkedStyles">;
   parent?: ContainerElement | null;
   ancestorContainers?: readonly ContainerElement[];
+  onAttachLinkedStyle?: (id: string) => void;
+  onDetachLinkedStyle?: () => void;
 }) {
   const { t } = useStudioI18n();
   const inheritedContainerColor = resolveNearestContainerColor(
@@ -485,6 +500,12 @@ function SimpleTableInspector({
   );
   const effectiveTableColor = inheritedContainerColor ?? THEME_COLORS.textSecondary;
   const effectiveTableColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
+  const linkedInspection = inspectTargetLinkedStyle(presentation, element);
+  const resolved = linkedInspection.resolved as { layout?: typeof element.layout; style?: CanonicalDataStyle; typography?: SimpleTableElement["typography"]; effect?: ElementEffect } | undefined;
+  const property = linkedInspection.getProperty;
+  const disabledLayout = (["width", "height", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
+  const disabledTypography = (["fontFamily", "fontSize", "lineHeight"] as const).filter((field) => property(`typography.${field}` as never).owned) as CoreTypographyProperty[];
+  const disabledAppearance = (["color", "background.color", "background.gradient", "borderRadius", "border", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
   const authoringHistory = useAuthoringHistory();
   const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
 
@@ -835,6 +856,8 @@ function SimpleTableInspector({
     <>
       <div className={styles.inspectorDivider} />
 
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
+
       <InspectorSection
         title={t("table.columns")}
         count={element.columns.length}
@@ -933,6 +956,8 @@ function SimpleTableInspector({
           controlPrefix="table"
           fontResources={fontResources}
           visibleProperties={["fontFamily", "fontSize", "lineHeight"]}
+          effectiveTypography={resolved?.typography}
+          disabledProperties={disabledTypography}
         />
       </InspectorSection>
 
@@ -1002,6 +1027,8 @@ function SimpleTableInspector({
 
       <CanonicalElementSizeSection
         layout={element.layout}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout.filter((field): field is "width" | "height" => field === "width" || field === "height")}
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
@@ -1021,6 +1048,8 @@ function SimpleTableInspector({
             layout: update(table.layout),
           }));
         }}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout.filter((field): field is "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" => field.startsWith("margin"))}
       />
 
       <CanonicalDataAppearanceSection
@@ -1033,12 +1062,17 @@ function SimpleTableInspector({
         effectiveColor={effectiveTableColor}
         effectiveColorSource={effectiveTableColorSource}
         onUpdateEffect={updateEffect}
+        effectiveStyle={resolved?.style}
+        effectiveEffect={resolved?.effect}
+        disabledFields={disabledAppearance}
       />
 
       <CanonicalElementEffectsSection
         effect={element.effect}
         onUpdateEffect={updateEffect}
         controlPrefix="table"
+        effectiveEffect={resolved?.effect}
+        disabledFields={property("effect.shadow").owned ? ["shadow"] : []}
       />
     </>
   );
@@ -1062,6 +1096,12 @@ interface StructuredTableInspectorProps {
   selectedTableStructuralNode?: TableStructuralSelection;
 
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
+
+  presentation?: Pick<Presentation, "linkedStyles">;
+
+  onAttachLinkedStyle?: (id: string) => void;
+
+  onDetachLinkedStyle?: () => void;
 }
 
 function StructuredTableInspector({
@@ -1070,8 +1110,16 @@ function StructuredTableInspector({
   tableAuthoringControls,
   selectedTableStructuralNode,
   onSelectTableStructuralNode,
+  presentation,
+  onAttachLinkedStyle,
+  onDetachLinkedStyle,
 }: StructuredTableInspectorProps) {
   const { t } = useStudioI18n();
+  const linkedInspection = inspectTargetLinkedStyle(presentation, element);
+  const resolved = linkedInspection.resolved as { layout?: typeof element.layout; style?: CanonicalDataStyle; effect?: ElementEffect } | undefined;
+  const property = linkedInspection.getProperty;
+  const disabledLayout = (["width", "height", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
+  const disabledAppearance = (["background.color", "background.gradient", "borderRadius", "border", "headerBackground", "bodyRowAlternateBackground", "dividerOpacity", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
   const [pendingRemoval, setPendingRemoval] = useState<TableStructuralSelection>(null);
 
   function updateTable(
@@ -1100,6 +1148,8 @@ function StructuredTableInspector({
   return (
     <>
       <div className={styles.inspectorDivider} />
+
+      {presentation && onAttachLinkedStyle && onDetachLinkedStyle ? <TargetLinkedStyleSection element={element} presentation={presentation} onAttach={onAttachLinkedStyle} onDetach={onDetachLinkedStyle} /> : null}
 
       <InspectorSection
         title={t("table.columns")}
@@ -1185,6 +1235,8 @@ function StructuredTableInspector({
 
       <CanonicalElementSizeSection
         layout={element.layout}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout.filter((field): field is "width" | "height" => field === "width" || field === "height")}
         onUpdateLayout={(update) => {
           updateTable((table) => ({
             ...table,
@@ -1204,6 +1256,8 @@ function StructuredTableInspector({
             layout: update(table.layout),
           }));
         }}
+        effectiveLayout={resolved?.layout}
+        disabledFields={disabledLayout.filter((field): field is "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft" => field.startsWith("margin"))}
       />
 
       <CanonicalDataAppearanceSection
@@ -1213,12 +1267,17 @@ function StructuredTableInspector({
         onUpdateStyle={updateStyle}
         controlPrefix="table"
         onUpdateEffect={updateEffect}
+        effectiveStyle={resolved?.style}
+        effectiveEffect={resolved?.effect}
+        disabledFields={disabledAppearance}
       />
 
       <CanonicalElementEffectsSection
         effect={element.effect}
         onUpdateEffect={updateEffect}
         controlPrefix="table"
+        effectiveEffect={resolved?.effect}
+        disabledFields={property("effect.shadow").owned ? ["shadow"] : []}
       />
       {pendingRemoval ? (() => {
         const index = pendingRemoval.kind === "column"

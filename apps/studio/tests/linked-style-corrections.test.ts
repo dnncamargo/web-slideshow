@@ -3,6 +3,7 @@ import { PresentationSchema, type Presentation } from "@web-slideshow/document-s
 import { collectLinkedStyleReferenceCounts } from "../src/features/editor/element-hierarchy";
 import { canUpdateLinkedStyle, createLinkedStyleFromContainer, removeUnusedLinkedStyle, renameLinkedStyle, updateLinkedStyle } from "../src/features/editor/linked-style-authoring";
 import { getContainerShareablePropertySource } from "../src/features/editor/inspector/linked-style-inspector";
+import { containerLinkedStyle } from "./linked-style-test-helpers";
 
 const presentation = (elements: Presentation["slides"][number]["elements"]): Presentation => PresentationSchema.parse({
   schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements }], linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 12 } } }],
@@ -13,6 +14,39 @@ describe("Linked Style correction contracts", () => {
     const document = presentation([{ id: "root", type: "container", hidden: false, linkedStyleId: "card", children: [{ id: "child", type: "container", hidden: false, linkedStyleId: "card", children: [] }] }]);
     expect(Object.fromEntries(collectLinkedStyleReferenceCounts(document.slides[0]!.elements))).toEqual({ card: 2 });
     expect(document.slides[0]!.elements[0]).toMatchObject({ id: "root", linkedStyleId: "card" });
+  });
+
+  it("counts every supported Linked Style element reference", () => {
+    const document = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [
+        { target: "code", id: "code", name: "Code", style: { color: "#fff" } },
+        { target: "terminal", id: "terminal", name: "Terminal", style: { commandColor: "#fff" } },
+        { target: "table", mode: "simple", id: "simple", name: "Simple", typography: { fontSize: 14 } },
+        { target: "table", mode: "structured", id: "structured", name: "Structured", style: { headerBackground: "#fff" } },
+        { target: "divider", id: "divider", name: "Divider", style: { background: { color: "#fff" } } },
+      ],
+      slides: [{ id: "s", title: "S", elements: [
+        { id: "code", type: "code", code: "x", linkedStyleId: "code" },
+        { id: "terminal", type: "terminal", lines: [], linkedStyleId: "terminal" },
+        { id: "simple", type: "table", columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], linkedStyleId: "simple" },
+        {
+          id: "structured", type: "table", mode: "structured", linkedStyleId: "structured",
+          columns: [{ id: "column", header: { id: "header", children: [] } }],
+          rows: [{ id: "row", cells: [{ id: "cell", children: [] }] }],
+        },
+        { id: "divider", type: "divider", linkedStyleId: "divider" },
+      ] }],
+    });
+    expect(Object.fromEntries(collectLinkedStyleReferenceCounts(document.slides[0]!.elements))).toEqual({
+      code: 1,
+      terminal: 1,
+      simple: 1,
+      structured: 1,
+      divider: 1,
+    });
   });
 
   it("trims names, preserves IDs, allows duplicates, and rejects blank names", () => {
@@ -32,7 +66,7 @@ describe("Linked Style correction contracts", () => {
     expect(removeUnusedLinkedStyle(withUnused, "card")?.linkedStyles).toBeUndefined();
     const edited = updateLinkedStyle(withStyle, "card", { layout: { children: { gap: 24 } } });
     expect(edited.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "card" });
-    expect(edited.linkedStyles?.[0]?.layout?.children?.gap).toBe(24);
+    expect(containerLinkedStyle(edited.linkedStyles?.[0])?.layout?.children?.gap).toBe(24);
   });
 
   it.each([
@@ -90,10 +124,24 @@ describe("Linked Style correction contracts", () => {
 
   it("preserves Fit geometry, enforces positioning cleanup, and toggles flex shrink", () => {
     const document = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "card", name: "Card", layout: { position: "absolute", top: 1, right: 2, bottom: 3, left: 4, flexShrink: 0, width: "20%", children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
-    const changed = updateLinkedStyle(document, "card", { layout: { ...document.linkedStyles![0]!.layout, position: undefined, top: undefined, right: undefined, bottom: undefined, left: undefined, flexShrink: undefined, children: { ...document.linkedStyles![0]!.layout!.children, fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } } });
-    expect(changed.linkedStyles?.[0]?.layout).toMatchObject({ width: "20%", children: { fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } });
+    const currentStyle = containerLinkedStyle(document.linkedStyles?.[0]);
+    const changed = updateLinkedStyle(document, "card", { layout: { ...currentStyle?.layout, position: undefined, top: undefined, right: undefined, bottom: undefined, left: undefined, flexShrink: undefined, children: { ...currentStyle?.layout?.children, fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } } });
+    expect(containerLinkedStyle(changed.linkedStyles?.[0])?.layout).toMatchObject({ width: "20%", children: { fit: { mode: "cover", sourceWidth: 800, sourceHeight: 600 } } });
     expect(changed.linkedStyles?.[0]?.layout).not.toHaveProperty("position");
     expect(changed.linkedStyles?.[0]?.layout).not.toHaveProperty("flexShrink");
     expect(canUpdateLinkedStyle(changed, "card", { layout: { children: {} } })).toBe(false);
+  });
+
+  it("does not update or attach a target-specific style through Container authoring", () => {
+    const document = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "target-style",
+      title: "Target style",
+      slides: [{ id: "s", title: "S", elements: [{ id: "candidate", type: "container", hidden: false, style: { color: "#fff" }, children: [] }] }],
+      linkedStyles: [{ target: "code", id: "code-style", name: "Code style", style: { color: "#fff" } }],
+    });
+
+    expect(canUpdateLinkedStyle(document, "code-style", { style: { color: "#000" } })).toBe(false);
+    expect(updateLinkedStyle(document, "code-style", { style: { color: "#000" } })).toBe(document);
   });
 });
