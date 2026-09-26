@@ -14,9 +14,16 @@ import {
 
 import { updateElementById } from "./element-tree";
 import { visitContainers, visitElements } from "./element-hierarchy";
-import { adoptLinkedContainerStyle } from "./linked-style-authoring";
+import {
+  adoptLinkedContainerStyle,
+  attachLinkedCodeStyleToElement,
+  attachLinkedDividerStyleToElement,
+  attachLinkedTableStyleToElement,
+  attachLinkedTerminalStyleToElement,
+} from "./linked-style-authoring";
 import { forEachNavigablePresentationAuthoringTree, updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 import type { AuthoringTarget } from "./authoring-target";
+import { listTargetLinkedStyleSupportedProperties, type TargetLinkedStyleProperty } from "./target-linked-style-definition-authoring";
 
 type PropertyBag = Record<string, unknown>;
 
@@ -41,6 +48,7 @@ type TargetLinkedStyleUsageOwner =
   | { source: "root-definition"; target: Extract<AuthoringTarget, { kind: "root-definition" }> };
 
 export type TargetLinkedStyleUsageLocation = TargetLinkedStyleUsageOwner & { elementId: string };
+export type TargetLinkedStyleMatchLocation = TargetLinkedStyleUsageLocation;
 export type TargetLinkedStyle = LinkedCodeStyle | LinkedTerminalStyle | LinkedTableStyle | LinkedDividerStyle;
 export type TargetLinkedStyleElement = Extract<PresentationElement, { type: "code" | "terminal" | "table" | "divider" }>;
 
@@ -188,6 +196,95 @@ export function isTargetLinkedStyleCompatible(
   if (linked.target === "terminal") return element.type === "terminal";
   if (linked.target === "divider") return element.type === "divider";
   return element.type === "table" && linked.mode === effectiveTableMode(element);
+}
+
+function targetPropertyValue(value: TargetLinkedStyle | TargetLinkedStyleElement, property: TargetLinkedStyleProperty): unknown {
+  const [namespace, key, nested] = property.split(".") as [string, string, string | undefined];
+  const bag = (value as PropertyBag)[namespace] as PropertyBag | undefined;
+  if (bag === undefined) return undefined;
+  const direct = bag[key];
+  return nested === undefined ? direct : (direct as PropertyBag | undefined)?.[nested];
+}
+
+function matchesLinkedTargetStyle(element: TargetLinkedStyleElement, linked: TargetLinkedStyle): boolean {
+  if (element.linkedStyleId !== undefined || !isTargetLinkedStyleCompatible(linked, element)) return false;
+  return listTargetLinkedStyleSupportedProperties(linked).every((property) => {
+    const linkedValue = targetPropertyValue(linked, property);
+    return linkedValue === undefined
+      || (targetPropertyValue(element, property) !== undefined && valuesEqual(targetPropertyValue(element, property), linkedValue));
+  });
+}
+
+function targetLinkedStyleFor(presentation: Presentation, linkedStyleId: string): TargetLinkedStyle | undefined {
+  const linked = presentation.linkedStyles?.find((style): style is TargetLinkedStyle =>
+    style.id === linkedStyleId
+      && "target" in style
+      && (style.target === "code" || style.target === "terminal" || style.target === "table" || style.target === "divider"),
+  );
+  return linked;
+}
+
+export function findMatchingTargetElementsForLinkedStyle(
+  presentation: Presentation,
+  linkedStyleId: string,
+): TargetLinkedStyleMatchLocation[] {
+  const linked = targetLinkedStyleFor(presentation, linkedStyleId);
+  if (linked === undefined) return [];
+  const locations: TargetLinkedStyleMatchLocation[] = [];
+  const seen = new Set<string>();
+  const visitTree = (elements: readonly PresentationElement[], owner: TargetLinkedStyleUsageOwner): void => {
+    visitElements(elements, (element) => {
+      if ((element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
+        && !seen.has(element.id) && matchesLinkedTargetStyle(element, linked)) {
+        seen.add(element.id);
+        locations.push({ ...owner, elementId: element.id });
+      }
+    });
+  };
+  presentation.slides.forEach((slide, slideIndex) => {
+    visitTree(slide.elements, { source: "slide", target: { kind: "slide", slideIndex } });
+    slide.localRootChildren?.forEach((entry) => visitTree(entry.children, {
+      source: "slide-local-root",
+      target: { kind: "slide", slideIndex },
+      targetContainerId: entry.targetContainerId,
+    }));
+  });
+  presentation.rootDefinitions?.forEach((rootDefinition) => visitTree([rootDefinition.root], {
+    source: "root-definition",
+    target: { kind: "root-definition", rootDefinitionId: rootDefinition.id },
+  }));
+  return locations;
+}
+
+function attachTargetElement(presentation: Presentation, element: TargetLinkedStyleElement, linkedStyleId: string): TargetLinkedStyleElement | null {
+  if (element.type === "code") return attachLinkedCodeStyleToElement(presentation, element, linkedStyleId);
+  if (element.type === "terminal") return attachLinkedTerminalStyleToElement(presentation, element, linkedStyleId);
+  if (element.type === "table") return attachLinkedTableStyleToElement(presentation, element, linkedStyleId);
+  return attachLinkedDividerStyleToElement(presentation, element, linkedStyleId);
+}
+
+export function attachTargetLinkedStyleToMatchingElements(
+  presentation: Presentation,
+  linkedStyleId: string,
+): { presentation: Presentation; attachedLocations: TargetLinkedStyleMatchLocation[] } {
+  const linked = targetLinkedStyleFor(presentation, linkedStyleId);
+  if (linked === undefined) return { presentation, attachedLocations: [] };
+  const attachedLocations = findMatchingTargetElementsForLinkedStyle(presentation, linkedStyleId);
+  if (attachedLocations.length === 0) return { presentation, attachedLocations };
+  const candidate = updatePresentationAuthoringTrees(presentation, (elements) => {
+    let next = elements as PresentationElement[];
+    visitElements(elements, (element) => {
+      if ((element.type !== "code" && element.type !== "terminal" && element.type !== "table" && element.type !== "divider")
+        || !matchesLinkedTargetStyle(element, linked)) return;
+      const attached = attachTargetElement(presentation, element, linkedStyleId);
+      if (attached !== null) next = updateElementById(next, element.id, () => attached) as PresentationElement[];
+    });
+    return next;
+  });
+  const parsed = PresentationSchema.safeParse(candidate);
+  return parsed.success
+    ? { presentation: parsed.data, attachedLocations }
+    : { presentation, attachedLocations: [] };
 }
 
 /** Finds target Linked Style usages while preserving each persisted owner. */

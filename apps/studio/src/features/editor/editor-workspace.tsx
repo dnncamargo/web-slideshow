@@ -221,7 +221,7 @@ import {
   type LinkedTopicsStyleProperty,
   type TargetLinkedStyleDefinitionPatch,
 } from "./linked-style-authoring";
-import { attachLinkedStyleToMatchingContainers, isTargetLinkedStyleCompatible, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation, type TargetLinkedStyle, type TargetLinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
+import { attachLinkedStyleToMatchingContainers, attachTargetLinkedStyleToMatchingElements, isTargetLinkedStyleCompatible, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation, type TargetLinkedStyle, type TargetLinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
 import { LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleProperty } from "./linked-style-property-authoring";
 import { createLinkedStyleFromCreationRequest, type LinkedStyleCreationRequest } from "./linked-style-creation";
 import { updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
@@ -4518,7 +4518,9 @@ export function EditorWorkspace({
         const linkedStyle = current.linkedStyles?.find((style) => style.id === id);
         if (linkedStyle === undefined || ("target" in linkedStyle && linkedStyle.target === "topics")) return current;
 
-        const result = attachLinkedStyleToMatchingContainers(current, id);
+        const result = "target" in linkedStyle
+          ? attachTargetLinkedStyleToMatchingElements(current, id)
+          : attachLinkedStyleToMatchingContainers(current, id);
         return result.attachedLocations.length === 0 || result.presentation === current ? current : result.presentation;
       },
     );
