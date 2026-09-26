@@ -34,6 +34,21 @@ import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees
 import { createTextStyleId } from "./text-style-helpers";
 import type { LinkedStyleProperty } from "./linked-style-property-authoring";
 
+export {
+  changedTargetLinkedStyleProperties,
+  clearLinkedTargetStyleProperty,
+  propagateTargetLinkedStyleDefinitionChanges,
+  propagateLinkedTargetStyleDefinitionChanges,
+  updateLinkedTargetStyle,
+  updateTargetLinkedStyleDefinition,
+} from "./target-linked-style-definition-authoring";
+export type {
+  TargetLinkedStyle,
+  TargetLinkedStyleDefinitionPatch,
+  TargetLinkedStylePatch,
+  TargetLinkedStyleProperty,
+} from "./target-linked-style-definition-authoring";
+
 type ShareableStyle = Omit<ElementVisualStyle, "className">;
 type PropertyBag = Record<string, unknown>;
 
