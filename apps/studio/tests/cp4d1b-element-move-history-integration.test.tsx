@@ -131,6 +131,44 @@ function rootBackedTwoReceiverPresentation(): Presentation {
   };
 }
 
+function rootBackedMasterPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-backed-master-element-move",
+    title: "Root-backed master element move",
+    defaultRootDefinitionId: "root-1",
+    linkedStyles: [{
+      id: "receiver-style",
+      name: "Receiver style",
+      layout: { position: "absolute" },
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Root",
+      root: {
+        type: "container",
+        id: "root",
+        hidden: false,
+        children: [{
+          type: "container",
+          id: "receiver",
+          hidden: false,
+          linkedStyleId: "receiver-style",
+          children: [
+            text("master-a", "Master A"),
+            text("master-b", "Master B"),
+            text("master-c", "Master C"),
+          ],
+        }],
+      },
+    }],
+    slides: [
+      { id: "slide-1", title: "Slide 1", summary: "", speakerNotes: "", elements: [] },
+      { id: "slide-2", title: "Slide 2", summary: "", speakerNotes: "", elements: [] },
+    ],
+  });
+}
+
 function containerPresentation(): Presentation {
   return basePresentation([
     text("text-a", "A"),
@@ -221,9 +259,10 @@ describe("CP4D1B generic element move history", () => {
   async function mount(
     next: Presentation = siblingPresentation(),
     onSave: (presentation: Presentation) => Promise<void> = async () => {},
+    nextAuthoringTarget?: { kind: "slide"; slideIndex: number } | { kind: "root-definition"; rootDefinitionId: string },
   ): Promise<void> {
     await act(async () => {
-      root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={next} onSave={onSave} /></StudioI18nProvider>);
+      root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={next} onSave={onSave} initialAuthoringTarget={nextAuthoringTarget} /></StudioI18nProvider>);
     });
   }
 
@@ -521,16 +560,78 @@ describe("CP4D1B generic element move history", () => {
       "local-c",
     ]);
 
-    await selectTreeElement("master-a");
-    expect(moveButton("up").disabled).toBe(true);
-    expect(moveButton("down").disabled).toBe(true);
-    expect(moveToSelect().disabled).toBe(true);
-    const masterRow = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
-      .find((button) => button.textContent?.includes("Master A"))?.parentElement;
-    expect(masterRow?.getAttribute("draggable")).toBe("false");
-    vi.mocked(historyState.commitHistory).mockClear();
+  });
+
+  it("routes Root-backed master movement through the Root Definition and shared Slides", async () => {
+    const initial = rootBackedMasterPresentation();
+    const onSave = vi.fn(async () => {});
+    await mount(initial, onSave);
+    await openElementTree();
+    await selectTreeElement("master-b");
+
+    expect(moveButton("up").disabled).toBe(false);
+    expect(moveButton("down").disabled).toBe(false);
+    expect(moveToSelect().disabled).toBe(false);
+    expect(treeRowForLabel("Master B").getAttribute("draggable")).toBe("true");
+
+    await dragBefore("Master B", "Master A");
+
+    await act(async () => setSelectValue(moveToSelect(), "receiver"));
+
+    const moved = lastCommittedPresentation();
+    expect(moved.slides.map((slide) => slide.elements)).toEqual([[], []]);
+    expect(moved.rootDefinitions?.[0]?.root.children.map((element) => element.id)).toEqual(["receiver"]);
+    const movedReceiver = moved.rootDefinitions?.[0]?.root.children[0];
+    expect(movedReceiver?.type).toBe("container");
+    if (movedReceiver?.type !== "container") throw new Error("Expected master receiver");
+    expect(movedReceiver.children.map((element) => element.id)).toEqual(["master-a", "master-c", "master-b"]);
+    expect(moved.linkedStyles).toEqual(initial.linkedStyles);
+    expect(materializeSlide(moved, moved.slides[1]!).slide.elements[0]).toMatchObject({
+      id: "root",
+      children: [{ id: "receiver", children: [{ id: "master-a" }, { id: "master-c" }, { id: "master-b" }] }],
+    });
+    expect(historyState.commitHistory).toHaveBeenCalledTimes(2);
+    expect(await saveSnapshot(onSave)).toEqual(moved);
+
+    await act(async () => dispatchUndo());
+    await act(async () => dispatchUndo());
+    expect(await saveSnapshot(onSave)).toEqual(initial);
+    await act(async () => dispatchRedo());
+    await act(async () => dispatchRedo());
+    expect(await saveSnapshot(onSave)).toEqual(moved);
+  });
+
+  it("uses the same Root Definition owner when editing directly", async () => {
+    const initial = rootBackedMasterPresentation();
+    await mount(initial, async () => {}, { kind: "root-definition", rootDefinitionId: "root-1" });
+    await openElementTree();
+    await selectTreeElement("master-b");
+
     await act(async () => moveButton("up").click());
+
+    const moved = lastCommittedPresentation();
+    const receiver = moved.rootDefinitions?.[0]?.root.children[0];
+    expect(receiver?.type).toBe("container");
+    if (receiver?.type !== "container") throw new Error("Expected direct Root receiver");
+    expect(receiver.children.map((element) => element.id)).toEqual(["master-b", "master-a", "master-c"]);
+    expect(moved.slides).toEqual(initial.slides);
+  });
+
+  it("rejects Root-backed drops across master and local owners", async () => {
+    await mount(rootBackedLocalPresentation());
+    await openElementTree();
+    vi.mocked(historyState.commitHistory).mockClear();
+
+    await dragBefore("Master A", "Local A");
+    await dragBefore("Local A", "Master A");
+
     expect(historyState.commitHistory).not.toHaveBeenCalled();
+    expect(canvasIds(container).filter((id) => ["master-a", "local-a", "local-b", "local-c"].includes(id))).toEqual([
+      "master-a",
+      "local-a",
+      "local-b",
+      "local-c",
+    ]);
   });
 
   it("rejects a Root-backed cross-receiver drag without mutation or History", async () => {
