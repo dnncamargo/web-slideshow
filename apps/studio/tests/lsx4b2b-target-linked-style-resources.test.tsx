@@ -166,6 +166,63 @@ describe("LSX4B2B target Linked Style Resources", () => {
     expect(terminal.querySelector("[data-linked-style-property='titleTypography.fontSize']")).not.toBeNull();
   });
 
+  it("coalesces target length edits into one undo step", async () => {
+    const initial = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111111", borderRadius: "2px" } }]);
+    await mount(initial);
+    await openResources();
+    const row = await openRow("code");
+    const radius = row.querySelector<HTMLInputElement>("[data-linked-style-property='style.borderRadius'] input");
+    if (!radius) throw new Error("Border radius control was not rendered");
+    await act(async () => { radius.focus(); inputValue(radius, "8"); inputValue(radius, "12"); radius.blur(); });
+    const changed = await save();
+    expect(changed.linkedStyles?.[0]).toHaveProperty("style.borderRadius", 12);
+    await undo();
+    const undone = await save();
+    expect(undone).toEqual(initial);
+    await undo();
+    expect(saved.at(-1)).toEqual(undone);
+    await redo();
+    expect(await save()).toEqual(changed);
+  });
+
+  it("coalesces target opacity edits and preserves authored zero values", async () => {
+    const initial = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111111" }, effect: { opacity: 0.5 } }, { target: "table", mode: "structured", id: "structured", name: "Structured", style: { headerBackground: "#111111", dividerOpacity: 0.5 } }]);
+    await mount(initial);
+    await openResources();
+    const code = await openRow("code");
+    const opacity = code.querySelector<HTMLInputElement>("[data-linked-style-property='effect.opacity'] input");
+    if (!opacity) throw new Error("Opacity control was not rendered");
+    await act(async () => { opacity.focus(); inputValue(opacity, "60"); inputValue(opacity, "70"); opacity.blur(); });
+    const changed = await save();
+    expect(changed.linkedStyles?.[0]).toHaveProperty("effect.opacity", 0.7);
+    await undo();
+    expect(await save()).toEqual(initial);
+    await redo();
+    expect(await save()).toEqual(changed);
+
+    const structured = await openRow("structured");
+    expect(structured.querySelector<HTMLInputElement>("[data-linked-style-property='style.dividerOpacity'] input")?.value).toBe("50");
+  });
+
+  it("uses the canonical shadow editor and coalesces its numeric history", async () => {
+    const initial = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111111" }, effect: { shadow: { x: 0, y: 4, blur: 12, color: "#000000" } } }]);
+    await mount(initial);
+    await openResources();
+    const row = await openRow("code");
+    const shadow = row.querySelector<HTMLElement>("[data-linked-style-property='effect.shadow']");
+    expect(shadow).not.toBeNull();
+    expect(shadow?.textContent).not.toContain("[object Object]");
+    const x = shadow?.querySelector<HTMLInputElement>("#container-shadow-x");
+    if (!x) throw new Error("Canonical shadow X control was not rendered");
+    await act(async () => { x.focus(); inputValue(x, "8"); inputValue(x, "12"); x.blur(); });
+    const changed = await save();
+    expect(changed.linkedStyles?.[0]).toHaveProperty("effect.shadow", { x: 12, y: 4, blur: 12, color: "#000000" });
+    await undo();
+    expect(await save()).toEqual(initial);
+    await redo();
+    expect(await save()).toEqual(changed);
+  });
+
   it("rerenders the preview from the changed Presentation definition", async () => {
     const initial = presentation([{ target: "code", id: "code", name: "Code", style: { color: "#111111", borderRadius: "2px" } }]);
     await mount(initial);

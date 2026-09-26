@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography } from "@web-slideshow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
 import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -691,13 +691,13 @@ function LinkedStylesWorkspace({
         <span className={styles.resourceItemDetails}><strong>{linkedStyle.name}</strong><span className={styles.resourceItemMeta}>{linkedStyle.target === "table" ? linkedStyle.mode === "simple" ? t("customResources.linkedStyleSimpleTable") : t("customResources.linkedStyleStructuredTable") : kindLabel({ kind: linkedStyle.target })} · {t(locations.length === 1 ? "customResources.linkedStyleUsedByOne" : "customResources.linkedStyleUsedByMany", { count: locations.length })}</span></span>
         <span className={styles.resourceDisclosureChevron} aria-hidden="true">{editing ? "▾" : "▸"}</span>
       </button>
-      {editing ? <div id={editorId} className={styles.linkedStyleEditor}>
+      {editing ? <AuthoringHistoryContext.Provider value={authoringHistory}><div id={editorId} className={styles.linkedStyleEditor}>
         <LinkedStyleNameField style={linkedStyle} onRename={(id, name) => runDefinitionDiscrete(() => onRename(id, name))} />
         <div className={styles.linkedStylePreview} data-linked-style-preview={linkedStyle.id} aria-hidden="true" style={Object.fromEntries((presentation?.palette?.colors ?? []).map((color) => [paletteColorCssVariableName(color.id), color.value]))} dangerouslySetInnerHTML={{ __html: presentation ? renderElement(createLinkedTargetStylePreview(linkedStyle), { presentation }) : "" }} />
         {targetPropertyGroups(linkedStyle).map((group) => group.properties.length === 0 ? null : <section className={styles.linkedStyleSection} data-linked-style-section={group.id} key={group.id}><h3 className={styles.linkedStyleSectionTitle}>{t(group.label)}</h3>{group.properties.map((property) => <TargetLinkedStylePropertyRow key={property} style={linkedStyle} property={property} onChange={(next) => onUpdateTarget(linkedStyle.id, targetDefinitionPatch(next))} onRemove={() => runDefinitionDiscrete(() => onUpdateTarget(linkedStyle.id, targetPropertyDefinitionPatch(linkedStyle, property, undefined)))} canRemove={removeTargetLinkedStyleProperty(linkedStyle, property) !== linkedStyle} />)}</section>)}
         {listAvailableTargetLinkedStyleProperties(linkedStyle).length > 0 ? <div className={styles.linkedStyleSection}><CategorizedPropertyChooser groups={[{ id: "target-properties", label: t("customResources.linkedStyleCompatibleProperties"), items: listAvailableTargetLinkedStyleProperties(linkedStyle).map((property) => ({ id: property, label: linkedStylePropertyLabel(t, property) })) }]} onSelect={(property) => { const next = addTargetLinkedStyleProperty(linkedStyle, property as TargetLinkedStyleProperty); if (next !== linkedStyle) runDefinitionDiscrete(() => onUpdateTarget(linkedStyle.id, targetDefinitionPatch(next))); }} dataAttribute="linked-style" /></div> : null}
         <div className={styles.linkedStyleSection} data-linked-style-section="reuse"><h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3><ResourceUsageLocations presentation={presentation} locations={locations} onSelect={(location) => onSelectElement(location, linkedStyle.id)} onRequestDetach={(location) => onRequestDetach(linkedStyle.id, linkedStyle.name, location)} styleName={linkedStyle.name} /><div className={styles.resourceStyleActions}><button type="button" className={styles.resourceAction} disabled={locations.length > 0} onClick={() => runDefinitionDiscrete(() => onRemove(linkedStyle.id))}>{t("customResources.linkedStyleRemove")}</button></div></div>
-      </div> : null}
+      </div></AuthoringHistoryContext.Provider> : null}
     </div>;
   };
   const renderContainerOrTopics = (linkedStyle: LinkedStyle) => {
@@ -1025,9 +1025,20 @@ function targetPropertyGroups(style: TargetResourceStyle): readonly { id: string
 
 function TargetLinkedStylePropertyRow({ style, property, onChange, onRemove, canRemove }: { style: TargetResourceStyle; property: TargetLinkedStyleProperty; onChange: (style: TargetResourceStyle) => void; onRemove: () => void; canRemove: boolean }) {
   const { t } = useStudioI18n();
+  const authoringHistory = useAuthoringHistory();
   const value = targetPropertyValue(style, property);
   const label = linkedStylePropertyLabel(t, property);
   const update = (next: unknown) => onChange(setTargetLinkedStylePropertyValue(style, property, next));
+  const numberHistoryKey = `number:linked-target:${style.id}:${property}`;
+  const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
+  const runNumberUpdate = (callback: () => void): void => {
+    if (!authoringHistory) {
+      callback();
+      return;
+    }
+    authoringHistory.begin(numberHistoryKey, numberHistoryMeta);
+    authoringHistory.update(numberHistoryKey, callback);
+  };
   let control: ReactNode;
   if (property === "style.color" || property === "style.background.color" || property.endsWith("Background") || property.endsWith("Color")) {
     control = <ColorControl id={`linked-target-${style.id}-${property}`} name={label} value={value as ColorValue | undefined} onChange={update as (color: ColorValue) => void} />;
@@ -1035,6 +1046,12 @@ function TargetLinkedStylePropertyRow({ style, property, onChange, onRemove, can
     control = <ElementGradientControl allowNone={false} gradient={value as NonNullable<NonNullable<LinkedCodeStyle["style"]>["background"]>["gradient"] | undefined} controlPrefix={`linked-target-${style.id}`} onChange={update} />;
   } else if (property === "style.border") {
     control = <ElementBorderControl allowNone={false} border={value as NonNullable<LinkedCodeStyle["style"]>["border"] | undefined} controlPrefix={`linked-target-${style.id}`} onChange={update} />;
+  } else if (property === "effect.shadow") {
+    const shadowElement: ContainerElement = { id: `linked-target-shadow-${style.id}`, type: "container", hidden: false, children: [], effect: { shadow: value as Shadow } };
+    control = <ContainerEffectsSection embedded allowNone={false} showSourceMeta={false} element={shadowElement} onUpdate={(updateElement) => {
+      const next = updateElement(shadowElement);
+      if (next.type === "container" && next.effect?.shadow !== undefined) update(next.effect.shadow);
+    }} />;
   } else if (property.startsWith("typography.") || property.startsWith("titleTypography.")) {
     const typography = property.startsWith("titleTypography.")
       ? style.target === "terminal" ? style.titleTypography as ElementTypography | undefined : undefined
@@ -1046,7 +1063,7 @@ function TargetLinkedStylePropertyRow({ style, property, onChange, onRemove, can
   } else if (property === "style.borderRadius" || property.startsWith("layout.")) {
     control = <LinkedStyleLengthField id={`linked-target-${style.id}-${property}`} label={label} value={value as Length | undefined} onChange={update as (value: Length | undefined) => void} />;
   } else if (property === "effect.opacity" || property === "style.dividerOpacity") {
-    control = <input type="number" min="0" max="100" value={typeof value === "number" ? value * 100 : ""} onChange={(event) => update(event.target.value === "" ? undefined : Number(event.target.value) / 100)} />;
+    control = <input type="number" min="0" max="100" value={typeof value === "number" ? value * 100 : ""} onFocus={() => authoringHistory?.begin(numberHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(numberHistoryKey)} onChange={(event) => runNumberUpdate(() => update(event.target.value === "" ? undefined : Number(event.target.value) / 100))} />;
   } else {
     control = <input type={typeof value === "number" ? "number" : "text"} value={value === undefined ? "" : String(value)} onChange={(event) => update(typeof value === "number" ? Number(event.target.value) : event.target.value)} />;
   }
