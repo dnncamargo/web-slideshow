@@ -1,12 +1,20 @@
 import {
   PresentationSchema,
   findRootDefinitionContainers,
+  materializeSlide,
   type Presentation,
   type PresentationElement,
   type Slide,
 } from "@web-slideshow/document-schema";
 
-import { findElementById, updateElementById } from "./element-hierarchy";
+import {
+  findElementById,
+  findElementLocation,
+  getElementsForParentRef,
+  updateElementById,
+  type ElementParentRef,
+} from "./element-hierarchy";
+import type { MoveElementOptions } from "./element-operations";
 import { replaceAuthoringElements, type AuthoringTarget } from "./authoring-target";
 
 export type LocalRootChildOwner = Readonly<{
@@ -19,6 +27,7 @@ export type OwnedAuthoringTree = Readonly<{
   elements: PresentationElement[];
   slideIndex?: number;
   targetContainerId?: string;
+  rootDefinitionId?: string;
 }>;
 
 function resolveSlide(
@@ -64,7 +73,9 @@ export function resolveOwnedAuthoringTree(
 ): OwnedAuthoringTree | null {
   if (target.kind === "root-definition") {
     const root = presentation.rootDefinitions?.find((definition) => definition.id === target.rootDefinitionId)?.root;
-    return root ? { kind: "root-definition", elements: [root] } : null;
+    return root
+      ? { kind: "root-definition", rootDefinitionId: target.rootDefinitionId, elements: [root] }
+      : null;
   }
 
   const slide = resolveSlide(presentation, target.slideIndex);
@@ -78,6 +89,66 @@ export function resolveOwnedAuthoringTree(
   return record
     ? { kind: "slide-local-root", slideIndex: target.slideIndex, targetContainerId: owner.targetContainerId, elements: record.children }
     : null;
+}
+
+/** Resolves the persisted tree that owns a structural element. */
+export function resolveStructuralMovementOwner(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  anchorElementId: string,
+): OwnedAuthoringTree | null {
+  if (target.kind !== "slide") {
+    return resolveOwnedAuthoringTree(presentation, target, anchorElementId);
+  }
+
+  const slide = resolveSlide(presentation, target.slideIndex);
+  if (!slide) return null;
+
+  const rootDefinitionId = slide.rootDefinitionId ?? presentation.defaultRootDefinitionId;
+  if (rootDefinitionId === undefined) {
+    return resolveOwnedAuthoringTree(presentation, target, anchorElementId);
+  }
+
+  const ownership = materializeSlide(presentation, slide).ownershipByStructuralId.get(anchorElementId);
+  if (ownership === "master") {
+    return resolveOwnedAuthoringTree(
+      presentation,
+      { kind: "root-definition", rootDefinitionId },
+      anchorElementId,
+    );
+  }
+
+  if (ownership === "slide") {
+    return resolveOwnedAuthoringTree(presentation, target, anchorElementId);
+  }
+
+  return null;
+}
+
+export function replaceStructuralMovementOwner(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  anchorElementId: string,
+  nextElements: PresentationElement[],
+): Presentation {
+  const owned = resolveStructuralMovementOwner(presentation, target, anchorElementId);
+  if (!owned) return presentation;
+  if (owned.kind === "slide-local-root") {
+    return updateLocalRootChildren(
+      presentation,
+      owned.slideIndex!,
+      owned.targetContainerId!,
+      () => nextElements,
+    );
+  }
+  if (owned.kind === "root-definition" && owned.rootDefinitionId !== undefined) {
+    return replaceAuthoringElements(
+      presentation,
+      { kind: "root-definition", rootDefinitionId: owned.rootDefinitionId },
+      nextElements,
+    );
+  }
+  return replaceAuthoringElements(presentation, target, nextElements);
 }
 
 export function replaceOwnedAuthoringTree(
@@ -104,6 +175,81 @@ export function updateOwnedAuthoringTree(
   if (!owned) return presentation;
   const nextElements = update(owned.elements);
   return nextElements === owned.elements ? presentation : replaceOwnedAuthoringTree(presentation, target, anchorElementId, nextElements);
+}
+
+function areElementParentRefsEqual(
+  left: ElementParentRef,
+  right: ElementParentRef,
+): boolean {
+  switch (left.kind) {
+    case "slide":
+      return right.kind === "slide";
+    case "container":
+      return right.kind === "container" && left.id === right.id;
+    case "content-slot":
+      return right.kind === "content-slot" && left.id === right.id;
+  }
+}
+
+/** Converts a materialized move target into the persisted owner's coordinates. */
+export function normalizeRootBackedMoveOptions(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  effectiveElements: PresentationElement[],
+  options: MoveElementOptions,
+): MoveElementOptions | null {
+  if (target.kind !== "slide") return options;
+
+  const owned = resolveStructuralMovementOwner(presentation, target, options.elementId);
+  if (!owned || owned.kind === "ordinary") return null;
+
+  const sourceEffective = findElementLocation(effectiveElements, options.elementId);
+  const sourceOwned = findElementLocation(owned.elements, options.elementId);
+  if (!sourceEffective || !sourceOwned) return null;
+
+  const targetParentRef = options.targetParentRef;
+  const normalizedParentRef: ElementParentRef =
+    owned.kind === "slide-local-root" &&
+      targetParentRef.kind === "container" &&
+      targetParentRef.id === owned.targetContainerId
+      ? { kind: "slide" }
+      : targetParentRef;
+
+  // A materialized Slide root is not a persisted owner boundary.
+  if (targetParentRef.kind === "slide") return null;
+
+  const effectiveTargetElements = getElementsForParentRef(effectiveElements, targetParentRef);
+  const ownedTargetElements = getElementsForParentRef(owned.elements, normalizedParentRef);
+  if (!effectiveTargetElements || !ownedTargetElements) return null;
+
+  const effectiveAfterSource = areElementParentRefsEqual(sourceEffective.parentRef, targetParentRef)
+    ? effectiveTargetElements.filter((element) => element.id !== options.elementId)
+    : effectiveTargetElements;
+  const ownedAfterSource = areElementParentRefsEqual(sourceOwned.parentRef, normalizedParentRef)
+    ? ownedTargetElements.filter((element) => element.id !== options.elementId)
+    : ownedTargetElements;
+  const effectiveIndex = options.targetIndex ?? effectiveAfterSource.length;
+  if (effectiveIndex < 0 || effectiveIndex > effectiveAfterSource.length) return null;
+
+  if (owned.kind === "slide-local-root" && normalizedParentRef.kind === "slide") {
+    return {
+      ...options,
+      targetParentRef: normalizedParentRef,
+      targetIndex: Math.min(effectiveIndex, ownedAfterSource.length),
+    };
+  }
+
+  const anchor = effectiveAfterSource[effectiveIndex];
+  const normalizedIndex = anchor === undefined
+    ? ownedAfterSource.length
+    : ownedAfterSource.findIndex((element) => element.id === anchor.id);
+  if (normalizedIndex < 0) return null;
+
+  return {
+    ...options,
+    targetParentRef: normalizedParentRef,
+    targetIndex: normalizedIndex,
+  };
 }
 
 export function updateLocalRootChildren(

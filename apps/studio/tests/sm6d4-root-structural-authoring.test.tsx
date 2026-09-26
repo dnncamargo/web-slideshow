@@ -13,6 +13,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
+import type { AuthoringTarget } from "../src/features/editor/authoring-target";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -73,6 +74,115 @@ function topicsPresentation(): Presentation {
       },
     }],
   };
+}
+
+function rootBackedTopicsPresentation(withLinkedStyle: boolean): Presentation {
+  const flow: PresentationElement = {
+    id: "flow-container",
+    type: "container",
+    hidden: false,
+    ...(withLinkedStyle ? { linkedStyleId: "flow-style" } : {}),
+    children: [
+      { id: "flow-image", type: "image", hidden: false, src: "/flow-image.png", alt: "Image", fit: "contain" },
+      { id: "flow-text", type: "text", hidden: false, variant: "body", content: "Text" },
+      {
+        id: "flow-topics",
+        type: "topics",
+        hidden: false,
+        kind: "unordered",
+        items: [topicItem("topic-a", "A"), topicItem("topic-b", "B"), topicItem("topic-c", "C")],
+      },
+    ],
+  };
+
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: `root-backed-topics-${withLinkedStyle ? "linked" : "plain"}`,
+    title: "Root-backed Topics",
+    slides: [{ id: "root-backed-slide", title: "Root-backed", elements: [], rootDefinitionId: "root-1" }],
+    ...(withLinkedStyle ? {
+      linkedStyles: [{
+        id: "flow-style",
+        name: "Flow style",
+        layout: { children: { gap: 8 } },
+      }],
+    } : {}),
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching root",
+      root: { id: "root-container", type: "container", hidden: false, children: [flow] },
+    }],
+  });
+}
+
+function rootBackedLocalContentPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-backed-local-content",
+    title: "Root-backed local content",
+    slides: [{
+      id: "local-slide",
+      title: "Local",
+      elements: [],
+      rootDefinitionId: "root-1",
+      localRootChildren: [{
+        targetContainerId: "receiver-container",
+        children: [
+          { id: "local-a", type: "text", hidden: false, variant: "body", content: "Local A" },
+          { id: "local-b", type: "text", hidden: false, variant: "body", content: "Local B" },
+        ],
+      }],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching root",
+      localChildTargetIds: ["receiver-container"],
+      root: {
+        id: "root-container",
+        type: "container",
+        hidden: false,
+        children: [{
+          id: "flow-container",
+          type: "container",
+          hidden: false,
+          children: [{
+            id: "receiver-container",
+            type: "container",
+            hidden: false,
+            children: [{ id: "master-a", type: "text", hidden: false, variant: "body", content: "Master A" }],
+          }],
+        }],
+      },
+    }],
+  });
+}
+
+function ordinaryTopicsPresentation(withLinkedStyle: boolean): Presentation {
+  const source = rootBackedTopicsPresentation(withLinkedStyle);
+  const root = source.rootDefinitions?.[0]?.root;
+  if (!root) throw new Error("Expected Topics root");
+  return PresentationSchema.parse({
+    ...source,
+    rootDefinitions: undefined,
+    defaultRootDefinitionId: undefined,
+    slides: [{ ...source.slides[0]!, rootDefinitionId: undefined, localRootChildren: undefined, elements: root.children }],
+  });
+}
+
+function rootBackedMoveToPresentation(): Presentation {
+  const source = rootBackedTopicsPresentation(false);
+  const root = source.rootDefinitions?.[0]?.root;
+  if (!root) throw new Error("Expected Topics root");
+  return PresentationSchema.parse({
+    ...source,
+    rootDefinitions: [{
+      ...source.rootDefinitions?.[0],
+      root: {
+        ...root,
+        children: [...root.children, { id: "destination-container", type: "container", hidden: false, children: [] }],
+      },
+    }],
+  });
 }
 
 function tablePresentation(): Presentation {
@@ -239,13 +349,14 @@ describe("SM6D4 Root structural authoring", () => {
   async function mount(
     initialPresentation: Presentation = presentation(),
     onSave: SaveMock = vi.fn<SaveCallback>(async (_value: Presentation) => {}),
+    initialTarget: AuthoringTarget = { kind: "root-definition", rootDefinitionId: "root-1" },
   ): Promise<SaveMock> {
     await act(async () => {
       root.render(
         <StudioI18nProvider>
           <EditorWorkspace
             initialPresentation={initialPresentation}
-            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+            initialAuthoringTarget={initialTarget}
             onSave={onSave}
           />
         </StudioI18nProvider>,
@@ -305,6 +416,21 @@ describe("SM6D4 Root structural authoring", () => {
       .find((candidate) => candidate.textContent?.trim() === label);
     if (!row) throw new Error(`Expected Topic row ${label}`);
     await act(async () => row.click());
+  }
+
+  async function selectTreeElement(label: string): Promise<void> {
+    const row = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="tree"] [role="treeitem"] button'))
+      .find((candidate) => candidate.textContent?.trim() === label);
+    if (!row) throw new Error(`Expected element row ${label}`);
+    await act(async () => row.click());
+  }
+
+  function treeElementRow(label: string): HTMLElement {
+    const button = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="tree"] [role="treeitem"] button'))
+      .find((candidate) => candidate.textContent?.trim() === label);
+    const row = button?.closest<HTMLElement>("[draggable]");
+    if (!row) throw new Error(`Expected draggable element row ${label}`);
+    return row;
   }
 
   function dragEvent(type: string, clientY = 0): Event {
@@ -420,6 +546,174 @@ describe("SM6D4 Root structural authoring", () => {
     const children = saved.rootDefinitions?.[0]?.root.children ?? [];
     expect(children.map((element) => element.id).slice(1, 4)).toEqual(["root-b", "root-a", "topics-root"]);
     expect(saved.slides).toEqual(source.slides);
+  });
+
+  it.each([false, true])("restores Root-backed Slide Topics element reordering controls (linkedStyle=%s)", async (withLinkedStyle) => {
+    const source = rootBackedTopicsPresentation(withLinkedStyle);
+    const onSave = await mount(source, vi.fn<SaveCallback>(async (_value: Presentation) => {}), { kind: "slide", slideIndex: 0 });
+    await selectCanvasElement("flow-topics");
+    await openTree();
+
+    await selectTopicRow("B");
+    await selectTreeElement("Topics");
+
+    const moveUp = host.querySelector<HTMLButtonElement>('button[aria-label="Move up"]');
+    const moveDown = host.querySelector<HTMLButtonElement>('button[aria-label="Move down"]');
+    const moveTo = host.querySelector<HTMLSelectElement>('select[aria-label="Move to"]');
+    const topicsRow = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="tree"] [role="treeitem"] button'))
+      .find((candidate) => candidate.textContent?.trim() === "Topics")
+      ?.closest<HTMLElement>("[draggable]");
+
+    expect(moveUp?.disabled).toBe(false);
+    expect(moveDown?.disabled).toBe(true);
+    expect(moveTo?.disabled).toBe(false);
+    expect(topicsRow?.getAttribute("draggable")).toBe("true");
+
+    await act(async () => moveUp?.click());
+    let saved = await saveSnapshot(onSave);
+    let flow = rootContainer(saved).children[0];
+    expect(flow?.type).toBe("container");
+    if (flow?.type !== "container") throw new Error("Expected Flow Container");
+    expect(flow.children.map((element) => element.id)).toEqual(["flow-image", "flow-topics", "flow-text"]);
+    expect(saved.slides[0]?.elements).toEqual([]);
+    expect(saved.slides[0]?.rootDefinitionId).toBe("root-1");
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    saved = await saveSnapshot(onSave);
+    flow = rootContainer(saved).children[0];
+    if (flow?.type !== "container") throw new Error("Expected Flow Container");
+    expect(flow.children.map((element) => element.id)).toEqual(["flow-image", "flow-text", "flow-topics"]);
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    saved = await saveSnapshot(onSave);
+    flow = rootContainer(saved).children[0];
+    if (flow?.type !== "container") throw new Error("Expected Flow Container");
+    expect(flow.children.map((element) => element.id)).toEqual(["flow-image", "flow-topics", "flow-text"]);
+  });
+
+  it.each([false, true])("keeps Topics element reordering controls in ordinary Slides (linkedStyle=%s)", async (withLinkedStyle) => {
+    await mount(ordinaryTopicsPresentation(withLinkedStyle), vi.fn<SaveCallback>(async (_value: Presentation) => {}), { kind: "slide", slideIndex: 0 });
+    await openTree();
+    await selectTreeElement("Topics");
+
+    expect(treeAction("Move up").disabled).toBe(false);
+    expect(treeAction("Move down").disabled).toBe(true);
+    expect(host.querySelector<HTMLSelectElement>('select[aria-label="Move to"]')?.disabled).toBe(false);
+    expect(treeElementRow("Topics").getAttribute("draggable")).toBe("true");
+  });
+
+  it.each([false, true])("keeps Topics element reordering controls in direct Root Definition workspaces (linkedStyle=%s)", async (withLinkedStyle) => {
+    await mount(rootBackedTopicsPresentation(withLinkedStyle));
+    await openTree();
+    await selectTreeElement("Topics");
+
+    expect(treeAction("Move up").disabled).toBe(false);
+    expect(treeAction("Move down").disabled).toBe(true);
+    expect(host.querySelector<HTMLSelectElement>('select[aria-label="Move to"]')?.disabled).toBe(false);
+    expect(treeElementRow("Topics").getAttribute("draggable")).toBe("true");
+  });
+
+  it("reorders localRootChildren in the local persisted owner without mutating Root master content", async () => {
+    const source = rootBackedLocalContentPresentation();
+    const onSave = await mount(source, vi.fn<SaveCallback>(async (_value: Presentation) => {}), { kind: "slide", slideIndex: 0 });
+    await openTree();
+    await selectTreeElement("Text — Local B");
+
+    const moveUp = treeAction("Move up");
+    const moveDown = treeAction("Move down");
+    const moveTo = host.querySelector<HTMLSelectElement>('select[aria-label="Move to"]');
+    expect(moveUp.disabled).toBe(false);
+    expect(moveDown.disabled).toBe(true);
+    expect(Array.from(moveTo?.options ?? []).map((option) => option.value)).toEqual([""]);
+    expect(treeElementRow("Text — Local B").getAttribute("draggable")).toBe("true");
+
+    await act(async () => moveUp.click());
+    let saved = await saveSnapshot(onSave);
+    expect(saved.slides[0]?.localRootChildren?.[0]?.children.map((element) => element.id)).toEqual(["local-b", "local-a"]);
+    expect(saved.rootDefinitions?.[0]?.root.children[0]).toEqual(source.rootDefinitions?.[0]?.root.children[0]);
+    expect(saved.slides[0]?.elements).toEqual([]);
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    saved = await saveSnapshot(onSave);
+    expect(saved.slides[0]?.localRootChildren?.[0]?.children.map((element) => element.id)).toEqual(["local-a", "local-b"]);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    saved = await saveSnapshot(onSave);
+    expect(saved.slides[0]?.localRootChildren?.[0]?.children.map((element) => element.id)).toEqual(["local-b", "local-a"]);
+
+    await drag(treeElementRow("Text — Local B"), treeElementRow("Text — Master A"), -1);
+    saved = await saveSnapshot(onSave);
+    expect(saved.slides[0]?.localRootChildren?.[0]?.children.map((element) => element.id)).toEqual(["local-b", "local-a"]);
+  });
+
+  it("supports Root-backed master drag/drop and Topics item movement in the canonical Root owner", async () => {
+    const source = rootBackedTopicsPresentation(false);
+    const onSave = await mount(source, vi.fn<SaveCallback>(async (_value: Presentation) => {}), { kind: "slide", slideIndex: 0 });
+    await openTree();
+    await drag(treeElementRow("Topics"), treeElementRow("Text — Text"), -1);
+
+    let saved = await saveSnapshot(onSave);
+    const flow = rootContainer(saved).children[0];
+    if (flow?.type !== "container") throw new Error("Expected Flow Container");
+    expect(flow.children.map((element) => element.id)).toEqual(["flow-image", "flow-topics", "flow-text"]);
+
+    await selectTopicRow("B");
+    await act(async () => treeAction("Move up").click());
+    saved = await saveSnapshot(onSave);
+    const movedFlow = rootContainer(saved).children[0];
+    const topics = movedFlow?.type === "container"
+      ? movedFlow.children.find((element) => element.id === "flow-topics")
+      : undefined;
+    expect(topics?.type).toBe("topics");
+    if (topics?.type === "topics") {
+      expect(topics.items.map((item) => item.id)).toEqual(["topic-b", "topic-a", "topic-c"]);
+    }
+  });
+
+  it("keeps Root-backed Move To within the Root Definition owner", async () => {
+    const onSave = await mount(rootBackedMoveToPresentation(), vi.fn<SaveCallback>(async (_value: Presentation) => {}), { kind: "slide", slideIndex: 0 });
+    await openTree();
+    await selectTreeElement("Text — Text");
+
+    const moveTo = host.querySelector<HTMLSelectElement>('select[aria-label="Move to"]');
+    if (!moveTo) throw new Error("Expected Move to control");
+    expect(Array.from(moveTo.options).map((option) => option.value)).toEqual(["", "root-container", "flow-container", "destination-container"]);
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+    if (!setter) throw new Error("Expected select setter");
+    await act(async () => {
+      setter.call(moveTo, "destination-container");
+      moveTo.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const saved = await saveSnapshot(onSave);
+    const root = rootContainer(saved);
+    const flow = root.children.find((element) => element.id === "flow-container");
+    const destination = root.children.find((element) => element.id === "destination-container");
+    expect(flow?.type === "container" ? flow.children.map((element) => element.id) : []).toEqual(["flow-image", "flow-topics"]);
+    expect(destination?.type === "container" ? destination.children.map((element) => element.id) : []).toEqual(["flow-text"]);
+    expect(saved.slides[0]?.elements).toEqual([]);
+  });
+
+  it("produces the same canonical Presentation when moving through Root Definition or Root-backed Slide", async () => {
+    const source = rootBackedTopicsPresentation(false);
+    const throughSlide = vi.fn<SaveCallback>(async (_value: Presentation) => {});
+    await mount(source, throughSlide, { kind: "slide", slideIndex: 0 });
+    await openTree();
+    await selectTreeElement("Topics");
+    await act(async () => treeAction("Move up").click());
+    const slideResult = await saveSnapshot(throughSlide);
+
+    await act(async () => root.unmount());
+    host.innerHTML = "";
+    root = createRoot(host);
+
+    const throughRoot = vi.fn<SaveCallback>(async (_value: Presentation) => {});
+    await mount(source, throughRoot);
+    await openTree();
+    await selectTreeElement("Topics");
+    await act(async () => treeAction("Move up").click());
+    const rootResult = await saveSnapshot(throughRoot);
+
+    expect(rootResult).toEqual(slideResult);
   });
 
   it("enables Root Topics structural authoring and linked-style relationship writes", async () => {
