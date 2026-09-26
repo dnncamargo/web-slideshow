@@ -156,6 +156,10 @@ export function DividerInspector({
                   return current;
                 }
 
+                if (widthOwned || heightOwned) {
+                  return { ...current, orientation };
+                }
+
                 const width = current.layout?.width;
 
                 const height = current.layout?.height;
@@ -169,7 +173,7 @@ export function DividerInspector({
 
                   orientation,
 
-                    layout: {
+                  layout: {
                     ...current.layout,
 
                     width: height,

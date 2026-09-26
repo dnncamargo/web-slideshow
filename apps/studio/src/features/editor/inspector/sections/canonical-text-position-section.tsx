@@ -83,8 +83,8 @@ export function CanonicalElementPositionSection({ element, parent, onUpdateLayou
                 inputMode="decimal"
                 value={edgeValue(displayedLayout[edge])}
                 disabled={disabledFields.includes(edge)}
-                onFocus={() => authoringHistory?.begin(`number:element-canonical-${edge}`, numberHistoryMeta)}
-                onBlur={() => authoringHistory?.finish(`number:element-canonical-${edge}`)}
+                onFocus={() => { if (!disabledFields.includes(edge)) authoringHistory?.begin(`number:element-canonical-${edge}`, numberHistoryMeta); }}
+                onBlur={() => { if (!disabledFields.includes(edge)) authoringHistory?.finish(`number:element-canonical-${edge}`); }}
                 onChange={(event) => {
                   const value = event.target.value.trim();
                   const nextValue = value === "" ? undefined : /^-?\d+(?:\.\d+)?%$/.test(value) ? value : Number(value);

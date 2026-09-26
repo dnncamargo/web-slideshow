@@ -941,6 +941,22 @@ type CanvasResizeLayoutField =
 
 type CanvasResizeLayout = Partial<Record<CanvasResizeLayoutField, unknown>>;
 
+function areCanvasResizeLayoutsEqual(
+  before: CanvasResizeLayout | undefined,
+  after: CanvasResizeLayout | undefined,
+): boolean {
+  const fields: readonly CanvasResizeLayoutField[] = [
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "width",
+    "height",
+  ];
+  return fields.every((field) => before?.[field] === after?.[field]);
+}
+
 function hasCanvasResizeLayoutChange(
   before: PresentationElement,
   after: PresentationElement,
@@ -2671,6 +2687,7 @@ export function EditorWorkspace({
       else if (nextLayout !== undefined) nextLayout[field] = localValue;
     }
     const normalizedLayout = nextLayout !== undefined && Object.keys(nextLayout).length > 0 ? nextLayout : undefined;
+    if (areCanvasResizeLayoutsEqual(before.layout, normalizedLayout)) return before;
     return { ...after, ...(normalizedLayout === undefined ? { layout: undefined } : { layout: normalizedLayout }) } as PresentationElement;
   }
 

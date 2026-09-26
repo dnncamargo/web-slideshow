@@ -189,6 +189,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
     background: ColorValue | undefined,
   ) => updateStructuredStyle((current) => setStructuredBackground(current, key, background));
   const suggestAlternate = () => {
+    if (isDisabled("bodyRowAlternateBackground")) return;
     const source = structuredStyle?.background?.color;
     const resolved = source === undefined ? undefined : resolveColorValue(source, palette ? { colors: palette.colors } : undefined);
     const color = suggestAlternatingSurfaceColor(resolved);
@@ -246,7 +247,7 @@ export function CanonicalDataAppearanceSection({ element, style, effect, showCol
       <label className={styles.field}><span title={t("inspector.backgroundHelp")}>{t("inspector.background")}</span><ColorControl id={`${controlPrefix}-background`} name={getControlName(controlPrefix, "Background")} value={displayedStyle?.background?.color} disabled={isDisabled("background.color")} onChange={(color) => { if (!isDisabled("background.color")) onUpdateStyle((current) => updateCanonicalBackground(current, "color", color)); }} secondaryAction={isDisabled("background.color") ? undefined : { label: structuredStyle !== undefined ? t("inspector.reset") : t("inspector.remove"), onClick: () => structuredStyle !== undefined ? onUpdateStyle((current) => ({ ...current, background: undefined, bodyRowAlternateBackground: undefined })) : onUpdateStyle((current) => updateCanonicalBackground(current, "color", undefined)) }} /></label>
       </div>
     {structuredStyle !== undefined && <>
-      <div className={styles.colorControlActionRow}><button type="button" className={styles.colorPaletteDisclosure} onClick={suggestAlternate} disabled={suggestAlternatingSurfaceColor(resolvedStructuredBackground) === undefined}>{t("table.appearance.suggestAlternate")}</button></div>
+      <div className={styles.colorControlActionRow}><button type="button" className={styles.colorPaletteDisclosure} onClick={suggestAlternate} disabled={isDisabled("bodyRowAlternateBackground") || suggestAlternatingSurfaceColor(resolvedStructuredBackground) === undefined}>{t("table.appearance.suggestAlternate")}</button></div>
       {structuredStyle.bodyRowAlternateBackground !== undefined && <label className={styles.field}><span>{t("table.appearance.alternateBackground")}</span><ColorControl id={`${controlPrefix}-body-row-alternate-background`} name={getControlName(controlPrefix, "BodyRowAlternateBackground")} value={structuredStyle.bodyRowAlternateBackground} disabled={isDisabled("bodyRowAlternateBackground")} onChange={(color) => { if (!isDisabled("bodyRowAlternateBackground")) updateStructuredBackground("bodyRowAlternateBackground", color); }} secondaryAction={isDisabled("bodyRowAlternateBackground") ? undefined : { label: t("inspector.remove"), onClick: () => updateStructuredBackground("bodyRowAlternateBackground", undefined) }} /></label>}
     </>}
     <ElementGradientControl gradient={displayedStyle?.background?.gradient} controlPrefix={`${controlPrefix}-background`} disabled={isDisabled("background.gradient")} onChange={(gradient) => { if (!isDisabled("background.gradient")) onUpdateStyle((current) => updateCanonicalBackground(current, "gradient", gradient)); }} />

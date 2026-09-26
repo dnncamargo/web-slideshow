@@ -345,8 +345,8 @@ export function ElementGradientControl({
                   unchanged,
                 );
               }}
-              onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-gradient-angle`, numberHistoryMeta)}
-              onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-gradient-angle`)}
+              onFocus={() => { if (!disabled) authoringHistory?.begin(`number:${controlPrefix}-gradient-angle`, numberHistoryMeta); }}
+              onBlur={() => { if (!disabled) authoringHistory?.finish(`number:${controlPrefix}-gradient-angle`); }}
             />
 
             <span>°</span>
@@ -519,8 +519,8 @@ export function ElementGradientControl({
                           unchanged,
                         );
                       }}
-                      onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-gradient-stop-${index}-position`, numberHistoryMeta)}
-                      onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-gradient-stop-${index}-position`)}
+                      onFocus={() => { if (!disabled) authoringHistory?.begin(`number:${controlPrefix}-gradient-stop-${index}-position`, numberHistoryMeta); }}
+                      onBlur={() => { if (!disabled) authoringHistory?.finish(`number:${controlPrefix}-gradient-stop-${index}-position`); }}
                     />
 
                     <span>%</span>

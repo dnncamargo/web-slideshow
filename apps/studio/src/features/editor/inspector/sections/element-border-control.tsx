@@ -236,8 +236,8 @@ export function ElementBorderControl({
                   min="0"
                   value={readAbsoluteNumber(border.width)}
                   disabled={disabled}
-                  onFocus={() => authoringHistory?.begin(`number:${controlPrefix}-border-width`, numberHistoryMeta)}
-                  onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-border-width`)}
+                  onFocus={() => { if (!disabled) authoringHistory?.begin(`number:${controlPrefix}-border-width`, numberHistoryMeta); }}
+                  onBlur={() => { if (!disabled) authoringHistory?.finish(`number:${controlPrefix}-border-width`); }}
                   onChange={(event) => {
                     if (disabled) return;
                     const width =

@@ -25,6 +25,16 @@ function presentation(testCase: Case): Presentation {
 
 function key(shift = false): KeyboardEvent { return new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: shift, bubbles: true, cancelable: true }); }
 
+function pointer(type: string, x: number, y: number, pointerId = 1): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    clientX: { value: x },
+    clientY: { value: y },
+    pointerId: { value: pointerId },
+  });
+  return event;
+}
+
 describe("LSX3B1 target relationship History", () => {
   let host: HTMLDivElement; let root: Root;
   beforeEach(() => { host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host); });
@@ -83,5 +93,61 @@ describe("LSX3B1 target relationship History", () => {
     expect(select.value).toBe("");
     const beforeInvalidSimulation = key(); await act(async () => window.dispatchEvent(beforeInvalidSimulation));
     expect(beforeInvalidSimulation.defaultPrevented).toBe(false);
+  });
+
+  it("keeps fully-owned Canvas drag and resize as Presentation no-ops", async () => {
+    const element: PresentationElement = {
+      id: "target",
+      type: "code",
+      hidden: false,
+      code: "const x = 1",
+      language: "typescript",
+      showLineNumbers: true,
+      highlightedLines: [],
+      layout: { position: "absolute", top: 20, left: 30, width: 240, height: 120 },
+    };
+    const initial = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "lsx3b2-canvas",
+      title: "LSX3B2",
+      slides: [{ id: "slide", title: "Slide", elements: [element] }],
+      linkedStyles: [{
+        target: "code",
+        id: "owned-code",
+        name: "Owned code",
+        layout: { position: "absolute", top: 20, left: 30, width: 240, height: 120 },
+      }],
+    });
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+    await change("owned-code");
+    const attached = await save(saved);
+    expect(attached.slides[0]!.elements[0]).toHaveProperty("linkedStyleId", "owned-code");
+    const target = host.querySelector<HTMLElement>('[data-presentation-id="target"]');
+    const canvas = host.querySelector<HTMLElement>("[class*='slideCanvas']");
+    if (!target || !canvas) throw new Error("Expected target Canvas");
+
+    await act(async () => target.dispatchEvent(pointer("pointerdown", 150, 120)));
+    await act(async () => canvas.dispatchEvent(pointer("pointermove", 240, 200)));
+    await act(async () => canvas.dispatchEvent(pointer("pointerup", 240, 200)));
+    const undoAfterDrag = key();
+    await act(async () => window.dispatchEvent(undoAfterDrag));
+    expect(undoAfterDrag.defaultPrevented).toBe(true);
+    expect(await save(saved)).toEqual(initial);
+
+    const redoAfterDrag = key(true);
+    await act(async () => window.dispatchEvent(redoAfterDrag));
+    expect(redoAfterDrag.defaultPrevented).toBe(true);
+    expect(await save(saved)).toEqual(attached);
+
+    const handle = host.querySelector<HTMLButtonElement>("[class*='canvasResizeHandleSE']");
+    if (!handle) throw new Error("Expected code resize handle");
+    await act(async () => handle.dispatchEvent(pointer("pointerdown", 500, 380)));
+    await act(async () => handle.dispatchEvent(pointer("pointermove", 560, 440)));
+    await act(async () => handle.dispatchEvent(pointer("pointerup", 560, 440)));
+    const undoAfterResize = key();
+    await act(async () => window.dispatchEvent(undoAfterResize));
+    expect(undoAfterResize.defaultPrevented).toBe(true);
+    expect(await save(saved)).toEqual(initial);
   });
 });

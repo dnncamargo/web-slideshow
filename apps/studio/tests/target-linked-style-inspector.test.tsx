@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Presentation, PresentationElement } from "@web-slideshow/document-schema";
+import { PresentationSchema, type Presentation, type PresentationElement } from "@web-slideshow/document-schema";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { CodeInspector } from "../src/features/editor/inspector/code-inspector";
 import { TerminalInspector } from "../src/features/editor/inspector/terminal-inspector";
@@ -80,5 +80,39 @@ describe("target Linked Style Inspector relationships", () => {
     const element = { id: "container", type: "container" as const, hidden: false, children: [] };
     await act(async () => root.render(<StudioI18nProvider><ContainerInspector element={element} onUpdate={() => {}} onContainerFitModeChange={() => true} presentation={{ linkedStyles: styles }} /></StudioI18nProvider>));
     expect(Array.from(host.querySelector<HTMLSelectElement>("#container-linked-style")!.options, (option) => option.text)).toEqual(["None", "Container"]);
+  });
+
+  it("does not swap owned Divider dimensions when orientation changes", async () => {
+    let current: Extract<PresentationElement, { type: "divider" }> = {
+      ...divider,
+      linkedStyleId: "divider",
+      layout: { width: 12, height: 48 },
+    };
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <DividerInspector
+          element={current}
+          onUpdate={(update) => {
+            const next = update(current);
+            if (next.type !== "divider") throw new Error("Expected Divider update");
+            current = next;
+          }}
+          presentation={PresentationSchema.parse({
+            schemaVersion: 1,
+            id: "divider-inspector",
+            title: "Divider inspector",
+            slides: [{ id: "slide", title: "Slide", elements: [current] }],
+            linkedStyles: [{ target: "divider", id: "divider", name: "Divider", layout: { width: 2, height: 100 } }],
+          })}
+        />
+      </StudioI18nProvider>,
+    ));
+    const select = host.querySelector<HTMLSelectElement>("#divider-orientation");
+    expect(select).not.toBeNull();
+    await act(async () => {
+      select!.value = "horizontal";
+      select!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(current).toMatchObject({ orientation: "horizontal", layout: { width: 12, height: 48 } });
   });
 });
