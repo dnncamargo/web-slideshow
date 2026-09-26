@@ -7,8 +7,19 @@ import {
   clearLinkedTargetStyleProperty,
   propagateTargetLinkedStyleDefinitionChanges,
   updateTargetLinkedStyleDefinition,
+  type TargetLinkedStyleDefinitionPatch,
   type TargetLinkedStyle,
 } from "../src/features/editor/target-linked-style-definition-authoring";
+
+const invalidSimpleTablePatch: TargetLinkedStyleDefinitionPatch = {
+  target: "table",
+  mode: "simple",
+  typography: {
+    // @ts-expect-error Simple Table typography does not support letterSpacing.
+    letterSpacing: 2,
+  },
+};
+void invalidSimpleTablePatch;
 
 function basePresentation(elements: object[], linkedStyles: object[]): Presentation {
   return PresentationSchema.parse({
@@ -92,6 +103,18 @@ describe("target linked-style definition authoring", () => {
     expect(result.slides[0]!.elements[0]).not.toHaveProperty("typography.letterSpacing");
   });
 
+  it("clears a stale local duplicate when a definition newly acquires ownership", () => {
+    const presentation = basePresentation([code("code", { typography: { letterSpacing: 3, lineHeight: 1.4 } })], [
+      { target: "code", id: "code-style", name: "Code", typography: { fontSize: 16 } },
+    ]);
+    const before = presentation.linkedStyles![0] as TargetLinkedStyle;
+    const updated = updateTargetLinkedStyleDefinition(presentation, "code-style", { target: "code", typography: { letterSpacing: 2 } });
+    const result = propagateTargetLinkedStyleDefinitionChanges(updated, "code-style", before, updated.linkedStyles![0] as TargetLinkedStyle);
+    expect(result.linkedStyles![0]).toMatchObject({ typography: { fontSize: 16, letterSpacing: 2 } });
+    expect(result.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "code-style", code: "const answer = 42", typography: { lineHeight: 1.4 } });
+    expect(result.slides[0]!.elements[0]).not.toHaveProperty("typography.letterSpacing");
+  });
+
   it("covers the Divider matrix and Structured Table zero-valued ownership", () => {
     const divider = { target: "divider" as const, id: "divider-style", name: "Divider", layout: { position: "absolute" as const, width: 10 }, style: { background: { color: "#111111", gradient: { type: "linear" as const, angle: 0, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 1 }] } }, borderRadius: 2 }, effect: { opacity: 0 } };
     const changedDivider = { ...divider, layout: { ...divider.layout, width: 20 }, style: { ...divider.style, background: { ...divider.style.background, color: "#222222" } }, effect: { opacity: 0.5 } };
@@ -110,6 +133,13 @@ describe("target linked-style definition authoring", () => {
     expect(updateTargetLinkedStyleDefinition(presentation, "missing", { target: "code", style: { color: "#222222" } })).toBe(presentation);
     expect(updateTargetLinkedStyleDefinition(presentation, "code-style", { target: "terminal", style: { outputColor: "#222222" } })).toBe(presentation);
     expect(updateTargetLinkedStyleDefinition(presentation, "code-style", { target: "table", mode: "simple", style: { color: "#222222" } })).toBe(presentation);
+    const simple = basePresentation([{ id: "simple", type: "table", hidden: false, columns: [{ key: "name", label: "Name" }], rows: [{ name: "Ada" }], linkedStyleId: "simple-style", typography: { fontSize: 12 } }], [{ target: "table", mode: "simple", id: "simple-style", name: "Simple", typography: { fontSize: 16 } }]);
+    const invalidPatch = { target: "table", mode: "simple", typography: { letterSpacing: 2 } } as unknown as TargetLinkedStyleDefinitionPatch;
+    expect(updateTargetLinkedStyleDefinition(simple, "simple-style", invalidPatch)).toBe(simple);
+    expect(simple.linkedStyles![0]).toMatchObject({ typography: { fontSize: 16 } });
+    expect(simple.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "simple-style", typography: { fontSize: 12 } });
+    const style = simple.linkedStyles![0] as TargetLinkedStyle;
+    expect(propagateTargetLinkedStyleDefinitionChanges(simple, style.id, style, style)).toBe(simple);
   });
 
   it("propagates through Slide, Root Definition, and localRootChildren ownership trees", () => {

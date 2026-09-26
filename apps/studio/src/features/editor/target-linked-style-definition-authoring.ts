@@ -30,7 +30,9 @@ type TerminalStylePatch = OptionalPatch<NonNullable<LinkedTerminalStyle["style"]
 type SimpleTableStylePatch = OptionalPatch<NonNullable<LinkedSimpleTableStyle["style"]>> & { background?: BackgroundPatch | undefined };
 type StructuredTableStylePatch = OptionalPatch<NonNullable<LinkedStructuredTableStyle["style"]>> & { background?: BackgroundPatch | undefined };
 type DividerStylePatch = Omit<OptionalPatch<NonNullable<LinkedDividerStyle["style"]>>, "className"> & { background?: BackgroundPatch | undefined };
-type TypographyPatch = OptionalPatch<NonNullable<LinkedCodeStyle["typography"]>>;
+type CodeTypographyPatch = OptionalPatch<NonNullable<LinkedCodeStyle["typography"]>>;
+type TerminalTypographyPatch = OptionalPatch<NonNullable<LinkedTerminalStyle["typography"]>>;
+type SimpleTableTypographyPatch = OptionalPatch<NonNullable<LinkedSimpleTableStyle["typography"]>>;
 type TitleTypographyPatch = OptionalPatch<NonNullable<LinkedTerminalStyle["titleTypography"]>>;
 type EffectPatch = OptionalPatch<NonNullable<LinkedCodeStyle["effect"]>>;
 
@@ -51,9 +53,9 @@ export type TargetLinkedStyleProperty =
   | "effect.opacity" | "effect.shadow";
 
 export type TargetLinkedStyleDefinitionPatch =
-  | { target: "code"; layout?: LayoutPatch | undefined; style?: CodeStylePatch | undefined; typography?: TypographyPatch | undefined; effect?: EffectPatch | undefined }
-  | { target: "terminal"; layout?: LayoutPatch | undefined; style?: TerminalStylePatch | undefined; typography?: TypographyPatch | undefined; titleTypography?: TitleTypographyPatch | undefined; effect?: EffectPatch | undefined }
-  | { target: "table"; mode: "simple"; layout?: LayoutPatch | undefined; style?: SimpleTableStylePatch | undefined; typography?: TypographyPatch | undefined; effect?: EffectPatch | undefined }
+  | { target: "code"; layout?: LayoutPatch | undefined; style?: CodeStylePatch | undefined; typography?: CodeTypographyPatch | undefined; effect?: EffectPatch | undefined }
+  | { target: "terminal"; layout?: LayoutPatch | undefined; style?: TerminalStylePatch | undefined; typography?: TerminalTypographyPatch | undefined; titleTypography?: TitleTypographyPatch | undefined; effect?: EffectPatch | undefined }
+  | { target: "table"; mode: "simple"; layout?: LayoutPatch | undefined; style?: SimpleTableStylePatch | undefined; typography?: SimpleTableTypographyPatch | undefined; effect?: EffectPatch | undefined }
   | { target: "table"; mode: "structured"; layout?: LayoutPatch | undefined; style?: StructuredTableStylePatch | undefined; effect?: EffectPatch | undefined }
   | { target: "divider"; layout?: Omit<LayoutPatch, "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"> | undefined; style?: DividerStylePatch | undefined; effect?: Pick<EffectPatch, "opacity"> | undefined };
 
