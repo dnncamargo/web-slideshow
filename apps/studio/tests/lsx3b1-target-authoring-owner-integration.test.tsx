@@ -10,8 +10,11 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const style = { target: "code", id: "owner-code-style", name: "Owner Code", style: { color: "#222" } } as const;
+const layoutStyle = { target: "code", id: "owner-layout-style", name: "Owner Layout", layout: { marginTop: 32 } } as const;
 
 function code(id: string) { return { id, type: "code" as const, hidden: false, code: "const owner = true", language: "typescript", showLineNumbers: true, highlightedLines: [], style: { color: "#111" } }; }
+
+function ownedCode(id: string) { return { ...code(id), linkedStyleId: layoutStyle.id }; }
 
 function rootPresentation(local = false): Presentation {
   return PresentationSchema.parse({
@@ -56,5 +59,44 @@ describe("LSX3B1 target relationship owner resolution", () => {
     expect(result.changed.slides[0]!.elements).toEqual(initial.slides[0]!.elements);
     expect(result.changed.rootDefinitions?.[0]?.root.children.find((element) => element.id === "receiver")).not.toHaveProperty("linkedStyleId");
     expect(result.undo).toEqual(initial); expect(result.redo).toEqual(result.changed);
+  });
+
+  it.each(["root", "local"] as const)("resolves linked Inspector locks for %s ownership", async (owner) => {
+    const initial = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: `lsx3b2-${owner}-inspector`,
+      title: "Owner inspector",
+      slides: [{
+        id: "slide",
+        title: "Slide",
+        elements: owner === "root" ? [] : [],
+        ...(owner === "local" ? {
+          rootDefinitionId: "root",
+          localRootChildren: [{ targetContainerId: "receiver", children: [ownedCode("local-code")] }],
+        } : {}),
+      }],
+      rootDefinitions: [{
+        id: "root",
+        name: "Root",
+        ...(owner === "local" ? { localChildTargetIds: ["receiver"] } : {}),
+        root: {
+          id: "root-container",
+          type: "container",
+          hidden: false,
+          children: owner === "root"
+            ? [ownedCode("root-code")]
+            : [{ id: "receiver", type: "container", hidden: false, children: [] }],
+        },
+      }],
+      linkedStyles: [layoutStyle],
+    });
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={initial} initialAuthoringTarget={owner === "root" ? { kind: "root-definition", rootDefinitionId: "root" } : { kind: "slide", slideIndex: 0 }} onSave={async () => {}} /></StudioI18nProvider>));
+    const target = host.querySelector<HTMLElement>(`[data-presentation-id$="${owner === "root" ? "root-code" : "local-code"}"]`);
+    if (!target) throw new Error("owner target was not rendered");
+    await act(async () => target.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const top = host.querySelector<HTMLInputElement>("#code-margin-top");
+    if (!top) throw new Error("top position control was not rendered");
+    expect(top.disabled).toBe(true);
+    expect(top.value).toContain("32");
   });
 });

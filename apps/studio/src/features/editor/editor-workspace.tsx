@@ -3151,7 +3151,9 @@ export function EditorWorkspace({
           return beforeElement === null ? currentElement : preserveTargetOwnedCanvasLayout(current, beforeElement, currentElement);
         });
 
-        return filteredElements === elements
+        const filteredElement = findElementById(filteredElements, drag.elementId);
+
+        return filteredElement === element
           ? current
           : replaceOwnedAuthoringTree(current, authoringTarget, drag.elementId, filteredElements);
       },
@@ -3604,7 +3606,9 @@ export function EditorWorkspace({
           },
         );
 
-        return nextElements === elements
+        const resizedElement = findElementById(nextElements, resize.elementId);
+
+        return resizedElement === element
           ? current
           : replaceOwnedAuthoringTree(current, authoringTarget, resize.elementId, nextElements);
       },
