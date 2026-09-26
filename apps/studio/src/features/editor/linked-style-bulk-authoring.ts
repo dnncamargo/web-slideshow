@@ -231,12 +231,10 @@ export function findMatchingTargetElementsForLinkedStyle(
   const linked = targetLinkedStyleFor(presentation, linkedStyleId);
   if (linked === undefined) return [];
   const locations: TargetLinkedStyleMatchLocation[] = [];
-  const seen = new Set<string>();
   const visitTree = (elements: readonly PresentationElement[], owner: TargetLinkedStyleUsageOwner): void => {
     visitElements(elements, (element) => {
       if ((element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
-        && !seen.has(element.id) && matchesLinkedTargetStyle(element, linked)) {
-        seen.add(element.id);
+        && matchesLinkedTargetStyle(element, linked)) {
         locations.push({ ...owner, elementId: element.id });
       }
     });
