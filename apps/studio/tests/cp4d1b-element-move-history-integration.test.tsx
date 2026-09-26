@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { materializeSlide, PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 vi.mock("../src/features/editor/editor-history-state", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/features/editor/editor-history-state")>();
@@ -56,6 +56,79 @@ function basePresentation(elements: Presentation["slides"][number]["elements"]):
 
 function siblingPresentation(): Presentation {
   return basePresentation([text("text-a", "A"), text("text-b", "B"), text("text-c", "C")]);
+}
+
+function rootBackedLocalPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-backed-element-move",
+    title: "Root-backed element move",
+    defaultRootDefinitionId: "root-1",
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Root",
+      localChildTargetIds: ["receiver"],
+      root: {
+        type: "container",
+        id: "root",
+        hidden: false,
+        children: [{
+          type: "container",
+          id: "receiver",
+          hidden: false,
+          children: [text("master-a", "Master A")],
+        }],
+      },
+    }],
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      summary: "",
+      speakerNotes: "",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "receiver",
+        children: [text("local-a", "Local A"), text("local-b", "Local B"), text("local-c", "Local C")],
+      }],
+    }],
+  });
+}
+
+function rootBackedTwoReceiverPresentation(): Presentation {
+  const initial = rootBackedLocalPresentation();
+  const root = initial.rootDefinitions?.[0];
+  if (!root) throw new Error("Expected Root Definition");
+  return {
+    ...initial,
+    rootDefinitions: [{
+      ...root,
+      localChildTargetIds: ["receiver-a", "receiver-b"],
+      root: {
+        ...root.root,
+        children: [
+          {
+            type: "container",
+            id: "receiver-a",
+            hidden: false,
+            children: [text("master-a", "Master A")],
+          },
+          {
+            type: "container",
+            id: "receiver-b",
+            hidden: false,
+            children: [text("master-b", "Master B")],
+          },
+        ],
+      },
+    }],
+    slides: [{
+      ...initial.slides[0]!,
+      localRootChildren: [
+        { targetContainerId: "receiver-a", children: [text("local-a1", "Local A1"), text("local-a2", "Local A2")] },
+        { targetContainerId: "receiver-b", children: [text("local-b1", "Local B1")] },
+      ],
+    }],
+  };
 }
 
 function containerPresentation(): Presentation {
@@ -145,9 +218,12 @@ describe("CP4D1B generic element move history", () => {
     vi.restoreAllMocks();
   });
 
-  async function mount(next: Presentation = siblingPresentation()): Promise<void> {
+  async function mount(
+    next: Presentation = siblingPresentation(),
+    onSave: (presentation: Presentation) => Promise<void> = async () => {},
+  ): Promise<void> {
     await act(async () => {
-      root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={next} /></StudioI18nProvider>);
+      root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={next} onSave={onSave} /></StudioI18nProvider>);
     });
   }
 
@@ -376,5 +452,82 @@ describe("CP4D1B generic element move history", () => {
     const undo = key("z", { ctrlKey: true });
     await act(async () => window.dispatchEvent(undo));
     expect(undo.defaultPrevented).toBe(false);
+  });
+
+  it("reorders Root-backed Slide-local elements in their persisted owner with atomic Undo and Redo", async () => {
+    const initial = rootBackedLocalPresentation();
+    await mount(initial);
+    await openElementTree();
+
+    await selectTreeElement("local-a");
+    expect(moveButton("up").disabled).toBe(true);
+
+    await selectTreeElement("local-b");
+    expect(moveButton("up").disabled).toBe(false);
+    await act(async () => moveButton("up").click());
+
+    const moved = lastCommittedPresentation();
+    expect(moved.slides[0]?.elements).toEqual([]);
+    expect(moved.slides[0]?.localRootChildren?.[0]?.children.map((element) => element.id)).toEqual([
+      "local-b",
+      "local-a",
+      "local-c",
+    ]);
+    expect(moved.rootDefinitions).toEqual(initial.rootDefinitions);
+    expect(materializeSlide(moved, moved.slides[0]!).slide.elements[0]).toMatchObject({
+      id: "root",
+      children: [{
+        id: "receiver",
+        children: [
+          { id: "master-a" },
+          { id: "local-b" },
+          { id: "local-a" },
+          { id: "local-c" },
+        ],
+      }],
+    });
+    expect(historyState.commitHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => dispatchUndo());
+    expect(canvasIds(container).filter((id) => ["master-a", "local-a", "local-b", "local-c"].includes(id))).toEqual([
+      "master-a",
+      "local-a",
+      "local-b",
+      "local-c",
+    ]);
+
+    await act(async () => dispatchRedo());
+    expect(canvasIds(container).filter((id) => ["master-a", "local-a", "local-b", "local-c"].includes(id))).toEqual([
+      "master-a",
+      "local-b",
+      "local-a",
+      "local-c",
+    ]);
+
+    await selectTreeElement("master-a");
+    expect(moveButton("up").disabled).toBe(true);
+    expect(moveButton("down").disabled).toBe(true);
+    expect(moveToSelect().disabled).toBe(true);
+    const masterRow = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
+      .find((button) => button.textContent?.includes("Master A"))?.parentElement;
+    expect(masterRow?.getAttribute("draggable")).toBe("false");
+    vi.mocked(historyState.commitHistory).mockClear();
+    await act(async () => moveButton("up").click());
+    expect(historyState.commitHistory).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Root-backed cross-receiver drag without mutation or History", async () => {
+    await mount(rootBackedTwoReceiverPresentation());
+    await openElementTree();
+    vi.mocked(historyState.commitHistory).mockClear();
+
+    await dragBefore("Local A2", "Local B1");
+
+    expect(historyState.commitHistory).not.toHaveBeenCalled();
+    expect(canvasIds(container)).toEqual(expect.arrayContaining([
+      "local-a1",
+      "local-a2",
+      "local-b1",
+    ]));
   });
 });

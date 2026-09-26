@@ -6,7 +6,14 @@ import {
   type Slide,
 } from "@web-slideshow/document-schema";
 
-import { findElementById, updateElementById } from "./element-hierarchy";
+import {
+  findElementById,
+  findElementLocation,
+  getElementsForParentRef,
+  updateElementById,
+  type ElementParentRef,
+} from "./element-hierarchy";
+import type { MoveElementOptions } from "./element-operations";
 import { replaceAuthoringElements, type AuthoringTarget } from "./authoring-target";
 
 export type LocalRootChildOwner = Readonly<{
@@ -104,6 +111,79 @@ export function updateOwnedAuthoringTree(
   if (!owned) return presentation;
   const nextElements = update(owned.elements);
   return nextElements === owned.elements ? presentation : replaceOwnedAuthoringTree(presentation, target, anchorElementId, nextElements);
+}
+
+function areElementParentRefsEqual(
+  left: ElementParentRef,
+  right: ElementParentRef,
+): boolean {
+  switch (left.kind) {
+    case "slide":
+      return right.kind === "slide";
+    case "container":
+      return right.kind === "container" && left.id === right.id;
+    case "content-slot":
+      return right.kind === "content-slot" && left.id === right.id;
+  }
+}
+
+/**
+ * Converts a drop calculated against the materialized Root-backed Slide into
+ * an index in the selected localRootChildren record. Master siblings are
+ * deliberately not valid insertion anchors.
+ */
+export function normalizeRootBackedMoveOptions(
+  presentation: Presentation,
+  target: AuthoringTarget,
+  effectiveElements: PresentationElement[],
+  options: MoveElementOptions,
+): MoveElementOptions | null {
+  if (target.kind !== "slide") return options;
+
+  const owned = resolveOwnedAuthoringTree(presentation, target, options.elementId);
+  if (owned?.kind !== "slide-local-root") return null;
+
+  const sourceEffective = findElementLocation(effectiveElements, options.elementId);
+  const sourceOwned = findElementLocation(owned.elements, options.elementId);
+  if (!sourceEffective || !sourceOwned) return null;
+
+  const targetParentRef = options.targetParentRef;
+  const normalizedParentRef: ElementParentRef =
+    targetParentRef.kind === "container" && targetParentRef.id === owned.targetContainerId
+      ? { kind: "slide" }
+      : targetParentRef.kind === "slide"
+        ? { kind: "slide" }
+        : targetParentRef;
+
+  // A materialized Slide root is the canonical Root Container, not the local
+  // owner boundary. Local content can only target its receiver or another
+  // parent that is present in the same persisted owner tree.
+  if (targetParentRef.kind === "slide") return null;
+
+  const effectiveTargetElements = getElementsForParentRef(effectiveElements, targetParentRef);
+  const ownedTargetElements = getElementsForParentRef(owned.elements, normalizedParentRef);
+  if (!effectiveTargetElements || !ownedTargetElements) return null;
+
+  const effectiveAfterSource = areElementParentRefsEqual(sourceEffective.parentRef, targetParentRef)
+    ? effectiveTargetElements.filter((element) => element.id !== options.elementId)
+    : effectiveTargetElements;
+  const ownedAfterSource = areElementParentRefsEqual(sourceOwned.parentRef, normalizedParentRef)
+    ? ownedTargetElements.filter((element) => element.id !== options.elementId)
+    : ownedTargetElements;
+  const effectiveIndex = options.targetIndex ?? effectiveAfterSource.length;
+  if (effectiveIndex < 0 || effectiveIndex > effectiveAfterSource.length) return null;
+
+  const anchor = effectiveAfterSource[effectiveIndex];
+  const normalizedIndex = anchor === undefined
+    ? ownedAfterSource.length
+    : ownedAfterSource.findIndex((element) => element.id === anchor.id);
+  if (normalizedIndex < 0) return null;
+
+  return {
+    ...options,
+    targetParentRef: normalizedParentRef,
+    targetIndex: normalizedIndex,
+  };
 }
 
 export function updateLocalRootChildren(
