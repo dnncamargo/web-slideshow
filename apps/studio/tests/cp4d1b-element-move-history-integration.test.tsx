@@ -12,7 +12,9 @@ vi.mock("../src/features/editor/editor-history-state", async (importOriginal) =>
 });
 
 import * as historyState from "../src/features/editor/editor-history-state";
+import { findElementSiblingPosition } from "../src/features/editor/element-operations";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
+import { resolveStructuralMovementOwner } from "../src/features/editor/slide-local-root-authoring";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -169,6 +171,82 @@ function rootBackedMasterPresentation(): Presentation {
   });
 }
 
+function topicItem(id: string, content: string) {
+  return {
+    id,
+    content: { id: `slot-${id}`, children: [text(`${id}-text`, content)] },
+    children: [],
+  };
+}
+
+function rootBackedTopicsPresentation(withLinkedStyle: boolean): Presentation {
+  const flowContainer = {
+    type: "container" as const,
+    id: "flow-container",
+    hidden: false,
+    ...(withLinkedStyle ? { linkedStyleId: "flow-style" } : {}),
+    layout: { position: "absolute" as const, children: { mode: "flow" as const } },
+    children: [
+      image("topics-image", "Topic image"),
+      text("topics-text", "As ações humanas estão acelerando mudanças no clima."),
+      {
+        type: "topics" as const,
+        id: "master-topics",
+        hidden: false,
+        kind: "unordered" as const,
+        items: [
+          topicItem("topic-animals", "Alguns animais viajam milhares de quilômetros."),
+          topicItem("topic-weather", "Mudanças de temperatura e chuva podem alterar rotas."),
+          topicItem("topic-signals", "Observar os animais pode revelar sinais importantes."),
+        ],
+      },
+    ],
+  };
+
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: withLinkedStyle ? "root-backed-topics-linked" : "root-backed-topics-plain",
+    title: "Root-backed Topics selector",
+    defaultRootDefinitionId: "topics-root",
+    ...(withLinkedStyle ? {
+      linkedStyles: [{ id: "flow-style", name: "Flow style", layout: { children: { mode: "flow" } } }],
+    } : {}),
+    rootDefinitions: [{
+      id: "topics-root",
+      name: "Topics Root",
+      root: {
+        type: "container",
+        id: "topics-root-container",
+        hidden: false,
+        children: [flowContainer],
+      },
+    }],
+    slides: [{
+      id: "topics-slide",
+      title: "Topics Slide",
+      summary: "",
+      speakerNotes: "",
+      elements: [],
+    }],
+  });
+}
+
+function ordinaryTopicsPresentation(): Presentation {
+  const rootBacked = rootBackedTopicsPresentation(false);
+  const root = rootBacked.rootDefinitions?.[0]?.root;
+  if (!root) throw new Error("Expected Topics root");
+  return PresentationSchema.parse({
+    ...rootBacked,
+    id: "ordinary-topics-selector",
+    defaultRootDefinitionId: undefined,
+    rootDefinitions: undefined,
+    slides: [{
+      ...rootBacked.slides[0]!,
+      elements: root.children,
+    }],
+  });
+}
+
 function containerPresentation(): Presentation {
   return basePresentation([
     text("text-a", "A"),
@@ -287,6 +365,23 @@ describe("CP4D1B generic element move history", () => {
       .find((button) => button.textContent?.includes(label));
     if (!treeButton) throw new Error(`tree element ${id} was not rendered`);
     await act(async () => treeButton.click());
+  }
+
+  async function selectTopicsElement(): Promise<HTMLElement> {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
+      .find((candidate) => candidate.textContent?.trim().startsWith("Topics"));
+    if (!button) throw new Error("Topics element row was not rendered");
+    await act(async () => button.click());
+    const row = button.closest("li");
+    if (!(row instanceof HTMLElement)) throw new Error("Topics element row has no tree item");
+    return row;
+  }
+
+  async function selectTopicItemElement(): Promise<void> {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
+      .find((candidate) => candidate.textContent?.trim().startsWith("Alguns animais"));
+    if (!button) throw new Error("TopicItem row was not rendered");
+    await act(async () => button.click());
   }
 
   function moveButton(label: "up" | "down"): HTMLButtonElement {
@@ -599,6 +694,84 @@ describe("CP4D1B generic element move history", () => {
     await act(async () => dispatchRedo());
     await act(async () => dispatchRedo());
     expect(await saveSnapshot(onSave)).toEqual(moved);
+  });
+
+  it.each([false, true])("reproduces Topics element movement for root-backed Flow Containers (linkedStyle=%s)", async (withLinkedStyle) => {
+    const initial = rootBackedTopicsPresentation(withLinkedStyle);
+    const projection = materializeSlide(initial, initial.slides[0]!);
+    expect(projection.ownershipByStructuralId.get("master-topics")).toBe("master");
+    const owner = resolveStructuralMovementOwner(initial, { kind: "slide", slideIndex: 0 }, "master-topics");
+    expect(owner?.kind).toBe("root-definition");
+    expect(findElementSiblingPosition(owner?.elements ?? [], "master-topics")).toEqual({
+      index: 2,
+      count: 3,
+      parentRef: { kind: "container", id: "flow-container" },
+    });
+
+    await mount(initial);
+    await openElementTree();
+    const topicsRow = await selectTopicsElement();
+
+    expect(topicsRow.getAttribute("aria-selected")).toBe("true");
+    expect(moveButton("up").disabled).toBe(false);
+    expect(moveButton("down").disabled).toBe(true);
+    expect(moveToSelect().disabled).toBe(false);
+    expect(topicsRow.querySelector("[draggable='true']")).not.toBeNull();
+  });
+
+  it("clears TopicItem content-slot selection when selecting the parent Topics element", async () => {
+    await mount(rootBackedTopicsPresentation(false));
+    await openElementTree();
+    await selectTopicItemElement();
+    expect(moveButton("up").disabled).toBe(true);
+
+    const topicsRow = await selectTopicsElement();
+    expect(topicsRow.getAttribute("aria-selected")).toBe("true");
+    expect(moveButton("up").disabled).toBe(false);
+    expect(moveButton("down").disabled).toBe(true);
+    expect(moveToSelect().disabled).toBe(false);
+    expect(Array.from(container.querySelectorAll("[role='treeitem'][aria-selected='true']")).length).toBe(1);
+  });
+
+  it("keeps the same Topics movement controls on an ordinary Slide", async () => {
+    await mount(ordinaryTopicsPresentation());
+    await openElementTree();
+    const topicsRow = await selectTopicsElement();
+
+    expect(topicsRow.getAttribute("aria-selected")).toBe("true");
+    expect(moveButton("up").disabled).toBe(false);
+    expect(moveButton("down").disabled).toBe(true);
+    expect(moveToSelect().disabled).toBe(false);
+  });
+
+  it("keeps the same Topics movement controls in the direct Root Definition workspace", async () => {
+    await mount(rootBackedTopicsPresentation(false), async () => {}, { kind: "root-definition", rootDefinitionId: "topics-root" });
+    await openElementTree();
+    const topicsRow = await selectTopicsElement();
+
+    expect(topicsRow.getAttribute("aria-selected")).toBe("true");
+    expect(moveButton("up").disabled).toBe(false);
+    expect(moveButton("down").disabled).toBe(true);
+    expect(moveToSelect().disabled).toBe(false);
+  });
+
+  it("moves the Root-backed master Topics element in the Root Definition without changing the Slide reference", async () => {
+    const initial = rootBackedTopicsPresentation(false);
+    await mount(initial);
+    await openElementTree();
+    await selectTopicsElement();
+    await act(async () => moveButton("up").click());
+
+    const moved = lastCommittedPresentation();
+    const rootChildren = moved.rootDefinitions?.[0]?.root.children[0];
+    expect(rootChildren?.type).toBe("container");
+    if (rootChildren?.type !== "container") throw new Error("Expected Flow Container");
+    expect(rootChildren.children.map((element) => element.id)).toEqual([
+      "topics-image",
+      "master-topics",
+      "topics-text",
+    ]);
+    expect(moved.slides[0]?.elements).toEqual([]);
   });
 
   it("uses the same Root Definition owner when editing directly", async () => {

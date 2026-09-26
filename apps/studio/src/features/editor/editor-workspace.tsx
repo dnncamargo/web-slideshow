@@ -6775,7 +6775,7 @@ export function EditorWorkspace({
                       setSelectedElement({
                         id: selection.id,
                         type: selection.type,
-                        contentSlotId: selection.contentSlotId,
+                        contentSlotId: selection.contentSlotId ?? null,
                       });
                     }
                   }}
