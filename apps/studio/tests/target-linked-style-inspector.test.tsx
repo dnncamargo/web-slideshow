@@ -155,7 +155,8 @@ describe("target Linked Style Inspector relationships", () => {
     await act(async () => root.render(<StudioI18nProvider>{renderInspector({ ...code, linkedStyleId: style.id }, {}, [style])}</StudioI18nProvider>));
     expect(host.querySelector<HTMLInputElement>("#code-font-size")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#code-margin-top")?.disabled).toBe(true);
-    expect(host.querySelector<HTMLInputElement>("#code-background")).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>("#code-background")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#code-background")?.value).toBe("#123456");
     expect(host.querySelector<HTMLSelectElement>("#code-shadow-mode")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#code-language")?.disabled).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#code-show-line-numbers")?.disabled).toBe(false);
@@ -174,8 +175,9 @@ describe("target Linked Style Inspector relationships", () => {
     await act(async () => root.render(<StudioI18nProvider>{renderInspector({ ...terminal, title: "Shell", linkedStyleId: style.id }, {}, [style])}</StudioI18nProvider>));
     expect(host.querySelector<HTMLInputElement>("#terminal-font-size")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#terminal-title-font-size")?.disabled).toBe(true);
-    expect(host.querySelector<HTMLElement>("#terminal-outputColor")).not.toBeNull();
-    expect(host.querySelector<HTMLElement>("#terminal-commandColor")).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>("#terminal-outputColor")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#terminal-outputColor")?.value).toBe("#00ff00");
+    expect(host.querySelector<HTMLInputElement>("#terminal-commandColor")?.disabled).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#terminal-title")?.disabled).toBe(false);
   });
 
@@ -192,7 +194,8 @@ describe("target Linked Style Inspector relationships", () => {
     await act(async () => root.render(<StudioI18nProvider>{renderInspector(element, {}, [style])}</StudioI18nProvider>));
     expect(element).not.toHaveProperty("mode");
     expect(host.querySelector<HTMLInputElement>("#table-font-size")?.disabled).toBe(true);
-    expect(host.querySelector<HTMLInputElement>("#table-background")).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>("#table-background")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#table-background")?.value).toBe("#111111");
     expect(host.querySelector<HTMLInputElement>("#table-border-radius")?.disabled).toBe(false);
   });
 
@@ -211,11 +214,12 @@ describe("target Linked Style Inspector relationships", () => {
     };
     const element = { ...structured, linkedStyleId: style.id };
     await act(async () => root.render(<StudioI18nProvider>{renderInspector(element, {}, [style])}</StudioI18nProvider>));
-    expect(host.querySelector<HTMLInputElement>("#table-background")).not.toBeNull();
-    expect(host.querySelector<HTMLInputElement>("#table-header-background")).not.toBeNull();
-    expect(host.querySelector<HTMLInputElement>("#table-body-row-alternate-background")).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>("#table-background")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#table-header-background")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#table-body-row-alternate-background")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#table-divider-opacity")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("input[type='checkbox']")?.disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>("#table-font-size")).toBeNull();
   });
 
   it("keeps Divider orientation local while locking mixed dimensions and appearance", async () => {
@@ -230,9 +234,12 @@ describe("target Linked Style Inspector relationships", () => {
     await act(async () => root.render(<StudioI18nProvider>{renderInspector({ ...divider, linkedStyleId: style.id }, {}, [style])}</StudioI18nProvider>));
     expect(host.querySelector<HTMLInputElement>("#divider-width")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#divider-height")?.disabled).toBe(false);
-    expect(host.querySelector<HTMLInputElement>("#divider-background")).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>("#divider-background")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#divider-background")?.value).toBe("#111111");
+    expect(host.querySelector<HTMLSelectElement>("#divider-background-gradient-type")?.disabled).toBe(false);
     expect(host.querySelector<HTMLInputElement>("#divider-border-radius")?.disabled).toBe(true);
     expect(host.querySelector<HTMLInputElement>("#divider-opacity")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>("#divider-opacity")?.value).toBe("40");
     expect(host.querySelector<HTMLSelectElement>("#divider-orientation")?.disabled).toBe(false);
   });
 
