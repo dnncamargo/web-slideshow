@@ -309,6 +309,8 @@ export function ElementInspector({
   onDetachLinkedStyle,
   onAttachLinkedTopicsStyle,
   onDetachLinkedTopicsStyle,
+  onAttachLinkedTargetStyle,
+  onDetachLinkedTargetStyle,
   preserveImageProportion,
   onPreserveImageProportionChange,
   focalEditing,
@@ -391,6 +393,8 @@ export function ElementInspector({
         onDetachLinkedStyle={onDetachLinkedStyle}
         onAttachLinkedTopicsStyle={onAttachLinkedTopicsStyle}
         onDetachLinkedTopicsStyle={onDetachLinkedTopicsStyle}
+        onAttachLinkedTargetStyle={onAttachLinkedTargetStyle}
+        onDetachLinkedTargetStyle={onDetachLinkedTargetStyle}
         preserveImageProportion={preserveImageProportion}
         onPreserveImageProportionChange={onPreserveImageProportionChange}
         focalEditing={focalEditing}
