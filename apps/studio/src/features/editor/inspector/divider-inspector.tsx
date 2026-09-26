@@ -3,9 +3,6 @@ import type {
 } from "@web-slideshow/document-schema";
 import type { Presentation } from "@web-slideshow/document-schema";
 
-import type {
-  AuthoringLengthUnit,
-} from "@web-slideshow/theme/element-style-defaults";
 import { resolveEffectiveElementStyleDefaults } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -25,6 +22,7 @@ import { EffectiveLengthInput } from "./sections/effective-length-input";
 import { useAuthoringHistory } from "../authoring-history-context";
 import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 import { inspectTargetLinkedStyle } from "./linked-style-inspector";
+import { DIVIDER_GEOMETRY_DEFAULTS } from "../divider-geometry-defaults";
 
 type DividerOrientation = DividerElement["orientation"];
 
@@ -41,46 +39,6 @@ function updateDividerBackground(
   }
   return { ...style, background };
 }
-
-interface DividerGeometryDefault {
-  value: number;
-
-  unit: AuthoringLengthUnit;
-}
-
-interface DividerGeometry {
-  width: DividerGeometryDefault;
-
-  height: DividerGeometryDefault;
-}
-
-// ============================================================
-// BEGIN: DIVIDER EFFECTIVE GEOMETRY DEFAULTS
-//
-// These match the renderer defaults. They are displayed when
-// the canonical style dimensions are undefined and are not
-// persisted until the user edits the field.
-// ============================================================
-
-const DIVIDER_GEOMETRY_DEFAULTS: Readonly<
-  Record<DividerOrientation, Readonly<DividerGeometry>>
-> = {
-  horizontal: {
-    width: { value: 100, unit: "%" },
-
-    height: { value: 2, unit: "px" },
-  },
-
-  vertical: {
-    width: { value: 2, unit: "px" },
-
-    height: { value: 100, unit: "%" },
-  },
-};
-
-// ============================================================
-// END: DIVIDER EFFECTIVE GEOMETRY DEFAULTS
-// ============================================================
 
 // ============================================================
 // BEGIN: DIVIDER INSPECTOR

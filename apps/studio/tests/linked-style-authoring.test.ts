@@ -53,7 +53,7 @@ describe("linked container style authoring", () => {
     });
     const result = createLinkedStyleFromContainer(initial, 0, "container", "Hero");
     expect(result.linkedStyles).toEqual([{
-      id: "hero", name: "Hero", layout: { children: { gap: 12 } }, style: { color: { kind: "palette", colorId: "brand" } },
+      id: "hero", name: "Hero", layout: { children: { gap: 12 } }, style: { color: { kind: "palette", colorId: "brand" }, borderRadius: 0 },
       typography: { fontSize: 24 }, effect: { opacity: 0.75 },
     }]);
     expect(selected(result)).toMatchObject({ id: "container", linkedStyleId: "hero", hidden: true, role: "column", link: { kind: "url", href: "https://example.com" }, style: { className: "hero" } });

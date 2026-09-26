@@ -10,11 +10,12 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const forms: Array<{ name: string; element: PresentationElement; target: string; mode?: string }> = [
+  { name: "Container", target: "container", element: { id: "target", type: "container", hidden: false, role: "column", link: { kind: "url", href: "https://example.com" }, layout: { position: "absolute", left: 12, width: "80%", padding: 10, children: { direction: "row", gap: 8, verticalAlign: "center" } }, style: { color: "#123456", background: { color: "#111111" }, border: { width: 2, style: "solid", color: "#ffffff" }, borderRadius: 18, className: "local" }, typography: { fontSize: 24, fontWeight: 700 }, effect: { opacity: 0.75 }, children: [{ id: "child", type: "text", variant: "body", hidden: false, content: "Child" }] } },
   { name: "Code", target: "code", element: { id: "target", type: "code", hidden: false, code: "const x = 1", language: "typescript", showLineNumbers: true, highlightedLines: [1], style: { color: "#111" } } },
   { name: "Terminal", target: "terminal", element: { id: "target", type: "terminal", hidden: false, title: "Shell", lines: [{ type: "output", content: "ready" }], style: { outputColor: "#111" } } },
   { name: "Simple Table omitted", target: "table", mode: "simple", element: { id: "target", type: "table", hidden: false, columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }], style: { color: "#111" } } },
   { name: "Structured Table", target: "table", mode: "structured", element: { id: "target", type: "table", mode: "structured", hidden: false, showHeader: true, columns: [], rows: [], style: { headerBackground: "#111" } } },
-  { name: "Divider", target: "divider", element: { id: "target", type: "divider", hidden: false, orientation: "vertical", style: { background: { color: "#111" } } } },
+  { name: "Divider", target: "divider", element: { id: "target", type: "divider", hidden: false, orientation: "horizontal", style: { background: { color: "#111" } } } },
 ];
 
 function initial(form: typeof forms[number]): Presentation {
@@ -54,7 +55,7 @@ describe("LSX3B1 create Linked Style from selected target", () => {
   it.each(forms)("creates, undoes, and redoes the $name form", async (form) => {
     const source = initial(form); const saved: Presentation[] = []; await mount(source, saved); await create(`${form.name} style`);
     const changed = await save(saved); const style = changed.linkedStyles?.[0]; const element = changed.slides[0]!.elements[0]!;
-    expect(style).toMatchObject({ target: form.target, name: `${form.name} style` });
+    expect(style).toMatchObject(form.target === "container" ? { name: `${form.name} style` } : { target: form.target, name: `${form.name} style` });
     if (form.mode) expect(style).toHaveProperty("mode", form.mode);
     expect(element).toHaveProperty("linkedStyleId", style?.id);
     if (form.name === "Simple Table omitted") expect(element).not.toHaveProperty("mode");
@@ -63,7 +64,12 @@ describe("LSX3B1 create Linked Style from selected target", () => {
     if (form.name === "Terminal") expect(element).toMatchObject({ title: "Shell", lines: [{ type: "output", content: "ready" }] });
     if (form.name === "Simple Table omitted") expect(element).toMatchObject({ columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }] });
     if (form.name === "Structured Table") expect(element).toMatchObject({ mode: "structured", showHeader: true, columns: [], rows: [] });
-    if (form.name === "Divider") expect(element).toMatchObject({ orientation: "vertical" });
+    if (form.name === "Container") expect(element).toMatchObject({ role: "column", link: { kind: "url", href: "https://example.com" }, style: { className: "local" }, children: [{ id: "child", content: "Child" }] });
+    if (form.name === "Container") expect(style).toMatchObject({ layout: { position: "absolute", left: 12, width: "80%", padding: 10, children: { direction: "row", gap: 8, verticalAlign: "center" } }, style: { color: "#123456", borderRadius: 18 }, typography: { fontSize: 24, fontWeight: 700 }, effect: { opacity: 0.75 } });
+    if (form.name === "Divider") {
+      expect(element).toMatchObject({ orientation: "horizontal" });
+      expect(style).toMatchObject({ layout: { width: "100%", height: 2 }, style: { background: { color: "#111111" } } });
+    }
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true })));
     expect(await save(saved)).toEqual(source);
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
