@@ -276,6 +276,19 @@ describe("CP4D1B generic element move history", () => {
     window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true }));
   }
 
+  async function saveSnapshot(onSave: ReturnType<typeof vi.fn>): Promise<Presentation> {
+    const save = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Save");
+    if (!save) throw new Error("Save button was not rendered");
+    await act(async () => {
+      save.click();
+      await Promise.resolve();
+    });
+    const snapshot = onSave.mock.lastCall?.[0] as Presentation | undefined;
+    if (!snapshot) throw new Error("Expected saved presentation");
+    return snapshot;
+  }
+
   function treeRowForLabel(label: string): HTMLElement {
     const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button[class*='elementTreeSelect']"))
       .find((candidate) => candidate.textContent?.includes(label));
@@ -456,7 +469,8 @@ describe("CP4D1B generic element move history", () => {
 
   it("reorders Root-backed Slide-local elements in their persisted owner with atomic Undo and Redo", async () => {
     const initial = rootBackedLocalPresentation();
-    await mount(initial);
+    const onSave = vi.fn(async (_presentation: Presentation) => {});
+    await mount(initial, onSave);
     await openElementTree();
 
     await selectTreeElement("local-a");
@@ -487,8 +501,10 @@ describe("CP4D1B generic element move history", () => {
       }],
     });
     expect(historyState.commitHistory).toHaveBeenCalledTimes(1);
+    expect(await saveSnapshot(onSave)).toEqual(moved);
 
     await act(async () => dispatchUndo());
+    expect(await saveSnapshot(onSave)).toEqual(initial);
     expect(canvasIds(container).filter((id) => ["master-a", "local-a", "local-b", "local-c"].includes(id))).toEqual([
       "master-a",
       "local-a",
@@ -497,6 +513,7 @@ describe("CP4D1B generic element move history", () => {
     ]);
 
     await act(async () => dispatchRedo());
+    expect(await saveSnapshot(onSave)).toEqual(moved);
     expect(canvasIds(container).filter((id) => ["master-a", "local-a", "local-b", "local-c"].includes(id))).toEqual([
       "master-a",
       "local-b",
