@@ -60,6 +60,58 @@ function nonEmptyContainerPresentation(): Presentation {
   });
 }
 
+function rootBackedLocalReceiverPresentation(receiverIsLast = true): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-backed-local-receiver-deletion-workspace",
+    title: "Root-backed local receiver deletion workspace",
+    defaultRootDefinitionId: "root-1",
+    slides: [{
+      id: "slide-1",
+      title: "First",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "receiver-container",
+        children: [{ id: "local-child", type: "text", hidden: false, variant: "body", content: "Local" }],
+      }],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching master",
+      localChildTargetIds: ["receiver-container"],
+      root: {
+        type: "container",
+        id: "root-container",
+        hidden: false,
+        children: [{
+          type: "container",
+          id: "parent-container",
+          hidden: false,
+          children: receiverIsLast
+            ? [{
+                type: "container",
+                id: "receiver-container",
+                hidden: false,
+                children: [],
+              }]
+            : [{
+                type: "container",
+                id: "receiver-container",
+                hidden: false,
+                children: [],
+              }, {
+                type: "text",
+                id: "after-receiver",
+                hidden: false,
+                variant: "body",
+                content: "After",
+              }],
+        }],
+      },
+    }],
+  });
+}
+
 function rootBackedPresentation(): Presentation {
   return PresentationSchema.parse({
     ...presentation(),
@@ -185,6 +237,77 @@ describe("EditorWorkspace element deletion", () => {
     const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]')!;
     expect(dialog.textContent).toContain("Delete");
     expect(Array.from(dialog.querySelectorAll("button")).some((button) => button.textContent?.includes("keep children"))).toBe(false);
+  });
+
+  it("offers preserve-children for an empty Root Definition receiver with Slide-local content", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace
+            initialPresentation={rootBackedLocalReceiverPresentation()}
+            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+    const receiver = container.querySelector<HTMLElement>('[data-presentation-id="receiver-container"]');
+    expect(receiver).not.toBeNull();
+    await act(async () => receiver!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("keep its children");
+    expect(Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .some((button) => button.textContent?.trim() === "Delete container, keep children")).toBe(true);
+  });
+
+  it("transfers Root Definition local content as one history action with exact undo and redo", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace
+            initialPresentation={rootBackedLocalReceiverPresentation()}
+            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+    const receiver = container.querySelector<HTMLElement>('[data-presentation-id="receiver-container"]')!;
+    await act(async () => receiver.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete container, keep children")!.click());
+
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="parent-container"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="parent-container"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).toBeNull();
+  });
+
+  it("makes unsafe in-use Root Definition deletion explicitly unavailable", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace
+            initialPresentation={rootBackedLocalReceiverPresentation(false)}
+            initialAuthoringTarget={{ kind: "root-definition", rootDefinitionId: "root-1" }}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+    const receiver = container.querySelector<HTMLElement>('[data-presentation-id="receiver-container"]')!;
+    await act(async () => receiver.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+
+    const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]')!;
+    expect(dialog.querySelector('[role="alert"]')?.textContent).toContain("cannot preserve");
+    expect(Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete")?.disabled).toBe(true);
+    expect(container.querySelector('[data-presentation-id="receiver-container"]')).not.toBeNull();
   });
 
   it("keeps destructive container deletion unchanged", async () => {

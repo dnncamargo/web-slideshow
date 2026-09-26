@@ -326,6 +326,7 @@ import {
   type AuthoringTarget,
 } from "./authoring-target";
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
+import { preserveRootDefinitionContainerDeletion } from "./root-local-content-deletion";
 import {
   isAuthorizedLocalRootReceiver,
   findLocalRootChildOwner,
@@ -5337,6 +5338,35 @@ export function EditorWorkspace({
 
     const deletion = pendingElementDeletion;
     const current = history.present;
+    if (deletion.target.kind === "root-definition") {
+      const rootResult = preserveRootDefinitionContainerDeletion(
+        current,
+        deletion.target.rootDefinitionId,
+        deletion.elementId,
+      );
+      if (rootResult.ok) {
+        commitAuthoringAction(
+          deletion.target,
+          { kind: "element.deleteContainerPreserveChildren", labelKey: "history.element.deleteContainerPreserveChildren" },
+          (currentPresentation, target) => {
+            if (target.kind !== "root-definition") return currentPresentation;
+            const result = preserveRootDefinitionContainerDeletion(
+              currentPresentation,
+              target.rootDefinitionId,
+              deletion.elementId,
+            );
+            return result.ok ? result.presentation : currentPresentation;
+          },
+        );
+        setSelectedElement((currentSelection) => currentSelection?.id === deletion.elementId ? null : currentSelection);
+        setPendingElementDeletion(null);
+        return;
+      }
+      if (rootResult.reason !== "not-local-receiver") {
+        setPendingElementDeletion(null);
+        return;
+      }
+    }
     if (deletion.target.kind === "slide" && deletion.target.slideIndex === selectedSlideIndex) {
       const slideIndex = deletion.target.slideIndex;
       const projected = materializeSlide(current, current.slides[slideIndex]!);
@@ -7346,9 +7376,35 @@ export function EditorWorkspace({
           presentation,
           pendingElementDeletion.target,
         );
+        const rootPreserveResult = pendingElementDeletion.elementType === "container" &&
+          pendingElementDeletion.target.kind === "root-definition"
+          ? preserveRootDefinitionContainerDeletion(
+            presentation,
+            pendingElementDeletion.target.rootDefinitionId,
+            pendingElementDeletion.elementId,
+          )
+          : null;
         const preserveAvailable = pendingElementDeletion.elementType === "container" &&
           pendingElements !== null &&
-          unwrapContainerPreservingChildren(pendingElements, pendingElementDeletion.elementId).changed;
+          (rootPreserveResult?.ok === true ||
+            (rootPreserveResult?.reason === "not-local-receiver" || rootPreserveResult === null) &&
+              unwrapContainerPreservingChildren(pendingElements, pendingElementDeletion.elementId).changed);
+        const preserveUnavailable = rootPreserveResult !== null &&
+          !rootPreserveResult.ok &&
+          rootPreserveResult.reason !== "not-local-receiver";
+
+        if (preserveUnavailable) {
+          return <DangerConfirmDialog
+            title={t("elementCrud.deleteDialogTitle")}
+            message={t("elementCrud.deleteContainerConfirm", { id: pendingElementDeletion.elementId })}
+            error={t("elementCrud.deleteContainerPreserveUnavailable")}
+            confirmLabel={t("elementCrud.delete")}
+            cancelLabel={t("elementCrud.cancel")}
+            confirmDisabled
+            onCancel={() => setPendingElementDeletion(null)}
+            onConfirm={() => undefined}
+          />;
+        }
 
         if (preserveAvailable) {
           return <ContainerDeletionDialog
