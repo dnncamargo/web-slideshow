@@ -61,18 +61,37 @@ export type TargetLinkedStyleDefinitionPatch =
 
 export type TargetLinkedStylePatch = TargetLinkedStyleDefinitionPatch;
 
-const PROPERTIES: Record<TargetLinkedStyle["target"], readonly TargetLinkedStyleProperty[]> = {
+const PROPERTIES = {
   code: ["layout.position", "layout.top", "layout.right", "layout.bottom", "layout.left", "layout.width", "layout.height", "layout.margin", "layout.marginTop", "layout.marginRight", "layout.marginBottom", "layout.marginLeft", "style.color", "style.background.color", "style.background.gradient", "style.border", "style.borderRadius", "typography.fontFamily", "typography.fontSize", "typography.lineHeight", "typography.letterSpacing", "effect.opacity", "effect.shadow"],
   terminal: ["layout.position", "layout.top", "layout.right", "layout.bottom", "layout.left", "layout.width", "layout.height", "layout.margin", "layout.marginTop", "layout.marginRight", "layout.marginBottom", "layout.marginLeft", "style.background.color", "style.background.gradient", "style.border", "style.borderRadius", "style.commandColor", "style.promptColor", "style.outputColor", "style.commentColor", "style.errorColor", "typography.fontFamily", "typography.fontSize", "typography.lineHeight", "typography.letterSpacing", "titleTypography.fontFamily", "titleTypography.fontSize", "titleTypography.fontWeight", "titleTypography.fontStyle", "titleTypography.lineHeight", "titleTypography.letterSpacing", "titleTypography.textTransform", "effect.opacity", "effect.shadow"],
   table: ["layout.position", "layout.top", "layout.right", "layout.bottom", "layout.left", "layout.width", "layout.height", "layout.margin", "layout.marginTop", "layout.marginRight", "layout.marginBottom", "layout.marginLeft", "style.color", "style.background.color", "style.background.gradient", "style.border", "style.borderRadius", "typography.fontFamily", "typography.fontSize", "typography.lineHeight", "effect.opacity", "effect.shadow", "style.headerBackground", "style.bodyRowAlternateBackground", "style.dividerOpacity"],
   divider: ["layout.position", "layout.top", "layout.right", "layout.bottom", "layout.left", "layout.width", "layout.height", "style.background.color", "style.background.gradient", "style.borderRadius", "effect.opacity"],
-};
+} as const;
+
+export type CodeTargetLinkedStyleProperty = typeof PROPERTIES.code[number];
+export type TerminalTargetLinkedStyleProperty = typeof PROPERTIES.terminal[number];
+export type TableTargetLinkedStyleProperty = typeof PROPERTIES.table[number];
+export type DividerTargetLinkedStyleProperty = typeof PROPERTIES.divider[number];
+export type SimpleTableTargetLinkedStyleProperty = Exclude<TableTargetLinkedStyleProperty, "style.headerBackground" | "style.bodyRowAlternateBackground" | "style.dividerOpacity">;
+export type StructuredTableTargetLinkedStyleProperty = Exclude<TableTargetLinkedStyleProperty, "style.color" | "typography.fontFamily" | "typography.fontSize" | "typography.lineHeight">;
 
 const SIMPLE_TABLE_PROPERTIES = PROPERTIES.table.filter((property) => !property.startsWith("style.header") && !property.startsWith("style.body") && property !== "style.dividerOpacity");
 const STRUCTURED_TABLE_PROPERTIES = PROPERTIES.table.filter((property) => !property.startsWith("style.color") && !property.startsWith("typography."));
 
+export type TargetLinkedStyleContract =
+  | { target: "code" }
+  | { target: "terminal" }
+  | { target: "table"; mode: "simple" }
+  | { target: "table"; mode: "structured" }
+  | { target: "divider" };
+
+export function listTargetLinkedStyleSupportedProperties(contract: TargetLinkedStyleContract): readonly TargetLinkedStyleProperty[] {
+  if (contract.target !== "table") return PROPERTIES[contract.target];
+  return contract.mode === "simple" ? SIMPLE_TABLE_PROPERTIES : STRUCTURED_TABLE_PROPERTIES;
+}
+
 function propertiesFor(style: TargetLinkedStyle): readonly TargetLinkedStyleProperty[] {
-  return style.target === "table" ? (style.mode === "simple" ? SIMPLE_TABLE_PROPERTIES : STRUCTURED_TABLE_PROPERTIES) : PROPERTIES[style.target];
+  return listTargetLinkedStyleSupportedProperties(style);
 }
 
 function targetOf(style: TargetLinkedStyle | undefined): TargetLinkedStyle["target"] | undefined {
@@ -145,7 +164,7 @@ export function clearLinkedTargetStyleProperty<T extends TargetElement>(element:
   const targetProperties = element.type === "table"
     ? (element.mode === "structured" ? STRUCTURED_TABLE_PROPERTIES : SIMPLE_TABLE_PROPERTIES)
     : PROPERTIES[element.type];
-  if (!targetProperties.includes(property)) return element;
+  if (!(targetProperties as readonly TargetLinkedStyleProperty[]).includes(property)) return element;
   return clearPath(element, property);
 }
 

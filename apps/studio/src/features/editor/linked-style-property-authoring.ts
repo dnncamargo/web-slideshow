@@ -14,6 +14,7 @@ export type LinkedStyleProperty =
   | "color" | "backgroundColor" | "gradient" | "pattern" | "border" | "borderRadius" | "opacity" | "shadow";
 
 export type LinkedStyleAuthorableProperty = Exclude<LinkedStyleProperty, "fit">;
+export type LinkedStyleCreationProperty = Exclude<LinkedStyleAuthorableProperty, "top" | "right" | "bottom" | "left">;
 
 export const LINKED_STYLE_PROPERTY_ORDER: readonly LinkedStyleProperty[] = [
   "layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow", "fit",
@@ -186,6 +187,7 @@ export function removeLinkedStyleProperty(style: LinkedContainerStyle, property:
 export function createLinkedStyleWithProperty(presentation: Presentation, name: string, property: LinkedStyleAuthorableProperty): { presentation: Presentation; linkedStyleId?: string } {
   const trimmed = name.trim();
   if (!trimmed) return { presentation };
+  if (!listAvailableLinkedStyleProperties({ id: "draft", name: trimmed }).includes(property)) return { presentation };
   const ids = (presentation.linkedStyles ?? []).map((style) => style.id);
   const id = createLinkedStyleId(trimmed, ids);
   const candidate = addLinkedStyleProperty({ id, name: trimmed }, property);

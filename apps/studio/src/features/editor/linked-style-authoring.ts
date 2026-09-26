@@ -26,7 +26,7 @@ import {
   type TopicsElement,
   isLinkedContainerStyle,
 } from "@web-slideshow/document-schema";
-import { parseAuthoringLength, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow/theme/element-style-defaults";
+import { parseAuthoringLength, THEME_COLORS, TOPICS_ITEM_GAP_DEFAULT_PX } from "@web-slideshow/theme/element-style-defaults";
 
 import { findElementById, updateElementById } from "./element-tree";
 import { collectLinkedStyleReferenceCounts } from "./element-hierarchy";
@@ -360,6 +360,42 @@ type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootM
 export type LinkedTopicsStyleProperty =
   | "kind" | "position" | "top" | "right" | "bottom" | "left" | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"
   | "itemGap" | "rootMarkerStyle" | "markerColor";
+
+export type LinkedTopicsStyleAuthorableProperty = Exclude<LinkedTopicsStyleProperty, "top" | "right" | "bottom" | "left">;
+
+export const LINKED_TOPICS_STYLE_AUTHORABLE_PROPERTIES: readonly LinkedTopicsStyleAuthorableProperty[] = [
+  "kind", "position", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft", "itemGap", "rootMarkerStyle", "markerColor",
+];
+
+export function listAvailableLinkedTopicsStyleProperties(): readonly LinkedTopicsStyleAuthorableProperty[] {
+  return LINKED_TOPICS_STYLE_AUTHORABLE_PROPERTIES;
+}
+
+/** Creates a typed Topics definition without requiring a selected Topics element. */
+export function createLinkedTopicsStyleWithProperty(
+  presentation: Presentation,
+  name: string,
+  property: LinkedTopicsStyleAuthorableProperty,
+): { presentation: Presentation; linkedStyleId?: string } {
+  const trimmed = name.trim();
+  if (!trimmed || !LINKED_TOPICS_STYLE_AUTHORABLE_PROPERTIES.includes(property)) return { presentation };
+  const id = createLinkedStyleId(trimmed, (presentation.linkedStyles ?? []).map((style) => style.id));
+  const candidate: Record<string, unknown> = { target: "topics", id, name: trimmed };
+  switch (property) {
+    case "kind": candidate.kind = "unordered"; break;
+    case "position": candidate.layout = { position: "absolute" }; break;
+    case "margin": candidate.layout = { margin: 0 }; break;
+    case "marginTop": candidate.layout = { marginTop: 0 }; break;
+    case "marginRight": candidate.layout = { marginRight: 0 }; break;
+    case "marginBottom": candidate.layout = { marginBottom: 0 }; break;
+    case "marginLeft": candidate.layout = { marginLeft: 0 }; break;
+    case "itemGap": candidate.itemGap = TOPICS_ITEM_GAP_DEFAULT_PX; break;
+    case "rootMarkerStyle": candidate.rootMarkerStyle = "disc"; break;
+    case "markerColor": candidate.markerColor = THEME_COLORS.textPrimary; break;
+  }
+  const parsed = PresentationSchema.safeParse({ ...presentation, linkedStyles: [...(presentation.linkedStyles ?? []), candidate] });
+  return parsed.success ? { presentation: parsed.data, linkedStyleId: id } : { presentation };
+}
 
 const LINKED_TOPICS_LAYOUT_PROPERTIES = [
   "position", "top", "right", "bottom", "left", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",

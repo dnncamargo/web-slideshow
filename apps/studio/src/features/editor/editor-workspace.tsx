@@ -218,7 +218,8 @@ import {
   type LinkedTopicsStyleProperty,
 } from "./linked-style-authoring";
 import { attachLinkedStyleToMatchingContainers, type LinkedStyleContainerLocation, type LinkedStyleUsageLocation } from "./linked-style-bulk-authoring";
-import { createLinkedStyleWithProperty, LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleAuthorableProperty, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { LINKED_STYLE_PROPERTY_ORDER, type LinkedStyleProperty } from "./linked-style-property-authoring";
+import { createLinkedStyleFromCreationRequest, type LinkedStyleCreationRequest } from "./linked-style-creation";
 import { updatePresentationAuthoringTrees } from "./presentation-authoring-trees";
 
 // ============================================================
@@ -4337,11 +4338,11 @@ export function EditorWorkspace({
       },
     );
   }
-  function createPresentationLinkedStyle(name: string, property: LinkedStyleAuthorableProperty): void {
+  function createPresentationLinkedStyle(request: LinkedStyleCreationRequest): void {
     applyLinkedStyleDefinitionUpdate(
       { kind: "linkedStyle.add", labelKey: "history.element.setting", labelParams: { setting: "linkedStyle.add" } },
       (current) => {
-        const created = createLinkedStyleWithProperty(current, name, property);
+        const created = createLinkedStyleFromCreationRequest(current, request);
         return created.linkedStyleId === undefined || created.presentation === current ? current : created.presentation;
       },
     );

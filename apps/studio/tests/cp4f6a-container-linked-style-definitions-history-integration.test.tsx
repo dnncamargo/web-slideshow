@@ -121,6 +121,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     const add = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add Linked Style");
     if (!add) throw new Error("ordinary Add Linked Style was not rendered");
     await act(async () => add.click());
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("[aria-label='Element type']")!, "container"));
     const name = Array.from(host.querySelectorAll<HTMLInputElement>("input")).find((input) => input.value === "");
     if (!name) throw new Error("ordinary add name input was not rendered");
     await act(async () => setInputValue(name, "Fresh"));
@@ -178,6 +179,7 @@ describe("CP4F6A Container Linked Style definition history", () => {
     const add = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add Linked Style");
     if (!add) throw new Error("ordinary Add Linked Style was not rendered");
     await act(async () => add.click());
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("[aria-label='Element type']")!, "container"));
     const name = Array.from(host.querySelectorAll<HTMLInputElement>("input")).find((input) => input.value === "");
     if (!name) throw new Error("ordinary add name input was not rendered");
     await act(async () => setInputValue(name, "Fresh"));
