@@ -2524,7 +2524,7 @@ export function EditorWorkspace({
         : target;
       if (!appearanceTarget) {
         setCanvasCropAppearance(null);
-    } else {
+        } else {
         const computed = getComputedStyle(appearanceTarget);
         const bounds = getCanvasBounds(appearanceTarget);
       setCanvasCropAppearance({

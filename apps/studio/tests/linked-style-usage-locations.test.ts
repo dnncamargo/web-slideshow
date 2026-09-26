@@ -1,7 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { PresentationSchema } from "@web-slideshow/document-schema";
+import { PresentationSchema, type Presentation, type PresentationElement } from "@web-slideshow/document-schema";
 
-import { findContainerLinkedStyleUsageLocations, findElementsLinkedToStyle, findLinkedStyleUsageLocations, findTargetLinkedStyleUsageLocations } from "../src/features/editor/linked-style-bulk-authoring";
+import { findContainerLinkedStyleUsageLocations, findElementsLinkedToStyle, findLinkedStyleUsageLocations, findTargetLinkedStyleUsageLocations, isTargetLinkedStyleCompatible, type TargetLinkedStyle } from "../src/features/editor/linked-style-bulk-authoring";
+import { findElementById } from "../src/features/editor/element-hierarchy";
+import { resolveOwnedAuthoringTree } from "../src/features/editor/slide-local-root-authoring";
+
+function malformedTargetUsage(style: object, element: PresentationElement): Presentation {
+  const valid = PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "malformed-target-usage",
+    title: "Malformed target usage",
+    slides: [{ id: "slide", title: "Slide", elements: [element] }],
+    linkedStyles: [style],
+  });
+  const malformed = structuredClone(valid) as unknown as Presentation;
+  const malformedElement = malformed.slides[0]?.elements[0];
+  if (!malformedElement) throw new Error("Expected a test element");
+  (malformedElement as PresentationElement & { linkedStyleId?: string }).linkedStyleId = (style as { id: string }).id;
+  return malformed;
+}
+
+const codeStyle = { target: "code" as const, id: "code-style", name: "Code", style: { color: "#111" } };
+const terminalStyle = { target: "terminal" as const, id: "terminal-style", name: "Terminal", style: { outputColor: "#111" } };
+const simpleTableStyle = { target: "table" as const, mode: "simple" as const, id: "simple-style", name: "Simple", style: { color: "#111" } };
+const structuredTableStyle = { target: "table" as const, mode: "structured" as const, id: "structured-style", name: "Structured", style: { headerBackground: "#111" } };
+const dividerStyle = { target: "divider" as const, id: "divider-style", name: "Divider", style: { background: { color: "#111" } } };
+
+const codeElement: PresentationElement = { id: "code", type: "code", hidden: false, code: "x", language: "text", showLineNumbers: true, highlightedLines: [] };
+const terminalElement: PresentationElement = { id: "terminal", type: "terminal", hidden: false, lines: [] };
+const omittedTableElement: PresentationElement = { id: "table", type: "table", hidden: false, columns: [{ key: "value", label: "Value" }], rows: [{ value: "one" }] };
+const structuredTableElement: PresentationElement = { id: "structured-table", type: "table", mode: "structured", hidden: false, showHeader: true, columns: [], rows: [] };
 
 describe("Linked Style usage locations", () => {
   it("finds direct and nested Container and Topics references by linkedStyleId", () => {
@@ -136,5 +164,48 @@ describe("Linked Style usage locations", () => {
     ]);
     expect(findTargetLinkedStyleUsageLocations(presentation, "missing")).toEqual([]);
     expect(presentation).toEqual(before);
+  });
+
+  it("fails closed for incompatible references in malformed runtime presentations", () => {
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(codeStyle, terminalElement), "code-style")).toEqual([]);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(terminalStyle, codeElement), "terminal-style")).toEqual([]);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(simpleTableStyle, structuredTableElement), "simple-style")).toEqual([]);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(structuredTableStyle, omittedTableElement), "structured-style")).toEqual([]);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(dividerStyle, codeElement), "divider-style")).toEqual([]);
+  });
+
+  it("treats omitted Table mode as simple and rejects structured styles", () => {
+    expect(isTargetLinkedStyleCompatible(simpleTableStyle, omittedTableElement)).toBe(true);
+    expect(isTargetLinkedStyleCompatible(structuredTableStyle, omittedTableElement)).toBe(false);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(simpleTableStyle, omittedTableElement), "simple-style")).toHaveLength(1);
+    expect(findTargetLinkedStyleUsageLocations(malformedTargetUsage(structuredTableStyle, omittedTableElement), "structured-style")).toEqual([]);
+  });
+
+  it("fails closed when a pending target usage becomes stale before navigation resolves", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "stale-navigation",
+      title: "Stale navigation",
+      slides: [{ id: "slide", title: "Slide", elements: [codeElement] }],
+      rootDefinitions: [{ id: "root", name: "Root", root: { id: "root-container", type: "container", hidden: false, children: [] } }],
+      linkedStyles: [codeStyle],
+    });
+    const location = { source: "slide" as const, target: { kind: "slide" as const, slideIndex: 0 }, elementId: "code" };
+    const resolve = (current: Presentation) => {
+      const elements = resolveOwnedAuthoringTree(current, location.target, location.elementId)?.elements ?? null;
+      const element = elements ? findElementById(elements, location.elementId) : null;
+      const linked = current.linkedStyles?.find((style): style is TargetLinkedStyle => "target" in style && style.target === "code" && style.id === "code-style");
+      return element?.type === "code" && element.linkedStyleId === "code-style" && isTargetLinkedStyleCompatible(linked, element) ? element : null;
+    };
+
+    const pending = structuredClone(presentation);
+    const pendingElement = pending.slides[0]?.elements[0];
+    if (!pendingElement || pendingElement.type !== "code") throw new Error("Expected the navigation target");
+    pendingElement.linkedStyleId = "other-style";
+    expect(resolve(pending)).toBeNull();
+
+    const missing = structuredClone(presentation);
+    missing.slides[0]!.elements = [];
+    expect(resolve(missing)).toBeNull();
   });
 });

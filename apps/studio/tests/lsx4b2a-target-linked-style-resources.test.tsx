@@ -64,6 +64,13 @@ function findButton(host: HTMLElement, label: string): HTMLButtonElement {
   return button;
 }
 
+function changeSelect(select: HTMLSelectElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+  if (!setter) throw new Error("Expected HTMLSelectElement.value setter");
+  setter.call(select, value);
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 describe("LSX4B2A target Linked Style Resources", () => {
   let host: HTMLDivElement;
   let root: Root;
@@ -225,6 +232,35 @@ describe("LSX4B2A target Linked Style Resources", () => {
     expect(await save()).toEqual(initial);
     await redo();
     expect(await save()).toEqual(changed);
+  });
+
+  it("fails closed when a Resources detach becomes stale before confirmation", async () => {
+    const initial = initialPresentation();
+    await mount(initial);
+    await openLinkedStyles();
+    const row = await openRow("code-style");
+    const slideUsage = row.querySelector<HTMLElement>("[data-linked-style-usage-source='slide']");
+    if (!slideUsage) throw new Error("Slide target usage was not rendered");
+
+    await act(async () => slideUsage.querySelector<HTMLButtonElement>("button")?.click());
+    expect(host.querySelector('[data-presentation-id="ordinary-code"]')?.classList.contains("studio-editor-selected")).toBe(true);
+
+    await act(async () => slideUsage.querySelector<HTMLButtonElement>("[data-resource-action='detach']")?.click());
+    const dialog = host.querySelector("[data-studio-danger-confirm-dialog]");
+    if (!dialog) throw new Error("Detach confirmation was not rendered");
+
+    await act(async () => findButton(host, "Custom Resources").click());
+    const linkedStyleSelect = host.querySelector<HTMLSelectElement>("#code-linked-style");
+    if (!linkedStyleSelect) throw new Error("Code Linked Style select was not rendered");
+    await act(async () => changeSelect(linkedStyleSelect, ""));
+    const relationshipChanged = await save();
+    expect(relationshipChanged.slides[0]?.elements.find((element) => element.id === "ordinary-code")).not.toHaveProperty("linkedStyleId");
+
+    await confirmDetach();
+    expect(await save()).toEqual(relationshipChanged);
+
+    await undo();
+    expect(await save()).toEqual(initial);
   });
 
   it("protects referenced target definitions and removes unused ones through the existing guard", async () => {
