@@ -144,6 +144,46 @@ describe("CP4F6A Container Linked Style definition history", () => {
     expect(row("fresh").querySelector("[data-linked-style-property='gap']")).not.toBeNull();
   });
 
+  it("creates a target Code style through Resources and replays one atomic add action", async () => {
+    const initial = presentation({ slides: [{ id: "slide-1", title: "Slide 1", elements: [] }], linkedStyles: [] });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+
+    const beforeCreateUndo = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => window.dispatchEvent(beforeCreateUndo));
+    expect(beforeCreateUndo.defaultPrevented).toBe(false);
+
+    const add = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add Linked Style");
+    if (!add) throw new Error("Add Linked Style was not rendered");
+    await act(async () => add.click());
+    await act(async () => setSelectValue(host.querySelector<HTMLSelectElement>("[aria-label='Element type']")!, "code"));
+    const name = Array.from(host.querySelectorAll<HTMLInputElement>("input")).find((input) => input.value === "");
+    if (!name) throw new Error("Code style name input was not rendered");
+    await act(async () => setInputValue(name, "History Code"));
+    const first = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Add first property");
+    if (!first) throw new Error("Code first-property chooser was not rendered");
+    await act(async () => first.click());
+    const color = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Color");
+    if (!color) throw new Error("Code Color property was not rendered");
+    await act(async () => color.click());
+
+    const changed = await save(saved);
+    const created = changed.linkedStyles?.find((style) => style.name === "History Code");
+    expect(created).toMatchObject({ target: "code", name: "History Code", style: { color: "#f8fafc" } });
+    const id = created?.id;
+    expect(id).toBeDefined();
+
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    const secondUndo = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    await act(async () => window.dispatchEvent(secondUndo));
+    expect(secondUndo.defaultPrevented).toBe(false);
+
+    await redo();
+    const replayed = await save(saved);
+    expect(replayed.linkedStyles?.find((style) => style.id === id)).toEqual(created);
+  });
+
   it("tracks rename, raw numeric coalescing, and length unit as separate actions", async () => {
     await renderWorkspace(presentation({ linkedStyles: linkedStyle({ style: { borderRadius: 8 }, layout: { children: { gap: 4 } } }) }));
     let target = await openRow("style-1");

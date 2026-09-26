@@ -86,6 +86,34 @@ describe("typed linked-style creation", () => {
     expect(structured.presentation.linkedStyles?.[1]).toMatchObject({ target: "table", mode: "structured", style: { dividerOpacity: 1 } });
     expect(listTargetLinkedStyleCreationProperties("code")).not.toEqual(expect.arrayContaining(["layout.top", "layout.right", "layout.bottom", "layout.left"]));
   });
+
+  it("allocates globally unique IDs across heterogeneous Linked Style types", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      slides: [],
+      linkedStyles: [
+        { id: "shared", name: "Shared", layout: { margin: 1 } },
+        { target: "code", id: "shared-2", name: "Shared Code", style: { color: "#111111" } },
+        { target: "topics", id: "shared-3", name: "Shared Topics", itemGap: 4 },
+      ],
+    });
+    const result = createLinkedDividerStyleWithProperty(presentation, "Shared", "style.borderRadius");
+    expect(result.linkedStyleId).toBe("shared-4");
+    expect(result.presentation.linkedStyles?.map((style) => style.id)).toEqual(["shared", "shared-2", "shared-3", "shared-4"]);
+  });
+
+  it("fails closed at the discriminated dispatch boundary for a forced invalid request", () => {
+    const presentation = emptyPresentation();
+    const result = createLinkedStyleFromCreationRequest(presentation, {
+      kind: "divider",
+      name: "Invalid",
+      property: "style.border",
+    } as unknown as LinkedStyleCreationRequest);
+    expect(result.presentation).toBe(presentation);
+    expect(result.linkedStyleId).toBeUndefined();
+  });
 });
 
 // Keep the discriminant contract exercised by the compiler as well as at runtime.
@@ -96,3 +124,12 @@ const incompatibleRequest: LinkedStyleCreationRequest = {
   property: "style.outputColor",
 };
 void incompatibleRequest;
+
+// @ts-expect-error Simple Table cannot author Structured Table header appearance.
+const incompatibleSimpleTableRequest: LinkedStyleCreationRequest = {
+  kind: "table",
+  mode: "simple",
+  name: "invalid",
+  property: "style.headerBackground",
+};
+void incompatibleSimpleTableRequest;
