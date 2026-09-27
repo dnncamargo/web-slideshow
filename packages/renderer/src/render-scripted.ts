@@ -81,7 +81,8 @@ const SCRIPTED_CSP =
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. install the fixed ScriptedRuntime.ports API;
+// 7. create the detached declared-port snapshot and install the fixed
+//    ScriptedRuntime.ports API;
 // 8. create a <script> element and assign canonical script through
 //    textContent;
 // 9. append it only after HTML, CSS, and ScriptedRuntime.ports exist;
@@ -142,6 +143,38 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "  if (port && typeof port.id === 'string') { portsById[port.id] = port; }" +
   "\n" +
   "}" +
+  "\n" +
+  "function publicPort(port) {" +
+  "\n" +
+  "  var descriptor = { id: port.id, label: port.label, kind: port.kind };" +
+  "\n" +
+  "  if (port.kind !== 'action') { descriptor.direction = port.direction; }" +
+  "\n" +
+  "  if (port.kind === 'number') {" +
+  "\n" +
+  "    if (port.min !== undefined) { descriptor.min = port.min; }" +
+  "\n" +
+  "    if (port.max !== undefined) { descriptor.max = port.max; }" +
+  "\n" +
+  "    if (port.step !== undefined) { descriptor.step = port.step; }" +
+  "\n" +
+  "  }" +
+  "\n" +
+  "  return Object.freeze(descriptor);" +
+  "\n" +
+  "}" +
+  "\n" +
+  "var publicPorts = [];" +
+  "\n" +
+  "for (var publicPortIndex = 0; publicPortIndex < ports.length; publicPortIndex += 1) {" +
+  "\n" +
+  "  var publicPortValue = ports[publicPortIndex];" +
+  "\n" +
+  "  if (publicPortValue && typeof publicPortValue.id === 'string' && typeof publicPortValue.label === 'string') { publicPorts.push(publicPort(publicPortValue)); }" +
+  "\n" +
+  "}" +
+  "\n" +
+  "Object.freeze(publicPorts);" +
   "\n" +
   "var actionHandlers = Object.create(null);" +
   "\n" +
@@ -207,7 +240,9 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "}" +
   "\n" +
-  "var portsApi = Object.freeze({ onAction: onAction, onInput: onInput, report: report });" +
+  "function list() { return publicPorts; }" +
+  "\n" +
+  "var portsApi = Object.freeze({ list: list, onAction: onAction, onInput: onInput, report: report });" +
   "\n" +
   "var runtimeApi = Object.freeze({ ports: portsApi });" +
   "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
