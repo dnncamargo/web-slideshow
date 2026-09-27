@@ -154,8 +154,11 @@ function renderTopicListTag(
   return kind === "ordered" ? "ol" : "ul";
 }
 
-function renderTopicCheckbox(mode: NonNullable<TopicsElement["checkboxMode"]>): string {
-  return `<input class="presentation-checkbox" type="checkbox" data-presentation-checkbox="true" data-presentation-checkbox-mode="${mode}">`;
+function renderTopicCheckbox(
+  id: string,
+  mode: NonNullable<TopicsElement["checkboxMode"]>,
+): string {
+  return `<input class="presentation-checkbox" type="checkbox" data-presentation-checkbox="true" data-presentation-checkbox-id="${escapeHtml(id)}" data-presentation-checkbox-mode="${mode}">`;
 }
 
 function renderTopicItem(
@@ -187,7 +190,7 @@ function renderTopicItem(
     .join("");
 
   const checkbox = context.kind === "checkbox"
-    ? renderTopicCheckbox(context.checkboxMode)
+    ? renderTopicCheckbox(item.id, context.checkboxMode)
     : "";
 
   const nested =

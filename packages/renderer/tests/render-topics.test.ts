@@ -229,6 +229,30 @@ describe("renderElement topics support", () => {
     expect(countOccurrences(html, 'data-presentation-checkbox="true"')).toBe(2);
   });
 
+  it("uses each root, nested, and sibling TopicItem id as checkbox identity", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "checkbox-identities",
+        kind: "checkbox",
+        items: [
+          topicItem({
+            id: 'root-item"&',
+            children: [topicItem({ id: "nested-item" })],
+          }),
+          topicItem({ id: "sibling-item" }),
+        ],
+      }),
+    );
+
+    expect(html).toContain('data-presentation-checkbox-id="root-item&quot;&amp;"');
+    expect(html).toContain('data-presentation-checkbox-id="nested-item"');
+    expect(html).toContain('data-presentation-checkbox-id="sibling-item"');
+    expect(countOccurrences(html, 'data-presentation-checkbox-mode="two-state"')).toBe(3);
+    expect(html).not.toContain('checked="checked"');
+    expect(html).not.toContain('aria-checked=');
+    expect(html).not.toContain('indeterminate=');
+  });
+
   it.each([
     [undefined, "two-state"],
     ["two-state", "two-state"],

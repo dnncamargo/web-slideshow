@@ -1,17 +1,36 @@
-type CheckboxRuntimeState = "unchecked" | "intermediate" | "checked";
+export type CheckboxRuntimeState = "unchecked" | "intermediate" | "checked";
 type CheckboxMode = "two-state" | "three-state";
+
+export interface CheckboxRuntimeOptions {
+  onChange?: (
+    input: HTMLInputElement,
+    state: CheckboxRuntimeState,
+  ) => void;
+}
 
 interface CheckboxRuntimeInstance {
   state: CheckboxRuntimeState;
+  onChange: CheckboxRuntimeOptions["onChange"];
   listener: () => void;
 }
 
 const checkboxInstances = new WeakMap<HTMLInputElement, CheckboxRuntimeInstance>();
 const checkboxSelector = '[data-presentation-checkbox="true"]';
 
-function isNativeCheckbox(candidate: Element): candidate is HTMLInputElement {
-  return candidate.tagName.toLowerCase() === "input"
-    && (candidate as HTMLInputElement).type === "checkbox";
+function isNativeCheckbox(candidate: unknown): candidate is HTMLInputElement {
+  if (typeof candidate !== "object" || candidate === null) return false;
+
+  const element = candidate as { tagName?: unknown; type?: unknown };
+  return typeof element.tagName === "string"
+    && element.tagName.toLowerCase() === "input"
+    && element.type === "checkbox";
+}
+
+function isPresentationCheckbox(candidate: unknown): candidate is HTMLInputElement {
+  if (!isNativeCheckbox(candidate)) return false;
+
+  const dataset = (candidate as HTMLInputElement).dataset;
+  return dataset !== undefined && dataset.presentationCheckbox === "true";
 }
 
 function readState(input: HTMLInputElement): CheckboxRuntimeState {
@@ -60,36 +79,66 @@ function nextState(state: CheckboxRuntimeState, mode: CheckboxMode): CheckboxRun
   return state === "checked" ? "unchecked" : "checked";
 }
 
-function hydrateCheckbox(input: HTMLInputElement): void {
-  if (checkboxInstances.has(input)) return;
+function isCheckboxRuntimeState(value: unknown): value is CheckboxRuntimeState {
+  return value === "unchecked" || value === "intermediate" || value === "checked";
+}
+
+function ensureCheckboxRuntime(
+  input: HTMLInputElement,
+  options?: CheckboxRuntimeOptions,
+): CheckboxRuntimeInstance {
+  const existing = checkboxInstances.get(input);
+  if (existing !== undefined) {
+    if (options !== undefined) existing.onChange = options.onChange;
+    return existing;
+  }
 
   const instance: CheckboxRuntimeInstance = {
     state: readState(input),
+    onChange: options?.onChange,
     listener: () => undefined,
   };
   instance.listener = () => {
     instance.state = nextState(instance.state, getMode(input));
     applyState(input, instance.state);
+    instance.onChange?.(input, instance.state);
   };
 
   applyState(input, instance.state);
   input.addEventListener("click", instance.listener);
   checkboxInstances.set(input, instance);
+  return instance;
 }
 
-export function hydrateCheckboxes(root: ParentNode): void {
+function hydrateCheckbox(input: HTMLInputElement, options?: CheckboxRuntimeOptions): void {
+  ensureCheckboxRuntime(input, options);
+}
+
+export function hydrateCheckboxes(root: ParentNode, options?: CheckboxRuntimeOptions): void {
   const candidates = new Set<HTMLInputElement>();
   const rootElement = root as ParentNode & {
     matches?: (selector: string) => boolean;
   };
 
-  if (rootElement.matches?.(checkboxSelector) && isNativeCheckbox(root as Element)) {
+  if (rootElement.matches?.(checkboxSelector) && isPresentationCheckbox(root as Element)) {
     candidates.add(root as HTMLInputElement);
   }
 
   for (const candidate of root.querySelectorAll<Element>(checkboxSelector)) {
-    if (isNativeCheckbox(candidate)) candidates.add(candidate);
+    if (isPresentationCheckbox(candidate)) candidates.add(candidate);
   }
 
-  for (const candidate of candidates) hydrateCheckbox(candidate);
+  for (const candidate of candidates) hydrateCheckbox(candidate, options);
+}
+
+export function setCheckboxRuntimeState(
+  input: HTMLInputElement,
+  state: CheckboxRuntimeState,
+): boolean {
+  if (!isPresentationCheckbox(input) || !isCheckboxRuntimeState(state)) return false;
+
+  const instance = ensureCheckboxRuntime(input);
+  instance.state = state;
+  applyState(input, state);
+  return true;
 }

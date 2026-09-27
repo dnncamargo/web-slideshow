@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { hydrateCheckboxes } from "../src/checkbox-runtime";
+import {
+  hydrateCheckboxes,
+  setCheckboxRuntimeState,
+  type CheckboxRuntimeState,
+} from "../src/checkbox-runtime";
 
 type CheckboxListener = () => void;
 
@@ -129,6 +133,68 @@ describe("hydrateCheckboxes", () => {
     expect(input.getAttribute("aria-checked")).toBe("false");
   });
 
+  it.each([
+    ["unchecked", false, false, "false"],
+    ["intermediate", false, true, "mixed"],
+    ["checked", true, false, "true"],
+  ] as const)("applies an externally requested %s state", (state, checked, indeterminate, ariaChecked) => {
+    const input = new FakeCheckbox();
+
+    expect(setCheckboxRuntimeState(nativeInput(input), state)).toBe(true);
+    expect(input.checked).toBe(checked);
+    expect(input.indeterminate).toBe(indeterminate);
+    expect(input.getAttribute("aria-checked")).toBe(ariaChecked);
+    expect(input.listenerCount("click")).toBe(1);
+  });
+
+  it("keeps external intermediate state in the runtime instance for three-state activation", () => {
+    const input = new FakeCheckbox();
+    input.dataset.presentationCheckboxMode = "three-state";
+
+    expect(setCheckboxRuntimeState(nativeInput(input), "intermediate")).toBe(true);
+    input.activate();
+
+    expect(input.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("keeps external intermediate state in the runtime instance for two-state activation", () => {
+    const input = new FakeCheckbox();
+
+    expect(setCheckboxRuntimeState(nativeInput(input), "intermediate")).toBe(true);
+    input.activate();
+
+    expect(input.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("does not notify for external state application or hydration", () => {
+    const input = new FakeCheckbox();
+    const changes: CheckboxRuntimeState[] = [];
+    const onChange = (_changedInput: HTMLInputElement, state: CheckboxRuntimeState) => {
+      changes.push(state);
+    };
+
+    hydrateCheckboxes(checkboxRoot(input) as unknown as ParentNode, { onChange });
+    expect(changes).toEqual([]);
+    expect(setCheckboxRuntimeState(nativeInput(input), "checked")).toBe(true);
+    expect(changes).toEqual([]);
+  });
+
+  it("notifies once after each local activation with the canonical state and exact input", () => {
+    const input = new FakeCheckbox();
+    const changes: Array<{ input: HTMLInputElement; state: CheckboxRuntimeState }> = [];
+
+    hydrateCheckboxes(checkboxRoot(input) as unknown as ParentNode, {
+      onChange: (changedInput, state) => changes.push({ input: changedInput, state }),
+    });
+    input.activate();
+    input.activate();
+
+    expect(changes).toEqual([
+      { input: nativeInput(input), state: "checked" },
+      { input: nativeInput(input), state: "unchecked" },
+    ]);
+  });
+
   it("cycles three-state checkboxes through intermediate state", () => {
     const input = new FakeCheckbox();
     input.dataset.presentationCheckboxMode = "three-state";
@@ -150,6 +216,21 @@ describe("hydrateCheckboxes", () => {
     expect(input.getAttribute("aria-checked")).toBe("false");
   });
 
+  it("reports every canonical state for local three-state activation", () => {
+    const input = new FakeCheckbox();
+    input.dataset.presentationCheckboxMode = "three-state";
+    const states: CheckboxRuntimeState[] = [];
+
+    hydrateCheckboxes(checkboxRoot(input) as unknown as ParentNode, {
+      onChange: (_changedInput, state) => states.push(state),
+    });
+    input.activate();
+    input.activate();
+    input.activate();
+
+    expect(states).toEqual(["intermediate", "checked", "unchecked"]);
+  });
+
   it("does not duplicate listeners or reset state on repeated hydration", () => {
     const input = new FakeCheckbox();
     const root = checkboxRoot(input);
@@ -162,12 +243,67 @@ describe("hydrateCheckboxes", () => {
     expect(input.getAttribute("aria-checked")).toBe("true");
   });
 
+  it("does not duplicate callback invocation when hydration repeats", () => {
+    const input = new FakeCheckbox();
+    const onChange = vi.fn();
+    const root = checkboxRoot(input);
+
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange });
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange });
+    input.activate();
+
+    expect(input.listenerCount("click")).toBe(1);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates the active callback without adding a listener", () => {
+    const input = new FakeCheckbox();
+    const first = vi.fn();
+    const second = vi.fn();
+    const root = checkboxRoot(input);
+
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange: first });
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange: second });
+    input.activate();
+
+    expect(input.listenerCount("click")).toBe(1);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the callback when repeated hydration omits options", () => {
+    const input = new FakeCheckbox();
+    const onChange = vi.fn();
+    const root = checkboxRoot(input);
+
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange });
+    hydrateCheckboxes(root as unknown as ParentNode);
+    input.activate();
+
+    expect(onChange).toHaveBeenCalledOnce();
+  });
+
+  it("clears the callback when hydration receives explicit empty options", () => {
+    const input = new FakeCheckbox();
+    const onChange = vi.fn();
+    const root = checkboxRoot(input);
+
+    hydrateCheckboxes(root as unknown as ParentNode, { onChange });
+    hydrateCheckboxes(root as unknown as ParentNode, {});
+    input.activate();
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("keeps independently discovered and nested checkboxes independent", () => {
     const first = new FakeCheckbox();
     const second = new FakeCheckbox();
     second.dataset.presentationCheckboxMode = "three-state";
+    const changes: Array<{ input: HTMLInputElement; state: CheckboxRuntimeState }> = [];
 
-    hydrateCheckboxes(checkboxRoot(first, second) as unknown as ParentNode);
+    hydrateCheckboxes(checkboxRoot(first, second) as unknown as ParentNode, {
+      onChange: (input, state) => changes.push({ input, state }),
+    });
     first.activate();
     second.activate();
 
@@ -175,6 +311,10 @@ describe("hydrateCheckboxes", () => {
     expect(second.getAttribute("aria-checked")).toBe("mixed");
     expect(first.listenerCount("click")).toBe(1);
     expect(second.listenerCount("click")).toBe(1);
+    expect(changes).toEqual([
+      { input: nativeInput(first), state: "checked" },
+      { input: nativeInput(second), state: "intermediate" },
+    ]);
   });
 
   it("uses two-state behavior for missing or unrecognized modes", () => {
@@ -209,6 +349,11 @@ describe("hydrateCheckboxes", () => {
     hydrateCheckboxes(checkboxRoot(nonCheckbox) as unknown as ParentNode);
 
     expect(nonCheckbox.listenerCount()).toBe(0);
+  });
+
+  it("rejects an invalid external target safely", () => {
+    expect(setCheckboxRuntimeState({} as HTMLInputElement, "checked")).toBe(false);
+    expect(setCheckboxRuntimeState(new FakeNonCheckbox() as unknown as HTMLInputElement, "checked")).toBe(false);
   });
 
   it("does not couple the state to the post-activation native properties", () => {
