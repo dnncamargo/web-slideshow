@@ -92,6 +92,7 @@ code
 terminal
 table
 plot
+shape
 interactive
 divider
 embed
@@ -232,6 +233,7 @@ Other bounded Live contracts include:
 - `live/playerControls` for Player control position/style/counter/animation;
 - `live/playerLogs` for activation-scoped remote diagnostics mode;
 - `live/plotAnimationAction/<plotSlot>` for boot-targeted Plot play/pause/reset actions;
+- `live/shapeAnimationAction/<shapeSlot>` for boot-targeted Shape play/pause/reset actions;
 - `live/checkboxControl/<slot>` for one-way Control → Player absolute Checkbox desired state; this is transient runtime state, not Presentation persistence;
 - Scripted-specific runtime/input/report roots for declared ports.
 
@@ -307,6 +309,24 @@ Plot animation remains a bounded Plot capability rather than a generic scripting
 Do not persist AST, generated samples, meshes, camera state or arbitrary executable JavaScript. Three.js/WebGL/Canvas are not part of the current Plot architecture.
 
 Physical performance acceptance on the target Android interactive display with Firefox 116 remains pending because that hardware has not yet been available. This is a release gate, not negative compatibility evidence.
+
+## Shape
+
+Shape is the canonical static vector-geometry element for authored rectangles, ellipses, triangles, polygons, stars and generated QR codes. Its persisted representation is either canonical path geometry or bounded generator intent; generated geometry is derived by the shared renderer and is not a second persisted representation.
+
+Studio creates Shapes and exposes the bounded authoring flow through the Shape Inspector:
+
+- Geometry: Rectangle, Ellipse, Triangle, Polygon and Star presets; Triangle apex; Polygon point count, inner radius and rotation; and QR Content, Error correction and Quiet zone when the generated QR geometry is selected;
+- Animation: independent rotation, translation and skew channels, duration, loop and autoplay, with Apply / Reset and local Play / Pause / Reset preview controls;
+- Size, Appearance, Effects and Interaction: shared size controls, None/Color/Gradient/Image fills (including image fit, crop and focal point), canonical effects, and the common interaction contract.
+
+The Inspector order is Geometry → Animation → Size → Appearance → Effects → Interaction. Shape animation is a bounded runtime capability with translate → rotate → skew transform order; it does not add scale, easing, keyframes or morphing.
+
+Shape uses the shared renderer in Studio preview, Library thumbnails, export and published Player output. A compatible source link can create an editable generated QR Shape next to the source. This does not automatically migrate existing QR Images, and QR geometry is never persisted as generated path data. Shape does not use Linked Styles or Custom Library Shape recipes, and arbitrary raw SVG markup is not an authoring surface.
+
+Control sends Shape Play / Pause / Reset through the separate `live/shapeAnimationAction/<shapeSlot>` channel. The channel is independent from Plot animation, targets the published boot/version/slide/Shape occurrence, and carries transient runtime intent only; it does not change the canonical Presentation.
+
+Future parameterized geometry such as arrows, braces, speech balloons and thought balloons requires a separate semantic-generator architecture checkpoint. It is not folded into the current Shape contract, and `schemaVersion` remains literally `1`.
 
 ## Fonts
 

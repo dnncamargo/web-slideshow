@@ -416,6 +416,38 @@ Physical acceptance on the target Android interactive display with Firefox 116 r
 
 ---
 
+# Shape integration ✅
+
+Reference: PR #209 and the SH6 integration acceptance checkpoint.
+
+Shape integration is complete without changing the canonical schema version; `schemaVersion` remains literally `1`.
+
+Completed capability line:
+
+- canonical Shape element with path and bounded generated geometry intent;
+- Studio Shape creation, Geometry authoring and Shape Inspector integration;
+- Rectangle, Ellipse, Triangle, Polygon and Star presets;
+- generated QR Shape authoring with editable content, error correction and quiet zone;
+- Appearance, Effects, Size and Interaction integration;
+- shared renderer coverage across Studio preview, Library thumbnails, export and publication/Player output;
+- bounded Shape animation with rotation, translation, skew, duration, loop and autoplay;
+- local Studio preview and separate Control→Player Play/Pause/Reset live actions;
+- strict separate Shape live-action RTDB channel, independent from Plot animation.
+
+Permanent Shape boundary:
+
+```text
+authored path or bounded generator intent
+→ transient geometry generation
+→ shared renderer output
+```
+
+The current contract does not add arbitrary raw SVG markup, persisted generated QR geometry, automatic QR Image migration, Linked Styles for Shape, Custom Library Shape recipes, a generic animation protocol, scale/easing/keyframes/morphing, or special Canvas geometry handles.
+
+Parameterized complex forms such as arrows, braces, speech balloons and thought balloons remain a future semantic-generator boundary. Adding them requires a separate architecture checkpoint rather than silently expanding the current Shape presets.
+
+---
+
 # Deterministic Studio test debt ✅
 
 Reference: PR #144.
