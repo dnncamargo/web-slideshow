@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@web-slideshow/document-schema": "workspace:*",
-    "@web-slideshow/math-source": "workspace:*"
+    "@web-slideshow/math-source": "workspace:*",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
+    "@types/qrcode": "1.5.6",
     "typescript": "^5.9.0",
     "vitest": "^3.0.0"
   }

@@ -69,6 +69,22 @@ function historyPresentation(): Presentation {
   });
 }
 
+function qrHistoryPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "qr-shape-history",
+    title: "QR Shape history",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      elements: [shapeElement({
+        id: "qr-history-1",
+        geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+      })],
+    }],
+  });
+}
+
 describe("ShapeInspector appearance, effects, and interaction", () => {
   let host: HTMLDivElement;
   let root: Root;
@@ -251,12 +267,56 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
 
   it("edits an existing QR Shape without changing its geometry", async () => {
     const qrGeometry = { mode: "generated", generator: "qr-code", config: { value: "https://example.com", errorCorrection: "M", quietZone: 4 } } as const;
-    await mount(shapeElement({ geometry: qrGeometry, style: undefined }));
+    const initial = shapeElement({
+      geometry: qrGeometry,
+      style: { fill: { type: "color", color: "#123456" } },
+      effect: { opacity: 0.8 },
+      link: { kind: "url", href: "https://example.com/qr", target: "_blank" },
+    });
+    await mount(initial);
+
+    expect(input("shape-qr-content").value).toBe("https://example.com");
+    expect(select("shape-qr-error-correction").value).toBe("M");
+    expect(input("shape-qr-quiet-zone").value).toBe("4");
+
+    await act(async () => {
+      const content = input("shape-qr-content");
+      setInputValue(content, "plain text QR content");
+      content.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(state.geometry).toMatchObject({ config: { value: "plain text QR content" } });
+
+    await act(async () => {
+      const content = input("shape-qr-content");
+      setInputValue(content, "");
+      content.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(state.geometry).toMatchObject({ config: { value: "plain text QR content" } });
+
+    await act(async () => changeSelect(select("shape-qr-error-correction"), "H"));
+    expect(state.geometry).toMatchObject({ config: { errorCorrection: "H" } });
+
+    await act(async () => {
+      const quietZone = input("shape-qr-quiet-zone");
+      setInputValue(quietZone, "2");
+      quietZone.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(state.geometry).toMatchObject({ config: { quietZone: 2 } });
+
+    await act(async () => {
+      const quietZone = input("shape-qr-quiet-zone");
+      setInputValue(quietZone, "-1.5");
+      quietZone.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(state.geometry).toMatchObject({ config: { quietZone: 2 } });
 
     await act(async () => changeSelect(select("shape-fill-type"), "color"));
 
-    expect(state.geometry).toBe(qrGeometry);
-    expect(state.style?.fill).toEqual({ type: "color", color: "#22d3ee" });
+    expect(state.geometry).not.toBe(qrGeometry);
+    expect(state.style?.fill).toEqual({ type: "color", color: "#123456" });
+    expect(state.layout).toEqual(initial.layout);
+    expect(state.effect).toEqual(initial.effect);
+    expect(state.link).toEqual(initial.link);
   });
 
   it("records representative Shape changes in the shared Undo/Redo history", async () => {
@@ -297,5 +357,44 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const undoShadow = key("z", { ctrlKey: true });
     await act(async () => window.dispatchEvent(undoShadow));
     expect(select("shape-shadow-mode").value).toBe("none");
+  });
+
+  it("coalesces QR content and quiet-zone edits and undoes discrete correction changes", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={qrHistoryPresentation()} />
+      </StudioI18nProvider>,
+    ));
+
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="qr-history-1"]');
+    if (!canvasShape) throw new Error("rendered QR Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+
+    const content = input("shape-qr-content");
+    await act(async () => {
+      content.focus();
+      setInputValue(content, "B");
+      content.blur();
+    });
+    expect(input("shape-qr-content").value).toBe("B");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(input("shape-qr-content").value).toBe("A");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(input("shape-qr-content").value).toBe("B");
+
+    await act(async () => changeSelect(select("shape-qr-error-correction"), "H"));
+    expect(select("shape-qr-error-correction").value).toBe("H");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(select("shape-qr-error-correction").value).toBe("M");
+
+    const quietZone = input("shape-qr-quiet-zone");
+    await act(async () => {
+      quietZone.focus();
+      setInputValue(quietZone, "2");
+      quietZone.blur();
+    });
+    expect(input("shape-qr-quiet-zone").value).toBe("2");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(input("shape-qr-quiet-zone").value).toBe("4");
   });
 });

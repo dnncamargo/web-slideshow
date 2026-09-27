@@ -297,7 +297,7 @@ import {
 
 import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
-import { createQrImageElement } from "./qr-image-authoring";
+import { createQrShapeElement } from "./qr-shape-authoring";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 import {
@@ -850,7 +850,7 @@ interface PendingQrSelection {
   target: AuthoringTarget;
   sourceElementId: string;
   qrElementId: string;
-  qrSource: string;
+  expectedValue: string;
   beforePresentation: Presentation;
 }
 
@@ -1349,13 +1349,15 @@ export function EditorWorkspace({
     if (
       !source ||
       !qr ||
-      qr.type !== "image" ||
-      qr.src !== pending.qrSource
+      qr.type !== "shape" ||
+      qr.geometry.mode !== "generated" ||
+      qr.geometry.generator !== "qr-code" ||
+      qr.geometry.config.value !== pending.expectedValue
     ) {
       return;
     }
 
-    setSelectedElement({ id: qr.id, type: "image" });
+    setSelectedElement({ id: qr.id, type: "shape" });
   }, [authoringTarget, presentation]);
 
   const [rightPanelMode, setRightPanelMode] = useState<
@@ -4999,14 +5001,14 @@ export function EditorWorkspace({
       return;
     }
 
-    const newElement = createQrImageElement(href, collectPresentationAuthoringIds(presentation));
+    const newElement = createQrShapeElement(href, collectPresentationAuthoringIds(presentation));
     if (!newElement) return;
 
     pendingQrSelectionRef.current = {
       target,
       sourceElementId,
       qrElementId: newElement.id,
-      qrSource: newElement.src,
+      expectedValue: href,
       beforePresentation: presentation,
     };
 
@@ -5015,7 +5017,7 @@ export function EditorWorkspace({
       {
         kind: "element.add",
         labelKey: "history.element.add",
-        labelParams: { elementType: "image" },
+        labelParams: { elementType: "shape" },
       },
       (current, authoringTarget) => {
         const elements = resolveOwnedAuthoringTree(current, authoringTarget, sourceElementId)?.elements ?? null;

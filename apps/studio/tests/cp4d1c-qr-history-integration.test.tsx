@@ -49,17 +49,6 @@ function linkedText(id: string, href = "https://example.com/source") {
   };
 }
 
-function linkedImage(id: string, href = "https://example.com/source") {
-  return {
-    type: "image" as const,
-    id,
-    hidden: false,
-    src: `/${id}.png`,
-    alt: id,
-    link: { kind: "url" as const, href, target: "_blank" as const },
-  };
-}
-
 function linkedContainer(id: string, href = "https://example.com/container") {
   return {
     type: "container" as const,
@@ -89,11 +78,15 @@ function lastCommittedPresentation(): Presentation {
   return next;
 }
 
-function qrDomSnapshot(container: HTMLElement, id: string): { src: string; alt: string } {
+function qrDomSnapshot(container: HTMLElement, id: string): { viewBox: string; hasPath: boolean; hasImage: boolean } {
   const element = canvasElement(container, id);
-  const image = element.matches("img") ? element : element.querySelector<HTMLImageElement>("img");
-  if (!(image instanceof HTMLImageElement)) throw new Error("expected QR Image DOM output");
-  return { src: image.src, alt: image.alt };
+  const svg = element.querySelector<SVGElement>("svg");
+  if (!svg) throw new Error("expected QR Shape SVG output");
+  return {
+    viewBox: svg.getAttribute("viewBox") ?? "",
+    hasPath: svg.querySelector("path") !== null,
+    hasImage: element.querySelector("img") !== null,
+  };
 }
 
 describe("CP4D1C QR creation history", () => {
@@ -135,7 +128,7 @@ describe("CP4D1C QR creation history", () => {
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
   }
 
-  it("tracks a root QR Image as one normal Add and restores the exact snapshot on redo", async () => {
+  it("tracks a root QR Shape as one normal Add and restores the canonical geometry on redo", async () => {
     const href = "https://example.com/source";
     await mount(presentation([linkedText("source", href), linkedText("next", "https://example.com/next")]));
     await select("source");
@@ -149,35 +142,37 @@ describe("CP4D1C QR creation history", () => {
       !source ||
       (source.type !== "text" && source.type !== "image" && source.type !== "container") ||
       !qr ||
-      qr.type !== "image"
-    ) throw new Error("expected root QR Image snapshot");
+      qr.type !== "shape"
+    ) throw new Error("expected root QR Shape");
     expect(elements.map((element) => element.id)).toEqual(["source", qr.id, "next"]);
     expect(source.link).toEqual({ kind: "url", href, target: "_blank" });
-    expect(qr).toMatchObject({ type: "image", alt: `QR code for ${href}` });
-    expect(qr.src).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(qr).toMatchObject({
+      type: "shape",
+      geometry: { mode: "generated", generator: "qr-code", config: { value: href, errorCorrection: "M", quietZone: 4 } },
+    });
     expect(historyState.commitHistory).toHaveBeenCalledTimes(1);
     expect(historyState.commitHistory).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.anything(),
-      { kind: "element.add", labelKey: "history.element.add", labelParams: { elementType: "image" } },
+      { kind: "element.add", labelKey: "history.element.add", labelParams: { elementType: "shape" } },
     );
 
     const qrId = qr.id;
-    const qrSrc = qr.src;
+    const qrSnapshot = qrDomSnapshot(container, qrId);
     await undo();
     expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).toBeNull();
     await select("source");
     expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
     expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
     await redo();
-    expect(qrDomSnapshot(container, qrId)).toEqual({ src: qrSrc, alt: `QR code for ${href}` });
+    expect(qrDomSnapshot(container, qrId)).toEqual(qrSnapshot);
     expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).not.toBeNull();
     await select("source");
     expect(container.querySelector<HTMLInputElement>("#text-link-url")?.value).toBe(href);
     expect(container.querySelector<HTMLSelectElement>("#text-link-target")?.value).toBe("new");
   });
 
-  it("inserts a nested QR Image after its source in the same Container", async () => {
+  it("inserts a nested QR Shape after its source in the same Container", async () => {
     const source = linkedText("nested-source");
     const next = linkedText("nested-next", "https://example.com/next");
     const rootContainer = { id: "container-1", type: "container" as const, hidden: false, children: [source, next] };
@@ -189,19 +184,19 @@ describe("CP4D1C QR creation history", () => {
     const committedContainer = findElementById(committed.slides[0]?.elements ?? [], rootContainer.id);
     if (!committedContainer || committedContainer.type !== "container") throw new Error("expected Container");
     const qr = committedContainer.children[1];
-    if (!qr || qr.type !== "image") throw new Error("expected nested QR Image");
+    if (!qr || qr.type !== "shape") throw new Error("expected nested QR Shape");
     expect(committedContainer.children.map((element) => element.id)).toEqual([source.id, qr.id, next.id]);
     expect(committedContainer.children).toHaveLength(3);
 
     const qrId = qr.id;
-    const qrSrc = qr.src;
+    const qrSnapshot = qrDomSnapshot(container, qr.id);
     await undo();
     expect(container.querySelector(`[data-presentation-id="${qrId}"]`)).toBeNull();
     await redo();
-    expect(qrDomSnapshot(container, qrId).src).toBe(qrSrc);
+    expect(qrDomSnapshot(container, qrId)).toEqual(qrSnapshot);
   });
 
-  it("keeps a linked Container source and its QR Image as root siblings", async () => {
+  it("keeps a linked Container source and its QR Shape as root siblings", async () => {
     const source = linkedContainer("source-container");
     const next = linkedText("root-next", "https://example.com/next");
     await mount(presentation([source, next]));
@@ -212,8 +207,8 @@ describe("CP4D1C QR creation history", () => {
     const elements = committed.slides[0]?.elements ?? [];
     const committedSource = findElementById(elements, source.id);
     const qr = elements[1];
-    if (!committedSource || committedSource.type !== "container" || !qr || qr.type !== "image") {
-      throw new Error("expected Container source and sibling QR Image");
+    if (!committedSource || committedSource.type !== "container" || !qr || qr.type !== "shape") {
+      throw new Error("expected Container source and sibling QR Shape");
     }
     expect(elements.map((element) => element.id)).toEqual([source.id, qr.id, next.id]);
     expect(committedSource.children.map((element) => element.id)).toEqual(["source-container-child"]);
@@ -243,7 +238,7 @@ describe("CP4D1C QR creation history", () => {
     expect(historyState.commitHistory).toHaveBeenCalledTimes(2);
     const committed = lastCommittedPresentation();
     const qr = committed.slides[0]?.elements[1];
-    if (!qr || qr.type !== "image") throw new Error("expected QR Image after link action");
+    if (!qr || qr.type !== "shape") throw new Error("expected QR Shape after link action");
     const qrId = qr.id;
 
     await undo();

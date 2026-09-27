@@ -12,6 +12,7 @@ export * from "./render-blocks";
 export * from "./blocks-source";
 export * from "./render-scripted";
 export * from "./render-shape";
+export * from "./qr-code-geometry";
 export * from "./scripted-port-protocol";
 export * from "./render-slide";
 export * from "./slide-geometry";

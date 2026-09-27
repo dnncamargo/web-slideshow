@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ShapeElement } from "@web-slideshow/document-schema";
 
 import { useAuthoringHistory } from "../../authoring-history-context";
+import type { HistoryActionMeta } from "../../editor-history-state";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../../editor-workspace.module.css";
@@ -26,6 +27,22 @@ const presetHistoryMeta = {
   labelParams: { setting: "shape.geometry" },
 } as const;
 
+const qrContentHistoryMeta = {
+  kind: "text.edit",
+  labelKey: "history.text.edit",
+} as const;
+
+const qrCorrectionHistoryMeta = {
+  kind: "element.setting",
+  labelKey: "history.element.setting",
+  labelParams: { setting: "shape.qr.errorCorrection" },
+} as const;
+
+const qrQuietZoneHistoryMeta = {
+  kind: "number.change",
+  labelKey: "history.number.change",
+} as const;
+
 function geometryIdentity(geometry: ShapeElement["geometry"]): string {
   return JSON.stringify(geometry);
 }
@@ -42,6 +59,9 @@ interface ShapeGeometryDrafts {
   points: string;
   innerRadius: string;
   rotation: string;
+  qrContent: string;
+  qrErrorCorrection: "L" | "M" | "Q" | "H";
+  qrQuietZone: string;
 }
 
 function createGeometryDrafts(
@@ -61,6 +81,15 @@ function createGeometryDrafts(
       : "",
     rotation: geometry.mode === "generated" && geometry.generator === "polygon"
       ? String(geometry.config.rotationDeg ?? 0)
+      : "",
+    qrContent: geometry.mode === "generated" && geometry.generator === "qr-code"
+      ? geometry.config.value
+      : "",
+    qrErrorCorrection: geometry.mode === "generated" && geometry.generator === "qr-code"
+      ? geometry.config.errorCorrection
+      : "M",
+    qrQuietZone: geometry.mode === "generated" && geometry.generator === "qr-code"
+      ? String(geometry.config.quietZone)
       : "",
   };
 }
@@ -91,9 +120,53 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
     setDraftState({ ...drafts, [field]: value });
   }
 
-  function runDiscrete(meta: typeof presetHistoryMeta | typeof numberChangeHistoryMeta, callback: () => void): void {
+  function runDiscrete(meta: HistoryActionMeta, callback: () => void): void {
     if (authoringHistory) authoringHistory.discrete(meta, callback);
     else callback();
+  }
+
+  function updateQrConfig(
+    update: (config: Extract<ShapeElement["geometry"], { mode: "generated"; generator: "qr-code" }>["config"]) => Extract<ShapeElement["geometry"], { mode: "generated"; generator: "qr-code" }>["config"],
+  ): void {
+    if (element.geometry.mode !== "generated" || element.geometry.generator !== "qr-code") return;
+    onUpdate((current) => {
+      if (current.geometry.mode !== "generated" || current.geometry.generator !== "qr-code") return current;
+      return { ...current, geometry: { ...current.geometry, config: update(current.geometry.config) } };
+    });
+  }
+
+  function updateQrContent(value: string): void {
+    if (value.length === 0) return;
+    if (authoringHistory) {
+      authoringHistory.update(`text:shape:${element.id}:qr-content`, () => updateQrConfig((config) => ({ ...config, value })));
+    } else {
+      updateQrConfig((config) => ({ ...config, value }));
+    }
+    setDraftState((current) => ({ ...current, identity: "" }));
+  }
+
+  function updateQrErrorCorrection(value: string): void {
+    if (value !== "L" && value !== "M" && value !== "Q" && value !== "H") return;
+    if (element.geometry.mode !== "generated" || element.geometry.generator !== "qr-code" || element.geometry.config.errorCorrection === value) return;
+    runDiscrete(qrCorrectionHistoryMeta, () => updateQrConfig((config) => ({ ...config, errorCorrection: value })));
+  }
+
+  function parseQrQuietZone(value: string): number | undefined {
+    if (value.trim() === "") return undefined;
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+  }
+
+  function updateQrQuietZone(value: string): void {
+    const parsed = parseQrQuietZone(value);
+    if (parsed === undefined) return;
+    if (element.geometry.mode !== "generated" || element.geometry.generator !== "qr-code" || element.geometry.config.quietZone === parsed) return;
+    if (authoringHistory) {
+      authoringHistory.update(`number:shape:${element.id}:qr-quiet-zone`, () => updateQrConfig((config) => ({ ...config, quietZone: parsed })));
+    } else {
+      updateQrConfig((config) => ({ ...config, quietZone: parsed }));
+    }
+    setDraftState((current) => ({ ...current, identity: "" }));
   }
 
   function replaceGeometry(nextPreset: Exclude<ShapePreset, "custom" | "qr-code">): void {
@@ -183,6 +256,68 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
           ))}
         </select>
       </label>
+
+      {element.geometry.mode === "generated" && element.geometry.generator === "qr-code" && (
+        <>
+          <label className={styles.field}>
+            <span>{t("inspector.shape.qrContent")}</span>
+            <input
+              id="shape-qr-content"
+              name="shapeQrContent"
+              type="text"
+              value={drafts.qrContent}
+              onFocus={() => authoringHistory?.begin(`text:shape:${element.id}:qr-content`, qrContentHistoryMeta)}
+              onChange={(event) => {
+                setDraft("qrContent", event.target.value);
+                updateQrContent(event.target.value);
+              }}
+              onBlur={() => {
+                if (drafts.qrContent.length === 0) {
+                  setDraft("qrContent", element.geometry.mode === "generated" && element.geometry.generator === "qr-code" ? element.geometry.config.value : "");
+                }
+                authoringHistory?.finish(`text:shape:${element.id}:qr-content`);
+              }}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{t("inspector.shape.qrErrorCorrection")}</span>
+            <select
+              id="shape-qr-error-correction"
+              name="shapeQrErrorCorrection"
+              value={drafts.qrErrorCorrection}
+              onChange={(event) => updateQrErrorCorrection(event.target.value)}
+            >
+              <option value="L">L</option>
+              <option value="M">M</option>
+              <option value="Q">Q</option>
+              <option value="H">H</option>
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span>{t("inspector.shape.qrQuietZone")}</span>
+            <input
+              id="shape-qr-quiet-zone"
+              name="shapeQrQuietZone"
+              type="text"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              value={drafts.qrQuietZone}
+              onFocus={() => authoringHistory?.begin(`number:shape:${element.id}:qr-quiet-zone`, qrQuietZoneHistoryMeta)}
+              onChange={(event) => {
+                setDraft("qrQuietZone", event.target.value);
+                updateQrQuietZone(event.target.value);
+              }}
+              onBlur={() => {
+                if (parseQrQuietZone(drafts.qrQuietZone) === undefined) {
+                  setDraft("qrQuietZone", element.geometry.mode === "generated" && element.geometry.generator === "qr-code" ? String(element.geometry.config.quietZone) : "");
+                }
+                authoringHistory?.finish(`number:shape:${element.id}:qr-quiet-zone`);
+              }}
+            />
+          </label>
+        </>
+      )}
 
       {element.geometry.mode === "generated" && element.geometry.generator === "triangle" && (
         <label className={styles.field}>

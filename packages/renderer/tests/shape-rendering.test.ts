@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ShapeElement } from "@web-slideshow/document-schema";
 
-import { renderElement, renderShape } from "../src";
+import { createQrCodeGeometry, renderElement, renderShape } from "../src";
 
 const pathGeometry = {
   mode: "path" as const,
@@ -210,14 +210,58 @@ describe("canonical Shape renderer", () => {
     expect(html).toContain('data-presentation-image-height-authored="true"');
   });
 
-  it("renders the QR generator as a deterministic temporary placeholder", () => {
+  it("renders QR modules as vector SVG geometry with a quiet-zone background", () => {
     const element = shape({
       geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 4 } },
     });
     const first = renderShape(element);
-    expect(first).toContain("presentation-placeholder-shape-qr");
-    expect(first).toContain("[qr-code]");
+    expect(first).toContain('viewBox="0 0 29 29"');
+    expect(first).toContain('preserveAspectRatio="xMidYMid meet"');
+    expect(first).toContain('fill="#ffffff"');
+    expect(first).toContain("<path");
+    expect(first).not.toContain("presentation-placeholder-shape-qr");
+    expect(first).not.toContain("[qr-code]");
     expect(first).toBe(renderShape(element));
+  });
+
+  it("changes QR geometry when content changes", () => {
+    const base = { mode: "generated" as const, generator: "qr-code" as const, config: { value: "hello", errorCorrection: "M" as const, quietZone: 4 } };
+    expect(renderShape(shape({ geometry: base }))).not.toBe(renderShape(shape({ geometry: { ...base, config: { ...base.config, value: "goodbye" } } })));
+  });
+
+  it.each(["L", "M", "Q", "H"] as const)("accepts error correction %s", (errorCorrection) => {
+    const geometry = createQrCodeGeometry({ value: "hello", errorCorrection, quietZone: 4 });
+    expect(geometry.size).toBeGreaterThan(0);
+    expect(geometry.modules).toHaveLength(geometry.size);
+  });
+
+  it("honors quiet zone zero and keeps the QR viewBox square", () => {
+    const html = renderShape(shape({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 0 } },
+    }));
+    expect(html).toContain('viewBox="0 0 21 21"');
+    expect(html).toContain('preserveAspectRatio="xMidYMid meet"');
+  });
+
+  it("uses normal Shape fill and preserves QR links, layout, and effects", () => {
+    const html = renderShape(shape({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 4 } },
+      style: { fill: { type: "color", color: { kind: "palette", colorId: "accent" } } },
+      layout: { width: 200, height: 200, position: "absolute", left: 8, top: 12 },
+      effect: { opacity: 0.5 },
+      link: { kind: "url", href: "https://example.com", target: "_blank" },
+    }));
+    expect(html).toContain('fill="var(--ps-palette-0061006300630065006e0074)"');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain("width:200px;height:200px;position:absolute");
+    expect(html).toContain("opacity:0.5");
+  });
+
+  it("renders hidden QR Shapes as empty output", () => {
+    expect(renderShape(shape({
+      hidden: true,
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 4 } },
+    }))).toBe("");
   });
 
   it("is deterministic for the same input", () => {

@@ -9,6 +9,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { createQrCodeGeometry } from "./qr-code-geometry";
 import { renderImageCropMetadata } from "./render-canonical-image";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
@@ -23,6 +24,8 @@ type RenderedGeometry = {
   viewBox: ShapeViewBox;
   path: string;
   fillRule: "nonzero" | "evenodd";
+  preserveAspectRatio?: "none" | "xMidYMid meet";
+  background?: "light";
 };
 
 function number(value: number): string {
@@ -104,10 +107,45 @@ function renderTriangleGeometry(
   };
 }
 
+function renderQrCodeGeometry(
+  geometry: Extract<ShapeGeometry, { mode: "generated"; generator: "qr-code" }>,
+): RenderedGeometry {
+  const qr = createQrCodeGeometry(geometry.config);
+  const quietZone = geometry.config.quietZone;
+  const totalSize = qr.size + quietZone * 2;
+  const rectangles: string[] = [];
+
+  for (let row = 0; row < qr.size; row += 1) {
+    let column = 0;
+    while (column < qr.size) {
+      if (!qr.modules[row]?.[column]) {
+        column += 1;
+        continue;
+      }
+
+      const start = column;
+      while (column < qr.size && qr.modules[row]?.[column]) column += 1;
+      const width = column - start;
+      const x = start + quietZone;
+      const y = row + quietZone;
+      rectangles.push(`M ${x} ${y} h ${width} v 1 h -${width} Z`);
+    }
+  }
+
+  return {
+    viewBox: { x: 0, y: 0, width: totalSize, height: totalSize },
+    path: rectangles.join(" "),
+    fillRule: "nonzero",
+    preserveAspectRatio: "xMidYMid meet",
+    background: "light",
+  };
+}
+
 function materializeGeometry(geometry: ShapeGeometry): RenderedGeometry | null {
   if (geometry.mode === "path") return renderPathGeometry(geometry);
   if (geometry.generator === "polygon") return renderPolygonGeometry(geometry);
   if (geometry.generator === "triangle") return renderTriangleGeometry(geometry);
+  if (geometry.generator === "qr-code") return renderQrCodeGeometry(geometry);
   return null;
 }
 
@@ -316,14 +354,7 @@ export function renderShape(element: ShapeElement): string {
   if (element.hidden) return "";
 
   const renderedGeometry = materializeGeometry(element.geometry);
-  if (!renderedGeometry) {
-    const styles = renderLayout(element, { x: 0, y: 0, width: 100, height: 100 });
-    return renderShapeBox(
-      element,
-      `<div class="presentation-placeholder-shape-qr" aria-label="[qr-code]">[qr-code]</div>`,
-      styles,
-    );
-  }
+  if (!renderedGeometry) return "";
 
   const fill = renderFill(element.id, element.style?.fill, renderedGeometry.viewBox);
   const stroke = renderStroke(element.id, element.style?.stroke, renderedGeometry.viewBox);
@@ -343,8 +374,9 @@ export function renderShape(element: ShapeElement): string {
   const imageMarkup = imageFill
     ? `<foreignObject x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" clip-path="url(#${clipId})">${renderImageSurface(imageFill)}</foreignObject>`
     : "";
-  const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="none" width="100%" height="100%" aria-hidden="true">` +
+  const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="${renderedGeometry.preserveAspectRatio ?? "none"}" width="100%" height="100%" aria-hidden="true">` +
     (definitions ? `<defs>${definitions}</defs>` : "") +
+    (renderedGeometry.background === "light" ? `<rect x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" fill="#ffffff"></rect>` : "") +
     imageMarkup +
     `<path ${pathAttributes.join(" ")}></path>` +
     `</svg>`;
