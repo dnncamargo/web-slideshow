@@ -13,6 +13,7 @@ interface DangerConfirmDialogProps {
   confirmLabel: ReactNode;
   cancelLabel: ReactNode;
   busy?: boolean;
+  confirmDisabled?: boolean;
   initialFocus?: "dialog" | "confirm";
   busyConfirmLabel?: ReactNode;
   error?: ReactNode;
@@ -26,6 +27,7 @@ export function DangerConfirmDialog({
   confirmLabel,
   cancelLabel,
   busy = false,
+  confirmDisabled = false,
   initialFocus = "dialog",
   busyConfirmLabel,
   error,
@@ -71,7 +73,7 @@ export function DangerConfirmDialog({
           <Button
             variant="danger"
             size="compact"
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             autoFocus={initialFocus === "confirm"}
             onClick={onConfirm}
           >
