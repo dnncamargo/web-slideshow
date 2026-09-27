@@ -36,6 +36,7 @@ export function PresentationThumbnailPreview({
     () => renderSlide(preview.firstSlide, { presentation: preview.presentation }),
     [preview.firstSlide, preview.presentation],
   );
+  const renderedMarkup = useMemo(() => ({ __html: markup }), [markup]);
 
   const logicalWidth = resolveLogicalSlideSize(preview.aspectRatio).logicalWidth;
   const logicalHeight = thumbnailLogicalHeight(preview.aspectRatio);
@@ -117,7 +118,7 @@ export function PresentationThumbnailPreview({
           height: logicalHeight,
           transform: `scale(${scale})`,
         }}
-        dangerouslySetInnerHTML={{ __html: markup }}
+        dangerouslySetInnerHTML={renderedMarkup}
       />
     </div>
   );
