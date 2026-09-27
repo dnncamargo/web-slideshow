@@ -228,7 +228,7 @@ describe("SM6D5 Root specialized authoring", () => {
 
     await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#container-linked-style")!, "container-style"));
     saved = await save(onSave);
-    const shared = rootElement(saved, "shared-container");
+    let shared = rootElement(saved, "shared-container");
     expect(shared.type).toBe("container");
     if (shared.type === "container") {
       expect(shared.linkedStyleId).toBe("container-style");
