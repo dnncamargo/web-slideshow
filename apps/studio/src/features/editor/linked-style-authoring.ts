@@ -232,7 +232,7 @@ function isDefaultTopicsMargin(value: unknown): boolean {
 }
 
 function isDefaultTopicsRootMarker(kind: TopicsElement["kind"], value: TopicsElement["rootMarkerStyle"]): boolean {
-  return value === (kind === "ordered" ? "decimal" : "disc");
+  return kind !== "checkbox" && value === (kind === "ordered" ? "decimal" : "disc");
 }
 
 function shareableStyle(style: ContainerElement["style"]): ShareableStyle | undefined {

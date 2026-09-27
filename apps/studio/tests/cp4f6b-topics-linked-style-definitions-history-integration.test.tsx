@@ -161,6 +161,24 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     expect(row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")?.value).toBe("ordered");
   });
 
+  it("tracks a linked checkbox kind as one definition action and preserves its marker", async () => {
+    const initial = presentation();
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const kind = row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind");
+    if (!kind) throw new Error("Topics kind control was not rendered");
+
+    await act(async () => setSelectValue(kind, "checkbox"));
+    const edited = await save(saved);
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ kind: "checkbox", rootMarkerStyle: "square" });
+
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
   it("tracks add/remove, kind-marker compatibility, and ColorControl without a duplicate action", async () => {
     const initial = presentation({ linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8 }] });
     await renderWorkspace(initial);

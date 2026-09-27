@@ -440,6 +440,111 @@ describe("TopicsInspector", () => {
     expect(updates[0]?.items).toHaveLength(2);
   });
 
+  it("exposes checkbox as a Topics kind", async () => {
+    await act(async () => mount(topicsElement()));
+
+    expect(Array.from(kindSelect().options).map((option) => option.value)).toEqual([
+      "unordered",
+      "ordered",
+      "checkbox",
+    ]);
+  });
+
+  it("switches to checkbox without changing authored marker properties", async () => {
+    const initial = topicsElement({
+      kind: "ordered",
+      rootMarkerStyle: "decimal",
+      markerColor: "#123456",
+    });
+    await act(async () => mount(initial));
+
+    await act(async () => {
+      kindSelect().value = "checkbox";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(elementState).toEqual({ ...initial, kind: "checkbox" });
+  });
+
+  it("preserves an unordered marker when entering checkbox mode", async () => {
+    const initial = topicsElement({ kind: "unordered", rootMarkerStyle: "circle" });
+    await act(async () => mount(initial));
+
+    await act(async () => {
+      kindSelect().value = "checkbox";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(elementState.kind).toBe("checkbox");
+    expect(elementState.rootMarkerStyle).toBe("circle");
+  });
+
+  it("shows the local checkbox mode only for effective checkbox Topics", async () => {
+    await act(async () => mount(topicsElement()));
+    expect(container.querySelector("#topics-checkbox-mode")).toBeNull();
+    expect(container.querySelector("#topics-marker-style")).not.toBeNull();
+
+    await act(async () => {
+      kindSelect().value = "checkbox";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
+    expect(container.querySelector("#topics-marker-style")).toBeNull();
+    expect(container.querySelector("#topics-marker-color")).toBeNull();
+  });
+
+  it("does not write omitted checkboxMode on mount and preserves it while hidden", async () => {
+    await act(async () => mount(topicsElement({ kind: "checkbox" })));
+
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
+    expect(elementState).not.toHaveProperty("checkboxMode");
+    expect(updates).toHaveLength(0);
+
+    const mode = container.querySelector<HTMLSelectElement>("#topics-checkbox-mode");
+    if (!mode) throw new Error("topics-checkbox-mode select not found");
+    await act(async () => {
+      mode.value = "three-state";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.checkboxMode).toBe("three-state");
+
+    await act(async () => {
+      kindSelect().value = "ordered";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.querySelector("#topics-checkbox-mode")).toBeNull();
+    expect(elementState.checkboxMode).toBe("three-state");
+
+    await act(async () => {
+      kindSelect().value = "checkbox";
+      kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("three-state");
+  });
+
+  it("shows and edits local checkboxMode for a linked checkbox kind", async () => {
+    await act(async () => mount(topicsElement({ kind: undefined, linkedStyleId: "topics-style" })));
+    presentation = {
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "checkbox" }],
+    };
+    await act(async () => renderInspector());
+
+    expect(kindSelect().value).toBe("checkbox");
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
+    expect(container.querySelector("#topics-marker-style")).toBeNull();
+
+    const mode = container.querySelector<HTMLSelectElement>("#topics-checkbox-mode");
+    if (!mode) throw new Error("topics-checkbox-mode select not found");
+    await act(async () => {
+      mode.value = "three-state";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(elementState.checkboxMode).toBe("three-state");
+    expect(elementState.linkedStyleId).toBe("topics-style");
+  });
+
   it("renders the recursive topic inputs", async () => {
     await act(async () => {
       mount(topicsElement());
