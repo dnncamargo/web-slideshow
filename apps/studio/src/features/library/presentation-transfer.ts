@@ -64,6 +64,7 @@ function createIdCounters(): IdCounters {
     scripted: 0,
     topics: 0,
     container: 0,
+    shape: 0,
     "root-definition": 0,
   };
 }

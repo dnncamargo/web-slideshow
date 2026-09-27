@@ -295,6 +295,7 @@ const englishMessages = {
   "inspector.left": "Left",
 
   "element.text": "Text",
+  "element.shape": "Shape",
   "element.image": "Image",
   "element.code": "Code",
   "element.terminal": "Terminal",
@@ -1520,6 +1521,7 @@ const portugueseMessages = {
   "inspector.left": "Esquerda",
 
   "element.text": "Texto",
+  "element.shape": "Forma",
   "element.image": "Imagem",
   "element.code": "Código",
   "element.terminal": "Terminal",
@@ -2508,6 +2510,7 @@ export function translateStudioMessage(
 
 export const ELEMENT_TYPE_MESSAGE_KEYS = {
   text: "element.text",
+  shape: "element.shape",
   image: "element.image",
   code: "element.code",
   terminal: "element.terminal",
