@@ -445,6 +445,7 @@ export function ShapeInspector({
 
       <ShapeAppearanceSection
         elementId={element.id}
+        isQr={element.geometry.mode === "generated" && element.geometry.generator === "qr-code"}
         style={element.style}
         onUpdateStyle={(update) => onUpdate((current) => current.type === "shape" ? { ...current, style: update(current.style) } : current)}
       />

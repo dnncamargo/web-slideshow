@@ -380,7 +380,10 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
   });
 
   it("applies authored transform sparsely and supports rounded-corner length input", async () => {
-    await mount();
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+      style: { fill: { type: "color", color: "#22d3ee" }, stroke: { width: 2, style: "solid", color: "#123456" } },
+    }));
 
     await act(async () => {
       setInputValue(input("shape-transform-translate-x"), "12");
@@ -394,6 +397,51 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(state.style?.borderRadius).toBe(12);
     await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#shape-border-radius-unit")!, "rem"));
     expect(state.style?.borderRadius).toBe("0.75rem");
+
+    await act(async () => {
+      const reset = host.querySelector<HTMLButtonElement>("#shape-border-radius")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+      reset?.click();
+    });
+    expect(state.style?.borderRadius).toBeUndefined();
+    expect(state.style?.stroke).toEqual({ width: 2, style: "solid", color: "#123456" });
+  });
+
+  it("shows rounded corners only for QR geometry and keeps Border for every Shape", async () => {
+    const nonQrGeometries: ShapeElement["geometry"][] = [
+      RECTANGLE_GEOMETRY,
+      {
+        mode: "path",
+        viewBox: { x: 0, y: 0, width: 100, height: 100 },
+        commands: [
+          { type: "move", x: 100, y: 50 },
+          { type: "arc", radiusX: 50, radiusY: 50, rotationDeg: 0, largeArc: false, sweep: true, x: 0, y: 50 },
+          { type: "arc", radiusX: 50, radiusY: 50, rotationDeg: 0, largeArc: false, sweep: true, x: 100, y: 50 },
+          { type: "close" },
+        ],
+      },
+      { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+      { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 1 } },
+      { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 0.45 } },
+      {
+        mode: "path",
+        viewBox: { x: 0, y: 0, width: 100, height: 100 },
+        commands: [{ type: "move", x: 10, y: 10 }, { type: "line", x: 90, y: 10 }, { type: "close" }],
+      },
+    ];
+
+    for (const geometry of nonQrGeometries) {
+      await mount(shapeElement({ geometry, style: { stroke: { width: 1, style: "solid", color: "#111111" } } }));
+      expect(host.querySelector("#shape-border-radius")).toBeNull();
+      expect(host.querySelector("#shape-border-style")).not.toBeNull();
+    }
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+      style: { stroke: { width: 1, style: "solid", color: "#111111" }, borderRadius: 8 },
+    }));
+    expect(host.querySelector("#shape-border-radius")).not.toBeNull();
+    expect(host.querySelector("#shape-border-style")).not.toBeNull();
+    expect(input("shape-border-radius").value).toBe("8");
   });
 
   it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {

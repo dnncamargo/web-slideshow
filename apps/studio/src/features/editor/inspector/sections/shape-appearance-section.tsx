@@ -30,6 +30,7 @@ type ShapeImageFill = Extract<ShapeFill, { type: "image" }>;
 
 interface ShapeAppearanceSectionProps {
   elementId: string;
+  isQr: boolean;
   style: ShapeElement["style"];
   onUpdateStyle: (
     update: (style: ShapeElement["style"]) => ShapeElement["style"],
@@ -54,6 +55,7 @@ function isImageFill(fill: ShapeFill | undefined): fill is ShapeImageFill {
 
 export function ShapeAppearanceSection({
   elementId,
+  isQr,
   style,
   onUpdateStyle,
 }: ShapeAppearanceSectionProps) {
@@ -240,24 +242,26 @@ export function ShapeAppearanceSection({
         </>
       )}
 
-      <div className={styles.fieldGrid}>
-        <div className={styles.field}>
-          <label htmlFor="shape-border-radius" title={t("inspector.roundedCornersHelp")}>
-            {t("inspector.roundedCorners")}
-          </label>
-          <EffectiveLengthInput
-            id="shape-border-radius"
-            name="shapeBorderRadius"
-            min="0"
-            value={style?.borderRadius}
-            preferredUnit="px"
-            units={["px", "rem"]}
-            stepByUnit={{ px: "1", rem: "0.1" }}
-            onChange={(borderRadius) => updateNormalizedStyle((current) => ({ ...current, borderRadius }))}
-            onReset={() => updateNormalizedStyle((current) => ({ ...current, borderRadius: undefined }))}
-          />
+      {isQr ? (
+        <div className={styles.fieldGrid}>
+          <div className={styles.field}>
+            <label htmlFor="shape-border-radius" title={t("inspector.roundedCornersHelp")}>
+              {t("inspector.roundedCorners")}
+            </label>
+            <EffectiveLengthInput
+              id="shape-border-radius"
+              name="shapeBorderRadius"
+              min="0"
+              value={style?.borderRadius}
+              preferredUnit="px"
+              units={["px", "rem"]}
+              stepByUnit={{ px: "1", rem: "0.1" }}
+              onChange={(borderRadius) => updateNormalizedStyle((current) => ({ ...current, borderRadius }))}
+              onReset={() => updateNormalizedStyle((current) => ({ ...current, borderRadius: undefined }))}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <ElementBorderControl
         border={style?.stroke}
