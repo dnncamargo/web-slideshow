@@ -21,6 +21,12 @@ export interface PlotPreviewControls {
   onReset(): void;
 }
 
+export interface ShapePreviewControls {
+  onPlay(): void;
+  onPause(): void;
+  onReset(): void;
+}
+
 export type UpdateElementTypography = (
   update: (
     typography: ElementTypography | undefined,

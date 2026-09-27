@@ -24,3 +24,4 @@ export * from "./checkbox-runtime";
 export * from "./container-fit";
 export * from "./container-fit-runtime";
 export * from "./renderer-runtime";
+export { disposeShapeAnimations, hydrateShapeAnimations } from "./shape-animation-runtime";

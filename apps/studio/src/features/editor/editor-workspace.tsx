@@ -10,6 +10,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   disposeRendererRuntime,
   getPlotAnimationController,
+  getShapeAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
@@ -17,6 +18,7 @@ import {
   fitLogicalSlideGeometry,
   resolveLogicalSlideSize,
   type PlotAnimationController,
+  type ShapeAnimationController,
   type FittedSlideGeometry,
 } from "@web-slideshow/renderer";
 import {
@@ -295,7 +297,7 @@ import {
   resolveClipboardPasteDestination,
 } from "./clipboard-operations";
 
-import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
+import type { PlotPreviewControls, ShapePreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrShapeElement } from "./qr-shape-authoring";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
@@ -2457,6 +2459,10 @@ export function EditorWorkspace({
           slide: renderedSlideModel,
           autoplay: false,
         },
+        shapeAnimations: {
+          slide: renderedSlideModel,
+          autoplay: false,
+        },
       });
     } else if (canvas) {
       hydrateRendererRuntime(canvas);
@@ -3970,6 +3976,22 @@ export function EditorWorkspace({
       onPlay: () => runSelectedPlotPreview((controller) => controller.play()),
       onPause: () => runSelectedPlotPreview((controller) => controller.pause()),
       onReset: () => runSelectedPlotPreview((controller) => controller.reset()),
+    }
+    : undefined;
+
+  function runSelectedShapePreview(command: (controller: ShapeAnimationController) => void): void {
+    if (selectedDocumentElement?.type !== "shape") return;
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    const controller = getShapeAnimationController(canvas, selectedDocumentElement.id);
+    if (controller) command(controller);
+  }
+
+  const shapePreviewControls: ShapePreviewControls | undefined = selectedDocumentElement?.type === "shape"
+    ? {
+      onPlay: () => runSelectedShapePreview((controller) => controller.play()),
+      onPause: () => runSelectedShapePreview((controller) => controller.pause()),
+      onReset: () => runSelectedShapePreview((controller) => controller.reset()),
     }
     : undefined;
 
@@ -7282,6 +7304,7 @@ export function EditorWorkspace({
                           readOnly={rootDefinitionInspectorReadOnly}
                           onUpdate={updateSelectedElement}
                           plotPreviewControls={plotPreviewControls}
+                          shapePreviewControls={shapePreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={

@@ -27,6 +27,7 @@ import type {
   ElementInspectorUpdate,
   CreateQrCodeFromLink,
   PlotPreviewControls,
+  ShapePreviewControls,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
@@ -44,6 +45,8 @@ interface ElementInspectorProps {
   onUpdate: ElementInspectorUpdate;
 
   plotPreviewControls?: PlotPreviewControls;
+
+  shapePreviewControls?: ShapePreviewControls;
 
   onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
@@ -124,6 +127,7 @@ function ElementTypeInspector({
   element,
   onUpdate,
   plotPreviewControls,
+  shapePreviewControls,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -196,7 +200,7 @@ function ElementTypeInspector({
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "shape":
-      return <ShapeInspector element={element} onUpdate={onUpdate} />;
+      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
@@ -307,6 +311,7 @@ export function ElementInspector({
   readOnly = false,
   onUpdate,
   plotPreviewControls,
+  shapePreviewControls,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -395,6 +400,7 @@ export function ElementInspector({
           onUpdate(update);
         }}
         plotPreviewControls={plotPreviewControls}
+        shapePreviewControls={shapePreviewControls}
         onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}
