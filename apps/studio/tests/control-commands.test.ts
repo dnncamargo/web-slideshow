@@ -42,6 +42,7 @@ import {
   writeControlState,
   writeFullscreenRequest,
   writePlotAnimationAction,
+  writeShapeAnimationAction,
   writeSlideCommand,
   writeScriptedInput,
 } from "../src/features/control/control-command-writer";
@@ -221,6 +222,28 @@ describe("control command writer", () => {
     await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/did not commit/);
     mocks.runTransaction.mockResolvedValue({ committed: true, snapshot: { val: () => ({}) } });
     await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/malformed/);
+  });
+
+  it("writes Shape actions with independent revisions and strict input", async () => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+    const request = { activationRevision: 7, currentVersionId: " version-1 ", pageId: " page-1 ", shapeSlot: 2, elementId: "shape/[#]", targetBootId: " boot-a ", action: "play" as const };
+    const first = await writeShapeAnimationAction({} as never, request);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/shapeAnimationAction/2");
+    expect(first).toMatchObject({ revision: 1, action: "play", elementId: "shape/[#]", currentVersionId: "version-1", pageId: "page-1", targetBootId: "boot-a" });
+    let previous = first;
+    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
+      const next = updater(previous) as typeof first;
+      previous = next;
+      return { committed: true, snapshot: { val: () => next } };
+    });
+    expect((await writeShapeAnimationAction({} as never, { ...request, action: "pause" })).revision).toBe(2);
+    expect((await writeShapeAnimationAction({} as never, { ...request, action: "reset" })).revision).toBe(3);
+    expect((await writeShapeAnimationAction({} as never, { ...request, elementId: "shape-2" })).revision).toBe(1);
+    expect((await writeShapeAnimationAction({} as never, { ...request, targetBootId: "boot-b" })).revision).toBe(1);
+    await expect(writeShapeAnimationAction({} as never, { ...request, shapeSlot: -1 })).rejects.toThrow(/shapeSlot/);
+    await expect(writeShapeAnimationAction({} as never, { ...request, shapeSlot: 1.5 })).rejects.toThrow(/shapeSlot/);
+    await expect(writeShapeAnimationAction({} as never, { ...request, action: "restart" as never })).rejects.toThrow(/action/);
+    await expect(writeShapeAnimationAction({} as never, { ...request, currentVersionId: " " })).rejects.toThrow(/currentVersionId/);
   });
 });
 

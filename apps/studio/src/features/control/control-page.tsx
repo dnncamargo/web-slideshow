@@ -15,6 +15,7 @@ import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
 import { useLiveCheckboxControl } from "./use-live-checkbox-control";
 import { useLivePlotAnimationControl } from "./use-live-plot-animation-control";
+import { useLiveShapeAnimationControl } from "./use-live-shape-animation-control";
 import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
 import { useLiveScriptedStateControl } from "./use-live-scripted-state-control";
 import { useLiveSlideTransitionControl } from "./use-live-slide-transition-control";
@@ -114,6 +115,15 @@ export function ControlPage() {
       presentationState.kind === "ready" && presentationState.pendingVersion !== null,
   });
   const plotAnimationControl = useLivePlotAnimationControl({
+    live: liveState.kind === "active" ? liveState.live : null,
+    effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
+    actualPageId: view?.actualPageId ?? null,
+    controlSynced: view?.status.kind === "synced",
+    playerStatus,
+    controlsBlocked: presentationState.kind === "ready" && presentationState.pendingVersion !== null,
+  });
+  const shapeAnimationControl = useLiveShapeAnimationControl({
     live: liveState.kind === "active" ? liveState.live : null,
     effectiveSlide: effectiveLiveSlide,
     desiredPageId,
@@ -266,7 +276,7 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || shapeAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
       checkboxTargets={checkboxControl.targets}
@@ -276,6 +286,9 @@ export function ControlPage() {
       plotTargets={plotAnimationControl.plotTargets}
       plotActionsEnabled={plotAnimationControl.actionsEnabled}
       pendingPlotSlots={plotAnimationControl.pendingPlotSlots}
+      shapeTargets={shapeAnimationControl.shapeTargets}
+      shapeActionsEnabled={shapeAnimationControl.actionsEnabled}
+      pendingShapeSlots={shapeAnimationControl.pendingShapeSlots}
       scriptedStateGroups={scriptedStateControl.groups}
       setScriptedPortValue={scriptedStateControl.setPortValue}
       previous={previous}
@@ -295,6 +308,8 @@ export function ControlPage() {
       triggerScriptedAction={scriptedActionControl.triggerAction}
       triggerPlotAction={plotAnimationControl.triggerAction}
       triggerAllPlotActions={plotAnimationControl.triggerAll}
+      triggerShapeAction={shapeAnimationControl.triggerAction}
+      triggerAllShapeActions={shapeAnimationControl.triggerAll}
       promotingVersionId={promotingVersionId}
       failedPromotionVersionId={failedPromotionVersionId}
       playerStatus={playerStatus}

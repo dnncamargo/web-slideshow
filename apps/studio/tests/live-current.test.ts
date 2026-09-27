@@ -192,6 +192,7 @@ describe("live-current activation", () => {
       "playerRecoveryRequest",
       "playerState",
       "scriptedAction",
+      "shapeAnimationAction",
       "slideAck",
       "slideCommand",
       "slideTransition",
@@ -273,6 +274,7 @@ describe("live-current activation", () => {
         checkboxControl: null,
         playerControls: null,
         playerLogs: null,
+        shapeAnimationAction: null,
       },
     );
     expect(mocks.runTransaction).not.toHaveBeenCalled();
@@ -351,6 +353,7 @@ describe("live-current activation", () => {
       galleryControl: null,
       checkboxControl: null,
       plotAnimationAction: null,
+      shapeAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
       scriptedReport: null,
@@ -464,6 +467,7 @@ describe("live-current activation", () => {
       galleryControl: null,
       checkboxControl: null,
       plotAnimationAction: null,
+      shapeAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
       scriptedReport: null,
