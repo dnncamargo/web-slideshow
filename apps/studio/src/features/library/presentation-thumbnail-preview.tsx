@@ -84,7 +84,7 @@ export function PresentationThumbnailPreview({
 
   useEffect(() => {
     if (stageRef.current) hydrateRendererRuntime(stageRef.current);
-  }, [markup]);
+  }, [markup, scale]);
 
   return (
     <div

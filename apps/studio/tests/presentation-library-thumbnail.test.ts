@@ -80,6 +80,30 @@ function styledPresentation(slide: unknown, extras: Record<string, unknown> = {}
 }
 
 describe("deriveThumbnailPreview", () => {
+  it("preserves a canonical Image crop in the thumbnail projection and markup", () => {
+    const crop = { x: 10, y: 20, width: 60, height: 50 };
+    const preview = deriveThumbnailPreview(makePresentation({
+      slides: [makeSlide("slide-1", [{
+        id: "cropped-image",
+        type: "image",
+        hidden: false,
+        src: "/assets/cropped-image.png",
+        alt: "Cropped image",
+        fit: "contain",
+        crop,
+        layout: { width: 640, height: 360 },
+      }])],
+    }));
+
+    expect(preview?.firstSlide.elements[0]).toMatchObject({ crop });
+
+    const markup = renderPreview(preview);
+    expect(markup).toContain("data-presentation-image-crop");
+    expect(markup).toContain("presentation-image-crop-viewport");
+    expect(markup).toContain("presentation-image-media");
+    expect(markup).toContain('src="/assets/cropped-image.png"');
+  });
+
   it("derives a preview from a first slide that has authored elements", () => {
     const preview = deriveThumbnailPreview(
       makePresentation({

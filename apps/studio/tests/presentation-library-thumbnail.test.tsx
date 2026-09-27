@@ -85,6 +85,25 @@ function linkedSlide(id: string, text: string, href: string): Slide {
   };
 }
 
+function croppedImageSlide(id: string): Slide {
+  return {
+    id,
+    title: "",
+    summary: "",
+    speakerNotes: "",
+    elements: [{
+      id: `${id}-image`,
+      type: "image",
+      hidden: false,
+      src: "/assets/cropped-image.png",
+      alt: "Cropped image",
+      fit: "contain",
+      crop: { x: 10, y: 20, width: 60, height: 50 },
+      layout: { width: 640, height: 360 },
+    }],
+  };
+}
+
 function emptySlide(id: string): Slide {
   return {
     id,
@@ -249,6 +268,170 @@ describe("presentation thumbnail preview", () => {
     expect(slide?.getAttribute("data-presentation-slide-id")).toBe("slide-1");
     expect(container.textContent).toContain("Hello world");
     expect(container.querySelector('[data-presentation-type="text"]')).not.toBeNull();
+  });
+
+  it("hydrates an already-loaded cropped Image after the thumbnail scale rerender", () => {
+    const originalNaturalWidth = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "naturalWidth",
+    );
+    const originalNaturalHeight = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "naturalHeight",
+    );
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+    Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+      configurable: true,
+      get() {
+        return 1200;
+      },
+    });
+    Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", {
+      configurable: true,
+      get() {
+        return 800;
+      },
+    });
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      if (this.hasAttribute("aria-hidden") && this.hasAttribute("inert")) {
+        return { width: 320, height: 180 } as DOMRect;
+      }
+
+      if (this.dataset.presentationImageCrop !== undefined) {
+        const stage = this.closest<HTMLElement>("[data-presentation-thumbnail-stage]");
+        const isMeasured = stage?.style.transform !== "scale(0)";
+        return { width: isMeasured ? 640 : 0, height: isMeasured ? 360 : 0 } as DOMRect;
+      }
+
+      return { width: 0, height: 0 } as DOMRect;
+    };
+
+    try {
+      renderNode(
+        <PresentationThumbnailPreview
+          preview={previewData(croppedImageSlide("slide-1"))}
+        />,
+      );
+
+      const imageRoot = container.querySelector<HTMLElement>("[data-presentation-image-crop]");
+      const viewport = container.querySelector<HTMLElement>(".presentation-image-crop-viewport");
+      const image = container.querySelector<HTMLImageElement>(".presentation-image-media");
+      const stage = container.querySelector<HTMLElement>("[data-presentation-thumbnail-stage]");
+
+      expect(imageRoot).not.toBeNull();
+      expect(stage?.style.transform).not.toBe("scale(0)");
+      expect(Number.parseFloat(viewport?.style.width ?? "0")).toBeCloseTo(640);
+      expect(Number.parseFloat(viewport?.style.height ?? "0")).toBeCloseTo(355.5555556);
+      expect(Number.parseFloat(image?.style.width ?? "0")).toBeCloseTo(1066.6666667);
+      expect(Number.parseFloat(image?.style.height ?? "0")).toBeCloseTo(711.1111111);
+      expect(Number.parseFloat(image?.style.left ?? "0")).toBeCloseTo(-106.6666667);
+      expect(Number.parseFloat(image?.style.top ?? "0")).toBeCloseTo(-142.2222222);
+    } finally {
+      if (originalNaturalWidth) {
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", originalNaturalWidth);
+      } else {
+        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
+      }
+      if (originalNaturalHeight) {
+        Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", originalNaturalHeight);
+      } else {
+        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalHeight;
+      }
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    }
+  });
+
+  it("rehydrates cropped Image geometry after a thumbnail ResizeObserver rescale", () => {
+    const originalNaturalWidth = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "naturalWidth",
+    );
+    const originalNaturalHeight = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "naturalHeight",
+    );
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const originalResizeObserver = Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver");
+    let hostSize = { width: 320, height: 180 };
+    let notifyResize: (() => void) | undefined;
+
+    Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+      configurable: true,
+      get() {
+        return 1200;
+      },
+    });
+    Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", {
+      configurable: true,
+      get() {
+        return 800;
+      },
+    });
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      if (this.hasAttribute("aria-hidden") && this.hasAttribute("inert")) {
+        return hostSize as DOMRect;
+      }
+
+      if (this.dataset.presentationImageCrop !== undefined) {
+        const stage = this.closest<HTMLElement>("[data-presentation-thumbnail-stage]");
+        const isMeasured = stage?.style.transform !== "scale(0)";
+        return { width: isMeasured ? 640 : 0, height: isMeasured ? 360 : 0 } as DOMRect;
+      }
+
+      return { width: 0, height: 0 } as DOMRect;
+    };
+
+    class TestResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        notifyResize = () => callback([], this as unknown as ResizeObserver);
+      }
+
+      observe(): void {}
+      disconnect(): void {}
+    }
+
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: TestResizeObserver,
+    });
+
+    try {
+      renderNode(
+        <PresentationThumbnailPreview
+          preview={previewData(croppedImageSlide("slide-1"))}
+        />,
+      );
+
+      const stage = container.querySelector<HTMLElement>("[data-presentation-thumbnail-stage]");
+      const viewport = container.querySelector<HTMLElement>(".presentation-image-crop-viewport");
+      const initialScale = stage?.style.transform;
+
+      hostSize = { width: 160, height: 90 };
+      act(() => notifyResize?.());
+
+      expect(stage?.style.transform).not.toBe(initialScale);
+      expect(Number.parseFloat(viewport?.style.width ?? "0")).toBeGreaterThan(0);
+      expect(Number.parseFloat(viewport?.style.height ?? "0")).toBeGreaterThan(0);
+    } finally {
+      if (originalNaturalWidth) {
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", originalNaturalWidth);
+      } else {
+        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
+      }
+      if (originalNaturalHeight) {
+        Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", originalNaturalHeight);
+      } else {
+        delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalHeight;
+      }
+      HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      if (originalResizeObserver) {
+        Object.defineProperty(globalThis, "ResizeObserver", originalResizeObserver);
+      } else {
+        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+      }
+    }
   });
 
   it("keeps Presentation-level palette and font resources for referenced master styles", () => {
