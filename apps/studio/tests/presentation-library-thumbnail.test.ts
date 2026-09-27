@@ -80,6 +80,53 @@ function styledPresentation(slide: unknown, extras: Record<string, unknown> = {}
 }
 
 describe("deriveThumbnailPreview", () => {
+  it("derives and renders an ordinary Shape through the shared renderer", () => {
+    const preview = deriveThumbnailPreview(makePresentation({
+      slides: [makeSlide("slide-1", [{
+        id: "path-shape",
+        type: "shape",
+        hidden: false,
+        layout: { width: 240, height: 180 },
+        geometry: {
+          mode: "path",
+          viewBox: { x: 0, y: 0, width: 100, height: 100 },
+          commands: [
+            { type: "move", x: 10, y: 10 },
+            { type: "line", x: 90, y: 90 },
+            { type: "line", x: 10, y: 90 },
+            { type: "close" },
+          ],
+        },
+      }])],
+    }));
+
+    expect(preview?.firstSlide.elements[0]).toMatchObject({ id: "path-shape", type: "shape" });
+    const markup = renderPreview(preview);
+    expect(markup).toContain('data-presentation-type="shape"');
+    expect(markup).toContain("presentation-shape-surface");
+  });
+
+  it("renders generated QR Shape vector markup without the legacy placeholder", () => {
+    const preview = deriveThumbnailPreview(makePresentation({
+      slides: [makeSlide("slide-1", [{
+        id: "qr-shape",
+        type: "shape",
+        hidden: false,
+        geometry: {
+          mode: "generated",
+          generator: "qr-code",
+          config: { value: "https://example.test/thumbnail", errorCorrection: "M", quietZone: 4 },
+        },
+      }])],
+    }));
+
+    const markup = renderPreview(preview);
+    expect(markup).toContain('data-presentation-type="shape"');
+    expect(markup).toContain("presentation-shape-surface");
+    expect(markup).toContain("<path");
+    expect(markup).not.toContain("[qr-code]");
+  });
+
   it("preserves a canonical Image crop in the thumbnail projection and markup", () => {
     const crop = { x: 10, y: 20, width: 60, height: 50 };
     const preview = deriveThumbnailPreview(makePresentation({
@@ -169,6 +216,64 @@ describe("deriveThumbnailPreview", () => {
       .toMatchObject({ id: "default-master-text", content: "Default master" });
     expect(raw).toEqual(before);
     expect((raw.slides as Array<Record<string, unknown>>)[0]?.elements).toEqual([]);
+  });
+
+  it("materializes master and local Root Definition Shapes into the thumbnail projection", () => {
+    const base = makePresentation({ slides: [{ id: "slide-1", elements: [] }] }) as Record<string, unknown>;
+    const preview = deriveThumbnailPreview({
+      ...base,
+      rootDefinitions: [{
+        id: "root-shapes",
+        name: "Shape master",
+        root: {
+          id: "root-shape-container",
+          type: "container",
+          children: [{
+            id: "master-shape",
+            type: "shape",
+            hidden: false,
+            geometry: {
+              mode: "path",
+              viewBox: { x: 0, y: 0, width: 100, height: 100 },
+              commands: [
+                { type: "move", x: 10, y: 10 },
+                { type: "line", x: 90, y: 90 },
+                { type: "line", x: 10, y: 90 },
+                { type: "close" },
+              ],
+            },
+          }, {
+            id: "shape-target",
+            type: "container",
+            children: [],
+          }],
+        },
+        localChildTargetIds: ["shape-target"],
+      }],
+      defaultRootDefinitionId: "root-shapes",
+      slides: [{
+        id: "slide-1",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "shape-target",
+          children: [{
+            id: "local-shape",
+            type: "shape",
+            hidden: false,
+            geometry: {
+              mode: "generated",
+              generator: "triangle",
+              config: { apexX: 50 },
+            },
+          }],
+        }],
+      }],
+    });
+
+    const markup = renderPreview(preview);
+    expect(markup).toContain('data-presentation-id="master-shape"');
+    expect(markup).toContain('data-presentation-id="local-shape"');
+    expect(markup.match(/data-presentation-type="shape"/g)).toHaveLength(2);
   });
 
   it("materializes the explicitly selected Root Definition instead of the default", () => {

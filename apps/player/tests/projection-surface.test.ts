@@ -58,6 +58,43 @@ function animatedPresentation() {
   });
 }
 
+function animatedPlotAndShapePresentation() {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "animated-plot-and-shape-presentation",
+    title: "Animated Plot and Shape presentation",
+    slides: [{
+      id: "animated-slide",
+      elements: [{
+        id: "animated-plot",
+        type: "plot",
+        hidden: false,
+        source: "y = x + t",
+        animation: { parameter: "t", from: 0, to: 10, durationMs: 1000, loop: false },
+      }, {
+        id: "animated-shape",
+        type: "shape",
+        hidden: false,
+        geometry: {
+          mode: "path",
+          viewBox: { x: 0, y: 0, width: 100, height: 100 },
+          commands: [
+            { type: "move", x: 10, y: 10 },
+            { type: "line", x: 90, y: 90 },
+            { type: "line", x: 10, y: 90 },
+            { type: "close" },
+          ],
+        },
+        animation: {
+          durationMs: 1000,
+          loop: false,
+          rotate: { fromDeg: 0, toDeg: 90 },
+        },
+      }],
+    }],
+  });
+}
+
 function stubPlotRaf(): {
   callbacks: Map<number, FrameRequestCallback>;
   request: ReturnType<typeof vi.fn>;
@@ -146,6 +183,23 @@ describe("Projection surface", () => {
     projection.destroy();
   });
 
+  it.each([
+    { animatePlots: true, animateShapes: true, expectedFrames: 2 },
+    { animatePlots: true, animateShapes: false, expectedFrames: 1 },
+    { animatePlots: false, animateShapes: true, expectedFrames: 1 },
+    { animatePlots: false, animateShapes: false, expectedFrames: 0 },
+  ])("hydrates Plot and Shape runtimes independently (%j)", (options) => {
+    const raf = stubPlotRaf();
+    const projection = mountProjectionSurface(root, animatedPlotAndShapePresentation(), {
+      transition: "none",
+      animatePlots: options.animatePlots,
+      animateShapes: options.animateShapes,
+    });
+
+    expect(raf.request).toHaveBeenCalledTimes(options.expectedFrames);
+    projection.destroy();
+  });
+
   it("suppresses Plot playback when reduced motion is requested", () => {
     const raf = stubPlotRaf();
     Object.defineProperty(window, "matchMedia", {
@@ -156,6 +210,21 @@ describe("Projection surface", () => {
 
     expect(raf.request).not.toHaveBeenCalled();
     expect(() => projection.controlPlotAnimation("animated-plot", "play")).not.toThrow();
+    projection.destroy();
+  });
+
+  it("suppresses both Plot and Shape playback when reduced motion is requested", () => {
+    const raf = stubPlotRaf();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    });
+    const projection = mountProjectionSurface(root, animatedPlotAndShapePresentation(), {
+      transition: "none",
+    });
+
+    expect(raf.request).not.toHaveBeenCalled();
+    expect(() => projection.controlShapeAnimation("animated-shape", "play")).not.toThrow();
     projection.destroy();
   });
 
@@ -261,6 +330,103 @@ describe("Projection surface", () => {
     expect(root.querySelector(".player-controls")).toBeNull();
     expect(root.innerHTML).toContain("Slide One");
     expect(projection.getCurrentIndex()).toBe(0);
+
+    projection.destroy();
+  });
+
+  it("renders a generated QR Shape through the Player projection", () => {
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "qr-shape-projection",
+      slides: [{
+        id: "qr-slide",
+        elements: [{
+          id: "qr-shape",
+          type: "shape",
+          hidden: false,
+          geometry: {
+            mode: "generated",
+            generator: "qr-code",
+            config: { value: "https://example.com/player", errorCorrection: "Q", quietZone: 4 },
+          },
+        }],
+      }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+
+    const shape = root.querySelector<HTMLElement>('[data-presentation-type="shape"]');
+    expect(shape).not.toBeNull();
+    expect(shape?.querySelector("svg.presentation-shape-surface path")).not.toBeNull();
+    expect(shape?.innerHTML).not.toContain("[qr-code]");
+
+    projection.destroy();
+  });
+
+  it("materializes a Root-backed animated Shape for Player runtime control", () => {
+    const raf = stubPlotRaf();
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "root-shape-projection",
+      rootDefinitions: [{
+        id: "root-definition",
+        name: "Root Shape",
+        root: {
+          id: "root-container",
+          type: "container",
+          children: [{
+            id: "master-shape",
+            type: "shape",
+            hidden: false,
+            geometry: {
+              mode: "path",
+              viewBox: { x: 0, y: 0, width: 100, height: 100 },
+              commands: [
+                { type: "move", x: 10, y: 10 },
+                { type: "line", x: 90, y: 90 },
+                { type: "line", x: 10, y: 90 },
+                { type: "close" },
+              ],
+            },
+            animation: { durationMs: 1000, loop: false, rotate: { fromDeg: 0, toDeg: 90 } },
+          }, {
+            id: "local-target",
+            type: "container",
+            children: [],
+          }],
+        },
+        localChildTargetIds: ["local-target"],
+      }],
+      slides: [{
+        id: "root-shape-slide",
+        rootDefinitionId: "root-definition",
+        elements: [],
+        localRootChildren: [{
+          targetContainerId: "local-target",
+          children: [{
+            id: "local-shape",
+            type: "shape",
+            hidden: false,
+            geometry: {
+              mode: "generated",
+              generator: "triangle",
+              config: { apexX: 50 },
+            },
+          }],
+        }],
+      }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+
+    expect(root.querySelector('[data-presentation-id="master-shape"]')).not.toBeNull();
+    expect(root.querySelector('[data-presentation-id="local-shape"]')).not.toBeNull();
+    expect(raf.callbacks.size).toBe(1);
+
+    projection.controlShapeAnimation("master-shape", "pause");
+    expect(raf.callbacks.size).toBe(0);
+    projection.controlShapeAnimation("master-shape", "play");
+    expect(raf.callbacks.size).toBe(1);
+    projection.controlShapeAnimation("master-shape", "reset");
+    expect(raf.callbacks.size).toBe(0);
 
     projection.destroy();
   });

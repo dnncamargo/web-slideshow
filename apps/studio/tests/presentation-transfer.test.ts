@@ -100,6 +100,65 @@ function presentation(): Presentation {
   });
 }
 
+function shapeTransferPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "shape-transfer-source",
+    title: "Shape transfer",
+    aspectRatio: "16:9",
+    slides: [{
+      id: "shape-slide",
+      elements: [{
+        id: "authored-path-shape",
+        type: "shape",
+        hidden: false,
+        layout: {
+          position: "absolute",
+          left: 10,
+          top: 20,
+          width: 240,
+          height: 180,
+        },
+        geometry: {
+          mode: "path",
+          viewBox: { x: 0, y: 0, width: 100, height: 100 },
+          commands: [
+            { type: "move", x: 10, y: 10 },
+            { type: "line", x: 90, y: 10 },
+            { type: "line", x: 50, y: 90 },
+            { type: "close" },
+          ],
+          fillRule: "evenodd",
+        },
+        style: {
+          fill: { type: "color", color: "#123456" },
+          stroke: { width: 2, style: "dashed", color: "#ffffff" },
+        },
+        effect: { opacity: 0.75 },
+        link: { kind: "url", href: "https://example.test/shape", target: "_blank" },
+        animation: {
+          durationMs: 900,
+          loop: false,
+          rotate: { fromDeg: 0, toDeg: 45 },
+        },
+      }, {
+        id: "authored-qr-shape",
+        type: "shape",
+        hidden: false,
+        geometry: {
+          mode: "generated",
+          generator: "qr-code",
+          config: {
+            value: "https://example.test/watch",
+            errorCorrection: "Q",
+            quietZone: 6,
+          },
+        },
+      }],
+    }],
+  });
+}
+
 function exportedPresentation(source: Presentation): Record<string, unknown> {
   return JSON.parse(serializePresentationForExport(source)) as Record<string, unknown>;
 }
@@ -317,6 +376,56 @@ describe("canonical presentation transfer", () => {
     expect(exported).not.toHaveProperty("document");
     expect(parsePresentationImport(json)).toEqual(source);
     expect(json.endsWith("\n")).toBe(true);
+  });
+
+  it("round-trips canonical path and generated QR Shapes without derived geometry", () => {
+    const source = shapeTransferPresentation();
+    const restored = parsePresentationImport(serializePresentationForExport(source));
+    const elements = restored.slides[0]?.elements ?? [];
+    const path = elements.find((element) => element.id === "authored-path-shape");
+    const qr = elements.find((element) => element.id === "authored-qr-shape");
+
+    expect(path).toEqual(source.slides[0]?.elements[0]);
+    expect(qr).toEqual(source.slides[0]?.elements[1]);
+    expect(serializePresentationForExport(source)).not.toContain("modules");
+    expect(serializePresentationForExport(source)).not.toContain("generatedPath");
+  });
+
+  it("normalizes imported Shape IDs deterministically while preserving Shape semantics", () => {
+    const source = shapeTransferPresentation();
+    const imported = normalizeImportedPresentation(source);
+    const elements = imported.slides[0]?.elements ?? [];
+    const path = elements[0];
+    const qr = elements[1];
+    const sourcePath = source.slides[0]?.elements[0];
+
+    if (sourcePath?.type !== "shape") {
+      throw new Error("Expected a canonical path Shape fixture.");
+    }
+
+    expect(path?.id).toBe("shape-1");
+    expect(qr?.id).toBe("shape-2");
+    expect(path).toMatchObject({
+      type: "shape",
+      layout: sourcePath.layout,
+      geometry: sourcePath.geometry,
+      style: sourcePath.style,
+      effect: sourcePath.effect,
+      link: sourcePath.link,
+      animation: sourcePath.animation,
+    });
+    expect(qr).toMatchObject({
+      type: "shape",
+      geometry: {
+        mode: "generated",
+        generator: "qr-code",
+        config: {
+          value: "https://example.test/watch",
+          errorCorrection: "Q",
+          quietZone: 6,
+        },
+      },
+    });
   });
 
   it("preserves current canonical content, nested ids, resources, palette, and authored strings", () => {
