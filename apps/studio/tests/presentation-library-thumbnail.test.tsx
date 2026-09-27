@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -270,7 +270,50 @@ describe("presentation thumbnail preview", () => {
     expect(container.querySelector('[data-presentation-type="text"]')).not.toBeNull();
   });
 
-  it("hydrates an already-loaded cropped Image after the thumbnail scale rerender", () => {
+  it("preserves cropped Image hydration across an ordinary unchanged preview rerender", () => {
+    const preview = previewData(croppedImageSlide("slide-1"));
+
+    function RerenderHarness() {
+      const [, setRevision] = useState(0);
+
+      return (
+        <>
+          <button type="button" onClick={() => setRevision((revision) => revision + 1)}>
+            Rerender
+          </button>
+          <PresentationThumbnailPreview preview={preview} />
+        </>
+      );
+    }
+
+    renderNode(<RerenderHarness />);
+
+    const initialImageRoot = container.querySelector<HTMLElement>(
+      "[data-presentation-image-crop]",
+    );
+    const initialCropLoadListener = (
+      initialImageRoot as (HTMLElement & { __cropLoadListener?: EventListener }) | null
+    )?.__cropLoadListener;
+
+    expect(initialImageRoot).not.toBeNull();
+    expect(initialCropLoadListener).toBeDefined();
+
+    act(() => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+    });
+
+    const currentImageRoot = container.querySelector<HTMLElement>(
+      "[data-presentation-image-crop]",
+    );
+    const currentCropLoadListener = (
+      currentImageRoot as (HTMLElement & { __cropLoadListener?: EventListener }) | null
+    )?.__cropLoadListener;
+
+    expect(currentImageRoot).toBe(initialImageRoot);
+    expect(currentCropLoadListener).toBeDefined();
+  });
+
+  it("hydrates an already-loaded cropped Image in a scaled thumbnail", () => {
     const originalNaturalWidth = Object.getOwnPropertyDescriptor(
       HTMLImageElement.prototype,
       "naturalWidth",
@@ -299,9 +342,7 @@ describe("presentation thumbnail preview", () => {
       }
 
       if (this.dataset.presentationImageCrop !== undefined) {
-        const stage = this.closest<HTMLElement>("[data-presentation-thumbnail-stage]");
-        const isMeasured = stage?.style.transform !== "scale(0)";
-        return { width: isMeasured ? 640 : 0, height: isMeasured ? 360 : 0 } as DOMRect;
+        return { width: 640, height: 360 } as DOMRect;
       }
 
       return { width: 0, height: 0 } as DOMRect;
@@ -342,7 +383,7 @@ describe("presentation thumbnail preview", () => {
     }
   });
 
-  it("rehydrates cropped Image geometry after a thumbnail ResizeObserver rescale", () => {
+  it("keeps cropped Image geometry when a thumbnail ResizeObserver rescales", () => {
     const originalNaturalWidth = Object.getOwnPropertyDescriptor(
       HTMLImageElement.prototype,
       "naturalWidth",
@@ -374,9 +415,7 @@ describe("presentation thumbnail preview", () => {
       }
 
       if (this.dataset.presentationImageCrop !== undefined) {
-        const stage = this.closest<HTMLElement>("[data-presentation-thumbnail-stage]");
-        const isMeasured = stage?.style.transform !== "scale(0)";
-        return { width: isMeasured ? 640 : 0, height: isMeasured ? 360 : 0 } as DOMRect;
+        return { width: 640, height: 360 } as DOMRect;
       }
 
       return { width: 0, height: 0 } as DOMRect;
