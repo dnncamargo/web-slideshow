@@ -19,7 +19,7 @@ import type { CreateQrCodeFromLink } from "../inspector-types";
 
 type LinkableElement = Extract<
   PresentationElement,
-  { type: "text" | "image" | "container" }
+  { type: "text" | "image" | "container" | "shape" }
 >;
 
 type OpenInSelection = "same" | "new";
@@ -40,7 +40,8 @@ function isLinkableElement(
   return (
     element.type === "text" ||
     element.type === "image" ||
-    element.type === "container"
+    element.type === "container" ||
+    element.type === "shape"
   );
 }
 

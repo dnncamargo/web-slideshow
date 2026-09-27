@@ -17,6 +17,8 @@ import {
   SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
   SYSTEM_TOPICS_TEXT_STYLE_ID,
 } from "@web-slideshow/document-schema";
+
+import { DEFAULT_SHAPE_FILL_COLOR } from "./shape-defaults";
 import { displayName } from "@web-slideshow/instance-branding";
 
 import {
@@ -999,7 +1001,7 @@ export function createElement(
         style: {
           fill: {
             type: "color",
-            color: "#22d3ee",
+            color: DEFAULT_SHAPE_FILL_COLOR,
           },
         },
       };
