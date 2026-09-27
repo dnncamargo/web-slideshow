@@ -3114,6 +3114,10 @@ export function EditorWorkspace({
       contentSlotId: contentSlotId ?? null,
     });
 
+    if (target.closest('[data-presentation-checkbox="true"]')) {
+      return;
+    }
+
     const draggable =
       selection.documentElement.type === "container"
         ? isContainerCanvasDraggable(selection.documentElement)
