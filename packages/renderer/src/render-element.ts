@@ -8,6 +8,7 @@ import { renderGallery } from "./render-gallery";
 import { renderEmbed } from "./render-embed";
 import { renderBlocks } from "./render-blocks";
 import { renderScripted } from "./render-scripted";
+import { renderShape } from "./render-shape";
 
 import type {
   ElementLink,
@@ -387,6 +388,9 @@ export function renderElement(
 
     case "interactive":
       return renderPlaceholder(element);
+
+    case "shape":
+      return renderShape(element);
 
     default:
       return assertNever(element);

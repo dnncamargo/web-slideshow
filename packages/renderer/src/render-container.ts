@@ -316,7 +316,7 @@ function hasAbsoluteChild(
         : child.layout?.position === "absolute";
     }
 
-    if (child.type === "text" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics" || child.type === "plot" || child.type === "interactive") {
+    if (child.type === "text" || child.type === "image" || child.type === "gallery" || child.type === "embed" || child.type === "scripted" || child.type === "code" || child.type === "terminal" || child.type === "table" || child.type === "blocks" || child.type === "divider" || child.type === "topics" || child.type === "plot" || child.type === "interactive" || child.type === "shape") {
       return child.layout?.position === "absolute";
     }
 
