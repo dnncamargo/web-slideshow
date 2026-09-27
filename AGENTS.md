@@ -159,6 +159,7 @@ Presentation
         ├── terminal
         ├── table
         ├── plot
+        ├── shape
         ├── interactive
         ├── divider
         ├── embed
@@ -170,7 +171,7 @@ Presentation
 ```
 
 The canonical element union is `text`, `image`, `gallery`, `code`, `terminal`,
-`table`, `plot`, `interactive`, `divider`, `embed`, `blocks`, `scripted`,
+`table`, `plot`, `shape`, `interactive`, `divider`, `embed`, `blocks`, `scripted`,
 `topics`, and `container`. `chart` and `textbox` are not canonical elements.
 
 The document schema is an architectural contract.
