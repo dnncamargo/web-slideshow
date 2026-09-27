@@ -190,6 +190,98 @@ describe("renderElement topics support", () => {
     expect(html).toContain("<ol ");
   });
 
+  it("renders checkbox Topics as an unordered list with one native input per item", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "checkbox-topics",
+        kind: "checkbox",
+        items: [
+          topicItem({
+            id: "checkbox-parent",
+            children: [topicItem({ id: "checkbox-child" })],
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain('<ul class="presentation-element presentation-topics presentation-topics-checkbox"');
+    expect(html).not.toContain("<ol ");
+    expect(countOccurrences(html, 'type="checkbox"')).toBe(2);
+    expect(countOccurrences(html, 'data-presentation-checkbox="true"')).toBe(2);
+  });
+
+  it.each([
+    [undefined, "two-state"],
+    ["two-state", "two-state"],
+    ["three-state", "three-state"],
+  ] as const)("exposes effective checkbox mode %s as %s", (checkboxMode, effectiveMode) => {
+    const html = renderElement(
+      topicsElement({
+        id: `checkbox-${effectiveMode}`,
+        kind: "checkbox",
+        checkboxMode,
+        items: [topicItem()],
+      }),
+    );
+
+    expect(html).toContain(`data-presentation-checkbox-mode="${effectiveMode}"`);
+  });
+
+  it("renders checkbox markup when kind comes from a linked Topics style", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ target: "topics", id: "checkbox-style", name: "Checkbox", kind: "checkbox" }],
+      slides: [{ id: "s", title: "S", elements: [
+        topicsElement({ id: "linked-checkbox", kind: undefined, linkedStyleId: "checkbox-style", items: [topicItem()] }),
+      ] }],
+    });
+
+    const html = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
+
+    expect(html).toContain("<ul ");
+    expect(html).toContain('data-presentation-checkbox-mode="two-state"');
+  });
+
+  it("keeps local checkboxMode effective over a linked checkbox kind", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ target: "topics", id: "checkbox-style", name: "Checkbox", kind: "checkbox" }],
+      slides: [{ id: "s", title: "S", elements: [
+        topicsElement({
+          id: "linked-checkbox-three-state",
+          kind: undefined,
+          linkedStyleId: "checkbox-style",
+          checkboxMode: "three-state",
+          items: [topicItem()],
+        }),
+      ] }],
+    });
+
+    const html = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
+
+    expect(html).toContain('data-presentation-checkbox-mode="three-state"');
+  });
+
+  it("keeps authored marker properties without restoring list markers in checkbox mode", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "checkbox-markers",
+        kind: "checkbox",
+        rootMarkerStyle: "circle",
+        markerColor: "#22d3ee",
+        items: [topicItem()],
+      }),
+    );
+
+    expect(html).toContain("--presentation-topic-marker-style:none");
+    expect(html).toContain("--presentation-topic-marker-color:#22d3ee");
+    expect(html).not.toContain("--presentation-topic-marker-style:circle");
+  });
+
   it("renders an explicit itemGap as a CSS custom property", () => {
     const html = renderElement(
       topicsElement({
@@ -363,6 +455,19 @@ describe("renderElement topics support", () => {
     expect(html).toContain("</ul>");
   });
 
+  it("renders an empty checkbox list without checkbox inputs", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "empty-checkbox-topics",
+        kind: "checkbox",
+      }),
+    );
+
+    expect(html).toContain("<ul ");
+    expect(html).not.toContain("<input ");
+    expect(html).toContain("</ul>");
+  });
+
   it("renders nothing when hidden", () => {
     expect(
       renderElement(
@@ -462,6 +567,26 @@ describe("renderElement topics support", () => {
       ),
     ).toBe(1);
     expect(html).not.toContain('data-presentation-id="slot-direct"');
+  });
+
+  it("places checkbox input before ContentSlot children", () => {
+    const html = renderElement(
+      topicsElement({
+        id: "checkbox-content-order",
+        kind: "checkbox",
+        items: [
+          topicItem({
+            content: {
+              id: "slot-checkbox-content-order",
+              children: [textElement({ id: "checkbox-content", content: "Checkbox content" })],
+            },
+          }),
+        ],
+      }),
+    );
+
+    expect(html.indexOf('type="checkbox"')).toBeLessThan(html.indexOf("Checkbox content"));
+    expect(html).toMatch(/<li[^>]*><input [^>]+><p /);
   });
 
   it("preserves child order", () => {

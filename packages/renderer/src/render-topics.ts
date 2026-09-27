@@ -18,6 +18,8 @@ type RenderChild = (element: PresentationElement) => string;
 type TopicsListContext = {
   kind: NonNullable<TopicsElement["kind"]>;
 
+  checkboxMode: NonNullable<TopicsElement["checkboxMode"]>;
+
   rootMarkerStyle: TopicMarkerStyle | undefined;
 };
 
@@ -63,6 +65,10 @@ export function resolveTopicMarkerStyle(
   depth: number,
 ): TopicMarkerStyle {
   if (rootMarkerStyle === "none") {
+    return "none";
+  }
+
+  if (kind === "checkbox") {
     return "none";
   }
 
@@ -148,6 +154,10 @@ function renderTopicListTag(
   return kind === "ordered" ? "ol" : "ul";
 }
 
+function renderTopicCheckbox(mode: NonNullable<TopicsElement["checkboxMode"]>): string {
+  return `<input class="presentation-checkbox" type="checkbox" data-presentation-checkbox="true" data-presentation-checkbox-mode="${mode}">`;
+}
+
 function renderTopicItem(
   item: TopicItem,
   context: TopicsListContext,
@@ -176,12 +186,16 @@ function renderTopicItem(
     .map(renderChild)
     .join("");
 
+  const checkbox = context.kind === "checkbox"
+    ? renderTopicCheckbox(context.checkboxMode)
+    : "";
+
   const nested =
     item.children.length > 0
       ? renderTopicList(item.children, context, depth + 1, renderChild)
       : "";
 
-  return `<li ${attributes}>${content}${nested}</li>`;
+  return `<li ${attributes}>${checkbox}${content}${nested}</li>`;
 }
 
 function renderTopicList(
@@ -192,6 +206,10 @@ function renderTopicList(
 ): string {
   const tag = renderTopicListTag(context.kind);
   const classes = ["presentation-topics"];
+
+  if (context.kind === "checkbox") {
+    classes.push("presentation-topics-checkbox");
+  }
 
   const markerStyle = resolveTopicMarkerStyle(
     context.kind,
@@ -238,6 +256,10 @@ export function renderTopics(
 
   const classes = ["presentation-element", "presentation-topics"];
 
+  if (effectiveKind === "checkbox") {
+    classes.push("presentation-topics-checkbox");
+  }
+
   const customClass = renderedElement.style?.className?.trim();
 
   if (customClass) {
@@ -258,6 +280,7 @@ export function renderTopics(
   const context: TopicsListContext = {
     kind: effectiveKind,
     rootMarkerStyle: renderedElement.rootMarkerStyle,
+    checkboxMode: renderedElement.checkboxMode ?? "two-state",
   };
 
   const items = renderedElement.items
