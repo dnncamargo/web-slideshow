@@ -263,6 +263,8 @@ The authored API is `ScriptedRuntime.ports`, independent of the instance display
 
 Canonical authored state remains self-contained in the Presentation and includes declared `ports` in addition to `title`, `html`, `css` and `script`. Ports are explicit capabilities, not introspection of arbitrary authored JavaScript.
 
+Authored code may call `ScriptedRuntime.ports.list()` to receive the element's declared ports in canonical order as read-only descriptors. This lets reusable Scripted elements adapt to their declared capabilities without exposing mutable runtime state.
+
 Supported runtime semantics include:
 
 - action ports;

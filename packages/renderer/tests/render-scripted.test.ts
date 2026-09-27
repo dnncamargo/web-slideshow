@@ -115,6 +115,86 @@ function extractBootstrap(srcdoc: string): string {
   return match![1]!;
 }
 
+type ScriptedPortDescriptor = {
+  id: string;
+  label: string;
+  kind: "action" | "boolean" | "number";
+  direction?: "input" | "output" | "input-output";
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+type ScriptedRuntimeTestWindow = {
+  ScriptedRuntime: {
+    ports: {
+      list(): ReadonlyArray<ScriptedPortDescriptor>;
+      onAction(id: string, handler: () => void): void;
+      onInput(id: string, handler: (value: boolean | number) => void): void;
+      report(id: string, value: boolean | number): void;
+    };
+  };
+};
+
+type ScriptedMessageEvent = {
+  source: unknown;
+  data: unknown;
+};
+
+function executeScriptedBootstrap(element: ScriptedElement): {
+  context: ReturnType<typeof createContext>;
+  errors: unknown[];
+  listener: ((event: ScriptedMessageEvent) => void) | undefined;
+  messageSource: unknown;
+  reports: unknown[];
+  runtimeWindow: ScriptedRuntimeTestWindow;
+} {
+  const srcdoc = extractSrcdoc(renderScripted(element));
+  const reports: unknown[] = [];
+  const errors: unknown[] = [];
+  const root = { innerHTML: "" };
+  let listener: ((event: ScriptedMessageEvent) => void) | undefined;
+  const messageSource = {
+    postMessage: (message: unknown) => reports.push(message),
+  };
+  const payload = {
+    getAttribute: (name: string) => JSON.stringify(recoverPayload(srcdoc, name.slice(5))),
+    remove() {},
+  };
+  const sandbox: Record<string, unknown> = {
+    parent: messageSource,
+    addEventListener(type: string, handler: (event: ScriptedMessageEvent) => void) {
+      if (type === "message") {
+        listener = handler;
+      }
+    },
+  };
+  sandbox.window = sandbox;
+  const context = createContext(sandbox);
+  sandbox.document = {
+    getElementById: (id: string) => id === "scripted-runtime-payload" ? payload : root,
+    createElement: () => ({ textContent: "" }),
+    head: { appendChild() {} },
+    body: {
+      appendChild(node: { textContent: string }) {
+        expect(node.textContent).toBe(element.script);
+        try { runInContext(node.textContent, context); } catch (error) { errors.push(error); }
+      },
+    },
+  };
+
+  runInContext(extractBootstrap(srcdoc), context);
+
+  return {
+    context,
+    errors,
+    listener,
+    messageSource,
+    reports,
+    runtimeWindow: sandbox as unknown as ScriptedRuntimeTestWindow,
+  };
+}
+
 describe("renderScripted", () => {
   it("renders gradient borders on an outer frame with the iframe as the runtime target", () => {
     const html = renderScripted(scripted({
@@ -689,6 +769,7 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
 
     expect(apiIndex).toBeGreaterThan(-1);
     expect(authoredScriptIndex).toBeGreaterThan(apiIndex);
+    expect(srcdoc).toContain("list: list");
     expect(srcdoc).toContain("onAction: onAction");
     expect(srcdoc).toContain("onInput: onInput");
     expect(srcdoc).toContain("report: report");
@@ -699,35 +780,8 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
   ])("preserves and executes %s", (_label, script, works) => {
     const element = scripted({ ports, script: `// café\r\n  ${script}\r\n` });
     const original = JSON.stringify(element);
-    const srcdoc = extractSrcdoc(renderScripted(element));
-    const reports: unknown[] = [];
-    const errors: unknown[] = [];
-    const root = { innerHTML: "" };
-    const payload = {
-      getAttribute: (name: string) => JSON.stringify(recoverPayload(srcdoc, name.slice(5))),
-      remove() {},
-    };
-    const sandbox: Record<string, unknown> = {
-      parent: { postMessage: (message: unknown) => reports.push(message) },
-      addEventListener() {},
-    };
-    sandbox.window = sandbox;
-    const context = createContext(sandbox);
-    sandbox.document = {
-      getElementById: (id: string) => id === "scripted-runtime-payload" ? payload : root,
-      createElement: () => ({ textContent: "" }),
-      head: { appendChild() {} },
-      body: {
-        appendChild(node: { textContent: string }) {
-          expect(node.textContent).toBe(element.script);
-          try { runInContext(node.textContent, context); } catch (error) { errors.push(error); }
-        },
-      },
-    };
+    const { context, errors, reports } = executeScriptedBootstrap(element);
 
-    runInContext(extractBootstrap(srcdoc), context);
-
-    expect(recoverPayload(srcdoc, "script")).toBe(element.script);
     expect(JSON.stringify(element)).toBe(original);
     expect(runInContext("typeof ScriptedRuntime.ports.report", context)).toBe("function");
     expect(errors).toHaveLength(works ? 0 : 1);
@@ -735,6 +789,65 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
     expect(reports).toEqual(works ? [{
       type: "scripted:report", elementId: element.id, portId: "current", value: 17.25,
     }] : []);
+  });
+
+  it("lists detached frozen declared-port descriptors before authored code runs", () => {
+    const element = scripted({
+      ports,
+      script: [
+        "var declared = ScriptedRuntime.ports.list();",
+        "if (!Object.isFrozen(declared) || declared.length !== 3 || !declared.every(Object.isFrozen)) { throw new Error('invalid declared ports snapshot'); }",
+        "try { declared.push({ id: 'injected', label: 'Injected', kind: 'action' }); } catch (_error) {}",
+        "try { declared[0].label = 'Renamed'; declared[0].kind = 'number'; } catch (_error) {}",
+        "try { declared[1].direction = 'output'; } catch (_error) {}",
+        "try { declared[2].min = -100; declared[2].max = 1000; declared[2].step = 1; } catch (_error) {}",
+        "window.actionAccepted = false; window.inputAccepted = false;",
+        "ScriptedRuntime.ports.onAction('scroll-up', function () { window.actionAccepted = true; });",
+        "ScriptedRuntime.ports.onInput('closed', function (value) { window.inputAccepted = value; });",
+        "ScriptedRuntime.ports.report('current', 17.25);",
+      ].join("\n"),
+    });
+    const { context, errors, listener, messageSource, reports, runtimeWindow } = executeScriptedBootstrap(element);
+    const listed = runtimeWindow.ScriptedRuntime.ports.list();
+
+    expect(errors).toHaveLength(0);
+    expect(listener).toBeDefined();
+    listener!({
+      source: messageSource,
+      data: { type: "scripted:action", elementId: element.id, portId: "scroll-up" },
+    });
+    listener!({
+      source: messageSource,
+      data: { type: "scripted:input", elementId: element.id, portId: "closed", value: true },
+    });
+    expect(listed).toEqual(ports);
+    expect(Object.isFrozen(listed)).toBe(true);
+    expect(listed).not.toBe(ports);
+    expect(listed.every((port, index) => port !== ports[index])).toBe(true);
+    expect(Object.keys(listed[0]!)).toEqual(["id", "label", "kind"]);
+    expect(Object.keys(listed[1]!)).toEqual(["id", "label", "kind", "direction"]);
+    expect(Object.keys(listed[2]!)).toEqual(["id", "label", "kind", "direction", "min", "max", "step"]);
+    expect(listed.every((port) => Object.isFrozen(port))).toBe(true);
+    expect(runInContext("window.actionAccepted", context)).toBe(true);
+    expect(runInContext("window.inputAccepted", context)).toBe(true);
+    expect(reports).toEqual([{
+      type: "scripted:report", elementId: element.id, portId: "current", value: 17.25,
+    }]);
+  });
+
+  it("returns a frozen empty array when no ports are declared", () => {
+    const element = scripted({
+      ports: [],
+      script: [
+        "var declared = ScriptedRuntime.ports.list();",
+        "if (!Array.isArray(declared) || declared.length !== 0 || !Object.isFrozen(declared)) { throw new Error('invalid empty declared ports snapshot'); }",
+      ].join("\n"),
+    });
+    const { errors, runtimeWindow } = executeScriptedBootstrap(element);
+
+    expect(errors).toHaveLength(0);
+    expect(runtimeWindow.ScriptedRuntime.ports.list()).toEqual([]);
+    expect(Object.isFrozen(runtimeWindow.ScriptedRuntime.ports.list())).toBe(true);
   });
 
   it("uses the exact three Scripted message types", () => {
@@ -844,20 +957,15 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
 
     expect(listener).toBeDefined();
 
-    const runtimeWindow = sandboxWindow as typeof sandboxWindow & {
-      ScriptedRuntime: {
-        ports: {
-          onAction(id: string, handler: () => void): void;
-          onInput(id: string, handler: (value: boolean | number) => void): void;
-          report(id: string, value: boolean | number): void;
-        };
-      };
-    };
+    const runtimeWindow = sandboxWindow as typeof sandboxWindow & ScriptedRuntimeTestWindow;
     let actionCount = 0;
     const inputs: Array<boolean | number> = [];
 
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime)).toBe(true);
     expect(Object.isFrozen(runtimeWindow.ScriptedRuntime.ports)).toBe(true);
+    expect(Object.keys(runtimeWindow.ScriptedRuntime.ports)).toEqual([
+      "list", "onAction", "onInput", "report",
+    ]);
 
     runtimeWindow.ScriptedRuntime.ports.onAction("scroll-up", () => {
       actionCount += 1;
