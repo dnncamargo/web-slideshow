@@ -34,7 +34,7 @@ const ELEMENT_CREATE_TYPE_FLAGS = {
   blocks: true,
   scripted: true,
   plot: true,
-} satisfies Record<ElementCreateType, true>;
+} satisfies Partial<Record<ElementCreateType, true>>;
 
 const FORBIDDEN_PATH_SEGMENTS = new Set([
   "__proto__",

@@ -417,7 +417,8 @@ function isRootDefinitionGenericInspectorElement(element: PresentationElement): 
     || element.type === "scripted"
     || element.type === "blocks"
     || element.type === "topics"
-    || element.type === "table";
+    || element.type === "table"
+    || element.type === "shape";
 }
 
 type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
@@ -2530,7 +2531,7 @@ export function EditorWorkspace({
             ? isContainerCanvasDraggable(documentElement)
             : documentElement.type === "text"
               ? documentElement.layout?.position === "absolute"
-              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
+              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks" || documentElement.type === "shape"
                 ? documentElement.layout?.position === "absolute"
               : documentElement.type === "divider" || documentElement.type === "topics" || documentElement.type === "plot" || documentElement.type === "interactive"
                   ? documentElement.layout?.position === "absolute"
@@ -3123,7 +3124,7 @@ export function EditorWorkspace({
         ? isContainerCanvasDraggable(selection.documentElement)
         : selection.documentElement.type === "text"
           ? selection.documentElement.layout?.position === "absolute"
-        : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
+          : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "shape"
             ? selection.documentElement.layout?.position === "absolute"
           : selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive"
             ? selection.documentElement.layout?.position === "absolute"
@@ -3185,7 +3186,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive" || selection.documentElement.type === "shape") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -3316,7 +3317,7 @@ export function EditorWorkspace({
               ? updateCanonicalImageForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
               : currentElement;
           }
-          if (currentElement.type === "gallery" || currentElement.type === "embed" || currentElement.type === "scripted" || currentElement.type === "code" || currentElement.type === "terminal" || currentElement.type === "table" || currentElement.type === "blocks") {
+          if (currentElement.type === "gallery" || currentElement.type === "embed" || currentElement.type === "scripted" || currentElement.type === "code" || currentElement.type === "terminal" || currentElement.type === "table" || currentElement.type === "blocks" || currentElement.type === "shape") {
             return drag.canonicalTextGeometry
               ? updateCanonicalSurfaceForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
               : currentElement;
@@ -3547,7 +3548,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot") {
+    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot" || selectedDocumentElement.type === "shape") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -3776,7 +3777,8 @@ export function EditorWorkspace({
               element.type === "terminal" ||
               element.type === "table" ||
               element.type === "blocks" ||
-              element.type === "plot"
+              element.type === "plot" ||
+              element.type === "shape"
             ) {
               nextElement = resize.canonicalTextResizeGeometry
                 ? updateSurfaceForCanvasResize(

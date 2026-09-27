@@ -240,6 +240,24 @@ describe("CP4D1A element Add and Duplicate history", () => {
     expect(container.querySelector('[data-presentation-id="image-element-2"]')).not.toBeNull();
   });
 
+  it("creates Shape through the canonical selector at the slide root and inside a Container", async () => {
+    await mount();
+
+    expect(Array.from(crudSelect().options, (option) => option.value)).toContain("shape");
+
+    await add("shape");
+    expect(container.querySelector('[data-presentation-id="shape-element"]')).not.toBeNull();
+    expect(historyState.commitHistory).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { kind: "element.add", labelKey: "history.element.add", labelParams: { elementType: "shape" } },
+    );
+
+    await selectElement("container-1");
+    await add("shape");
+    expect(container.querySelector('[data-presentation-id="shape-element-2"]')).not.toBeNull();
+  });
+
   it("duplicates ordinary elements with one action and restores the exact ID on redo", async () => {
     await mount();
     await selectElement("image-1");

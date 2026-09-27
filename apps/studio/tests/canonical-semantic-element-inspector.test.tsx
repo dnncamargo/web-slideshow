@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PlotElement, InteractiveElement, PresentationElement, StructuredTableElement } from "@web-slideshow/document-schema";
+import type { PlotElement, InteractiveElement, PresentationElement, ShapeElement, StructuredTableElement } from "@web-slideshow/document-schema";
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import type { TableAuthoringControls, TopicsAuthoringControls } from "../src/features/editor/inspector/inspector-types";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -24,7 +24,7 @@ describe("canonical semantic element inspector", () => {
   beforeEach(() => { container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); });
   afterEach(async () => { await act(async () => root.unmount()); document.body.innerHTML = ""; });
 
-  async function renderElement(initial: PlotElement | InteractiveElement) {
+  async function renderElement(initial: PlotElement | InteractiveElement | ShapeElement) {
     let element: PresentationElement = initial;
     const renderInspector = () => root.render(
       <StudioI18nProvider>
@@ -181,6 +181,76 @@ describe("canonical semantic element inspector", () => {
       (heightReset as HTMLButtonElement).click();
     });
     expect(element()).toHaveProperty("layout", { position: "absolute" });
+  });
+
+  it("authors Shape geometry presets, structural values, size, and placement", async () => {
+    const { element } = await renderElement({
+      id: "shape-1",
+      type: "shape",
+      hidden: false,
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+      layout: { width: 240, height: 160 },
+      style: { fill: { type: "color", color: "#22d3ee" } },
+    });
+
+    expect(container.querySelector("#shape-geometry-preset")).not.toBeNull();
+    expect(container.querySelector("#shape-apex-x")).not.toBeNull();
+    expect(container.querySelector("#element-width")).not.toBeNull();
+    expect(container.querySelector("#element-canonical-position-mode")).not.toBeNull();
+
+    await act(async () => {
+      const preset = container.querySelector<HTMLSelectElement>("#shape-geometry-preset")!;
+      preset.value = "star";
+      preset.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(element()).toMatchObject({ geometry: { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 0.45 } } });
+    expect(element()).toMatchObject({ id: "shape-1", layout: { width: 240, height: 160 }, style: { fill: { color: "#22d3ee" } } });
+
+    await act(async () => {
+      const preset = container.querySelector<HTMLSelectElement>("#shape-geometry-preset")!;
+      preset.value = "polygon";
+      preset.dispatchEvent(new Event("change", { bubbles: true }));
+      const points = container.querySelector<HTMLInputElement>("#shape-polygon-points")!;
+      points.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(points, "8");
+      points.dispatchEvent(new Event("input", { bubbles: true }));
+      points.dispatchEvent(new Event("focusout", { bubbles: true }));
+    });
+    expect(element()).toHaveProperty("geometry.config.points", 8);
+
+    await act(async () => {
+      const points = container.querySelector<HTMLInputElement>("#shape-polygon-points")!;
+      points.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(points, "2");
+      points.dispatchEvent(new Event("input", { bubbles: true }));
+      points.dispatchEvent(new Event("focusout", { bubbles: true }));
+    });
+    expect(element()).toHaveProperty("geometry.config.points", 8);
+
+    await act(async () => {
+      const mode = container.querySelector<HTMLSelectElement>("#element-canonical-position-mode")!;
+      mode.value = "absolute";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+      const left = container.querySelector<HTMLInputElement>("#element-canonical-left")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(left, "24");
+      left.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(element()).toHaveProperty("layout.left", 24);
+  });
+
+  it("shows existing QR Shape geometry without exposing QR editing", async () => {
+    await renderElement({
+      id: "shape-qr",
+      type: "shape",
+      hidden: false,
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "https://example.com", errorCorrection: "M", quietZone: 4 } },
+    });
+
+    const preset = container.querySelector<HTMLSelectElement>("#shape-geometry-preset");
+    expect(preset?.value).toBe("qr-code");
+    expect(preset?.disabled).toBe(true);
+    expect(container.querySelector("#shape-polygon-points")).toBeNull();
+    expect(container.textContent).toContain("QR Code");
   });
 
   it("Interactive remains unsupported and uses only canonical positioning", async () => {

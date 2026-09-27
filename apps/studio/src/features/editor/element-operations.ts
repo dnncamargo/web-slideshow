@@ -46,6 +46,7 @@ import {
 
 export type ElementCreateType =
   | "text"
+  | "shape"
   | "container"
   | "image"
   | "code"
@@ -967,6 +968,40 @@ export function createElement(
         style: { background: { color: "rgba(15, 23, 42, 0.55)" } },
 
         children: [],
+      };
+    }
+
+    case "shape": {
+      return {
+        id: createUniqueId("shape-element", usedIds),
+
+        type: "shape",
+
+        hidden: false,
+
+        geometry: {
+          mode: "path",
+          viewBox: { x: 0, y: 0, width: 100, height: 100 },
+          commands: [
+            { type: "move", x: 0, y: 0 },
+            { type: "line", x: 100, y: 0 },
+            { type: "line", x: 100, y: 100 },
+            { type: "line", x: 0, y: 100 },
+            { type: "close" },
+          ],
+        },
+
+        layout: {
+          width: 240,
+          height: 160,
+        },
+
+        style: {
+          fill: {
+            type: "color",
+            color: "#22d3ee",
+          },
+        },
       };
     }
 

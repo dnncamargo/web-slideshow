@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlotElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, TextElement } from "@web-slideshow/document-schema";
+import type { PlotElement, EmbedElement, GalleryElement, ImageElement, InteractiveElement, ScriptedElement, ShapeElement, TextElement } from "@web-slideshow/document-schema";
 import {
   updateCanonicalElementForCanvasDrag,
   updateCanonicalTextForCanvasDrag,
@@ -31,10 +31,11 @@ function image(layout?: ImageElement["layout"]): ImageElement {
   return { type: "image", id: "image-1", hidden: false, src: "/image.png", alt: "", fit: "contain", layout };
 }
 
-function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedElement["type"] | PlotElement["type"], layout?: GalleryElement["layout"]): GalleryElement | EmbedElement | ScriptedElement | PlotElement {
+function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedElement["type"] | PlotElement["type"] | ShapeElement["type"], layout?: GalleryElement["layout"]): GalleryElement | EmbedElement | ScriptedElement | PlotElement | ShapeElement {
   if (type === "gallery") return { type, id: "gallery-1", hidden: false, items: [], fit: "contain", layout };
   if (type === "embed") return { type, id: "embed-1", hidden: false, src: "https://example.com/", title: "Embed", layout };
   if (type === "plot") return { type, id: "plot-1", hidden: false, source: "x", layout };
+  if (type === "shape") return { type, id: "shape-1", hidden: false, geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } }, layout };
   return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", ports: [], layout };
 }
 
@@ -216,7 +217,7 @@ describe("canonical Image canvas geometry", () => {
 });
 
 describe("canonical surface canvas geometry", () => {
-  it.each(["gallery", "embed", "scripted", "plot"] as const)("routes %s through canonical drag and resize", (type) => {
+  it.each(["gallery", "embed", "scripted", "plot", "shape"] as const)("routes %s through canonical drag and resize", (type) => {
     const absolute = surface(type, { position: "absolute", left: 20, top: 30, width: 200, height: 150 });
     const dragged = updateCanonicalSurfaceForCanvasDrag(absolute, 10, -5, geometry);
     expect(dragged.layout).toMatchObject({ left: 30, top: 25 });
