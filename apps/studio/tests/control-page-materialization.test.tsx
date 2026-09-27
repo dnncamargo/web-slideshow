@@ -26,6 +26,7 @@ vi.mock("../src/features/control/presenter/use-presenter-presentation", () => ({
   resolveLivePageId: vi.fn(),
 }));
 vi.mock("../src/features/control/use-live-gallery-control", () => ({ useLiveGalleryControl: (options: unknown) => { mocks.gallery(options); return { galleries: [], sendFailed: false, nextGallery: vi.fn(), setGalleryExpanded: vi.fn() }; } }));
+vi.mock("../src/features/control/use-live-checkbox-control", () => ({ useLiveCheckboxControl: () => ({ targets: [], sendFailed: false, setCheckboxState: vi.fn() }) }));
 vi.mock("../src/features/control/use-live-plot-animation-control", () => ({ useLivePlotAnimationControl: (options: unknown) => { mocks.plot(options); return { plotTargets: [], actionsEnabled: false, pendingPlotSlots: new Set(), sendFailed: false, triggerAction: vi.fn(), triggerAll: vi.fn() }; } }));
 vi.mock("../src/features/control/use-live-scripted-action-control", () => ({ useLiveScriptedActionControl: (options: unknown) => { mocks.action(options); return { groups: [], actionsEnabled: false, sendFailed: false, triggerAction: vi.fn() }; } }));
 vi.mock("../src/features/control/use-live-scripted-state-control", () => ({ useLiveScriptedStateControl: (options: unknown) => { mocks.state(options); return { groups: [], controlsEnabled: false, sendFailed: false, setPortValue: vi.fn() }; } }));
