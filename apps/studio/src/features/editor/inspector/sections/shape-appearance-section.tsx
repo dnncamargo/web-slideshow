@@ -15,6 +15,7 @@ import { getControlName } from "../inspector-helpers";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
 import { ElementBorderControl } from "./element-border-control";
+import { EffectiveLengthInput } from "./effective-length-input";
 import {
   createDefaultGradient,
   ElementGradientControl,
@@ -36,7 +37,7 @@ interface ShapeAppearanceSectionProps {
 }
 
 function normalizeStyle(style: ShapeVisualStyle | undefined): ShapeVisualStyle | undefined {
-  if (style === undefined || (style.fill === undefined && style.stroke === undefined)) {
+  if (style === undefined || (style.fill === undefined && style.stroke === undefined && style.borderRadius === undefined)) {
     return undefined;
   }
 
@@ -238,6 +239,25 @@ export function ShapeAppearanceSection({
           />
         </>
       )}
+
+      <div className={styles.fieldGrid}>
+        <div className={styles.field}>
+          <label htmlFor="shape-border-radius" title={t("inspector.roundedCornersHelp")}>
+            {t("inspector.roundedCorners")}
+          </label>
+          <EffectiveLengthInput
+            id="shape-border-radius"
+            name="shapeBorderRadius"
+            min="0"
+            value={style?.borderRadius}
+            preferredUnit="px"
+            units={["px", "rem"]}
+            stepByUnit={{ px: "1", rem: "0.1" }}
+            onChange={(borderRadius) => updateNormalizedStyle((current) => ({ ...current, borderRadius }))}
+            onReset={() => updateNormalizedStyle((current) => ({ ...current, borderRadius: undefined }))}
+          />
+        </div>
+      </div>
 
       <ElementBorderControl
         border={style?.stroke}

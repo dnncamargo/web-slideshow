@@ -26,6 +26,7 @@ type RenderedGeometry = {
   fillRule: "nonzero" | "evenodd";
   preserveAspectRatio?: "none" | "xMidYMid meet";
   background?: "light";
+  frame?: ShapeViewBox;
 };
 
 function number(value: number): string {
@@ -138,6 +139,7 @@ function renderQrCodeGeometry(
     fillRule: "nonzero",
     preserveAspectRatio: "xMidYMid meet",
     background: "light",
+    frame: { x: 0, y: 0, width: totalSize, height: totalSize },
   };
 }
 
@@ -276,6 +278,19 @@ function renderImageSurface(
   return `<div class="presentation-shape-image-crop" style="position:relative;width:100%;height:100%;overflow:hidden" ${metadata}><div class="presentation-image-crop-viewport" style="position:absolute;overflow:hidden">${croppedMedia}</div></div>`;
 }
 
+function renderShapeTransform(transform: ShapeElement["transform"]): string {
+  if (transform === undefined) return "none";
+
+  const transforms: string[] = [];
+  if (transform.translateXPercent !== undefined || transform.translateYPercent !== undefined) {
+    transforms.push(`translate(${number(transform.translateXPercent ?? 0)}%, ${number(transform.translateYPercent ?? 0)}%)`);
+  }
+  if (transform.rotationDeg !== undefined) {
+    transforms.push(`rotate(${number(transform.rotationDeg)}deg)`);
+  }
+  return transforms.length === 0 ? "none" : transforms.join(" ");
+}
+
 function renderLayout(element: ShapeElement, viewBox: RenderedGeometry["viewBox"]): string[] {
   const layout = element.layout;
   const intrinsicWidth = viewBox.width >= viewBox.height
@@ -311,6 +326,11 @@ function renderLayout(element: ShapeElement, viewBox: RenderedGeometry["viewBox"
 
   if (element.effect?.opacity !== undefined) output.push(`opacity:${element.effect.opacity}`);
   if (element.effect?.shadow) output.push(`box-shadow:${renderShadow(element.effect.shadow)}`);
+  if (element.style?.borderRadius !== undefined) output.push(`border-radius:${renderLength(element.style.borderRadius)}`);
+  const authoredTransform = renderShapeTransform(element.transform);
+  if (authoredTransform !== "none") {
+    output.push(`transform:${authoredTransform}`, "transform-origin:50% 50%");
+  }
   return output;
 }
 
@@ -339,6 +359,7 @@ function renderShapeBox(
     `class="${classes}"`,
     `data-presentation-id="${escapeHtml(element.id)}"`,
     'data-presentation-type="shape"',
+    `data-presentation-authored-transform="${escapeHtml(renderShapeTransform(element.transform))}"`,
   ];
 
   if (element.link) {
@@ -358,6 +379,7 @@ export function renderShape(element: ShapeElement): string {
 
   const fill = renderFill(element.id, element.style?.fill, renderedGeometry.viewBox);
   const stroke = renderStroke(element.id, element.style?.stroke, renderedGeometry.viewBox);
+  const isQr = renderedGeometry.frame !== undefined;
   const imageFill = element.style?.fill?.type === "image" ? element.style.fill : undefined;
   const clipId = `presentation-shape-clip-${encodedId(element.id)}`;
   const clip = imageFill
@@ -368,17 +390,21 @@ export function renderShape(element: ShapeElement): string {
     `d="${escapeHtml(renderedGeometry.path)}"`,
     `fill="${escapeHtml(fill.attribute)}"`,
     `fill-rule="${renderedGeometry.fillRule}"`,
-    ...stroke.attributes,
+    ...(isQr ? ['stroke="none"'] : stroke.attributes),
     'vector-effect="non-scaling-stroke"',
   ];
+  const frameMarkup = renderedGeometry.frame !== undefined && element.style?.stroke !== undefined
+    ? `<rect x="${number(renderedGeometry.frame.x)}" y="${number(renderedGeometry.frame.y)}" width="${number(renderedGeometry.frame.width)}" height="${number(renderedGeometry.frame.height)}" fill="none" ${stroke.attributes.join(" ")}${element.style.borderRadius !== undefined ? ` rx="${escapeHtml(renderLength(element.style.borderRadius))}" ry="${escapeHtml(renderLength(element.style.borderRadius))}"` : ""} vector-effect="non-scaling-stroke"></rect>`
+    : "";
   const imageMarkup = imageFill
     ? `<foreignObject x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" clip-path="url(#${clipId})">${renderImageSurface(imageFill)}</foreignObject>`
     : "";
-  const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="${renderedGeometry.preserveAspectRatio ?? "none"}" width="100%" height="100%" aria-hidden="true">` +
+  const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="${renderedGeometry.preserveAspectRatio ?? "none"}" width="100%" height="100%" overflow="visible" aria-hidden="true">` +
     (definitions ? `<defs>${definitions}</defs>` : "") +
     (renderedGeometry.background === "light" ? `<rect x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" fill="#ffffff"></rect>` : "") +
     imageMarkup +
     `<path ${pathAttributes.join(" ")}></path>` +
+    frameMarkup +
     `</svg>`;
 
   return renderShapeBox(element, svg, renderLayout(element, renderedGeometry.viewBox));

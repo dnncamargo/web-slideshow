@@ -1,6 +1,9 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 
 import {
+  parseSvgPathAuthoringSource,
   parseSvgPathData,
   serializeSvgPathData,
 } from "../src/features/editor/svg-path-authoring";
@@ -79,5 +82,48 @@ describe("bounded SVG path authoring", () => {
     const commands = parseSvgPathData("m 0 0 l 10 0 q 2 3 4 5 a 1 2 0 0 1 8 9 z");
     expect(serializeSvgPathData(commands)).toBe("M 0 0 L 10 0 Q 12 3 14 5 A 1 2 0 0 1 22 14 Z");
     expect(parseSvgPathData(serializeSvgPathData(commands))).toEqual(commands);
+  });
+
+  it("imports a bounded complete SVG envelope and normalizes it to path intent", () => {
+    const parsed = parseSvgPathAuthoringSource(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 2 120 80" fill-rule="evenodd">
+        <g><path d="M 0 0 L 10 0 Z" /></g>
+        <path d="M 20 20 H 30 V 30 Z" />
+      </svg>
+    `);
+
+    expect(parsed.viewBox).toEqual({ x: -5, y: 2, width: 120, height: 80 });
+    expect(parsed.fillRule).toBe("evenodd");
+    expect(parsed.commands).toHaveLength(7);
+    expect(serializeSvgPathData(parsed.commands)).not.toContain("<");
+  });
+
+  it("uses numeric width and height when a complete SVG has no viewBox", () => {
+    expect(parseSvgPathAuthoringSource(`<svg width="640" height="480"><path d="M0 0L1 1" /></svg>`).viewBox).toEqual({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 480,
+    });
+  });
+
+  it.each([
+    "<svg><script>alert(1)</script><path d=\"M0 0L1 1\" /></svg>",
+    "<svg><foreignObject><div /></foreignObject><path d=\"M0 0L1 1\" /></svg>",
+    "<svg><image href=\"https://example.com/a.png\" /><path d=\"M0 0L1 1\" /></svg>",
+    "<svg><use href=\"#shape\" /><path d=\"M0 0L1 1\" /></svg>",
+    "<svg onload=\"alert(1)\"><path d=\"M0 0L1 1\" /></svg>",
+    "<svg><path transform=\"rotate(20)\" d=\"M0 0L1 1\" /></svg>",
+    "<svg><rect width=\"10\" height=\"10\" /></svg>",
+    "<svg><path d=\"M0 0L1 1\" style=\"fill:url(#x)\" /></svg>",
+    "<svg><path d=\"M0 0L1 1\" /></svg>",
+  ])("rejects unsafe, unsupported, or incomplete SVG envelope %s", (source) => {
+    expect(() => parseSvgPathAuthoringSource(source)).toThrow();
+  });
+
+  it("rejects conflicting inherited fill rules", () => {
+    expect(() => parseSvgPathAuthoringSource(
+      `<svg viewBox="0 0 10 10"><g fill-rule="evenodd"><path d="M0 0L1 1" /></g><path fill-rule="nonzero" d="M2 2L3 3" /></svg>`,
+    )).toThrow(/consistent fill-rule/);
   });
 });

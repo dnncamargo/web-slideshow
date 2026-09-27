@@ -491,9 +491,18 @@ export type ShapeFill = z.infer<typeof ShapeFillSchema>;
 export const ShapeVisualStyleSchema = z.object({
   fill: ShapeFillSchema.optional(),
   stroke: BorderSchema.optional(),
+  borderRadius: LengthSchema.optional(),
 }).strict();
 
 export type ShapeVisualStyle = z.infer<typeof ShapeVisualStyleSchema>;
+
+export const ShapeTransformSchema = z.object({
+  translateXPercent: z.number().finite().optional(),
+  translateYPercent: z.number().finite().optional(),
+  rotationDeg: z.number().finite().optional(),
+}).strict();
+
+export type ShapeTransform = z.infer<typeof ShapeTransformSchema>;
 
 export const ShapeAnimationRotateSchema = z.object({
   fromDeg: z.number().finite(),
@@ -546,6 +555,7 @@ export const ShapeElementSchema = z.object({
   style: ShapeVisualStyleSchema.optional(),
   effect: ElementEffectSchema.optional(),
   link: ElementLinkSchema.optional(),
+  transform: ShapeTransformSchema.optional(),
   animation: ShapeAnimationSchema.optional(),
 }).strict();
 

@@ -143,12 +143,21 @@ function transformForProgress(config: ShapeAnimationConfig, progress: number): s
 
 function applyFrame(instance: ShapeInstance, progress: number): void {
   instance.node.style.transformOrigin = "50% 50%";
-  instance.node.style.transform = transformForProgress(instance.config, progress);
+  const authoredTransform = instance.node.dataset.presentationAuthoredTransform;
+  const animationTransform = transformForProgress(instance.config, progress);
+  instance.node.style.transform = authoredTransform !== undefined && authoredTransform !== "none"
+    ? `${authoredTransform} ${animationTransform}`.trim()
+    : animationTransform;
 }
 
 function clearFrame(instance: ShapeInstance): void {
-  instance.node.style.transform = "";
-  instance.node.style.transformOrigin = "";
+  const authoredTransform = instance.node.dataset.presentationAuthoredTransform;
+  instance.node.style.transform = authoredTransform !== undefined && authoredTransform !== "none"
+    ? authoredTransform
+    : "";
+  instance.node.style.transformOrigin = authoredTransform !== undefined && authoredTransform !== "none"
+    ? "50% 50%"
+    : "";
 }
 
 function hasPlayingShapes(state: ShapeAnimationRuntimeState): boolean {

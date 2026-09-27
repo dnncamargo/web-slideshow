@@ -29,6 +29,7 @@ type ShapeOverrides = {
   style?: ShapeElement["style"];
   effect?: ShapeElement["effect"];
   link?: ShapeElement["link"];
+  transform?: ShapeElement["transform"];
 };
 
 function shape(overrides: ShapeOverrides = {}): ShapeElement {
@@ -41,6 +42,7 @@ function shape(overrides: ShapeOverrides = {}): ShapeElement {
     ...(overrides.style === undefined ? {} : { style: overrides.style }),
     ...(overrides.effect === undefined ? {} : { effect: overrides.effect }),
     ...(overrides.link === undefined ? {} : { link: overrides.link }),
+    ...(overrides.transform === undefined ? {} : { transform: overrides.transform }),
   };
 }
 
@@ -160,6 +162,18 @@ describe("canonical Shape renderer", () => {
     expect(root).toContain("box-shadow:0px 4px 12px #000");
   });
 
+  it("renders authored Shape transform and rounded corners on the root box", () => {
+    const html = renderShape(shape({
+      transform: { translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 },
+      style: { borderRadius: "1rem" },
+    }));
+    const root = html.slice(0, html.indexOf(">"));
+    expect(root).toContain("transform:translate(12%, -4%) rotate(30deg)");
+    expect(root).toContain("transform-origin:50% 50%");
+    expect(root).toContain("border-radius:1rem");
+    expect(root).toContain('data-presentation-authored-transform="translate(12%, -4%) rotate(30deg)"');
+  });
+
   it("renders _self and _blank links on the Shape root", () => {
     const self = renderShape(shape({ link: { kind: "url", href: "https://example.com", target: "_self" } }));
     const blank = renderShape(shape({ link: { kind: "url", href: "https://example.com", target: "_blank" } }));
@@ -221,7 +235,48 @@ describe("canonical Shape renderer", () => {
     expect(first).toContain("<path");
     expect(first).not.toContain("presentation-placeholder-shape-qr");
     expect(first).not.toContain("[qr-code]");
+    expect(first).toContain('stroke="none"');
+    expect(first).not.toContain('fill="none" stroke=');
     expect(first).toBe(renderShape(element));
+  });
+
+  it("renders QR border as one outer frame with color, styles, and radius", () => {
+    const html = renderShape(shape({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 4 } },
+      style: { stroke: { width: 2, color: "#ff0000", style: "dashed" }, borderRadius: 3 },
+    }));
+    expect(html).toContain('<path');
+    expect(html).toContain('stroke="none"');
+    expect(html).toContain('fill="none" stroke-width="2px"');
+    expect(html).toContain('stroke="#ff0000"');
+    expect(html).toContain('stroke-dasharray="8 4"');
+    expect(html).toContain('rx="3px" ry="3px"');
+    expect(html).toContain('x="0" y="0" width="29" height="29"');
+    expect(html).toContain('overflow="visible"');
+  });
+
+  it("renders QR gradient and dotted borders on the outer frame only", () => {
+    const html = renderShape(shape({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "hello", errorCorrection: "M", quietZone: 4 } },
+      style: { stroke: {
+        width: "0.2rem", style: "dotted", gradient: {
+          type: "linear", stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }],
+        },
+      }, borderRadius: "0.5rem" },
+    }));
+    expect(html).toContain('stroke="none"');
+    expect(html).toContain('stroke="url(#presentation-shape-stroke-');
+    expect(html).toContain('stroke-dasharray="1 4"');
+    expect(html).toContain('stroke-linecap="round"');
+    expect(html).toContain('rx="0.5rem" ry="0.5rem"');
+    expect(html.match(/stroke="url\(#presentation-shape-stroke-/g)).toHaveLength(1);
+  });
+
+  it("keeps ordinary Shape strokes on the geometry path", () => {
+    const html = renderShape(shape({ style: { stroke: { width: 2, color: "#000" } } }));
+    expect(html).toContain('<path d="M 10 20');
+    expect(html).toContain('stroke="#000"');
+    expect(html).not.toContain('fill="none" stroke-width="2px"');
   });
 
   it("changes QR geometry when content changes", () => {

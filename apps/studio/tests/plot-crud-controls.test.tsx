@@ -37,6 +37,7 @@ describe("ElementCrudControls Plot wiring", () => {
     const options = Array.from(container.querySelectorAll("option"));
     expect(options.find((option) => option.value === "plot")?.textContent).toBe("Plot");
     expect(options.find((option) => option.value === "interactive")).toBeUndefined();
+    expect(options.slice(-4).map((option) => option.value)).toEqual(["blocks", "scripted", "shape", "plot"]);
   });
 
   it("calls onAdd with plot when Plot is selected", () => {

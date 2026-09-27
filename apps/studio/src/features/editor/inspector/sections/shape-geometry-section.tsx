@@ -19,7 +19,7 @@ import {
   type ShapePreset,
 } from "../../shape-geometry-authoring";
 import {
-  parseSvgPathData,
+  parseSvgPathAuthoringSource,
   serializeSvgPathData,
 } from "../../svg-path-authoring";
 
@@ -202,20 +202,22 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
     if (element.geometry.mode !== "path") return;
 
     try {
-      const viewBoxX = parseFiniteNumber(drafts.pathViewBoxX);
-      const viewBoxY = parseFiniteNumber(drafts.pathViewBoxY);
-      const viewBoxWidth = parseFiniteNumber(drafts.pathViewBoxWidth);
-      const viewBoxHeight = parseFiniteNumber(drafts.pathViewBoxHeight);
-      if (viewBoxX === undefined || viewBoxY === undefined || viewBoxWidth === undefined || viewBoxHeight === undefined || viewBoxWidth <= 0 || viewBoxHeight <= 0) {
-        throw new Error(t("inspector.shape.invalidViewBox"));
-      }
-
-      const commands = parseSvgPathData(drafts.pathSource);
+      const imported = parseSvgPathAuthoringSource(drafts.pathSource);
+      const viewBox = imported.viewBox ?? (() => {
+        const viewBoxX = parseFiniteNumber(drafts.pathViewBoxX);
+        const viewBoxY = parseFiniteNumber(drafts.pathViewBoxY);
+        const viewBoxWidth = parseFiniteNumber(drafts.pathViewBoxWidth);
+        const viewBoxHeight = parseFiniteNumber(drafts.pathViewBoxHeight);
+        if (viewBoxX === undefined || viewBoxY === undefined || viewBoxWidth === undefined || viewBoxHeight === undefined || viewBoxWidth <= 0 || viewBoxHeight <= 0) {
+          throw new Error(t("inspector.shape.invalidViewBox"));
+        }
+        return { x: viewBoxX, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight };
+      })();
       const candidate = {
         mode: "path" as const,
-        viewBox: { x: viewBoxX, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight },
-        commands,
-        ...(drafts.pathFillRule === "evenodd" ? { fillRule: "evenodd" as const } : {}),
+        viewBox,
+        commands: imported.commands,
+        ...((imported.fillRule ?? drafts.pathFillRule) === "evenodd" ? { fillRule: "evenodd" as const } : {}),
       };
       const parsed = ShapePathGeometrySchema.safeParse(candidate);
       if (!parsed.success) {
@@ -231,7 +233,7 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
         ? { ...current, geometry: parsed.data }
         : current));
     } catch (error) {
-      setPathMessage(error instanceof Error ? error.message : "The SVG path data is invalid.");
+      setPathMessage(error instanceof Error ? error.message : t("inspector.shape.invalidGeometry"));
     }
   }
 

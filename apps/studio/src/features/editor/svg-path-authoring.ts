@@ -1,6 +1,7 @@
 import {
   ShapePathCommandSchema,
   type ShapePathCommand,
+  type ShapeViewBox,
 } from "@web-slideshow/document-schema";
 
 export class SvgPathAuthoringError extends Error {
@@ -8,6 +9,12 @@ export class SvgPathAuthoringError extends Error {
     super(message);
     this.name = "SvgPathAuthoringError";
   }
+}
+
+export interface ParsedSvgPathAuthoringSource {
+  commands: ShapePathCommand[];
+  viewBox?: ShapeViewBox;
+  fillRule?: "nonzero" | "evenodd";
 }
 
 type SvgPathToken =
@@ -306,4 +313,166 @@ export function serializeSvgPathData(commands: ShapePathCommand[]): string {
       case "close": return "Z";
     }
   }).join(" ");
+}
+
+const SVG_UNSAFE_ELEMENTS = new Set([
+  "script",
+  "foreignobject",
+  "image",
+  "use",
+  "iframe",
+  "object",
+  "embed",
+  "audio",
+  "video",
+  "style",
+  "link",
+]);
+
+const SVG_SUPPORTED_ELEMENTS = new Set(["svg", "g", "path"]);
+
+function attribute(element: Element, name: string): string | undefined {
+  const match = Array.from(element.attributes).find((candidate) => candidate.name.toLowerCase() === name.toLowerCase());
+  return match?.value;
+}
+
+function parseSvgNumberList(value: string, expectedCount: number, label: string): number[] {
+  const tokens = tokenize(value);
+  if (tokens.length !== expectedCount || tokens.some((token) => token.kind !== "number")) {
+    throw new SvgPathAuthoringError(`${label} must contain exactly ${expectedCount} finite numbers.`);
+  }
+  return tokens.map((token) => {
+    if (token.kind !== "number") throw new SvgPathAuthoringError(`${label} must contain only numbers.`);
+    return token.value;
+  });
+}
+
+function parseSvgFillRule(value: string | undefined): "nonzero" | "evenodd" | undefined {
+  if (value === undefined) return undefined;
+  if (value === "nonzero" || value === "evenodd") return value;
+  throw new SvgPathAuthoringError(`Unsupported SVG fill-rule "${value}".`);
+}
+
+function validateSvgAttributes(element: Element): void {
+  for (const candidate of Array.from(element.attributes)) {
+    const name = candidate.name.toLowerCase();
+    const value = candidate.value.trim();
+    if (name.startsWith("on")) {
+      throw new SvgPathAuthoringError("SVG event-handler attributes are not supported.");
+    }
+    if (name === "href" || name === "xlink:href") {
+      throw new SvgPathAuthoringError("External SVG references are not supported.");
+    }
+    if (name === "style") {
+      throw new SvgPathAuthoringError("SVG CSS/style attributes are not supported; Shape Appearance controls the imported geometry.");
+    }
+    if (/javascript:|url\s*\(/i.test(value)) {
+      throw new SvgPathAuthoringError("Executable or external SVG content is not supported.");
+    }
+    if (name === "transform") {
+      throw new SvgPathAuthoringError("SVG node transforms are not supported; edit Shape Transform after import.");
+    }
+  }
+}
+
+function parseNumericDimension(value: string | undefined, label: string): number | undefined {
+  if (value === undefined || !NUMBER_PATTERN.test(value.trim())) return undefined;
+  const parsed = Number(value.trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new SvgPathAuthoringError(`${label} must be a finite positive number.`);
+  }
+  return parsed;
+}
+
+function parseSvgEnvelope(source: string): ParsedSvgPathAuthoringSource {
+  if (/<!doctype|<!entity/i.test(source)) {
+    throw new SvgPathAuthoringError("SVG DOCTYPE and entity declarations are not supported.");
+  }
+  if (typeof DOMParser === "undefined") {
+    throw new SvgPathAuthoringError("Complete SVG import is unavailable in this environment.");
+  }
+
+  const document = new DOMParser().parseFromString(source, "image/svg+xml");
+  if (document.querySelector("parsererror")) {
+    throw new SvgPathAuthoringError("The SVG envelope is not well-formed XML.");
+  }
+
+  const root = document.documentElement;
+  if (root === null || root.localName.toLowerCase() !== "svg") {
+    throw new SvgPathAuthoringError("Complete SVG source must have an <svg> root element.");
+  }
+
+  const viewBoxValue = attribute(root, "viewBox");
+  let viewBox: ShapeViewBox | undefined;
+  if (viewBoxValue !== undefined) {
+    const [x, y, width, height] = parseSvgNumberList(viewBoxValue, 4, "SVG viewBox");
+    if (width! <= 0 || height! <= 0) {
+      throw new SvgPathAuthoringError("SVG viewBox width and height must be greater than zero.");
+    }
+    viewBox = { x: x!, y: y!, width: width!, height: height! };
+  } else {
+    const width = parseNumericDimension(attribute(root, "width"), "SVG width");
+    const height = parseNumericDimension(attribute(root, "height"), "SVG height");
+    if (width === undefined || height === undefined) {
+      throw new SvgPathAuthoringError("SVG envelope requires a valid viewBox or clean numeric width and height.");
+    }
+    viewBox = { x: 0, y: 0, width, height };
+  }
+
+  validateSvgAttributes(root);
+  const commands: ShapePathCommand[] = [];
+  const fillRules = new Set<"nonzero" | "evenodd">();
+  let pathCount = 0;
+
+  function visit(element: Element, inheritedFillRule: "nonzero" | "evenodd"): void {
+    const tagName = element.localName.toLowerCase();
+    if (SVG_UNSAFE_ELEMENTS.has(tagName)) {
+      throw new SvgPathAuthoringError(`SVG element <${tagName}> is not supported.`);
+    }
+    if (!SVG_SUPPORTED_ELEMENTS.has(tagName) || (tagName === "svg" && element !== root)) {
+      throw new SvgPathAuthoringError(`SVG element <${tagName}> is not supported by the safe Shape importer.`);
+    }
+    validateSvgAttributes(element);
+
+    const ownFillRule = parseSvgFillRule(attribute(element, "fill-rule"));
+    const effectiveFillRule = ownFillRule ?? inheritedFillRule;
+    if (tagName === "path") {
+      const pathData = attribute(element, "d");
+      if (pathData === undefined || pathData.trim() === "") {
+        throw new SvgPathAuthoringError("Every imported SVG <path> must contain non-empty d path data.");
+      }
+      commands.push(...parseSvgPathData(pathData));
+      fillRules.add(effectiveFillRule);
+      pathCount += 1;
+    }
+
+    for (const child of Array.from(element.childNodes)) {
+      if ((child.nodeType === 3 || child.nodeType === 4) && child.textContent?.trim() !== "") {
+        throw new SvgPathAuthoringError("SVG text content is not supported by the safe Shape importer.");
+      }
+    }
+
+    for (const child of Array.from(element.children)) visit(child, effectiveFillRule);
+  }
+
+  visit(root, parseSvgFillRule(attribute(root, "fill-rule")) ?? "nonzero");
+  if (pathCount === 0) {
+    throw new SvgPathAuthoringError("SVG envelope must contain at least one supported <path>.");
+  }
+  if (fillRules.size > 1) {
+    throw new SvgPathAuthoringError("Imported SVG paths must use one consistent fill-rule.");
+  }
+
+  const fillRule = fillRules.values().next().value;
+  return {
+    commands,
+    viewBox,
+    ...(fillRule === undefined || fillRule === "nonzero" ? {} : { fillRule }),
+  };
+}
+
+export function parseSvgPathAuthoringSource(source: string): ParsedSvgPathAuthoringSource {
+  return source.trimStart().startsWith("<")
+    ? parseSvgEnvelope(source)
+    : { commands: parseSvgPathData(source) };
 }

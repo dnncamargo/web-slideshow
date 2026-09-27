@@ -373,6 +373,27 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(input("shape-animation-duration").type).toBe("number");
     expect(input("shape-animation-duration").min).toBe("1");
     expect(input("shape-animation-duration").step).toBe("1");
+
+    expect(input("shape-transform-translate-x").type).toBe("number");
+    expect(input("shape-transform-translate-y").type).toBe("number");
+    expect(input("shape-transform-rotation").type).toBe("number");
+  });
+
+  it("applies authored transform sparsely and supports rounded-corner length input", async () => {
+    await mount();
+
+    await act(async () => {
+      setInputValue(input("shape-transform-translate-x"), "12");
+      setInputValue(input("shape-transform-translate-y"), "-4");
+      setInputValue(input("shape-transform-rotation"), "30");
+      host.querySelector<HTMLButtonElement>("#shape-transform-apply")?.click();
+    });
+    expect(state.transform).toEqual({ translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 });
+
+    await act(async () => setInputValue(input("shape-border-radius"), "12"));
+    expect(state.style?.borderRadius).toBe(12);
+    await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#shape-border-radius-unit")!, "rem"));
+    expect(state.style?.borderRadius).toBe("0.75rem");
   });
 
   it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {
@@ -409,13 +430,23 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
     });
     expect(state.geometry).toBe(appliedGeometry);
-    expect(host.textContent).toContain("only the d value");
+    expect(host.textContent).toContain("SVG");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100" fill-rule="evenodd"><g><path d="M 0 0 L 100 0 L 100 100 Z" /></g></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toMatchObject({
+      viewBox: { x: 0, y: 0, width: 200, height: 100 },
+      fillRule: "evenodd",
+    });
+    expect(state.geometry.mode === "path" ? state.geometry.commands[0] : undefined).toEqual({ type: "move", x: 0, y: 0 });
 
     await act(async () => {
       setInputValue(textArea("shape-path-source"), "M 1 1");
       host.querySelector<HTMLButtonElement>("#shape-path-reset")?.click();
     });
-    expect(textArea("shape-path-source").value).toBe("M 10 10 L 90 10 L 90 90 L 10 90 Z");
+    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 Z");
   });
 
   it("records one history action for Path Apply and restores it with undo", async () => {

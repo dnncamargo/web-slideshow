@@ -4,6 +4,7 @@ import {
   ShapeAnimationSchema,
   type ShapeAnimation,
   type ShapeElement,
+  type ShapeTransform,
 } from "@web-slideshow/document-schema";
 
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
@@ -33,6 +34,30 @@ const DEFAULT_SHAPE_ANIMATION = {
   skewToXDeg: "20",
   skewToYDeg: "0",
 } as const;
+
+const DEFAULT_SHAPE_TRANSFORM = {
+  translateXPercent: "0",
+  translateYPercent: "0",
+  rotationDeg: "0",
+} as const;
+
+type ShapeTransformDraft = {
+  translateXPercent: string;
+  translateYPercent: string;
+  rotationDeg: string;
+};
+
+function shapeTransformDraft(transform: ShapeTransform | undefined): ShapeTransformDraft {
+  return {
+    translateXPercent: String(transform?.translateXPercent ?? DEFAULT_SHAPE_TRANSFORM.translateXPercent),
+    translateYPercent: String(transform?.translateYPercent ?? DEFAULT_SHAPE_TRANSFORM.translateYPercent),
+    rotationDeg: String(transform?.rotationDeg ?? DEFAULT_SHAPE_TRANSFORM.rotationDeg),
+  };
+}
+
+function transformIdentity(transform: ShapeTransform | undefined): string {
+  return JSON.stringify(transform ?? null);
+}
 
 type ShapeAnimationDraft = {
   enabled: boolean;
@@ -107,12 +132,25 @@ export function ShapeInspector({
 }: TypedInspectorProps<ShapeElement> & { previewControls?: ShapePreviewControls }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const [transformDraft, setTransformDraft] = useState<ShapeTransformDraft>(() => shapeTransformDraft(element.transform));
+  const [hydratedTransform, setHydratedTransform] = useState({
+    id: element.id,
+    transform: transformIdentity(element.transform),
+  });
+  const [transformMessage, setTransformMessage] = useState<string | null>(null);
   const [animationDraft, setAnimationDraft] = useState<ShapeAnimationDraft>(() => shapeAnimationDraft(element.animation));
   const [hydratedAnimation, setHydratedAnimation] = useState({
     id: element.id,
     animation: animationIdentity(element.animation),
   });
   const [animationMessage, setAnimationMessage] = useState<string | null>(null);
+
+  const currentTransformIdentity = transformIdentity(element.transform);
+  if (hydratedTransform.id !== element.id || hydratedTransform.transform !== currentTransformIdentity) {
+    setHydratedTransform({ id: element.id, transform: currentTransformIdentity });
+    setTransformDraft(shapeTransformDraft(element.transform));
+    setTransformMessage(null);
+  }
 
   const currentAnimationIdentity = animationIdentity(element.animation);
   if (hydratedAnimation.id !== element.id || hydratedAnimation.animation !== currentAnimationIdentity) {
@@ -132,6 +170,49 @@ export function ShapeInspector({
   };
 
   const animationDirty = JSON.stringify(animationDraft) !== JSON.stringify(shapeAnimationDraft(element.animation));
+  const transformDirty = JSON.stringify(transformDraft) !== JSON.stringify(shapeTransformDraft(element.transform));
+
+  function updateTransformDraft(update: Partial<ShapeTransformDraft>): void {
+    setTransformDraft((current) => ({ ...current, ...update }));
+    setTransformMessage(null);
+  }
+
+  function applyTransformDraft(): void {
+    const values = [
+      Number(transformDraft.translateXPercent),
+      Number(transformDraft.translateYPercent),
+      Number(transformDraft.rotationDeg),
+    ];
+    if (transformDraft.translateXPercent.trim() === "") values[0] = 0;
+    if (transformDraft.translateYPercent.trim() === "") values[1] = 0;
+    if (transformDraft.rotationDeg.trim() === "") values[2] = 0;
+    if (values.some((value) => !Number.isFinite(value))) {
+      setTransformMessage(t("inspector.shape.transformInvalid"));
+      return;
+    }
+
+    const [translateXPercent, translateYPercent, rotationDeg] = values;
+    const candidate = {
+      ...(translateXPercent !== 0 ? { translateXPercent } : {}),
+      ...(translateYPercent !== 0 ? { translateYPercent } : {}),
+      ...(rotationDeg !== 0 ? { rotationDeg } : {}),
+    };
+    const nextTransform = Object.keys(candidate).length === 0 ? undefined : candidate;
+    if (transformIdentity(nextTransform) === transformIdentity(element.transform)) {
+      setTransformMessage(null);
+      return;
+    }
+
+    setTransformMessage(null);
+    runDiscrete("shape.transform", () => onUpdate((current) => current.type === "shape"
+      ? { ...current, transform: nextTransform }
+      : current));
+  }
+
+  function resetTransformDraft(): void {
+    setTransformDraft(shapeTransformDraft(element.transform));
+    setTransformMessage(null);
+  }
 
   function updateAnimationDraft(update: Partial<ShapeAnimationDraft>): void {
     setAnimationDraft((current) => ({ ...current, ...update }));
@@ -219,6 +300,35 @@ export function ShapeInspector({
         element={element}
         onUpdate={(update) => onUpdate((current) => current.type === "shape" ? update(current) : current)}
       />
+
+      <InspectorSection title={t("inspector.shape.transform")} defaultOpen>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.translateX")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-translate-x" name="shapeTransformTranslateX" type="number" step="1" value={transformDraft.translateXPercent} onChange={(event) => updateTransformDraft({ translateXPercent: event.target.value })} />
+            <span>%</span>
+          </div>
+        </label>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.translateY")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-translate-y" name="shapeTransformTranslateY" type="number" step="1" value={transformDraft.translateYPercent} onChange={(event) => updateTransformDraft({ translateYPercent: event.target.value })} />
+            <span>%</span>
+          </div>
+        </label>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.rotation")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-rotation" name="shapeTransformRotation" type="number" step="1" value={transformDraft.rotationDeg} onChange={(event) => updateTransformDraft({ rotationDeg: event.target.value })} />
+            <span>°</span>
+          </div>
+        </label>
+        {transformMessage !== null ? <small className={styles.fieldHint}>{transformMessage}</small> : null}
+        <div className={styles.elementCrudActions}>
+          <button id="shape-transform-apply" type="button" className={styles.secondaryButton} disabled={!transformDirty} onClick={applyTransformDraft}><span>{t("inspector.shape.applyTransform")}</span></button>
+          <button id="shape-transform-reset" type="button" className={styles.secondaryButton} disabled={!transformDirty} onClick={resetTransformDraft}><span>{t("inspector.shape.resetTransform")}</span></button>
+        </div>
+      </InspectorSection>
 
       <InspectorSection title={t("inspector.animation")} defaultOpen>
         <label className={styles.checkboxRow}>

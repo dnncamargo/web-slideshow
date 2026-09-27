@@ -442,7 +442,7 @@ authored path or bounded generator intent
 → shared renderer output
 ```
 
-The current contract supports bounded SVG path-data (`d`) input for Path Shapes, normalized to canonical commands. It does not add arbitrary raw SVG/XML markup, persisted generated QR geometry, automatic QR Image migration, Linked Styles for Shape, Custom Library Shape recipes, a generic animation protocol, scale/easing/keyframes/morphing, or special Canvas geometry handles.
+The current contract supports bounded SVG path-data (`d`) and a safe complete `svg`/`g`/`path` envelope for Path Shapes, normalized to canonical commands and imported viewBox/fill-rule intent. It rejects scripts, external references, styles, node transforms and unsupported SVG elements; raw XML is never persisted. Shape Transform provides authored translation/rotation, while bounded animation remains separate and composes after it. QR borders render as one outer frame around the quiet zone with the canonical border paint/style/radius. It does not add arbitrary SVG/XML markup, persisted generated QR geometry, automatic QR Image migration, Linked Styles for Shape, Custom Library Shape recipes, a generic animation protocol, scale/easing/keyframes/morphing, or special Canvas geometry handles.
 
 Parameterized complex forms such as arrows, braces, speech balloons and thought balloons remain a future semantic-generator boundary. Adding them requires a separate architecture checkpoint rather than silently expanding the current Shape presets.
 
