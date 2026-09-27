@@ -114,6 +114,16 @@ function sameContext(command: CommandContext, current: LatestState): boolean {
     presence?.bootId === command.targetBootId;
 }
 
+function contextKey(options: UseLiveShapeAnimationControlOptions): string {
+  const presence = options.playerStatus?.kind === "ready" ? options.playerStatus.presence : null;
+  return JSON.stringify([
+    options.live?.revision ?? null,
+    options.live?.currentVersionId ?? null,
+    options.desiredPageId,
+    presence?.bootId ?? null,
+  ]);
+}
+
 function pendingForCurrentContext(pending: ReadonlyMap<number, CommandContext>, current: LatestState): ReadonlySet<number> {
   const result = new Set<number>();
   for (const [slot, command] of pending) if (sameContext(command, current)) result.add(slot);
@@ -126,26 +136,23 @@ export function useLiveShapeAnimationControl(
   const shapeTargets = useMemo(() => discoverLiveShapeAnimationTargets(options.effectiveSlide), [options.effectiveSlide]);
   const [pending, setPending] = useState<Map<number, CommandContext>>(() => new Map());
   const pendingRef = useRef<Map<number, CommandContext>>(new Map());
-  const [sendFailed, setSendFailed] = useState(false);
+  const [sendFailureKey, setSendFailureKey] = useState<string | null>(null);
   const latestRef = useRef<LatestState>({ options, targets: shapeTargets });
-  latestRef.current = { options, targets: shapeTargets };
+  useEffect(() => {
+    latestRef.current = { options, targets: shapeTargets };
+  });
   const pendingShapeSlots = useMemo(
-    () => pendingForCurrentContext(pending, latestRef.current),
-    [pending, options.live?.revision, options.live?.currentVersionId, options.desiredPageId, options.playerStatus],
+    () => pendingForCurrentContext(pending, { options, targets: shapeTargets }),
+    [pending, shapeTargets, options],
   );
   const actionsEnabled = canSend(options);
-
-  useEffect(() => {
-    pendingRef.current = new Map();
-    setPending(new Map());
-    setSendFailed(false);
-  }, [options.live?.revision, options.live?.currentVersionId, options.desiredPageId, options.playerStatus?.kind === "ready" ? options.playerStatus.presence.bootId : null]);
+  const sendFailed = sendFailureKey === contextKey(options);
 
   const send = useCallback((targets: readonly LiveShapeAnimationTarget[], action: ShapeAnimationAction) => {
     const current = latestRef.current;
     if (targets.length === 0 || !canSend(current.options) || current.options.live === null || current.options.desiredPageId === null) return;
     const database = current.options.database ?? getRealtimeDatabaseOrNull();
-    if (database === null) { setSendFailed(true); return; }
+    if (database === null) { setSendFailureKey(contextKey(current.options)); return; }
     const presence = current.options.playerStatus;
     if (presence?.kind !== "ready") return;
     const commands = targets.map((target) => ({
@@ -158,7 +165,7 @@ export function useLiveShapeAnimationControl(
     }));
     const available = commands.filter((command) => !pendingForCurrentContext(pendingRef.current, current).has(command.shapeSlot));
     if (available.length === 0) return;
-    setSendFailed(false);
+    setSendFailureKey(null);
     pendingRef.current = new Map(pendingRef.current);
     available.forEach((command) => pendingRef.current.set(command.shapeSlot, command));
     setPending((previous) => {
@@ -168,7 +175,7 @@ export function useLiveShapeAnimationControl(
     });
     const writes = available.map((command) => writeShapeAnimationAction(database, { ...command, action }));
     void Promise.allSettled(writes).then((results) => {
-      if (!results.every((result) => result.status === "fulfilled") && sameContext(available[0]!, latestRef.current)) setSendFailed(true);
+      if (!results.every((result) => result.status === "fulfilled") && sameContext(available[0]!, latestRef.current)) setSendFailureKey(contextKey(latestRef.current.options));
       if (sameContext(available[0]!, latestRef.current)) {
         pendingRef.current = new Map(pendingRef.current);
         available.forEach((command) => pendingRef.current.delete(command.shapeSlot));
