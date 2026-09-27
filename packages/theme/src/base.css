@@ -460,13 +460,13 @@
 
   column-gap: 0.5em;
 
-  align-items: start;
+  align-items: baseline;
 }
 
 .presentation-topics-checkbox > .presentation-topic-item > .presentation-checkbox {
   grid-column: 1;
 
-  margin-top: 0.35em;
+  margin: 0;
 }
 
 .presentation-topics-checkbox > .presentation-topic-item > :not(.presentation-checkbox) {
