@@ -22,6 +22,11 @@ export type ClipboardCutSource =
   | {
       kind: "root-definition";
       rootDefinitionId: string;
+    }
+  | {
+      kind: "slide-local-root";
+      slideId: string;
+      targetContainerId: string;
     };
 
 export interface PendingClipboardCut {

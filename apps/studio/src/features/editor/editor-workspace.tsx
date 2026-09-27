@@ -328,6 +328,10 @@ import {
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 import { preserveRootDefinitionContainerDeletion } from "./root-local-content-deletion";
 import {
+  moveRootBackedClipboardElement,
+  pasteRootBackedClipboardEntry,
+} from "./root-local-clipboard-operations";
+import {
   isAuthorizedLocalRootReceiver,
   findLocalRootChildOwner,
   resolveOwnedAuthoringTree,
@@ -1903,11 +1907,17 @@ export function EditorWorkspace({
   }
 
   function cutSelectedElement(): boolean {
-    if (rootBackedSlide) return false;
     if (!selectedDocumentElement || !selectedElementPosition || !selectedSlide) {
       return false;
     }
-    if (isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
+
+    const localRootOwner = rootBackedSlide && authoringTarget.kind === "slide"
+      ? findLocalRootChildOwner(presentation, authoringTarget.slideIndex, selectedDocumentElement.id)
+      : null;
+    if (rootBackedSlide && (!localRootOwner || selectedMasterElement)) {
+      return false;
+    }
+    if (!rootBackedSlide && isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id)) {
       return false;
     }
 
@@ -1915,7 +1925,13 @@ export function EditorWorkspace({
       createPendingClipboardCut(
         selectedDocumentElement,
         authoringTarget.kind === "slide"
-          ? { kind: "slide", slideId: selectedSlide.id }
+          ? localRootOwner
+            ? {
+                kind: "slide-local-root",
+                slideId: selectedSlide.id,
+                targetContainerId: localRootOwner.targetContainerId,
+              }
+            : { kind: "slide", slideId: selectedSlide.id }
           : { kind: "root-definition", rootDefinitionId: authoringTarget.rootDefinitionId },
       ),
     );
@@ -1924,7 +1940,6 @@ export function EditorWorkspace({
   }
 
   function pasteClipboardEntry(entryId: string): boolean {
-    if (rootBackedSlide) return false;
     const target = authoringTarget;
     const entry = clipboardSession.entries.find(
       (candidate) => candidate.id === entryId,
@@ -1935,6 +1950,32 @@ export function EditorWorkspace({
 
     const selectedElementAtPaste = selectedDocumentElement;
     const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
+    if (rootBackedSlide && target.kind === "slide") {
+      const initialPaste = pasteRootBackedClipboardEntry(
+        history.present,
+        target.slideIndex,
+        entry.element,
+        selectedElementAtPaste,
+        selectedContentSlotId,
+      );
+      if (!initialPaste) return false;
+
+      commitAuthoringAction(
+        target,
+        { kind: "element.paste", labelKey: "history.element.paste", labelParams: { elementType: entry.element.type } },
+        (current, authoringTarget) => authoringTarget.kind === "slide"
+          ? pasteRootBackedClipboardEntry(
+              current,
+              authoringTarget.slideIndex,
+              entry.element,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            )?.presentation ?? current
+          : current,
+      );
+      return true;
+    }
+    if (rootBackedSlide) return false;
     const initialElements = resolveAuthoringElements(history.present, target);
     if (
       !initialElements ||
@@ -1980,17 +2021,54 @@ export function EditorWorkspace({
   }
 
   function pastePendingCut(): boolean {
-    if (rootBackedSlide) return false;
     if (!pendingCut) return false;
 
     const target = authoringTarget;
     const source = pendingCut.source;
     const sourceMatchesTarget = source.kind === "slide"
       ? target.kind === "slide"
-      : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
+      : source.kind === "slide-local-root"
+        ? target.kind === "slide"
+          && history.present.slides[target.slideIndex]?.id === source.slideId
+        : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
     if (!sourceMatchesTarget) {
       setPendingCut(null);
       return false;
+    }
+    if (rootBackedSlide && source.kind === "slide") {
+      return false;
+    }
+
+    const selectedElementAtPaste = selectedDocumentElement;
+    const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
+    if (source.kind === "slide-local-root") {
+      if (!rootBackedSlide || target.kind !== "slide") return false;
+      const initialMove = moveRootBackedClipboardElement(
+        history.present,
+        target.slideIndex,
+        source.targetContainerId,
+        pendingCut.sourceElementId,
+        selectedElementAtPaste,
+        selectedContentSlotId,
+      );
+      if (!initialMove) return false;
+
+      commitAuthoringAction(
+        target,
+        { kind: "element.move", labelKey: "history.element.move" },
+        (current, authoringTarget) => authoringTarget.kind === "slide"
+          ? moveRootBackedClipboardElement(
+              current,
+              authoringTarget.slideIndex,
+              source.targetContainerId,
+              pendingCut.sourceElementId,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            ) ?? current
+          : current,
+      );
+      setPendingCut(null);
+      return true;
     }
 
     const sourceTarget: AuthoringTarget = source.kind === "slide"
@@ -2001,8 +2079,6 @@ export function EditorWorkspace({
       : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
     const sourceElements = resolveAuthoringElements(history.present, sourceTarget);
     const receiverElements = resolveAuthoringElements(history.present, target);
-    const selectedElementAtPaste = selectedDocumentElement;
-    const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
     if (!sourceElements) {
       setPendingCut(null);
       return false;
@@ -6975,7 +7051,20 @@ export function EditorWorkspace({
                   pendingCut={pendingCut}
                   pendingCutLabel={t("editor.pendingCut")}
                   presentation={presentation}
-                  canPaste={!rootBackedSlide}
+                  canPaste={rootBackedSlide
+                    ? (entryId) => {
+                        const entry = clipboardSession.entries.find((candidate) => candidate.id === entryId);
+                        return authoringTarget.kind === "slide"
+                          && entry !== undefined
+                          && pasteRootBackedClipboardEntry(
+                            presentation,
+                            authoringTarget.slideIndex,
+                            entry.element,
+                            selectedDocumentElement,
+                            selectedElement?.contentSlotId ?? null,
+                          ) !== null;
+                      }
+                    : true}
                   clearLabel={t("editor.clearClipboard")}
                   emptyLabel={t("editor.clipboardEmpty")}
                   pinnedLabel={t("editor.pinnedSnapshots")}
@@ -7003,7 +7092,9 @@ export function EditorWorkspace({
                     setClipboardSession((current) => removeClipboardEntry(current, entryId))
                   }
                   typeLabel={(element) =>
-                    getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))
+                    element.type === "text" && !Object.prototype.hasOwnProperty.call(element, "content")
+                      ? t(ELEMENT_TYPE_MESSAGE_KEYS[element.type])
+                      : getElementLabel(element, t(ELEMENT_TYPE_MESSAGE_KEYS[element.type]))
                   }
                 />
                     );

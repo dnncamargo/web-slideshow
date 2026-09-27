@@ -39,6 +39,19 @@ describe("Clipboard session state", () => {
       source: { kind: "slide", slideId: "slide-1" },
       elementType: "divider",
     });
+    expect(createPendingClipboardCut(source, {
+      kind: "slide-local-root",
+      slideId: "slide-1",
+      targetContainerId: "receiver-a",
+    })).toEqual({
+      sourceElementId: "source",
+      source: {
+        kind: "slide-local-root",
+        slideId: "slide-1",
+        targetContainerId: "receiver-a",
+      },
+      elementType: "divider",
+    });
   });
 
   it("creates an independent complete snapshot", () => {
