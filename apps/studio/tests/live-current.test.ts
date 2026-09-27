@@ -164,6 +164,7 @@ describe("live-current activation", () => {
       box.committed = updater({
         activationRevision: 3,
         current: {},
+        checkboxControl: { stale: true },
         scriptedAction: { stale: true },
         scriptedRuntime: { stale: true },
         scriptedReport: { stale: true },
@@ -208,6 +209,7 @@ describe("live-current activation", () => {
     expect(committed.scriptedRuntime).toBeUndefined();
     expect(committed.scriptedReport).toBeUndefined();
     expect(committed.scriptedInput).toBeUndefined();
+    expect(committed.checkboxControl).toBeUndefined();
     expect(committed.slideTransition).toBeNull();
     expect(committed.playerControls).toBeNull();
     expect(committed.playerLogs).toBeNull();
@@ -268,6 +270,7 @@ describe("live-current activation", () => {
         slideCommand: null,
         slideAck: null,
         slideTransition: null,
+        checkboxControl: null,
         playerControls: null,
         playerLogs: null,
       },
@@ -295,6 +298,17 @@ describe("live-current activation", () => {
       slideAck: { revision: 4 },
       fullscreenRequest: { revision: 4 },
       playerRecoveryRequest: { revision: 2 },
+      checkboxControl: {
+        0: {
+          activationRevision: 7,
+          currentVersionId: "ver-1",
+          revision: 3,
+          pageId: "page-1",
+          elementId: "topics-1",
+          checkboxId: "item-1",
+          state: "checked",
+        },
+      },
       plotAnimationAction: {
         0: {
           activationRevision: 7,
@@ -335,6 +349,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      checkboxControl: null,
       plotAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
@@ -447,6 +462,7 @@ describe("live-current activation", () => {
       fullscreenRequest: null,
       playerRecoveryRequest: null,
       galleryControl: null,
+      checkboxControl: null,
       plotAnimationAction: null,
       scriptedAction: null,
       scriptedRuntime: null,
