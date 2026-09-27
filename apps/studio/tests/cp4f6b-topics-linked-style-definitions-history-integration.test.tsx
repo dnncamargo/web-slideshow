@@ -206,6 +206,22 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     expect(row.querySelector("[data-linked-topics-property='markerColor']")).toBeNull();
   });
 
+  it("labels a checkbox markerColor card as Checkbox color while patching markerColor", async () => {
+    const initial = presentation({ linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "checkbox", markerColor: "#ff0000" }] });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const card = row.querySelector<HTMLElement>("[data-linked-topics-property='markerColor']");
+    if (!card) throw new Error("Topics markerColor property card was not rendered");
+    expect(card.textContent).toContain("Checkbox color");
+
+    const color = card.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-marker-color");
+    if (!color) throw new Error("Topics checkbox ColorControl was not rendered");
+    await act(async () => { color.focus(); setInputValue(color, "#00ff00"); color.blur(); });
+    expect((await save(saved)).linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ markerColor: "#00ff00" });
+    expect((await save(saved)).linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("checkboxColor");
+  });
+
   it("changes only the shared definition for multiple usages and replays unused removal", async () => {
     const initial = presentation({
       slides: [{ id: "slide-1", title: "Slide 1", elements: [

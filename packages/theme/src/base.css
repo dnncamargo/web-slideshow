@@ -467,6 +467,8 @@
   grid-column: 1;
 
   margin: 0;
+
+  accent-color: var(--presentation-topic-marker-color);
 }
 
 .presentation-topics-checkbox > .presentation-topic-item > :not(.presentation-checkbox) {

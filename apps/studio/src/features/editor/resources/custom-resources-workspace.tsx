@@ -858,7 +858,7 @@ function isTopicsLinkedStyleLayoutProperty(property: TopicsLinkedStyleProperty):
 function TopicsLinkedStylePropertyCard({ style, property, authoringHistory, onUpdateLayoutProperty, onUpdate, onDiscrete, onContinuous }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; authoringHistory: AuthoringHistoryContextValue | null; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onDiscrete: (callback: () => void) => void; onContinuous: (property: TopicsLinkedStyleProperty, callback: () => void) => void }) {
   const { t } = useStudioI18n();
   const canRemove = topicsLinkedStyleAuthoredPropertyCount(style) > 1;
-  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
+  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: style.kind === "checkbox" ? "inspector.topics.checkboxColor" : "inspector.topics.markerColor" } as const;
   const label = t(labels[property]);
   const remove = () => onDiscrete(() => {
     if (isTopicsLinkedStyleLayoutProperty(property)) onUpdateLayoutProperty(property, undefined);

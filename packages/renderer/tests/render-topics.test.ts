@@ -134,6 +134,25 @@ describe("renderElement topics support", () => {
     expect(html).toContain("--presentation-topic-item-gap:4px");
   });
 
+  it("resolves linked checkbox markerColor into the existing marker color variable", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      linkedStyles: [{ target: "topics", id: "checkbox-style", name: "Checkbox", kind: "checkbox", markerColor: "#ff0000" }],
+      slides: [{ id: "s", title: "S", elements: [{ ...topicsElement({ linkedStyleId: "checkbox-style", markerColor: "#0000ff", kind: undefined, items: [topicItem()] }) }] }],
+    });
+    const html = renderElement(presentation.slides[0]!.elements[0]!, { presentation });
+    expect(html).toContain("--presentation-topic-marker-color:#0000ff");
+    expect(html).not.toContain("checkbox-color");
+
+    const linkedOnly = PresentationSchema.parse({
+      ...presentation,
+      slides: [{ id: "s", title: "S", elements: [{ ...topicsElement({ linkedStyleId: "checkbox-style", kind: undefined, items: [topicItem()] }) }] }],
+    });
+    expect(renderElement(linkedOnly.slides[0]!.elements[0]!, { presentation: linkedOnly })).toContain("--presentation-topic-marker-color:#ff0000");
+  });
+
   it("renders the effective linked kind and defaults omitted standalone kind to unordered", () => {
     const presentation = PresentationSchema.parse({
       schemaVersion: 1,

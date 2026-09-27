@@ -714,7 +714,35 @@ function addChildTopic(topicItemId: string) {
       />
 
       <InspectorSection title={t("inspector.appearance")}>
-        {effectiveKind !== "checkbox" ? <div className={styles.appearanceSubgroup}>
+        {effectiveKind === "checkbox" ? (
+          <div className={styles.appearanceSubgroup}>
+            <span className={styles.appearanceSubheading}>
+              {t("inspector.topics.checkbox")}
+            </span>
+
+            <div className={styles.colorControl}>
+              <label className={styles.field}>
+                <span>{t("inspector.topics.checkboxColor")}</span>
+
+                <ColorControl
+                  id="topics-checkbox-color"
+                  name="topicsCheckboxColor"
+                  value={resolvedTopics.markerColor}
+                  effectiveValue={resolvedTopics.markerColor === undefined ? effectiveMarkerColor : undefined}
+                  effectiveSource={resolvedTopics.markerColor === undefined ? effectiveMarkerColorSource : undefined}
+                  onChange={(markerColor) => {
+                    updateCurrentTopics((current) => ({
+                      ...current,
+                      markerColor,
+                    }));
+                  }}
+                  secondaryAction={element.linkedStyleId === undefined && resolvedTopics.markerColor !== undefined ? { label: effectiveMarkerColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
+                />
+                <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
+              </label>
+            </div>
+          </div>
+        ) : <div className={styles.appearanceSubgroup}>
           <span className={styles.appearanceSubheading}>
             {t("inspector.topics.markers")}
           </span>
@@ -781,7 +809,7 @@ function addChildTopic(topicItemId: string) {
               <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
             </label>
           </div>
-        </div> : null}
+        </div>}
 
         <div className={styles.appearanceSubgroup}>
           <span className={styles.appearanceSubheading}>

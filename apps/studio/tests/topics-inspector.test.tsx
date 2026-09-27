@@ -493,6 +493,44 @@ describe("TopicsInspector", () => {
     expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
     expect(container.querySelector("#topics-marker-style")).toBeNull();
     expect(container.querySelector("#topics-marker-color")).toBeNull();
+    expect(container.querySelector("#topics-checkbox-color")).not.toBeNull();
+    expect(container.textContent).toContain("Checkbox color");
+  });
+
+  it("edits checkbox color through markerColor and does not write checkboxColor", async () => {
+    await act(async () => mount(topicsElement({ kind: "checkbox" })));
+
+    const color = container.querySelector<HTMLInputElement>("#topics-checkbox-color-value");
+    if (!color) throw new Error("Topics checkbox color input was not rendered");
+    await act(async () => setTextInputValue(color, "#22d3ee"));
+
+    expect(elementState.markerColor).toBe("#22d3ee");
+    expect(elementState).not.toHaveProperty("checkboxColor");
+  });
+
+  it("uses linked checkbox markerColor, lets local markerColor override it, and resets to linked", async () => {
+    mount(topicsElement({ kind: undefined, linkedStyleId: "topics-style" }));
+    presentation = {
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "checkbox", markerColor: "#ff0000" }],
+    };
+    await act(async () => renderInspector());
+
+    const color = container.querySelector<HTMLInputElement>("#topics-checkbox-color-value");
+    if (!color) throw new Error("Topics checkbox color input was not rendered");
+    expect(color.value).toBe("#ff0000");
+    expect(container.textContent).toContain("Linked");
+
+    await act(async () => setTextInputValue(color, "#0000ff"));
+    expect(elementState.markerColor).toBe("#0000ff");
+    expect(color.value).toBe("#0000ff");
+    expect(container.textContent).toContain("Local override");
+
+    const reset = color.closest("label")?.querySelector<HTMLButtonElement>("button");
+    if (!reset) throw new Error("Checkbox color reset was not rendered");
+    await act(async () => reset.click());
+    expect(elementState.markerColor).toBeUndefined();
+    expect(color.value).toBe("#ff0000");
+    expect(container.textContent).toContain("Linked");
   });
 
   it("does not write omitted checkboxMode on mount and clears it when leaving checkbox mode", async () => {
