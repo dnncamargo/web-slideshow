@@ -1,4 +1,5 @@
 import { hydrateContainerFits } from "./container-fit-runtime";
+import { hydrateCheckboxes } from "./checkbox-runtime";
 import { hydrateImageCrops } from "./image-crop-runtime";
 import type { Slide } from "@web-slideshow/document-schema";
 import {
@@ -16,6 +17,7 @@ export interface RendererRuntimeContext {
 }
 
 export function hydrateRendererRuntime(root: ParentNode, context: RendererRuntimeContext = {}): void {
+  hydrateCheckboxes(root);
   hydrateImageCrops(root);
   hydrateContainerFits(root);
   if (context.plotAnimations === undefined) {
