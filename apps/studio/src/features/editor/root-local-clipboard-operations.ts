@@ -65,14 +65,16 @@ function appendAtDestination(
   elements: PresentationElement[],
   destination: ClipboardPasteDestination,
   element: PresentationElement,
-): PresentationElement[] {
+): PresentationElement[] | null {
   if (destination.kind === "slide") {
     return [...elements, element];
   }
   if (destination.kind === "container") {
-    return appendElementToContainer(elements, destination.id, element);
+    const nextElements = appendElementToContainer(elements, destination.id, element);
+    return nextElements === elements ? null : nextElements;
   }
-  return appendElementToContentSlot(elements, destination.id, element);
+  const nextElements = appendElementToContentSlot(elements, destination.id, element);
+  return nextElements === elements ? null : nextElements;
 }
 
 function containsDestinationInSource(
@@ -287,7 +289,7 @@ export function moveRootBackedClipboardElement(
       destination.destination,
       movedElement,
     );
-    if (nextChildrenWithCopy === sourceRecord.children) return null;
+    if (nextChildrenWithCopy === null) return null;
     const nextChildren = removeElementById(nextChildrenWithCopy, sourceElementId);
     const nextRecords = updateLocalRecordChildren(
       records,
@@ -306,7 +308,7 @@ export function moveRootBackedClipboardElement(
     destination.destination,
     movedElement,
   );
-  if (nextReceiverChildren === (receiverRecord?.children ?? [])) return null;
+  if (nextReceiverChildren === null) return null;
   const nextSourceChildren = removeElementById(sourceRecord.children, sourceElementId);
   let nextRecords = updateLocalRecordChildren(
     records,

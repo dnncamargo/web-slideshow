@@ -30,6 +30,23 @@ const container = (
   children,
 });
 
+function topics(id: string, contentSlotId: string): PresentationElement {
+  return {
+    id,
+    type: "topics",
+    hidden: false,
+    kind: "unordered",
+    items: [{
+      id: `${id}-item`,
+      content: {
+        id: contentSlotId,
+        children: [text(`${id}-text`)],
+      },
+      children: [],
+    }],
+  };
+}
+
 function rootBackedPresentation(
   localRootChildren: NonNullable<Presentation["slides"][number]["localRootChildren"]> = [],
 ): Presentation {
@@ -157,6 +174,35 @@ describe("Root-backed Slide Clipboard ownership", () => {
     expect(PresentationSchema.safeParse(result?.presentation).success).toBe(true);
   });
 
+  it("fails closed when a resolved TopicItem ContentSlot rejects a Topics snapshot", () => {
+    const localTopics = topics("local-topics", "topic-slot");
+    const source = rootBackedPresentation([{
+      targetContainerId: "receiver-a",
+      children: [localTopics],
+    }]);
+    const before = structuredClone(source);
+    const selected = localTopics;
+
+    expect(resolveRootBackedClipboardPasteDestination(
+      source,
+      0,
+      "snapshot-topics",
+      selected,
+      "topic-slot",
+    )).toEqual({
+      targetContainerId: "receiver-a",
+      destination: { kind: "content-slot", id: "topic-slot" },
+    });
+    expect(pasteRootBackedClipboardEntry(
+      source,
+      0,
+      topics("snapshot-topics", "snapshot-slot"),
+      selected,
+      "topic-slot",
+    )).toBeNull();
+    expect(source).toEqual(before);
+  });
+
   it("moves local content atomically from receiver A to receiver B", () => {
     const source = rootBackedPresentation([{
       targetContainerId: "receiver-a",
@@ -179,6 +225,26 @@ describe("Root-backed Slide Clipboard ownership", () => {
     expect(result?.slides[0]?.localRootChildren?.[0]?.children[0]?.id).not.toBe("local-container");
     expect(result?.rootDefinitions).toEqual(masterBefore);
     expect(PresentationSchema.safeParse(result).success).toBe(true);
+  });
+
+  it("does not remove a local source when a same-receiver TopicItem destination rejects insertion", () => {
+    const sourceTopics = topics("source-topics", "source-slot");
+    const destinationTopics = topics("destination-topics", "destination-slot");
+    const source = rootBackedPresentation([{
+      targetContainerId: "receiver-a",
+      children: [sourceTopics, destinationTopics],
+    }]);
+    const before = structuredClone(source);
+
+    expect(moveRootBackedClipboardElement(
+      source,
+      0,
+      "receiver-a",
+      "source-topics",
+      destinationTopics,
+      "destination-slot",
+    )).toBeNull();
+    expect(source).toEqual(before);
   });
 
   it("fails closed for no selection, unauthorized projected Containers, and self-descendant placement", () => {

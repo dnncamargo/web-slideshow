@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PresentationSchema, type Presentation, type PresentationElement } from "@web-slideshow/document-schema";
 
@@ -28,6 +28,71 @@ const container = (
   hidden: false,
   children,
 });
+
+function topicItem(id: string, slotId: string, content = id) {
+  return {
+    id,
+    content: {
+      id: slotId,
+      children: [text(`${id}-text`, content)],
+    },
+    children: [],
+  };
+}
+
+function forbiddenTopicsPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-local-clipboard-topics",
+    title: "Root local Clipboard Topics",
+    slides: [{
+      id: "slide-1",
+      title: "Slide 1",
+      summary: "",
+      speakerNotes: "",
+      elements: [],
+      rootDefinitionId: "root-1",
+      localRootChildren: [
+        {
+          targetContainerId: "receiver-a",
+          children: [{
+            id: "local-topics-source",
+            type: "topics",
+            hidden: false,
+            kind: "unordered",
+            items: [topicItem("source-item", "source-slot", "Source")],
+          }],
+        },
+        {
+          targetContainerId: "receiver-b",
+          children: [{
+            id: "local-topics-target",
+            type: "topics",
+            hidden: false,
+            kind: "unordered",
+            items: [topicItem("target-item", "target-slot", "Target")],
+          }],
+        },
+      ],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Root 1",
+      localChildTargetIds: ["receiver-a", "receiver-b"],
+      root: container("root", [
+        {
+          id: "master-topics",
+          type: "topics",
+          hidden: false,
+          kind: "unordered",
+          items: [topicItem("master-item", "master-slot", "Master")],
+        },
+        container("receiver-a"),
+        container("receiver-b"),
+      ]),
+    }],
+  });
+}
 
 function presentation(): Presentation {
   return PresentationSchema.parse({
@@ -91,6 +156,21 @@ describe("Root-backed Slide local Clipboard authoring", () => {
   let host: HTMLDivElement;
   let root: Root;
   let saved: Presentation[];
+
+  async function mount(source: Presentation, onSave: (value: Presentation) => Promise<void>): Promise<void> {
+    saved = [];
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace
+            key={source.id}
+            initialPresentation={source}
+            onSave={onSave}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+  }
 
   beforeEach(() => {
     host = document.createElement("div");
@@ -207,5 +287,58 @@ describe("Root-backed Slide local Clipboard authoring", () => {
     expect(host.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
     expect(host.querySelector('[data-presentation-id="receiver-b"]')).not.toBeNull();
     expect(initial.slides[0]?.elements).toEqual([]);
+  });
+
+  it("keeps an invalid Topics-to-TopicItem paste unavailable with no history mutation", async () => {
+    const source = forbiddenTopicsPresentation();
+    const onSave = vi.fn(async (_value: Presentation) => {});
+    await mount(source, onSave);
+
+    select(host, "master-topics");
+    await pressKey("c", { ctrlKey: true });
+    select(host, "target-item-text");
+    await act(async () => {
+      Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === "Clipboard")?.click();
+    });
+
+    const card = host.querySelector<HTMLElement>("[class*='clipboardEntry']");
+    expect(card).not.toBeNull();
+    await act(async () => card?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
+    await pressKey("v", { ctrlKey: true });
+    expect(host.textContent).not.toContain("element.paste");
+
+    const saveButton = save(host);
+    expect(saveButton.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-presentation-id="target-item-text"]')).not.toBeNull();
+    await act(async () => {
+      Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === "History")?.click();
+    });
+    expect(host.textContent).toContain("History is not populated yet.");
+  });
+
+  it("keeps a rejected Root-local Topics Cut pending and leaves both records unchanged", async () => {
+    const source = forbiddenTopicsPresentation();
+    const onSave = vi.fn(async (_value: Presentation) => {});
+    await mount(source, onSave);
+
+    select(host, "local-topics-source");
+    await pressKey("x", { ctrlKey: true });
+    select(host, "target-item-text");
+    await pressKey("v", { ctrlKey: true });
+
+    await act(async () => {
+      Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === "Clipboard")?.click();
+    });
+    expect(host.textContent).toContain("Pending Cut");
+
+    const saveButton = save(host);
+    expect(saveButton.disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-presentation-id="local-topics-source"]')).not.toBeNull();
+    expect(host.querySelector('[data-presentation-id="local-topics-target"]')).not.toBeNull();
   });
 });
