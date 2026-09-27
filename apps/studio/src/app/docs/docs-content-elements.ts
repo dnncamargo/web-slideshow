@@ -107,11 +107,11 @@ export const elementDocsGroup: DocsGroup = {
       "topics", "Topics",
       "Topics apresenta uma árvore hierárquica de itens com conteúdo em cada tópico.",
       "Use para sumários, listas com subníveis ou conteúdo que precisa de hierarquia visível.",
-      "A seção Content contém itens editáveis, Add topic, Add subtopic, Remove topic, List type, Topic spacing, tipografia, Text color, Markers, First-level marker e Marker color.",
+      "A seção Content contém a árvore editável (Add topic, Add subtopic e Remove topic), List type, Topic spacing, tipografia e Text color. Para listas unordered/ordered, o Inspector também mostra Markers, First-level marker e Marker color; para checkbox, mostra Checkbox states e Checkbox color.",
       "Os tópicos são recursivos e a indentação acompanha a profundidade. Position é adicionado pelo ElementInspector quando há contexto de camadas.",
       "kind: unordered\nitems:\n  - content: \"Comece aqui\"\n    children: []",
       "A profundidade estrutural máxima atual é 5. Conteúdo não textual dentro do slot é resumido no Inspector; não é um novo tipo de tópico.",
-      [["Content", "Topics / Add topic / Add subtopic / Remove topic", "Edita a árvore e seus textos."], ["Content", "List type", "Bulleted ou Numbered."], ["Content", "Topic spacing", "Espaçamento em px; pode herdar o default."], ["Content", "Text color / Typography", "Define aparência textual."], ["Markers", "First-level marker / Marker color", "Escolhe marcador permitido conforme o tipo da lista."]],
+      [["Content", "Topics / Add topic / Add subtopic / Remove topic", "Edita a árvore e seus textos."], ["Content", "List type", "Unordered, Ordered ou Checkbox."], ["Content", "Topic spacing", "Espaçamento em px; pode herdar o default."], ["Content", "Text color / Typography", "Define aparência textual."], ["Markers", "First-level marker / Marker color", "Disponível para listas unordered/ordered; escolhe o marcador e sua cor."], ["Checkbox", "Checkbox states / Checkbox color", "Checkbox states escolhe o modo local de dois ou três estados; Checkbox color reutiliza a propriedade canônica markerColor."]],
     ),
     elementTopic(
       "divider", "Divider",
