@@ -495,7 +495,7 @@ describe("TopicsInspector", () => {
     expect(container.querySelector("#topics-marker-color")).toBeNull();
   });
 
-  it("does not write omitted checkboxMode on mount and preserves it while hidden", async () => {
+  it("does not write omitted checkboxMode on mount and clears it when leaving checkbox mode", async () => {
     await act(async () => mount(topicsElement({ kind: "checkbox" })));
 
     expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
@@ -515,13 +515,13 @@ describe("TopicsInspector", () => {
       kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(container.querySelector("#topics-checkbox-mode")).toBeNull();
-    expect(elementState.checkboxMode).toBe("three-state");
+    expect(elementState).not.toHaveProperty("checkboxMode");
 
     await act(async () => {
       kindSelect().value = "checkbox";
       kindSelect().dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("three-state");
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
   });
 
   it("shows and edits local checkboxMode for a linked checkbox kind", async () => {

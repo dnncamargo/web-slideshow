@@ -621,7 +621,9 @@ function addChildTopic(topicItemId: string) {
 
                   const rootMarkerStyle = normalizeTopicMarkerStyle(kind, current.rootMarkerStyle);
                   if (current.kind === kind && rootMarkerStyle === current.rootMarkerStyle) return current;
-                  return { ...current, kind, rootMarkerStyle };
+                  const next = { ...current, kind, rootMarkerStyle };
+                  if (effectiveKind === "checkbox") delete next.checkboxMode;
+                  return next;
                 }));
               }}
             >
