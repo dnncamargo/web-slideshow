@@ -1,4 +1,4 @@
-import type { ImageElement } from "@web-slideshow/document-schema";
+import type { ImageCrop, ImageFocalPoint } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
@@ -19,7 +19,7 @@ import {
   updateImageFocalPoint,
 } from "./image-focal-point-helpers";
 
-type Crop = ImageElement["crop"];
+type Crop = ImageCrop | undefined;
 type CropField = ImageCropField;
 
 const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
@@ -33,8 +33,8 @@ function areCropsEqual(left: Crop, right: Crop): boolean {
 }
 
 function areFocalPointsEqual(
-  left: ImageElement["focalPoint"],
-  right: ImageElement["focalPoint"],
+  left: ImageFocalPoint | undefined,
+  right: ImageFocalPoint | undefined,
 ): boolean {
   if (left === undefined || right === undefined) {
     return left === right;
@@ -144,8 +144,8 @@ export function ImageCropControl({
 }
 
 interface ImageFocalPointControlProps {
-  focalPoint: ImageElement["focalPoint"];
-  onFocalPointChange: (focalPoint: ImageElement["focalPoint"]) => void;
+  focalPoint: ImageFocalPoint | undefined;
+  onFocalPointChange: (focalPoint: ImageFocalPoint | undefined) => void;
   onResetFocalPoint: () => void;
   idPrefix: string;
   canvasEdit?: {

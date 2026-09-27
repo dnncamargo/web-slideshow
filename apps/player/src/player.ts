@@ -9,10 +9,12 @@ import {
   mountProjectionSurface,
   type PlayerTransition,
   type PlotAnimationControlAction,
+  type ShapeAnimationControlAction,
 } from "./projection-surface";
 
 export type { PlayerTransition } from "./projection-surface";
 export type { PlotAnimationControlAction } from "./projection-surface";
+export type { ShapeAnimationControlAction } from "./projection-surface";
 
 // ============================================================
 // TIPOS PÚBLICOS DO PLAYER
@@ -162,6 +164,8 @@ export interface PlayerController {
   sendScriptedAction(elementId: string, portId: string): void;
 
   controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void;
+
+  controlShapeAnimation?(elementId: string, action: ShapeAnimationControlAction): void;
 
   sendScriptedInput(
     elementId: string,
@@ -690,6 +694,10 @@ export function mountPlayer(
 
     controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void {
       projection.controlPlotAnimation(elementId, action);
+    },
+
+    controlShapeAnimation(elementId: string, action: ShapeAnimationControlAction): void {
+      projection.controlShapeAnimation(elementId, action);
     },
 
     sendScriptedInput(

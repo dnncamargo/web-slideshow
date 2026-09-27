@@ -1,4 +1,4 @@
-import type { BlocksElement, PlotElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@web-slideshow/document-schema";
+import type { BlocksElement, PlotElement, CodeElement, DividerElement, ElementLayout, EmbedElement, GalleryElement, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ScriptedElement, ShapeElement, TableElement, TerminalElement, TextElement, TopicsElement } from "@web-slideshow/document-schema";
 import { normalizeAuthoringLengthValue, parseAuthoringLength } from "@web-slideshow/theme/element-style-defaults";
 import type { CanvasResizeDirection } from "./canvas-resize-helpers";
 
@@ -14,7 +14,7 @@ export interface CanonicalTextCanvasGeometry {
 }
 
 type TextFamilyElement = TextElement;
-type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement;
+type CanonicalElement = TextFamilyElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement | ShapeElement;
 type PositioningEdge = "left" | "right" | "top" | "bottom";
 
 function includes(direction: CanvasResizeDirection, value: string): boolean {
@@ -94,12 +94,12 @@ export function updateCanonicalImageForCanvasDrag(
 }
 
 export function updateCanonicalSurfaceForCanvasDrag(
-  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement,
+  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement,
   deltaX: number,
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
-): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement {
-  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement;
+): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement {
+  return updateCanonicalElementForCanvasDrag(element, deltaX, deltaY, geometry) as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement;
 }
 
 function serializeSize(value: number, original: string | number | undefined, parent: number): string | number {
@@ -185,12 +185,12 @@ export function updateImageForCanvasResize(
 }
 
 export function updateSurfaceForCanvasResize(
-  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement,
+  element: GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement,
   direction: CanvasResizeDirection,
   deltaX: number,
   deltaY: number,
   geometry: CanonicalTextCanvasGeometry,
-): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement {
+): GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement {
   if (deltaX === 0 && deltaY === 0) return element;
   const layout = element.layout ?? {};
   const next = element.layout?.position === "absolute"
@@ -207,5 +207,5 @@ export function updateSurfaceForCanvasResize(
   const vertical = element.layout?.position === "absolute"
     ? updateAxis(next, "vertical", direction, deltaY, geometry)
     : next;
-  return { ...element, layout: vertical as ResizablePositionedLayout } as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement;
+  return { ...element, layout: vertical as ResizablePositionedLayout } as GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | PlotElement | ShapeElement;
 }

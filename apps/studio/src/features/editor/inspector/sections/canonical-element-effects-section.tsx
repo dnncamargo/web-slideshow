@@ -7,18 +7,36 @@ import { InspectorSection } from "../inspector-section";
 import type { UpdateElementEffect } from "../inspector-types";
 import { ColorControl } from "./color-control";
 
-interface Props { effect: ElementEffect | undefined; onUpdateEffect: UpdateElementEffect; controlPrefix: string; effectiveEffect?: ElementEffect; disabledFields?: readonly ("shadow")[]; }
+interface Props {
+  effect: ElementEffect | undefined;
+  onUpdateEffect: UpdateElementEffect;
+  controlPrefix: string;
+  effectiveEffect?: ElementEffect;
+  disabledFields?: readonly ("shadow")[];
+  showOpacity?: boolean;
+}
 const defaultShadow = (inset = false): Shadow => ({ x: 0, y: 4, blur: 12, color: "#000000", ...(inset ? { inset: true } : {}) });
 const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 type ShadowNumberKey = "x" | "y" | "blur" | "spread";
 
-export function CanonicalElementEffectsSection({ effect, onUpdateEffect, controlPrefix, effectiveEffect, disabledFields = [] }: Props) {
+export function CanonicalElementEffectsSection({ effect, onUpdateEffect, controlPrefix, effectiveEffect, disabledFields = [], showOpacity = false }: Props) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const shadow = effect?.shadow ?? effectiveEffect?.shadow;
   const shadowDisabled = disabledFields.includes("shadow");
   const shadowLabels = { x: t("inspector.shadowX"), y: t("inspector.shadowY"), blur: t("inspector.shadowBlur"), spread: t("inspector.shadowSpread") };
   const shadowDefaults = { x: 0, y: 4, blur: 12, spread: undefined } as const;
+  const opacityHistoryKey = `number:${controlPrefix}-opacity`;
+  const updateOpacity = (opacity: number | undefined) => {
+    if (opacity === effect?.opacity) return;
+    const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(opacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(opacityHistoryKey, update);
+  };
   const updateShadow = (update: (shadow: Shadow) => Shadow) => { if (!shadowDisabled) onUpdateEffect((current) => ({ ...current, shadow: update(current?.shadow ?? defaultShadow()) })); };
   const beginNumberEditing = (key: ShadowNumberKey) => authoringHistory?.begin(`number:${controlPrefix}-shadow-${key}`, numberHistoryMeta);
   const updateShadowNumber = (key: ShadowNumberKey, value: number | undefined) => {
@@ -42,6 +60,7 @@ export function CanonicalElementEffectsSection({ effect, onUpdateEffect, control
     else callback();
   };
   return <InspectorSection title={t("inspector.effects")}>
+    {showOpacity && <label className={styles.field}><span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span><div className={styles.unitInput}><input id={`${controlPrefix}-opacity`} name={getControlName(controlPrefix, "Opacity")} type="number" min="0" max="100" value={(effect?.opacity ?? 1) * 100} onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)} onBlur={() => authoringHistory?.finish(opacityHistoryKey)} onChange={(event) => { const percentage = parseOptionalNumber(event.target.value); updateOpacity(percentage === undefined ? undefined : percentage / 100); }} /><span>%</span></div></label>}
     <label className={styles.field}><span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span><select id={`${controlPrefix}-shadow-mode`} name={getControlName(controlPrefix, "ShadowMode")} value={shadow === undefined ? "none" : shadow.inset ? "inset" : "outer"} disabled={shadowDisabled} onChange={(event) => { if (shadowDisabled) return; const mode = event.target.value; const currentMode = shadow === undefined ? "none" : shadow.inset ? "inset" : "outer"; if (mode !== "none" && mode !== "outer" && mode !== "inset") return; if (mode === currentMode) return; runDiscrete(() => onUpdateEffect((current) => ({ ...current, shadow: mode === "none" ? undefined : current?.shadow === undefined ? defaultShadow(mode === "inset") : { ...current.shadow, inset: mode === "inset" ? true : undefined } }))); }}><option value="none">{t("inspector.shadow.none")}</option><option value="outer">{t("inspector.shadow.outer")}</option><option value="inset">{t("inspector.shadow.inset")}</option></select></label>
     {shadow && <><div className={styles.fieldGrid}>
       {(["x", "y", "blur", "spread"] as const).map((key) => <label className={styles.field} key={key}><span>{shadowLabels[key]}</span><div className={styles.unitInput}><input id={`${controlPrefix}-shadow-${key}`} name={getControlName(controlPrefix, `Shadow${key[0].toUpperCase()}${key.slice(1)}`)} type="number" min={key === "blur" ? "0" : undefined} value={readAbsoluteNumber(shadow[key])} disabled={shadowDisabled} onFocus={() => { if (!shadowDisabled) beginNumberEditing(key); }} onBlur={() => { if (!shadowDisabled) authoringHistory?.finish(`number:${controlPrefix}-shadow-${key}`); }} onChange={(event) => updateShadowNumber(key, parseOptionalNumber(event.target.value) ?? shadowDefaults[key])} /><span>px</span></div></label>)}

@@ -1,9 +1,6 @@
-import type { ImageElement } from "@web-slideshow/document-schema";
+import type { ImageFocalPoint } from "@web-slideshow/document-schema";
 
-export interface ImageFocalPoint {
-  x: number;
-  y: number;
-}
+export type { ImageFocalPoint };
 
 export const DEFAULT_IMAGE_FOCAL_POINT: Readonly<ImageFocalPoint> = {
   x: 50,
@@ -23,7 +20,7 @@ export const IMAGE_FOCAL_POINT_PRESETS: readonly ImageFocalPoint[] = [
 ];
 
 export function getEffectiveImageFocalPoint(
-  focalPoint: ImageElement["focalPoint"],
+  focalPoint: ImageFocalPoint | undefined,
 ): ImageFocalPoint {
   return focalPoint ?? DEFAULT_IMAGE_FOCAL_POINT;
 }
@@ -43,7 +40,7 @@ export function getImageFocalPointPresetIndex(
 }
 
 export function updateImageFocalPoint(
-  focalPoint: ImageElement["focalPoint"],
+  focalPoint: ImageFocalPoint | undefined,
   axis: "x" | "y",
   value: number,
 ): ImageFocalPoint {
@@ -66,13 +63,13 @@ export function getImageFocalPointFromClientPosition(
 }
 
 export function getImageFocalPointUntilFit(
-  focalPoint: ImageElement["focalPoint"],
-): ImageElement["focalPoint"] {
+  focalPoint: ImageFocalPoint | undefined,
+): ImageFocalPoint | undefined {
   return focalPoint;
 }
 
 export function isImageFocalPointResetAvailable(
-  focalPoint: ImageElement["focalPoint"],
+  focalPoint: ImageFocalPoint | undefined,
 ): boolean {
   return focalPoint !== undefined;
 }

@@ -1,4 +1,4 @@
-import type { BlocksElement, PlotElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@web-slideshow/document-schema";
+import type { BlocksElement, PlotElement, CodeElement, ContainerElement, DividerElement, DividerLayout, ElementLayout, ImageElement, ImageLayout, InteractiveElement, PositionedElementLayout, ResizablePositionedLayout, ShapeElement, TableElement, TerminalElement, TextElement, GalleryElement, EmbedElement, ScriptedElement, TopicsElement, TopicsLayout } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../../editor-workspace.module.css";
 import { InspectorSection } from "../inspector-section";
@@ -6,7 +6,7 @@ import { shouldShowPositionLayerControls, type ElementLayerControls } from "./el
 import { useAuthoringHistory } from "../../authoring-history-context";
 
 interface Props {
-  element: TextElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement;
+  element: TextElement | ImageElement | GalleryElement | EmbedElement | ScriptedElement | CodeElement | TerminalElement | TableElement | BlocksElement | DividerElement | TopicsElement | PlotElement | InteractiveElement | ShapeElement;
   parent: ContainerElement | null;
   onUpdateLayout: (update: (layout: ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => ElementLayout | ImageLayout | ResizablePositionedLayout | DividerLayout | TopicsLayout | PositionedElementLayout | undefined) => void;
   layerControls: ElementLayerControls;

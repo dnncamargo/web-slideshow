@@ -10,6 +10,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   disposeRendererRuntime,
   getPlotAnimationController,
+  getShapeAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
@@ -17,6 +18,7 @@ import {
   fitLogicalSlideGeometry,
   resolveLogicalSlideSize,
   type PlotAnimationController,
+  type ShapeAnimationController,
   type FittedSlideGeometry,
 } from "@web-slideshow/renderer";
 import {
@@ -295,9 +297,9 @@ import {
   resolveClipboardPasteDestination,
 } from "./clipboard-operations";
 
-import type { PlotPreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
+import type { PlotPreviewControls, ShapePreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
-import { createQrImageElement } from "./qr-image-authoring";
+import { createQrShapeElement } from "./qr-shape-authoring";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
 import {
@@ -417,7 +419,8 @@ function isRootDefinitionGenericInspectorElement(element: PresentationElement): 
     || element.type === "scripted"
     || element.type === "blocks"
     || element.type === "topics"
-    || element.type === "table";
+    || element.type === "table"
+    || element.type === "shape";
 }
 
 type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
@@ -849,7 +852,7 @@ interface PendingQrSelection {
   target: AuthoringTarget;
   sourceElementId: string;
   qrElementId: string;
-  qrSource: string;
+  expectedValue: string;
   beforePresentation: Presentation;
 }
 
@@ -1348,13 +1351,15 @@ export function EditorWorkspace({
     if (
       !source ||
       !qr ||
-      qr.type !== "image" ||
-      qr.src !== pending.qrSource
+      qr.type !== "shape" ||
+      qr.geometry.mode !== "generated" ||
+      qr.geometry.generator !== "qr-code" ||
+      qr.geometry.config.value !== pending.expectedValue
     ) {
       return;
     }
 
-    setSelectedElement({ id: qr.id, type: "image" });
+    setSelectedElement({ id: qr.id, type: "shape" });
   }, [authoringTarget, presentation]);
 
   const [rightPanelMode, setRightPanelMode] = useState<
@@ -2454,6 +2459,10 @@ export function EditorWorkspace({
           slide: renderedSlideModel,
           autoplay: false,
         },
+        shapeAnimations: {
+          slide: renderedSlideModel,
+          autoplay: false,
+        },
       });
     } else if (canvas) {
       hydrateRendererRuntime(canvas);
@@ -2530,7 +2539,7 @@ export function EditorWorkspace({
             ? isContainerCanvasDraggable(documentElement)
             : documentElement.type === "text"
               ? documentElement.layout?.position === "absolute"
-              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks"
+              : documentElement.type === "image" || documentElement.type === "gallery" || documentElement.type === "embed" || documentElement.type === "scripted" || documentElement.type === "code" || documentElement.type === "terminal" || documentElement.type === "table" || documentElement.type === "blocks" || documentElement.type === "shape"
                 ? documentElement.layout?.position === "absolute"
               : documentElement.type === "divider" || documentElement.type === "topics" || documentElement.type === "plot" || documentElement.type === "interactive"
                   ? documentElement.layout?.position === "absolute"
@@ -3123,7 +3132,7 @@ export function EditorWorkspace({
         ? isContainerCanvasDraggable(selection.documentElement)
         : selection.documentElement.type === "text"
           ? selection.documentElement.layout?.position === "absolute"
-        : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks"
+          : selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "shape"
             ? selection.documentElement.layout?.position === "absolute"
           : selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive"
             ? selection.documentElement.layout?.position === "absolute"
@@ -3185,7 +3194,7 @@ export function EditorWorkspace({
           (parentClientTop + clientHeight * scaleY - elementBounds.bottom) /
           scaleY,
       };
-    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive") {
+    } else if (selection.documentElement.type === "text" || selection.documentElement.type === "image" || selection.documentElement.type === "gallery" || selection.documentElement.type === "embed" || selection.documentElement.type === "scripted" || selection.documentElement.type === "code" || selection.documentElement.type === "terminal" || selection.documentElement.type === "table" || selection.documentElement.type === "blocks" || selection.documentElement.type === "divider" || selection.documentElement.type === "topics" || selection.documentElement.type === "plot" || selection.documentElement.type === "interactive" || selection.documentElement.type === "shape") {
       canonicalTextGeometry = getContainerCanvasResizeGeometryForTarget(
         elementTarget,
         layoutParent,
@@ -3316,7 +3325,7 @@ export function EditorWorkspace({
               ? updateCanonicalImageForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
               : currentElement;
           }
-          if (currentElement.type === "gallery" || currentElement.type === "embed" || currentElement.type === "scripted" || currentElement.type === "code" || currentElement.type === "terminal" || currentElement.type === "table" || currentElement.type === "blocks") {
+          if (currentElement.type === "gallery" || currentElement.type === "embed" || currentElement.type === "scripted" || currentElement.type === "code" || currentElement.type === "terminal" || currentElement.type === "table" || currentElement.type === "blocks" || currentElement.type === "shape") {
             return drag.canonicalTextGeometry
               ? updateCanonicalSurfaceForCanvasDrag(currentElement, drag.deltaX, drag.deltaY, drag.canonicalTextGeometry)
               : currentElement;
@@ -3547,7 +3556,7 @@ export function EditorWorkspace({
         scaleY,
         selectedDocumentElement.layout?.position === "absolute",
       );
-    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot") {
+    } else if (selectedDocumentElement.type === "image" || selectedDocumentElement.type === "gallery" || selectedDocumentElement.type === "embed" || selectedDocumentElement.type === "scripted" || selectedDocumentElement.type === "code" || selectedDocumentElement.type === "terminal" || selectedDocumentElement.type === "table" || selectedDocumentElement.type === "blocks" || selectedDocumentElement.type === "plot" || selectedDocumentElement.type === "shape") {
       canonicalTextResizeGeometry = getContainerCanvasResizeGeometryForTarget(
         target,
         layoutParent,
@@ -3776,7 +3785,8 @@ export function EditorWorkspace({
               element.type === "terminal" ||
               element.type === "table" ||
               element.type === "blocks" ||
-              element.type === "plot"
+              element.type === "plot" ||
+              element.type === "shape"
             ) {
               nextElement = resize.canonicalTextResizeGeometry
                 ? updateSurfaceForCanvasResize(
@@ -3966,6 +3976,22 @@ export function EditorWorkspace({
       onPlay: () => runSelectedPlotPreview((controller) => controller.play()),
       onPause: () => runSelectedPlotPreview((controller) => controller.pause()),
       onReset: () => runSelectedPlotPreview((controller) => controller.reset()),
+    }
+    : undefined;
+
+  function runSelectedShapePreview(command: (controller: ShapeAnimationController) => void): void {
+    if (selectedDocumentElement?.type !== "shape") return;
+    const canvas = slideCanvasRef.current;
+    if (!canvas) return;
+    const controller = getShapeAnimationController(canvas, selectedDocumentElement.id);
+    if (controller) command(controller);
+  }
+
+  const shapePreviewControls: ShapePreviewControls | undefined = selectedDocumentElement?.type === "shape"
+    ? {
+      onPlay: () => runSelectedShapePreview((controller) => controller.play()),
+      onPause: () => runSelectedShapePreview((controller) => controller.pause()),
+      onReset: () => runSelectedShapePreview((controller) => controller.reset()),
     }
     : undefined;
 
@@ -4997,14 +5023,14 @@ export function EditorWorkspace({
       return;
     }
 
-    const newElement = createQrImageElement(href, collectPresentationAuthoringIds(presentation));
+    const newElement = createQrShapeElement(href, collectPresentationAuthoringIds(presentation));
     if (!newElement) return;
 
     pendingQrSelectionRef.current = {
       target,
       sourceElementId,
       qrElementId: newElement.id,
-      qrSource: newElement.src,
+      expectedValue: href,
       beforePresentation: presentation,
     };
 
@@ -5013,7 +5039,7 @@ export function EditorWorkspace({
       {
         kind: "element.add",
         labelKey: "history.element.add",
-        labelParams: { elementType: "image" },
+        labelParams: { elementType: "shape" },
       },
       (current, authoringTarget) => {
         const elements = resolveOwnedAuthoringTree(current, authoringTarget, sourceElementId)?.elements ?? null;
@@ -7278,6 +7304,7 @@ export function EditorWorkspace({
                           readOnly={rootDefinitionInspectorReadOnly}
                           onUpdate={updateSelectedElement}
                           plotPreviewControls={plotPreviewControls}
+                          shapePreviewControls={shapePreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={

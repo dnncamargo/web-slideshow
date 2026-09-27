@@ -135,6 +135,10 @@ const insertionDescription =
             {t("element.text")}
           </option>
 
+          <option value="shape">
+            {t("element.shape")}
+          </option>
+
           <option value="container">
             {t("element.container")}
           </option>

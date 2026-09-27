@@ -12,6 +12,8 @@ import { CustomLibraryFontDraftSchema } from "./custom-library-font-schema";
 import type { CustomLibraryStyleDependencies } from "./custom-library-style-dependencies";
 import { normalizeFontFamily } from "../fonts/font-face-helpers";
 
+type CustomLibraryElementType = Exclude<PresentationElement["type"], "shape">;
+
 const ELEMENT_TYPE_NAMES = {
   text: true,
   image: true,
@@ -27,11 +29,11 @@ const ELEMENT_TYPE_NAMES = {
   scripted: true,
   topics: true,
   container: true,
-} satisfies Record<PresentationElement["type"], true>;
+} satisfies Record<CustomLibraryElementType, true>;
 
 const elementTypeNames = Object.keys(ELEMENT_TYPE_NAMES) as [
-  PresentationElement["type"],
-  ...PresentationElement["type"][],
+  CustomLibraryElementType,
+  ...CustomLibraryElementType[],
 ];
 
 export const ElementRecipePropertySchema = z

@@ -194,6 +194,22 @@ export function visitPresentationColorValues(
           visitBorder(style.blockBorder, [...path, "style", "blockBorder"]);
         }
         break;
+      case "shape":
+        if (element.style?.fill?.type === "color") {
+          visitColor({
+            value: element.style.fill.color,
+            set: (value) => {
+              if (element.style?.fill?.type === "color") {
+                element.style.fill.color = value;
+              }
+            },
+          }, [...path, "style", "fill", "color"]);
+        } else if (element.style?.fill?.type === "gradient") {
+          visitGradient(element.style.fill.gradient, [...path, "style", "fill", "gradient"]);
+        }
+        visitBorder(element.style?.stroke, [...path, "style", "stroke"]);
+        visitEffect(element.effect, [...path, "effect"]);
+        break;
       case "image": case "gallery": case "embed": case "scripted": case "code": case "terminal":
         visitStyle(element.style, [...path, "style"]);
         visitEffect(element.effect, [...path, "effect"]);

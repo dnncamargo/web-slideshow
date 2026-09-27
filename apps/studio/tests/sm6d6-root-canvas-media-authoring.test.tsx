@@ -198,7 +198,7 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);
   });
 
-  it("keeps the existing Root Image QR action owner-scoped", async () => {
+  it("keeps the Root Image QR Shape action owner-scoped", async () => {
     const source = presentation();
     const onSave = await mount(source);
     await selectElement("shared-image");
@@ -212,7 +212,7 @@ describe("SM6D6 Root Canvas/media authoring", () => {
     expect(root.type).toBe("container");
     if (root.type === "container") {
       const imageIndex = root.children.findIndex((element) => element.id === "shared-image");
-      expect(root.children[imageIndex + 1]?.type).toBe("image");
+      expect(root.children[imageIndex + 1]?.type).toBe("shape");
       expect(root.children.filter((element) => element.type === "container")).toHaveLength(0);
     }
     expect(saved.slides[0]?.elements[0]).toEqual(source.slides[0]?.elements[0]);

@@ -19,6 +19,10 @@ import {
   createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction,
 } from "./live-plot-animation-action";
+import {
+  createLiveShapeAnimationActionTracker,
+  subscribeLiveShapeAnimationAction,
+} from "./live-shape-animation-action";
 import { subscribeLiveSlideTransition } from "./live-slide-transition";
 import { subscribeLivePlayerControls } from "./live-player-controls";
 import {
@@ -71,6 +75,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveGalleryControl: (() => void) | undefined;
   let cleanupLiveCheckboxControl: (() => void) | undefined;
   let cleanupLivePlotAnimationAction: (() => void) | undefined;
+  let cleanupLiveShapeAnimationAction: (() => void) | undefined;
   let cleanupLiveSlideTransition: (() => void) | undefined;
   let cleanupLivePlayerControls: (() => void) | undefined;
   let cleanupLiveScriptedAction: (() => void) | undefined;
@@ -88,6 +93,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let mountRevision = 0;
   const liveScriptedActionTracker = createLiveScriptedActionTracker();
   const livePlotAnimationActionTracker = createLivePlotAnimationActionTracker();
+  const liveShapeAnimationActionTracker = createLiveShapeAnimationActionTracker();
   const liveScriptedInputTracker = createLiveScriptedInputTracker();
   let getCurrentScriptedMount: ((slot: number) => { pageId: string; elementId: string; mountRevision: number } | null) | undefined;
   let markAppliedScriptedInput: ((input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void) | undefined;
@@ -323,6 +329,15 @@ export function startPlayer(root: HTMLElement): () => void {
           controller,
           livePlotAnimationActionTracker,
         );
+        cleanupLiveShapeAnimationAction = subscribeLiveShapeAnimationAction(
+          database,
+          live.revision,
+          live.currentVersionId,
+          presenceReporter.bootId,
+          presentation,
+          controller,
+          liveShapeAnimationActionTracker,
+        );
         cleanupLiveScriptedAction = subscribeLiveScriptedAction(
           database,
           live.revision,
@@ -368,6 +383,11 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLivePlotAnimationAction = undefined;
   }
 
+  function detachLiveShapeAnimationAction(): void {
+    cleanupLiveShapeAnimationAction?.();
+    cleanupLiveShapeAnimationAction = undefined;
+  }
+
   function detachLiveSlideTransition(): void {
     cleanupLiveSlideTransition?.();
     cleanupLiveSlideTransition = undefined;
@@ -390,6 +410,7 @@ export function startPlayer(root: HTMLElement): () => void {
     detachLiveGalleryControl();
     detachLiveCheckboxControl();
     detachLivePlotAnimationAction();
+    detachLiveShapeAnimationAction();
     detachLiveSlideTransition();
     detachLivePlayerControls();
     detachLiveScriptedAction();

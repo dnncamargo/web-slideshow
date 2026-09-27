@@ -53,6 +53,12 @@ import {
   type LivePlotAnimationActionRecord,
   type PlotAnimationAction,
 } from "../live/plot-animation-action";
+import {
+  buildShapeAnimationActionPath,
+  parseLiveShapeAnimationActionRecord,
+  type LiveShapeAnimationActionRecord,
+  type ShapeAnimationAction,
+} from "../live/shape-animation-action";
 
 function getCurrentUserIdForControl(): string {
   const user = getCurrentNonAnonymousUser();
@@ -480,6 +486,67 @@ export async function writePlotAnimationAction(
   if (result.committed !== true) throw new Error("Plot animation action transaction did not commit.");
   const committed = parseLivePlotAnimationActionRecord(result.snapshot.val());
   if (committed === null) throw new Error("Plot animation action transaction committed a malformed value.");
+  return committed;
+}
+
+export interface ShapeAnimationActionRequest {
+  activationRevision: number;
+  currentVersionId: string;
+  pageId: string;
+  shapeSlot: number;
+  elementId: string;
+  targetBootId: string;
+  action: ShapeAnimationAction;
+}
+
+function requireShapeAnimationActionInput(request: ShapeAnimationActionRequest): {
+  currentVersionId: string;
+  pageId: string;
+  targetBootId: string;
+} {
+  if (!isNonNegativeInteger(request.activationRevision)) throw new Error("Shape animation action requires a non-negative activationRevision.");
+  if (!isNonNegativeInteger(request.shapeSlot)) throw new Error("Shape animation action requires a non-negative integer shapeSlot.");
+  if (typeof request.elementId !== "string" || request.elementId.length === 0) throw new Error("Shape animation action requires an elementId.");
+  if (request.action !== "play" && request.action !== "pause" && request.action !== "reset") throw new Error("Shape animation action requires a valid action.");
+  const currentVersionId = request.currentVersionId.trim();
+  const pageId = request.pageId.trim();
+  const targetBootId = request.targetBootId.trim();
+  if (currentVersionId === "") throw new Error("Shape animation action requires a currentVersionId.");
+  if (pageId === "") throw new Error("Shape animation action requires a pageId.");
+  if (targetBootId === "") throw new Error("Shape animation action requires a targetBootId.");
+  return { currentVersionId, pageId, targetBootId };
+}
+
+/** Writes one Shape animation action occurrence at its independent slot address. */
+export async function writeShapeAnimationAction(
+  database: Database,
+  request: ShapeAnimationActionRequest,
+): Promise<LiveShapeAnimationActionRecord> {
+  if (!isRealtimeDatabaseConfigured()) throw new Error("Realtime Database is not configured.");
+  getCurrentUserIdForControl();
+  const normalized = requireShapeAnimationActionInput(request);
+  const actionRef = ref(database, buildShapeAnimationActionPath(request.shapeSlot));
+  const result = await runTransaction(actionRef, (current) => {
+    const previous = parseLiveShapeAnimationActionRecord(current);
+    const sameIdentity = previous !== null &&
+      previous.activationRevision === request.activationRevision &&
+      previous.currentVersionId === normalized.currentVersionId &&
+      previous.pageId === normalized.pageId &&
+      previous.elementId === request.elementId &&
+      previous.targetBootId === normalized.targetBootId;
+    return {
+      activationRevision: request.activationRevision,
+      currentVersionId: normalized.currentVersionId,
+      revision: sameIdentity ? previous.revision + 1 : 1,
+      pageId: normalized.pageId,
+      elementId: request.elementId,
+      targetBootId: normalized.targetBootId,
+      action: request.action,
+    };
+  });
+  if (result.committed !== true) throw new Error("Shape animation action transaction did not commit.");
+  const committed = parseLiveShapeAnimationActionRecord(result.snapshot.val());
+  if (committed === null) throw new Error("Shape animation action transaction committed a malformed value.");
   return committed;
 }
 

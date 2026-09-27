@@ -1,8 +1,8 @@
-import type { ImageElement } from "@web-slideshow/document-schema";
+import type { ImageCrop } from "@web-slideshow/document-schema";
 
 export type ImageCropField = "x" | "y" | "width" | "height";
 
-export interface ImageCropValues {
+export interface ImageCropValues extends ImageCrop {
   x: number;
   y: number;
   width: number;
@@ -25,14 +25,14 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 export function getEffectiveImageCrop(
-  crop: ImageElement["crop"],
+  crop: ImageCrop | undefined,
 ): ImageCropValues {
   return crop === undefined ? { ...DEFAULT_IMAGE_CROP } : { ...crop };
 }
 
 export function normalizeImageCrop(
-  crop: ImageElement["crop"],
-): ImageElement["crop"] {
+  crop: ImageCrop | undefined,
+): ImageCrop | undefined {
   if (crop === undefined) {
     return undefined;
   }
@@ -50,10 +50,10 @@ export function normalizeImageCrop(
 }
 
 export function updateImageCropField(
-  crop: ImageElement["crop"],
+  crop: ImageCrop | undefined,
   field: ImageCropField,
   value: number,
-): ImageElement["crop"] {
+): ImageCrop | undefined {
   const current = getEffectiveImageCrop(crop);
 
   if (!Number.isFinite(value)) {
@@ -78,7 +78,7 @@ export function updateImageCropField(
 }
 
 export function isImageCropResetAvailable(
-  crop: ImageElement["crop"],
+  crop: ImageCrop | undefined,
 ): boolean {
   return crop !== undefined;
 }

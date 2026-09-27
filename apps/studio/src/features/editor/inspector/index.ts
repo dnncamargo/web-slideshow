@@ -18,6 +18,8 @@ export { InspectorSection } from "./inspector-section";
 
 export { ScriptedInspector } from "./scripted-inspector";
 
+export { ShapeInspector } from "./shape-inspector";
+
 export { TableInspector } from "./table-inspector";
 
 export { TerminalInspector } from "./terminal-inspector";

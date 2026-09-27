@@ -40,7 +40,10 @@ import {
   TopicsTypographySchema,
   PositionedElementLayoutSchema,
 } from "./element-properties";
-import { BorderSchema } from "./visual";
+import {
+  BorderSchema,
+  GradientSchema,
+} from "./visual";
 
 const CanonicalDataElementBaseSchema = z.object({
   id: ElementIdSchema,
@@ -148,6 +151,14 @@ export const ImageFocalPointSchema = z
 
 export type ImageFocalPoint = z.infer<typeof ImageFocalPointSchema>;
 
+export const ImageFitSchema = z.enum([
+  "contain",
+  "cover",
+  "fill",
+]);
+
+export type ImageFit = z.infer<typeof ImageFitSchema>;
+
 export const ImageElementSchema = z.object({
     id: ElementIdSchema,
     type: z.literal("image"),
@@ -164,11 +175,7 @@ export const ImageElementSchema = z.object({
 
     alt: z.string().default(""),
 
-    fit: z.enum([
-      "contain",
-      "cover",
-      "fill",
-    ]).default("contain"),
+    fit: ImageFitSchema.default("contain"),
 
     focalPoint: ImageFocalPointSchema.optional(),
 
@@ -200,11 +207,7 @@ export const GalleryElementSchema = z.object({
 
     items: z.array(GalleryItemSchema),
 
-    fit: z.enum([
-      "contain",
-      "cover",
-      "fill",
-    ]).default("contain"),
+    fit: ImageFitSchema.default("contain"),
   }).strict();
 
 export type GalleryElement =
@@ -327,6 +330,226 @@ export const InteractiveElementSchema =
 
 export type InteractiveElement =
   z.infer<typeof InteractiveElementSchema>;
+
+export const ShapeViewBoxSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().positive(),
+  height: z.number().finite().positive(),
+}).strict();
+
+export type ShapeViewBox = z.infer<typeof ShapeViewBoxSchema>;
+
+const ShapeMoveCommandSchema = z.object({
+  type: z.literal("move"),
+  x: z.number().finite(),
+  y: z.number().finite(),
+}).strict();
+
+const ShapeLineCommandSchema = z.object({
+  type: z.literal("line"),
+  x: z.number().finite(),
+  y: z.number().finite(),
+}).strict();
+
+const ShapeQuadraticCommandSchema = z.object({
+  type: z.literal("quadratic"),
+  controlX: z.number().finite(),
+  controlY: z.number().finite(),
+  x: z.number().finite(),
+  y: z.number().finite(),
+}).strict();
+
+const ShapeCubicCommandSchema = z.object({
+  type: z.literal("cubic"),
+  control1X: z.number().finite(),
+  control1Y: z.number().finite(),
+  control2X: z.number().finite(),
+  control2Y: z.number().finite(),
+  x: z.number().finite(),
+  y: z.number().finite(),
+}).strict();
+
+const ShapeArcCommandSchema = z.object({
+  type: z.literal("arc"),
+  radiusX: z.number().finite().positive(),
+  radiusY: z.number().finite().positive(),
+  rotationDeg: z.number().finite(),
+  largeArc: z.boolean(),
+  sweep: z.boolean(),
+  x: z.number().finite(),
+  y: z.number().finite(),
+}).strict();
+
+const ShapeCloseCommandSchema = z.object({
+  type: z.literal("close"),
+}).strict();
+
+export const ShapePathCommandSchema = z.discriminatedUnion("type", [
+  ShapeMoveCommandSchema,
+  ShapeLineCommandSchema,
+  ShapeQuadraticCommandSchema,
+  ShapeCubicCommandSchema,
+  ShapeArcCommandSchema,
+  ShapeCloseCommandSchema,
+]);
+
+export type ShapePathCommand = z.infer<typeof ShapePathCommandSchema>;
+
+export const ShapePathGeometrySchema = z.object({
+  mode: z.literal("path"),
+  viewBox: ShapeViewBoxSchema,
+  commands: z.array(ShapePathCommandSchema).min(1),
+  fillRule: z.enum(["nonzero", "evenodd"]).optional(),
+}).strict().superRefine((geometry, context) => {
+  if (geometry.commands[0]?.type !== "move") {
+    context.addIssue({
+      code: "custom",
+      path: ["commands", 0],
+      message: "The first Shape path command must be move.",
+    });
+  }
+});
+
+export type ShapePathGeometry = z.infer<typeof ShapePathGeometrySchema>;
+
+export const ShapePolygonConfigSchema = z.object({
+  points: z.number().int().min(3).max(12),
+  innerRadius: z.number().finite().gt(0).max(1).optional(),
+  rotationDeg: z.number().finite().optional(),
+}).strict();
+
+export type ShapePolygonConfig = z.infer<typeof ShapePolygonConfigSchema>;
+
+export const ShapeTriangleConfigSchema = z.object({
+  apexX: z.number().finite().min(0).max(100),
+}).strict();
+
+export type ShapeTriangleConfig = z.infer<typeof ShapeTriangleConfigSchema>;
+
+export const ShapeQrCodeConfigSchema = z.object({
+  value: z.string().min(1),
+  errorCorrection: z.enum(["L", "M", "Q", "H"]).default("M"),
+  quietZone: z.number().int().nonnegative().default(4),
+}).strict();
+
+export type ShapeQrCodeConfig = z.infer<typeof ShapeQrCodeConfigSchema>;
+
+export const ShapeGeneratedGeometrySchema = z.discriminatedUnion("generator", [
+  z.object({
+    mode: z.literal("generated"),
+    generator: z.literal("polygon"),
+    config: ShapePolygonConfigSchema,
+  }).strict(),
+  z.object({
+    mode: z.literal("generated"),
+    generator: z.literal("triangle"),
+    config: ShapeTriangleConfigSchema,
+  }).strict(),
+  z.object({
+    mode: z.literal("generated"),
+    generator: z.literal("qr-code"),
+    config: ShapeQrCodeConfigSchema,
+  }).strict(),
+]);
+
+export type ShapeGeneratedGeometry = z.infer<typeof ShapeGeneratedGeometrySchema>;
+
+export const ShapeGeometrySchema = z.discriminatedUnion("mode", [
+  ShapePathGeometrySchema,
+  ShapeGeneratedGeometrySchema,
+]);
+
+export type ShapeGeometry = z.infer<typeof ShapeGeometrySchema>;
+
+export const ShapeColorFillSchema = z.object({
+  type: z.literal("color"),
+  color: ColorValueSchema,
+}).strict();
+
+export const ShapeGradientFillSchema = z.object({
+  type: z.literal("gradient"),
+  gradient: GradientSchema,
+}).strict();
+
+export const ShapeImageFillSchema = z.object({
+  type: z.literal("image"),
+  src: z.string().min(1),
+  fit: ImageFitSchema.default("contain"),
+  focalPoint: ImageFocalPointSchema.optional(),
+  crop: ImageCropSchema.optional(),
+}).strict();
+
+export const ShapeFillSchema = z.discriminatedUnion("type", [
+  ShapeColorFillSchema,
+  ShapeGradientFillSchema,
+  ShapeImageFillSchema,
+]);
+
+export type ShapeFill = z.infer<typeof ShapeFillSchema>;
+
+export const ShapeVisualStyleSchema = z.object({
+  fill: ShapeFillSchema.optional(),
+  stroke: BorderSchema.optional(),
+}).strict();
+
+export type ShapeVisualStyle = z.infer<typeof ShapeVisualStyleSchema>;
+
+export const ShapeAnimationRotateSchema = z.object({
+  fromDeg: z.number().finite(),
+  toDeg: z.number().finite(),
+}).strict();
+
+export const ShapeAnimationTranslateSchema = z.object({
+  fromXPercent: z.number().finite(),
+  fromYPercent: z.number().finite(),
+  toXPercent: z.number().finite(),
+  toYPercent: z.number().finite(),
+}).strict();
+
+export const ShapeAnimationSkewSchema = z.object({
+  fromXDeg: z.number().finite(),
+  fromYDeg: z.number().finite(),
+  toXDeg: z.number().finite(),
+  toYDeg: z.number().finite(),
+}).strict();
+
+export const ShapeAnimationSchema = z.object({
+  durationMs: z.number().finite().int().positive(),
+  loop: z.boolean().optional(),
+  autoplay: z.boolean().optional(),
+  rotate: ShapeAnimationRotateSchema.optional(),
+  translate: ShapeAnimationTranslateSchema.optional(),
+  skew: ShapeAnimationSkewSchema.optional(),
+}).strict().superRefine((animation, context) => {
+  if (
+    animation.rotate === undefined &&
+    animation.translate === undefined &&
+    animation.skew === undefined
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["rotate"],
+      message: "Shape animation requires at least one channel.",
+    });
+  }
+});
+
+export type ShapeAnimation = z.infer<typeof ShapeAnimationSchema>;
+
+export const ShapeElementSchema = z.object({
+  id: ElementIdSchema,
+  type: z.literal("shape"),
+  hidden: z.boolean().default(false),
+  layout: ResizablePositionedLayoutSchema.optional(),
+  geometry: ShapeGeometrySchema,
+  style: ShapeVisualStyleSchema.optional(),
+  effect: ElementEffectSchema.optional(),
+  link: ElementLinkSchema.optional(),
+  animation: ShapeAnimationSchema.optional(),
+}).strict();
+
+export type ShapeElement = z.infer<typeof ShapeElementSchema>;
 
 export const DividerElementSchema =
   z.object({
@@ -793,6 +1016,7 @@ export type PresentationElement =
   | TableElement
   | PlotElement
   | InteractiveElement
+  | ShapeElement
   | DividerElement
   | EmbedElement
   | BlocksElement
@@ -834,6 +1058,7 @@ export const PresentationElementSchema:
       TableElementSchema,
       PlotElementSchema,
       InteractiveElementSchema,
+      ShapeElementSchema,
       DividerElementSchema,
       EmbedElementSchema,
       BlocksElementSchema,

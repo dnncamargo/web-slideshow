@@ -23,6 +23,7 @@ const RESIZABLE_ELEMENT_TYPES = new Set<PresentationElement["type"]>([
   "blocks",
   "scripted",
   "plot",
+  "shape",
 ]);
 
 const MINIMUM_SIZE_PX = 1;

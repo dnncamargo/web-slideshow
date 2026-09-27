@@ -9,6 +9,7 @@ import {
   fitLogicalSlideGeometry,
   disposeRendererRuntime,
   getPlotAnimationController,
+  getShapeAnimationController,
   hydrateRendererRuntime,
   paletteColorCssVariableName,
   renderFontResources,
@@ -24,12 +25,14 @@ import {
 
 export type PlayerTransition = "none" | "fade" | "slide";
 export type PlotAnimationControlAction = "play" | "pause" | "reset";
+export type ShapeAnimationControlAction = "play" | "pause" | "reset";
 
 type SlideDirection = "forward" | "backward";
 
 export interface ProjectionSurfaceOptions {
   transition?: PlayerTransition;
   animatePlots?: boolean;
+  animateShapes?: boolean;
   onScriptedReport?: (report: ScriptedReportMessage) => void;
   onScriptedMount?: (mount: {
     pageId: string;
@@ -59,6 +62,7 @@ export interface ProjectionSurface {
     value: boolean | number,
   ): boolean;
   controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void;
+  controlShapeAnimation(elementId: string, action: ShapeAnimationControlAction): void;
   getCurrentIndex(): number;
   destroy(): void;
 }
@@ -200,7 +204,10 @@ export function mountProjectionSurface(
       options.animatePlots !== false &&
       !prefersReducedMotion()
     ) {
-      hydrateRendererRuntime(slideSurface, { plotAnimations: { slide } });
+      hydrateRendererRuntime(slideSurface, {
+        ...(options.animateShapes === false ? {} : { shapeAnimations: { slide } }),
+        plotAnimations: { slide },
+      });
     } else {
       hydrateRendererRuntime(slideSurface);
     }
@@ -556,6 +563,21 @@ export function mountProjectionSurface(
     },
     controlPlotAnimation(elementId: string, action: PlotAnimationControlAction): void {
       const controller = getPlotAnimationController(slideSurface, elementId);
+      if (controller === null) return;
+      switch (action) {
+        case "play":
+          controller.play();
+          break;
+        case "pause":
+          controller.pause();
+          break;
+        case "reset":
+          controller.reset();
+          break;
+      }
+    },
+    controlShapeAnimation(elementId: string, action: ShapeAnimationControlAction): void {
+      const controller = getShapeAnimationController(slideSurface, elementId);
       if (controller === null) return;
       switch (action) {
         case "play":
