@@ -843,6 +843,11 @@ type TopicsLinkedStyleProperty = "margin" | "marginTop" | "marginRight" | "margi
 type TopicsLinkedStyleLayoutProperty = "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft";
 const TOPICS_UNORDERED_MARKERS: readonly TopicMarkerStyle[] = ["disc", "circle", "square", "none"];
 const TOPICS_ORDERED_MARKERS: readonly TopicMarkerStyle[] = ["decimal", "lower-alpha", "upper-alpha", "lower-roman", "upper-roman", "none"];
+const TOPICS_CHECKBOX_MARKERS: readonly TopicMarkerStyle[] = [
+  ...TOPICS_UNORDERED_MARKERS.filter((marker) => marker !== "none"),
+  ...TOPICS_ORDERED_MARKERS.filter((marker) => marker !== "none"),
+  "none",
+];
 const TOPICS_LINKED_STYLE_PROPERTY_ORDER: readonly TopicsLinkedStyleProperty[] = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft", "itemGap", "kind", "rootMarkerStyle", "markerColor"];
 const TOPICS_LINKED_STYLE_LAYOUT_PROPERTIES: readonly TopicsLinkedStyleLayoutProperty[] = ["margin", "marginTop", "marginRight", "marginBottom", "marginLeft"];
 
@@ -853,7 +858,7 @@ function isTopicsLinkedStyleLayoutProperty(property: TopicsLinkedStyleProperty):
 function TopicsLinkedStylePropertyCard({ style, property, authoringHistory, onUpdateLayoutProperty, onUpdate, onDiscrete, onContinuous }: { style: LinkedTopicsStyle; property: TopicsLinkedStyleProperty; authoringHistory: AuthoringHistoryContextValue | null; onUpdateLayoutProperty: (property: "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft", value: Length | undefined) => void; onUpdate: (patch: Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">) => void; onDiscrete: (callback: () => void) => void; onContinuous: (property: TopicsLinkedStyleProperty, callback: () => void) => void }) {
   const { t } = useStudioI18n();
   const canRemove = topicsLinkedStyleAuthoredPropertyCount(style) > 1;
-  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: "inspector.topics.markerColor" } as const;
+  const labels = { margin: "inspector.margin", marginTop: "inspector.top", marginRight: "inspector.right", marginBottom: "inspector.bottom", marginLeft: "inspector.left", itemGap: "inspector.topics.itemGap", kind: "inspector.topics.kind", rootMarkerStyle: "inspector.topics.rootMarkerStyle", markerColor: style.kind === "checkbox" ? "inspector.topics.checkboxColor" : "inspector.topics.markerColor" } as const;
   const label = t(labels[property]);
   const remove = () => onDiscrete(() => {
     if (isTopicsLinkedStyleLayoutProperty(property)) onUpdateLayoutProperty(property, undefined);
@@ -870,10 +875,18 @@ function TopicsLinkedStylePropertyCard({ style, property, authoringHistory, onUp
     const historyKey = `linked-topics-style:${style.id}:itemGap`;
     control = <input id={`linked-topics-style-${style.id}-item-gap`} type="number" min="0" value={style.itemGap ?? ""} onFocus={() => authoringHistory?.begin(historyKey, { kind: "number.change", labelKey: "history.number.change" })} onBlur={() => authoringHistory?.finish(historyKey)} onChange={(event) => onContinuous(property, () => onUpdate({ itemGap: event.target.value === "" ? undefined : Number(event.target.value) }))} />;
   } else if (property === "rootMarkerStyle") {
-    const markerOptions = style.kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS;
-    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onDiscrete(() => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined }))}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>;
+    const markerOptions = style.kind === "ordered" ? TOPICS_ORDERED_MARKERS : style.kind === "checkbox" ? TOPICS_CHECKBOX_MARKERS : TOPICS_UNORDERED_MARKERS;
+    control = <select value={style.rootMarkerStyle ?? ""} onChange={(event) => onDiscrete(() => onUpdate({ rootMarkerStyle: event.target.value ? event.target.value as TopicMarkerStyle : undefined }))}><option value="">{t("inspector.default")}</option>{markerOptions.map((value) => <option key={value} value={value}>{t(`inspector.topics.rootMarkerStyle.${value}`)}</option>)}</select>;
   } else if (property === "kind") {
-    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => onDiscrete(() => { const kind = event.target.value === "ordered" ? "ordered" : "unordered"; const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS; onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined }); })}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option></select>;
+    control = <select id={`linked-topics-style-${style.id}-kind`} value={style.kind ?? "unordered"} onChange={(event) => onDiscrete(() => {
+      const kind = event.target.value as NonNullable<LinkedTopicsStyle["kind"]>;
+      if (kind === "checkbox") {
+        onUpdate({ kind });
+        return;
+      }
+      const markers = kind === "ordered" ? TOPICS_ORDERED_MARKERS : TOPICS_UNORDERED_MARKERS;
+      onUpdate({ kind, rootMarkerStyle: style.rootMarkerStyle !== undefined && markers.includes(style.rootMarkerStyle) ? style.rootMarkerStyle : undefined });
+    })}><option value="unordered">{t("inspector.topics.unordered")}</option><option value="ordered">{t("inspector.topics.ordered")}</option><option value="checkbox">{t("inspector.topics.checkbox")}</option></select>;
   } else {
     control = <ColorControl id={`linked-topics-style-${style.id}-marker-color`} name={label} value={style.markerColor} onChange={(markerColor) => onUpdate({ markerColor })} />;
   }

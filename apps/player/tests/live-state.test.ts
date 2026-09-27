@@ -65,6 +65,7 @@ function controller(initialIndex: number) {
     setControlsOptions: vi.fn(),
     setGalleryActiveIndex: vi.fn(),
     setGalleryExpanded: vi.fn(),
+    setCheckboxControlState: vi.fn(),
     sendScriptedAction: vi.fn(),
     sendScriptedInput: vi.fn(),
     controlPlotAnimation: vi.fn(),

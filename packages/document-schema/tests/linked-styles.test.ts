@@ -100,6 +100,18 @@ describe("Linked Styles canonical definitions", () => {
     expect(parsed.linkedStyles?.[0]).toMatchObject({ kind: "ordered" });
   });
 
+  it("accepts checkbox as a Topics Linked Style kind", () => {
+    const parsed = PresentationSchema.parse(presentation([], [{
+      target: "topics",
+      id: "topics-checkbox",
+      name: "Topics",
+      kind: "checkbox",
+    }]));
+
+    expect(LinkedTopicsStyleSchema.safeParse(parsed.linkedStyles?.[0]).success).toBe(true);
+    expect(parsed.linkedStyles?.[0]).toMatchObject({ kind: "checkbox" });
+  });
+
   it("rejects unsupported Topics Linked Style properties", () => {
     expect(LinkedTopicsStyleSchema.safeParse({
       target: "topics", id: "topics", name: "Topics", typography: { fontSize: 20 },

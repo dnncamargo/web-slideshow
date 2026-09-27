@@ -686,7 +686,9 @@ export type TopicsElement = {
 
   type: "topics";
 
-  kind?: "unordered" | "ordered" | undefined;
+  kind?: "unordered" | "ordered" | "checkbox" | undefined;
+
+  checkboxMode?: "two-state" | "three-state" | undefined;
 
   items: TopicItem[];
 
@@ -730,6 +732,12 @@ export const TopicsElementSchema:
     kind: z.enum([
       "unordered",
       "ordered",
+      "checkbox",
+    ]).optional(),
+
+    checkboxMode: z.enum([
+      "two-state",
+      "three-state",
     ]).optional(),
 
     items: z.array(TopicItemSchema),

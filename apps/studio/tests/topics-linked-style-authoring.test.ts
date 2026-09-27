@@ -72,6 +72,15 @@ describe("Topics Linked Style authoring", () => {
     expect(selected(result).items).toEqual(selected(initial).items);
   });
 
+  it("preserves a dormant marker when creating a checkbox resource", () => {
+    const initial = presentation(topics({ kind: "checkbox", rootMarkerStyle: "decimal" }));
+
+    const result = createLinkedStyleFromTopics(initial, 0, "topics", "Checkboxes");
+    expect(result.linkedStyles).toEqual([{ target: "topics", id: "checkboxes", name: "Checkboxes", kind: "checkbox", rootMarkerStyle: "decimal" }]);
+    expect(selected(result)).not.toHaveProperty("kind");
+    expect(selected(result)).not.toHaveProperty("rootMarkerStyle");
+  });
+
   it("preserves the distinction between absent and explicit unordered kind when creating a resource", () => {
     const omitted = presentation(topics({ itemGap: 8, kind: undefined }));
     const omittedResult = createLinkedStyleFromTopics(omitted, 0, "topics", "Omitted");

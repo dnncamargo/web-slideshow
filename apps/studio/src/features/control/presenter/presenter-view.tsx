@@ -28,6 +28,9 @@ import type { PlotAnimationAction } from "../../live/plot-animation-action";
 import type { ControlScriptedStateGroup, ControlScriptedStatePort } from "../use-live-scripted-state-control";
 import type { PlayerOperationalStatus } from "../player-presence";
 import type { LiveSlideTransition } from "../use-live-slide-transition-control";
+import type {
+  PresenterCheckboxTarget,
+} from "./presenter-slide-preview";
 import {
   LIVE_PLAYER_CONTROLS_BASELINE,
   type LivePlayerControls,
@@ -222,6 +225,13 @@ export interface PresenterViewProps {
   sendFailed: boolean;
   presentationState: PresenterPresentationState;
   galleries: readonly ControlGalleryView[];
+  checkboxTargets?: readonly PresenterCheckboxTarget[];
+  setCheckboxState?(
+    slot: number,
+    elementId: string,
+    checkboxId: string,
+    state: PresenterCheckboxTarget["state"],
+  ): void;
   scriptedActionGroups: readonly ControlScriptedActionGroup[];
   scriptedActionsEnabled: boolean;
   plotTargets?: readonly LivePlotAnimationTarget[];
@@ -281,6 +291,8 @@ export function PresenterView({
   sendFailed,
   presentationState,
   galleries,
+  checkboxTargets = [],
+  setCheckboxState = () => undefined,
   scriptedActionGroups,
   scriptedActionsEnabled,
   plotTargets = [],
@@ -395,6 +407,7 @@ export function PresenterView({
       : [],
     [galleries, showGalleryControls],
   );
+  const currentCheckboxTargets = checkboxTargets;
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -558,6 +571,8 @@ export function PresenterView({
               aspectRatio={aspectRatio}
               variant="current"
               galleryTargets={currentGalleryTargets}
+              checkboxTargets={currentCheckboxTargets}
+              onCheckboxChange={setCheckboxState}
             />
           ) : (
             <p className={styles.status}>{t("control.awaitingPlayer")}</p>

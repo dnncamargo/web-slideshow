@@ -159,6 +159,10 @@ function normalizeTopicMarkerStyle(
     return rootMarkerStyle;
   }
 
+  if (kind === "checkbox") {
+    return rootMarkerStyle;
+  }
+
   const allowedStyles =
     kind === "ordered" ? ORDERED_MARKER_STYLES : UNORDERED_MARKER_STYLES;
 
@@ -611,9 +615,15 @@ function addChildTopic(topicItemId: string) {
                 const kind = event.target.value as NonNullable<TopicsElement["kind"]>;
 
                 runDiscrete("topics.kind", () => updateCurrentTopics((current) => {
+                  if (kind === "checkbox") {
+                    return current.kind === kind ? current : { ...current, kind };
+                  }
+
                   const rootMarkerStyle = normalizeTopicMarkerStyle(kind, current.rootMarkerStyle);
                   if (current.kind === kind && rootMarkerStyle === current.rootMarkerStyle) return current;
-                  return { ...current, kind, rootMarkerStyle };
+                  const next = { ...current, kind, rootMarkerStyle };
+                  if (effectiveKind === "checkbox") delete next.checkboxMode;
+                  return next;
                 }));
               }}
             >
@@ -622,9 +632,33 @@ function addChildTopic(topicItemId: string) {
               </option>
 
               <option value="ordered">{t("inspector.topics.ordered")}</option>
+
+              <option value="checkbox">{t("inspector.topics.checkbox")}</option>
               </select>
               <TextStylePropertyMeta source={kindSource?.source} linkedValue={kindSource?.linkedValue} onReset={kindSource?.source === "local" ? () => resetLinkedTopicsProperty("kind") : undefined} />
             </label>
+
+            {effectiveKind === "checkbox" ? (
+              <label className={styles.field}>
+                <span>{t("inspector.topics.checkboxMode")}</span>
+                <select
+                  id="topics-checkbox-mode"
+                  name="topicsCheckboxMode"
+                  value={element.checkboxMode ?? "two-state"}
+                  onChange={(event) => {
+                    const checkboxMode = event.target.value as NonNullable<TopicsElement["checkboxMode"]>;
+
+                    runDiscrete("topics.checkboxMode", () => updateCurrentTopics((current) => {
+                      if (current.checkboxMode === checkboxMode) return current;
+                      return { ...current, checkboxMode };
+                    }));
+                  }}
+                >
+                  <option value="two-state">{t("inspector.topics.checkboxMode.two-state")}</option>
+                  <option value="three-state">{t("inspector.topics.checkboxMode.three-state")}</option>
+                </select>
+              </label>
+            ) : null}
 
           <div className={styles.field}>
             <span>{t("inspector.topics.itemGap")}</span>
@@ -680,7 +714,35 @@ function addChildTopic(topicItemId: string) {
       />
 
       <InspectorSection title={t("inspector.appearance")}>
-        <div className={styles.appearanceSubgroup}>
+        {effectiveKind === "checkbox" ? (
+          <div className={styles.appearanceSubgroup}>
+            <span className={styles.appearanceSubheading}>
+              {t("inspector.topics.checkbox")}
+            </span>
+
+            <div className={styles.colorControl}>
+              <label className={styles.field}>
+                <span>{t("inspector.topics.checkboxColor")}</span>
+
+                <ColorControl
+                  id="topics-checkbox-color"
+                  name="topicsCheckboxColor"
+                  value={resolvedTopics.markerColor}
+                  effectiveValue={resolvedTopics.markerColor === undefined ? effectiveMarkerColor : undefined}
+                  effectiveSource={resolvedTopics.markerColor === undefined ? effectiveMarkerColorSource : undefined}
+                  onChange={(markerColor) => {
+                    updateCurrentTopics((current) => ({
+                      ...current,
+                      markerColor,
+                    }));
+                  }}
+                  secondaryAction={element.linkedStyleId === undefined && resolvedTopics.markerColor !== undefined ? { label: effectiveMarkerColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"), onClick: () => updateCurrentTopics((current) => ({ ...current, markerColor: undefined })) } : undefined}
+                />
+                <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
+              </label>
+            </div>
+          </div>
+        ) : <div className={styles.appearanceSubgroup}>
           <span className={styles.appearanceSubheading}>
             {t("inspector.topics.markers")}
           </span>
@@ -747,7 +809,7 @@ function addChildTopic(topicItemId: string) {
               <TextStylePropertyMeta source={markerColorSource?.source} linkedValue={markerColorSource?.linkedValue} onReset={markerColorSource?.source === "local" ? () => resetLinkedTopicsProperty("markerColor") : undefined} />
             </label>
           </div>
-        </div>
+        </div>}
 
         <div className={styles.appearanceSubgroup}>
           <span className={styles.appearanceSubheading}>

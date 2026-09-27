@@ -14,6 +14,7 @@ import { mapPromotedSlideIndex } from "./live-version-mapping";
 import { subscribeLiveProjectionState } from "./live-state";
 import { subscribeLiveFullscreenRequest } from "./live-fullscreen-request";
 import { subscribeLiveGalleryControl } from "./live-gallery-control";
+import { subscribeLiveCheckboxControl } from "./live-checkbox-control";
 import {
   createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction,
@@ -68,6 +69,7 @@ export function startPlayer(root: HTMLElement): () => void {
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
   let cleanupLiveGalleryControl: (() => void) | undefined;
+  let cleanupLiveCheckboxControl: (() => void) | undefined;
   let cleanupLivePlotAnimationAction: (() => void) | undefined;
   let cleanupLiveSlideTransition: (() => void) | undefined;
   let cleanupLivePlayerControls: (() => void) | undefined;
@@ -294,6 +296,12 @@ export function startPlayer(root: HTMLElement): () => void {
         presentation,
         controller,
       );
+      cleanupLiveCheckboxControl = subscribeLiveCheckboxControl(
+        database,
+        live.revision,
+        live.currentVersionId,
+        controller,
+      );
       cleanupLiveSlideTransition = subscribeLiveSlideTransition(
         database,
         live.revision,
@@ -350,6 +358,11 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLiveGalleryControl = undefined;
   }
 
+  function detachLiveCheckboxControl(): void {
+    cleanupLiveCheckboxControl?.();
+    cleanupLiveCheckboxControl = undefined;
+  }
+
   function detachLivePlotAnimationAction(): void {
     cleanupLivePlotAnimationAction?.();
     cleanupLivePlotAnimationAction = undefined;
@@ -375,6 +388,7 @@ export function startPlayer(root: HTMLElement): () => void {
     detachLiveSlideAck();
     detachLiveFullscreenRequest();
     detachLiveGalleryControl();
+    detachLiveCheckboxControl();
     detachLivePlotAnimationAction();
     detachLiveSlideTransition();
     detachLivePlayerControls();

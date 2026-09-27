@@ -164,7 +164,8 @@ export const docsGroups: readonly DocsGroup[] = [
               "Switch usa somente a ownership do destino: valores omitidos pelo destino não materializam nem copiam valores do Style de origem.",
               "Detach remove linkedStyleId e materializa localmente os valores efetivos do vínculo para preservar a aparência. Materialização pertence ao Detach, não à remoção de uma propriedade da definição.",
               "Adicionar, alterar ou remover a propriedade P na definição limpa P local dos consumidores atualmente vinculados; remover P não materializa o antigo valor vinculado.",
-              "Em Topics, kind ausente continua sendo uma autoria diferente de kind = unordered; um unordered explícito pode ser propriedade do Linked Topics Style e aparecer como Linked no Inspector.",
+              "Em Topics, kind ausente continua sendo uma autoria diferente de kind = unordered; kind pode ser propriedade do Linked Topics Style e também pode ser checkbox. markerColor pode ser linked e se torna a cor do Checkbox quando o kind efetivo é checkbox. checkboxMode / Checkbox states é LOCAL ONLY: não é propriedade de Linked Topics Style.",
+              "Uma troca local direta para fora de checkbox remove o checkboxMode local. Já uma mudança externa do kind efetivo causada pelo Linked Style não faz essa limpeza destrutiva: o checkboxMode local apenas fica inativo enquanto o kind efetivo não for checkbox.",
             ],
           },
           {
@@ -691,13 +692,14 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "interactive-live",
         title: "Controles interativos",
         summary:
-          "Gallery, Plot e Scripted usam protocolos Live específicos em vez de compartilhar estado genérico.",
+          "Gallery, Plot, Scripted e Checkbox usam protocolos Live específicos em vez de compartilhar estado genérico.",
         sections: [
           {
             title: "Exemplos",
             bullets: [
               "galleryControl: índice e expansão desejados por Gallery.",
               "plotAnimationAction: ações de animação direcionadas ao Plot correto.",
+              "checkboxControl: estado desejado absoluto (`unchecked | intermediate | checked`), endereçado por slot e identificado semanticamente por page/element/checkbox; é somente Control → Player, e mudanças locais do Player não retornam.",
               "scriptedAction, scriptedInput, scriptedRuntime e scriptedReport: bridge estrita entre Control, Player e iframe sandboxed.",
             ],
           },

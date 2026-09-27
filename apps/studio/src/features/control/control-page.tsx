@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { isRealtimeDatabaseConfigured } from "./realtime-db";
 import { useLiveSessionControl } from "./use-live-session-control";
 import { useLiveGalleryControl } from "./use-live-gallery-control";
+import { useLiveCheckboxControl } from "./use-live-checkbox-control";
 import { useLivePlotAnimationControl } from "./use-live-plot-animation-control";
 import { useLiveScriptedActionControl } from "./use-live-scripted-action-control";
 import { useLiveScriptedStateControl } from "./use-live-scripted-state-control";
@@ -96,6 +97,10 @@ export function ControlPage() {
   const galleryControl = useLiveGalleryControl({
     live: liveState.kind === "active" ? liveState.live : null,
     effectiveSlide: effectiveLiveSlide,
+    desiredPageId,
+  });
+  const checkboxControl = useLiveCheckboxControl({
+    live: liveState.kind === "active" ? liveState.live : null,
     desiredPageId,
   });
   const scriptedActionControl = useLiveScriptedActionControl({
@@ -261,9 +266,11 @@ export function ControlPage() {
   return (
     <PresenterView
       view={view}
-      sendFailed={sendFailed || galleryControl.sendFailed || plotAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
+      sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
       presentationState={presentationState}
       galleries={galleryControl.galleries}
+      checkboxTargets={checkboxControl.targets}
+      setCheckboxState={checkboxControl.setCheckboxState}
       scriptedActionGroups={scriptedActionControl.groups}
       scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
       plotTargets={plotAnimationControl.plotTargets}

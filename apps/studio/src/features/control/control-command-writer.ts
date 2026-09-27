@@ -32,6 +32,11 @@ import {
   type LiveGalleryControlState,
 } from "../live/gallery-control";
 import {
+  buildCheckboxControlSlotPath,
+  parseLiveCheckboxControlState,
+  type LiveCheckboxControlState,
+} from "../live/checkbox-control";
+import {
   buildScriptedActionPath,
   parseLiveScriptedActionRecord,
   type LiveScriptedActionRecord,
@@ -140,6 +145,39 @@ function requireGalleryControlInput(
   }
   if (normalizedPage === "") {
     throw new Error("Gallery control requires a pageId.");
+  }
+
+  return { currentVersionId: normalizedVersion, pageId: normalizedPage };
+}
+
+function requireCheckboxControlInput(
+  activationRevision: number,
+  currentVersionId: string,
+  pageId: string,
+  slot: number,
+  elementId: string,
+  checkboxId: string,
+): { currentVersionId: string; pageId: string } {
+  if (!isNonNegativeInteger(activationRevision)) {
+    throw new Error("Checkbox control requires a non-negative activationRevision.");
+  }
+  if (!isNonNegativeInteger(slot)) {
+    throw new Error("Checkbox control requires a non-negative integer slot.");
+  }
+  if (typeof elementId !== "string" || elementId.length === 0) {
+    throw new Error("Checkbox control requires an elementId.");
+  }
+  if (typeof checkboxId !== "string" || checkboxId.length === 0) {
+    throw new Error("Checkbox control requires a checkboxId.");
+  }
+
+  const normalizedVersion = currentVersionId.trim();
+  const normalizedPage = pageId.trim();
+  if (normalizedVersion === "") {
+    throw new Error("Checkbox control requires a currentVersionId.");
+  }
+  if (normalizedPage === "") {
+    throw new Error("Checkbox control requires a pageId.");
   }
 
   return { currentVersionId: normalizedVersion, pageId: normalizedPage };
@@ -321,6 +359,65 @@ export async function writeGalleryControlState(
   const committed = parseLiveGalleryControlState(result.snapshot.val());
   if (committed === null) {
     throw new Error("Gallery control transaction committed a malformed value.");
+  }
+  return committed;
+}
+
+/** Writes an absolute Checkbox desired state at its deterministic slide-local slot. */
+export async function writeCheckboxControlState(
+  database: Database,
+  activationRevision: number,
+  currentVersionId: string,
+  pageId: string,
+  slot: number,
+  elementId: string,
+  checkboxId: string,
+  state: LiveCheckboxControlState["state"],
+): Promise<LiveCheckboxControlState> {
+  if (!isRealtimeDatabaseConfigured()) {
+    throw new Error("Realtime Database is not configured.");
+  }
+  getCurrentUserIdForControl();
+  if (state !== "unchecked" && state !== "intermediate" && state !== "checked") {
+    throw new Error("Checkbox control requires a valid absolute state.");
+  }
+
+  const normalized = requireCheckboxControlInput(
+    activationRevision,
+    currentVersionId,
+    pageId,
+    slot,
+    elementId,
+    checkboxId,
+  );
+  const stateRef = ref(database, buildCheckboxControlSlotPath(slot));
+  const result = await runTransaction(stateRef, (current) => {
+    const previous = parseLiveCheckboxControlState(current);
+    const sameIdentity = previous !== null &&
+      previous.activationRevision === activationRevision &&
+      previous.currentVersionId === normalized.currentVersionId &&
+      previous.pageId === normalized.pageId &&
+      previous.elementId === elementId &&
+      previous.checkboxId === checkboxId;
+
+    return {
+      activationRevision,
+      currentVersionId: normalized.currentVersionId,
+      revision: sameIdentity ? previous.revision + 1 : 1,
+      pageId: normalized.pageId,
+      elementId,
+      checkboxId,
+      state,
+    };
+  });
+
+  if (result.committed !== true) {
+    throw new Error("Checkbox control transaction did not commit.");
+  }
+
+  const committed = parseLiveCheckboxControlState(result.snapshot.val());
+  if (committed === null) {
+    throw new Error("Checkbox control transaction committed a malformed value.");
   }
   return committed;
 }

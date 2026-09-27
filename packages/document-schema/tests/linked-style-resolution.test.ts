@@ -189,6 +189,15 @@ describe("resolveLinkedContainerStyle", () => {
     expect(resolveLinkedTopicsStyle(presentation(), { id: "standalone", type: "topics", hidden: false, items: [] }).kind).toBe("unordered");
   });
 
+  it("resolves a linked checkbox kind and preserves local-over-linked precedence", () => {
+    const source = presentation([{ target: "topics", id: "topics", name: "Topics", kind: "checkbox" }]);
+    const inherited = { id: "inherited", type: "topics" as const, hidden: false, items: [], linkedStyleId: "topics" };
+    const local = { ...inherited, kind: "ordered" as const };
+
+    expect(resolveLinkedTopicsStyle(source, inherited).kind).toBe("checkbox");
+    expect(resolveLinkedTopicsStyle(source, local).kind).toBe("ordered");
+  });
+
   it("fails loudly for unresolved or incompatible Topics references", () => {
     const target = { id: "topics-element", type: "topics" as const, hidden: false, kind: "unordered" as const, items: [], linkedStyleId: "missing" };
     expect(() => resolveLinkedTopicsStyle(presentation(), target)).toThrow("Unresolved linked topics style: missing");

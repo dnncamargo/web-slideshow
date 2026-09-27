@@ -449,6 +449,32 @@
   font-family: var(--presentation-font-sans);
 }
 
+.presentation-topics-checkbox {
+  list-style-type: none;
+}
+
+.presentation-topics-checkbox > .presentation-topic-item {
+  display: grid;
+
+  grid-template-columns: max-content minmax(0, 1fr);
+
+  column-gap: 0.5em;
+
+  align-items: baseline;
+}
+
+.presentation-topics-checkbox > .presentation-topic-item > .presentation-checkbox {
+  grid-column: 1;
+
+  margin: 0;
+
+  accent-color: var(--presentation-topic-marker-color);
+}
+
+.presentation-topics-checkbox > .presentation-topic-item > :not(.presentation-checkbox) {
+  grid-column: 2;
+}
+
 /*
  * Apenas um TopicsElement autônomo inicia um novo contexto
  * visual de tópicos.

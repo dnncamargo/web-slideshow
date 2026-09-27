@@ -23,4 +23,8 @@ describe("Container foreground fallback theme contract", () => {
     expect(cssBlock(".presentation-table-frame")).toContain("color: var(--presentation-table-color, var(--presentation-container-color, var(--presentation-text-secondary)));");
     expect(cssBlock(".presentation-table th")).toContain("color: var(--presentation-table-color, var(--presentation-container-color, var(--presentation-text-primary)));");
   });
+
+  it("uses the authored Topics marker color for native checkboxes", () => {
+    expect(cssBlock(".presentation-topics-checkbox > .presentation-topic-item > .presentation-checkbox")).toContain("accent-color: var(--presentation-topic-marker-color);");
+  });
 });

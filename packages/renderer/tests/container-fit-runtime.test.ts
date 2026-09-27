@@ -90,6 +90,22 @@ describe("hydrateContainerFits", () => {
 describe("hydrateRendererRuntime", () => {
   it("retains Image Crop hydration while adding Container Fit hydration", () => {
     const { viewport, surface } = fitRoot();
+    let checkboxClickListener: (() => void) | undefined;
+    const onChange = vi.fn();
+    const checkbox = {
+      tagName: "INPUT",
+      type: "checkbox",
+      dataset: {
+        presentationCheckbox: "true",
+        presentationCheckboxMode: "two-state",
+      },
+      checked: false,
+      indeterminate: false,
+      setAttribute: vi.fn(),
+      addEventListener: vi.fn((_type: string, listener: () => void) => {
+        checkboxClickListener = listener;
+      }),
+    };
     const image = {
       naturalWidth: 1200,
       naturalHeight: 800,
@@ -111,11 +127,17 @@ describe("hydrateRendererRuntime", () => {
       querySelector: (selector: string) => selector === ".presentation-image-media" ? image : null,
     };
     const root = {
-      querySelectorAll: (selector: string) => selector.includes("image-crop")
-        ? [imageRoot]
-        : [viewport],
+      querySelectorAll: (selector: string) => selector.includes("checkbox")
+        ? [checkbox]
+        : selector.includes("image-crop")
+          ? [imageRoot]
+          : [viewport],
     };
-    hydrateRendererRuntime(root as unknown as ParentNode);
+    hydrateRendererRuntime(root as unknown as ParentNode, { checkboxes: { onChange } });
+    expect(checkbox.addEventListener).toHaveBeenCalledWith("click", expect.any(Function));
+    expect(checkbox.setAttribute).toHaveBeenCalledWith("aria-checked", "false");
+    checkboxClickListener?.();
+    expect(onChange).toHaveBeenCalledWith(checkbox, "checked");
     expect(image.addEventListener).toHaveBeenCalledWith("load", expect.any(Function));
     expect(surface.style.transform).toContain("scale(0.5,0.5)");
   });

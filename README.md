@@ -232,6 +232,7 @@ Other bounded Live contracts include:
 - `live/playerControls` for Player control position/style/counter/animation;
 - `live/playerLogs` for activation-scoped remote diagnostics mode;
 - `live/plotAnimationAction/<plotSlot>` for boot-targeted Plot play/pause/reset actions;
+- `live/checkboxControl/<slot>` for one-way Control → Player absolute Checkbox desired state; this is transient runtime state, not Presentation persistence;
 - Scripted-specific runtime/input/report roots for declared ports.
 
 Runtime state remains outside the canonical Presentation.
@@ -365,7 +366,9 @@ TopicsElement
    └── children: TopicItem[]
 ```
 
-The canonical model supports ordered/unordered lists, marker appearance, item spacing, element typography/style/layout, ContentSlot layout/style/typography and arbitrary canonical child elements. Studio authoring still limits creation of structural `TopicItem.children` to depth 5; deeper canonical documents remain loadable/renderable/persistable.
+The canonical model supports three list presentation kinds—`unordered`, `ordered` and `checkbox`—within the same recursive `TopicItem` / `ContentSlot` architecture, alongside marker appearance, item spacing, element typography/style/layout and arbitrary canonical child elements. Checkbox is another presentation kind of Topics, not a new element. Its local `checkboxMode` supports two-state or three-state behavior; when omitted, it effectively behaves as two-state. `markerColor` is reused as the Checkbox accent color. Studio authoring still limits creation of structural `TopicItem.children` to depth 5; deeper canonical documents remain loadable/renderable/persistable.
+
+Checkbox runtime marks are transient and are not persisted in `TopicItem`, the Presentation or History. Control can send an absolute Checkbox state to Player through the bounded Live contract; direct Player interaction remains local and is not reported back to Control. Runtime checked state is therefore not part of the canonical JSON.
 
 The refinement line added strict `TopicItem` validation, structural sibling reorder, deterministic indent/outdent, contextual hierarchy controls and a simplified Element Tree projection. The first usable Text child acts as the Topic row label and is implicit in the tree; additional Text and non-Text ContentSlot children remain ordinary canonical rows. Structural hierarchy is changed through dedicated hierarchy controls rather than by dragging the primary label Text.
 

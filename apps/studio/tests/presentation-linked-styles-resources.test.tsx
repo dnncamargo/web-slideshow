@@ -11,7 +11,7 @@ import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i
 
 const repository = { listPalettes: async () => [], listFonts: async () => [] } as never;
 type LinkedStylePatch = { layout?: LinkedContainerStyle["layout"]; style?: LinkedContainerStyle["style"]; typography?: LinkedContainerStyle["typography"]; effect?: LinkedContainerStyle["effect"] };
-type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
+type LinkedTopicsStylePatch = Pick<LinkedTopicsStyle, "kind" | "layout" | "rootMarkerStyle" | "markerColor" | "itemGap">;
 const makePresentation = (id = "p") => PresentationSchema.parse({ schemaVersion: 1, id, title: "P", slides: [{ id: "s", title: "S", elements: [
   { id: "linked", type: "container", hidden: false, linkedStyleId: "gap", children: [] },
   { id: "match-a", type: "container", hidden: false, layout: { children: { gap: 16 } }, children: [] },
@@ -498,6 +498,49 @@ describe("Linked Styles Resources contract", () => {
       kind.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: "unordered", rootMarkerStyle: "none" });
+  });
+
+  it("supports checkbox linked kinds without replacing dormant marker styles", async () => {
+    const base = makePresentation();
+    const value = PresentationSchema.parse({
+      ...base,
+      slides: [{
+        id: "s",
+        title: "S",
+        elements: [{ id: "topics", type: "topics", hidden: false, linkedStyleId: "topics-style", items: [] }],
+      }],
+      linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "ordered", rootMarkerStyle: "decimal" }],
+    });
+    const updateTopics = vi.fn();
+    await render(value, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+
+    const editor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    const kind = editor.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")!;
+    expect(Array.from(kind.options).map((option) => option.value)).toEqual(["unordered", "ordered", "checkbox"]);
+    await act(async () => {
+      kind.value = "checkbox";
+      kind.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { kind: "checkbox" });
+
+    const checkboxValue = updateLinkedTopicsStyle(value, "topics-style", { kind: "checkbox" });
+    await render(checkboxValue, () => undefined, "en", () => undefined, () => undefined, null, () => undefined, updateTopics);
+    await act(async () => host.querySelector<HTMLElement>("[data-linked-style-id='topics-style'] button")?.click());
+    const checkboxEditor = host.querySelector<HTMLElement>("[data-linked-topics-style-editor]")!;
+    const marker = checkboxEditor.querySelector<HTMLSelectElement>("[data-linked-topics-property='rootMarkerStyle'] select")!;
+    expect(marker.value).toBe("decimal");
+    expect(Array.from(marker.options).map((option) => option.value)).toContain("decimal");
+    await act(async () => {
+      marker.value = "lower-alpha";
+      marker.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(updateTopics).toHaveBeenLastCalledWith("topics-style", { rootMarkerStyle: "lower-alpha" });
+
+    const chooser = checkboxEditor.querySelector<HTMLButtonElement>("[data-topics-linked-style-property-chooser] > button");
+    expect(chooser).not.toBeNull();
+    await act(async () => chooser?.click());
+    expect(checkboxEditor.querySelector("[data-topics-linked-style-property-chooser]")?.textContent).not.toContain("Checkbox states");
   });
 
   it("uses unordered fallback for a sparse Topics resource preview", async () => {

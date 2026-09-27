@@ -711,6 +711,80 @@ describe("element setting history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#topics-marker-style")?.value).toBe("decimal");
   });
 
+  it("tracks entering checkbox as one action while preserving the marker", async () => {
+    await mount({
+      type: "topics",
+      id: "topics-checkbox-history",
+      hidden: false,
+      kind: "ordered",
+      rootMarkerStyle: "decimal",
+      items: [],
+    });
+
+    const kind = container.querySelector<HTMLSelectElement>("#topics-kind");
+    if (!kind) throw new Error("topics kind control was not rendered");
+    await act(async () => changeSelect(kind, "checkbox"));
+    expect(kind.value).toBe("checkbox");
+    expect(container.querySelector("#topics-marker-style")).toBeNull();
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-kind")?.value).toBe("ordered");
+    expect(container.querySelector<HTMLSelectElement>("#topics-marker-style")?.value).toBe("decimal");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-kind")?.value).toBe("checkbox");
+    expect(container.querySelector("#topics-marker-style")).toBeNull();
+  });
+
+  it("tracks leaving checkbox and clearing its mode as one action", async () => {
+    await mount({
+      type: "topics",
+      id: "topics-checkbox-leave-history",
+      hidden: false,
+      kind: "checkbox",
+      checkboxMode: "three-state",
+      rootMarkerStyle: "decimal",
+      items: [],
+    });
+
+    const kind = container.querySelector<HTMLSelectElement>("#topics-kind");
+    if (!kind) throw new Error("topics kind control was not rendered");
+    await act(async () => changeSelect(kind, "ordered"));
+    expect(kind.value).toBe("ordered");
+    expect(container.querySelector("#topics-checkbox-mode")).toBeNull();
+    expect(container.querySelector<HTMLSelectElement>("#topics-marker-style")?.value).toBe("decimal");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-kind")?.value).toBe("checkbox");
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("three-state");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-kind")?.value).toBe("ordered");
+    expect(container.querySelector("#topics-checkbox-mode")).toBeNull();
+  });
+
+  it("tracks checkboxMode as one action and restores it through undo and redo", async () => {
+    await mount({
+      type: "topics",
+      id: "topics-checkbox-mode-history",
+      hidden: false,
+      kind: "checkbox",
+      checkboxMode: "two-state",
+      items: [],
+    });
+
+    const mode = container.querySelector<HTMLSelectElement>("#topics-checkbox-mode");
+    if (!mode) throw new Error("topics checkbox mode control was not rendered");
+    await act(async () => changeSelect(mode, "three-state"));
+    expect(mode.value).toBe("three-state");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("two-state");
+
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector<HTMLSelectElement>("#topics-checkbox-mode")?.value).toBe("three-state");
+  });
+
   it("tracks a Topics kind override when the effective kind comes from a linked style", async () => {
     await mountWithLinkedStyles(
       {

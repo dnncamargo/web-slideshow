@@ -3,7 +3,7 @@ import {
   type MaterializedSlide,
   type Presentation,
 } from "@web-slideshow/document-schema";
-import type { ScriptedReportMessage } from "@web-slideshow/renderer";
+import type { CheckboxRuntimeState, ScriptedReportMessage } from "@web-slideshow/renderer";
 
 import {
   fitLogicalSlideGeometry,
@@ -13,6 +13,7 @@ import {
   paletteColorCssVariableName,
   renderFontResources,
   renderSlide,
+  setCheckboxRuntimeState,
 } from "@web-slideshow/renderer";
 
 import {
@@ -44,6 +45,13 @@ export interface ProjectionSurface {
   setTransition(transition: PlayerTransition): void;
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
+  setCheckboxControlState(
+    slot: number,
+    pageId: string,
+    elementId: string,
+    checkboxId: string,
+    state: CheckboxRuntimeState,
+  ): void;
   sendScriptedAction(elementId: string, portId: string): void;
   sendScriptedInput(
     elementId: string,
@@ -78,6 +86,12 @@ export function mountProjectionSurface(
   let expandedGalleryId: string | null = null;
   let expandedOverlay: HTMLElement | null = null;
   let currentEffectiveSlide: MaterializedSlide | undefined;
+  const checkboxControlTargets = new Map<number, {
+    pageId: string;
+    elementId: string;
+    checkboxId: string;
+    state: CheckboxRuntimeState;
+  }>();
   let destroyed = false;
 
   root.innerHTML = `
@@ -141,6 +155,44 @@ export function mountProjectionSurface(
     return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   }
 
+  function findPresentationElementById(elementId: string): HTMLElement | null {
+    for (const candidate of slideSurface.querySelectorAll<HTMLElement>("[data-presentation-id]")) {
+      if (candidate.dataset.presentationId === elementId) return candidate;
+    }
+    return null;
+  }
+
+  function findCheckboxInput(owner: HTMLElement, checkboxId: string): HTMLInputElement | null {
+    for (const input of owner.querySelectorAll<HTMLInputElement>(
+      'input[data-presentation-checkbox="true"]',
+    )) {
+      if (input.dataset.presentationCheckboxId !== checkboxId) continue;
+      if (input.closest("[data-presentation-id]") !== owner) continue;
+      return input;
+    }
+    return null;
+  }
+
+  function applyCheckboxControlTarget(target: {
+    pageId: string;
+    elementId: string;
+    checkboxId: string;
+    state: CheckboxRuntimeState;
+  }): void {
+    if (currentEffectiveSlide?.id !== target.pageId) return;
+    const owner = findPresentationElementById(target.elementId);
+    if (!owner) return;
+    const input = findCheckboxInput(owner, target.checkboxId);
+    if (!input) return;
+    setCheckboxRuntimeState(input, target.state);
+  }
+
+  function applyCurrentCheckboxControlTargets(): void {
+    for (const target of checkboxControlTargets.values()) {
+      applyCheckboxControlTarget(target);
+    }
+  }
+
   function hydrateCurrentSlideRuntime(): void {
     const slide = currentEffectiveSlide;
     if (
@@ -149,10 +201,10 @@ export function mountProjectionSurface(
       !prefersReducedMotion()
     ) {
       hydrateRendererRuntime(slideSurface, { plotAnimations: { slide } });
-      return;
+    } else {
+      hydrateRendererRuntime(slideSurface);
     }
-
-    hydrateRendererRuntime(slideSurface);
+    applyCurrentCheckboxControlTargets();
   }
 
   function animateSlide(direction?: SlideDirection): void {
@@ -239,6 +291,18 @@ export function mountProjectionSurface(
 
     currentIndex = index;
     renderCurrentSlide(direction);
+  }
+
+  function setCheckboxControlState(
+    slot: number,
+    pageId: string,
+    elementId: string,
+    checkboxId: string,
+    state: CheckboxRuntimeState,
+  ): void {
+    if (!Number.isSafeInteger(slot) || slot < 0) return;
+    checkboxControlTargets.set(slot, { pageId, elementId, checkboxId, state });
+    applyCheckboxControlTarget({ pageId, elementId, checkboxId, state });
   }
 
   function handleResize(): void {
@@ -468,6 +532,7 @@ export function mountProjectionSurface(
       }
     },
     setGalleryExpanded,
+    setCheckboxControlState,
     sendScriptedAction(elementId: string, portId: string): void {
       postScriptedAction(
         currentEffectiveSlide,

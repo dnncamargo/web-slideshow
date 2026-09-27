@@ -48,7 +48,7 @@ export type LinkedTopicsStyle = {
   target: "topics";
   id: string;
   name: string;
-  kind?: "unordered" | "ordered" | undefined;
+  kind?: "unordered" | "ordered" | "checkbox" | undefined;
   layout?: (z.infer<typeof TopicsLayoutSchema> & { children?: never; flexShrink?: never; overflow?: never }) | undefined;
   rootMarkerStyle?: z.infer<typeof TopicMarkerStyleSchema> | undefined;
   markerColor?: z.infer<typeof ColorValueSchema> | undefined;
@@ -119,7 +119,7 @@ export const LinkedTopicsStyleSchema: z.ZodType<LinkedTopicsStyle> = z
     target: z.literal("topics"),
     id: NonEmptyTrimmedStringSchema,
     name: NonEmptyTrimmedStringSchema,
-    kind: z.enum(["unordered", "ordered"]).optional(),
+    kind: z.enum(["unordered", "ordered", "checkbox"]).optional(),
     layout: TopicsLayoutSchema.optional(),
     rootMarkerStyle: TopicMarkerStyleSchema.optional(),
     markerColor: ColorValueSchema.optional(),

@@ -488,6 +488,19 @@ Manual acceptance passed before merge.
 
 ---
 
+# Topics Checkbox presentation ✅
+
+Delivered the Checkbox presentation kind within the existing Topics structure:
+
+- `Topics.kind = checkbox`, with local two-state / three-state mode;
+- native shared renderer/runtime, with `markerColor` reused as the Checkbox accent;
+- Canvas interaction and one-way Control → Player absolute state through `live/checkboxControl`;
+- transient runtime state only, with Player-local interaction remaining local;
+- Live activation, promotion and end cleanup;
+- no `schemaVersion` bump.
+
+---
+
 # Embed refinement ✅
 
 Reference: PR #154.
@@ -724,6 +737,7 @@ P12   UX / Properties refinement                            ✅
        Scripted HTTPS images (#149)                         ✅
        Font authoring + usage protection (#150)             ✅
        Topics structural refinement (#152)                  ✅
+       Topics Checkbox presentation + Control sync           ✅
        Embed viewport + stable Control preview (#154)       ✅
        Editor History / Undo-Redo                            ✅
        Root Definitions / structural normalization            ✅

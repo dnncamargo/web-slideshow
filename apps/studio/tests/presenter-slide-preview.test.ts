@@ -2,7 +2,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { projectGalleryTargets } from "../src/features/control/presenter/presenter-slide-preview";
+import {
+  projectCheckboxTargets,
+  projectGalleryTargets,
+} from "../src/features/control/presenter/presenter-slide-preview";
 
 function gallery(id: string, itemCount = 3): HTMLDivElement {
   const root = document.createElement("div");
@@ -68,5 +71,47 @@ describe("Presenter Gallery preview projection", () => {
 
     projectGalleryTargets(root, [{ elementId: "unknown", targetIndex: 1 }]);
     expect(firstItems[0]?.classList.contains("presentation-gallery-item-active")).toBe(true);
+  });
+});
+
+function checkboxOwner(id: string, checkboxId: string): HTMLDivElement {
+  const owner = document.createElement("div");
+  owner.dataset.presentationId = id;
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.dataset.presentationCheckbox = "true";
+  input.dataset.presentationCheckboxId = checkboxId;
+  owner.append(input);
+  return owner;
+}
+
+describe("Presenter Checkbox preview projection", () => {
+  it("uses exact owner and checkbox identity, including nested-owner isolation", () => {
+    const root = document.createElement("div");
+    const outer = checkboxOwner("outer / [1]", "outer-item");
+    const nested = checkboxOwner("nested / [1]", "nested-item");
+    outer.append(nested);
+    root.append(outer);
+
+    projectCheckboxTargets(root, [
+      { slot: 0, elementId: "nested / [1]", checkboxId: "nested-item", state: "intermediate" },
+      { slot: 1, elementId: "outer / [1]", checkboxId: "outer-item", state: "checked" },
+    ]);
+
+    const inputs = root.querySelectorAll<HTMLInputElement>("input");
+    expect(inputs[0]?.checked).toBe(true);
+    expect(inputs[1]?.indeterminate).toBe(true);
+    expect(inputs[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(inputs[1]?.getAttribute("aria-checked")).toBe("mixed");
+  });
+
+  it("is a safe no-op for missing exact targets", () => {
+    const root = document.createElement("div");
+    root.append(checkboxOwner("known", "known-item"));
+    projectCheckboxTargets(root, [
+      { slot: 0, elementId: "missing", checkboxId: "known-item", state: "checked" },
+      { slot: 1, elementId: "known", checkboxId: "missing", state: "checked" },
+    ]);
+    expect(root.querySelector<HTMLInputElement>("input")?.checked).toBe(false);
   });
 });

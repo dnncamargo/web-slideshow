@@ -161,6 +161,24 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     expect(row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind")?.value).toBe("ordered");
   });
 
+  it("tracks a linked checkbox kind as one definition action and preserves its marker", async () => {
+    const initial = presentation();
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const kind = row.querySelector<HTMLSelectElement>("#linked-topics-style-topics-style-kind");
+    if (!kind) throw new Error("Topics kind control was not rendered");
+
+    await act(async () => setSelectValue(kind, "checkbox"));
+    const edited = await save(saved);
+    expect(edited.linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ kind: "checkbox", rootMarkerStyle: "square" });
+
+    await undo();
+    expect(await save(saved)).toEqual(initial);
+    await redo();
+    expect(await save(saved)).toEqual(edited);
+  });
+
   it("tracks add/remove, kind-marker compatibility, and ColorControl without a duplicate action", async () => {
     const initial = presentation({ linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", itemGap: 8 }] });
     await renderWorkspace(initial);
@@ -186,6 +204,22 @@ describe("CP4F6B Topics Linked Style definition history", () => {
     if (!remove) throw new Error("Topics marker removal was not rendered");
     await act(async () => remove.click());
     expect(row.querySelector("[data-linked-topics-property='markerColor']")).toBeNull();
+  });
+
+  it("labels a checkbox markerColor card as Checkbox color while patching markerColor", async () => {
+    const initial = presentation({ linkedStyles: [{ target: "topics", id: "topics-style", name: "Topics", kind: "checkbox", markerColor: "#ff0000" }] });
+    const saved: Presentation[] = [];
+    await renderWorkspace(initial, saved);
+    const row = await openRow();
+    const card = row.querySelector<HTMLElement>("[data-linked-topics-property='markerColor']");
+    if (!card) throw new Error("Topics markerColor property card was not rendered");
+    expect(card.textContent).toContain("Checkbox color");
+
+    const color = card.querySelector<HTMLInputElement>("#linked-topics-style-topics-style-marker-color");
+    if (!color) throw new Error("Topics checkbox ColorControl was not rendered");
+    await act(async () => { color.focus(); setInputValue(color, "#00ff00"); color.blur(); });
+    expect((await save(saved)).linkedStyles?.find((style) => style.id === "topics-style")).toMatchObject({ markerColor: "#00ff00" });
+    expect((await save(saved)).linkedStyles?.find((style) => style.id === "topics-style")).not.toHaveProperty("checkboxColor");
   });
 
   it("changes only the shared definition for multiple usages and replays unused removal", async () => {
