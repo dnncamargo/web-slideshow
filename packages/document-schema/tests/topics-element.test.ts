@@ -139,6 +139,56 @@ describe("TopicsElementSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts checkbox Topics with both authored modes", () => {
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-checkbox-two-state",
+      kind: "checkbox",
+      checkboxMode: "two-state",
+    })).success).toBe(true);
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-checkbox-three-state",
+      kind: "checkbox",
+      checkboxMode: "three-state",
+    })).success).toBe(true);
+  });
+
+  it("accepts checkboxMode independently of list kind", () => {
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-ordered-checkbox-mode",
+      kind: "ordered",
+      checkboxMode: "three-state",
+    })).success).toBe(true);
+    expect(TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-unordered-checkbox-mode",
+      checkboxMode: "two-state",
+    })).success).toBe(true);
+  });
+
+  it("keeps checkboxMode optional when omitted", () => {
+    const result = TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-checkbox-default",
+      kind: "checkbox",
+    }));
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty("checkboxMode");
+  });
+
+  it("preserves marker properties for checkbox Topics", () => {
+    const result = TopicsElementSchema.safeParse(topicsElement({
+      id: "topics-checkbox-markers",
+      kind: "checkbox",
+      rootMarkerStyle: "circle",
+      markerColor: "#f8fafc",
+    }));
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rootMarkerStyle).toBe("circle");
+      expect(result.data.markerColor).toBe("#f8fafc");
+    }
+  });
+
   it("accepts an omitted kind for effective unordered Topics", () => {
     const { kind: _kind, ...withoutKind } = topicsElement();
     const result = TopicsElementSchema.safeParse(
@@ -351,6 +401,16 @@ describe("TopicItemSchema", () => {
         }),
       ).success,
     ).toBe(false);
+  });
+
+  it("does not add per-item checkbox state", () => {
+    const result = TopicItemSchema.safeParse(topicItem({ checked: true }));
+
+    expect(result.success).toBe(false);
+    const valid = TopicItemSchema.parse(topicItem());
+    expect(valid).not.toHaveProperty("checked");
+    expect(valid).not.toHaveProperty("state");
+    expect(valid).not.toHaveProperty("value");
   });
 
   it("rejects unknown fields on a nested topic item", () => {
