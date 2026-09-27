@@ -249,11 +249,11 @@ export function ShapeInspector({
                 <>
                   <label className={styles.field}>
                     <span>{t("inspector.animation.fromDeg")}</span>
-                    <input id="shape-animation-rotate-from" type="text" inputMode="decimal" value={animationDraft.rotateFromDeg} onChange={(event) => updateAnimationDraft({ rotateFromDeg: event.target.value })} />
+                    <input id="shape-animation-rotate-from" type="number" step="1" value={animationDraft.rotateFromDeg} onChange={(event) => updateAnimationDraft({ rotateFromDeg: event.target.value })} />
                   </label>
                   <label className={styles.field}>
                     <span>{t("inspector.animation.toDeg")}</span>
-                    <input id="shape-animation-rotate-to" type="text" inputMode="decimal" value={animationDraft.rotateToDeg} onChange={(event) => updateAnimationDraft({ rotateToDeg: event.target.value })} />
+                    <input id="shape-animation-rotate-to" type="number" step="1" value={animationDraft.rotateToDeg} onChange={(event) => updateAnimationDraft({ rotateToDeg: event.target.value })} />
                   </label>
                 </>
               ) : null}
@@ -272,10 +272,10 @@ export function ShapeInspector({
               </label>
               {animationDraft.translateEnabled ? (
                 <>
-                  <label className={styles.field}><span>{t("inspector.animation.fromX")}</span><input id="shape-animation-translate-from-x" type="text" inputMode="decimal" value={animationDraft.translateFromXPercent} onChange={(event) => updateAnimationDraft({ translateFromXPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.fromY")}</span><input id="shape-animation-translate-from-y" type="text" inputMode="decimal" value={animationDraft.translateFromYPercent} onChange={(event) => updateAnimationDraft({ translateFromYPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toX")}</span><input id="shape-animation-translate-to-x" type="text" inputMode="decimal" value={animationDraft.translateToXPercent} onChange={(event) => updateAnimationDraft({ translateToXPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toY")}</span><input id="shape-animation-translate-to-y" type="text" inputMode="decimal" value={animationDraft.translateToYPercent} onChange={(event) => updateAnimationDraft({ translateToYPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromX")}</span><input id="shape-animation-translate-from-x" type="number" step="1" value={animationDraft.translateFromXPercent} onChange={(event) => updateAnimationDraft({ translateFromXPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromY")}</span><input id="shape-animation-translate-from-y" type="number" step="1" value={animationDraft.translateFromYPercent} onChange={(event) => updateAnimationDraft({ translateFromYPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toX")}</span><input id="shape-animation-translate-to-x" type="number" step="1" value={animationDraft.translateToXPercent} onChange={(event) => updateAnimationDraft({ translateToXPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toY")}</span><input id="shape-animation-translate-to-y" type="number" step="1" value={animationDraft.translateToYPercent} onChange={(event) => updateAnimationDraft({ translateToYPercent: event.target.value })} /><span>%</span></label>
                 </>
               ) : null}
             </div>
@@ -293,17 +293,17 @@ export function ShapeInspector({
               </label>
               {animationDraft.skewEnabled ? (
                 <>
-                  <label className={styles.field}><span>{t("inspector.animation.fromXDeg")}</span><input id="shape-animation-skew-from-x" type="text" inputMode="decimal" value={animationDraft.skewFromXDeg} onChange={(event) => updateAnimationDraft({ skewFromXDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.fromYDeg")}</span><input id="shape-animation-skew-from-y" type="text" inputMode="decimal" value={animationDraft.skewFromYDeg} onChange={(event) => updateAnimationDraft({ skewFromYDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toXDeg")}</span><input id="shape-animation-skew-to-x" type="text" inputMode="decimal" value={animationDraft.skewToXDeg} onChange={(event) => updateAnimationDraft({ skewToXDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toYDeg")}</span><input id="shape-animation-skew-to-y" type="text" inputMode="decimal" value={animationDraft.skewToYDeg} onChange={(event) => updateAnimationDraft({ skewToYDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromXDeg")}</span><input id="shape-animation-skew-from-x" type="number" step="1" value={animationDraft.skewFromXDeg} onChange={(event) => updateAnimationDraft({ skewFromXDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromYDeg")}</span><input id="shape-animation-skew-from-y" type="number" step="1" value={animationDraft.skewFromYDeg} onChange={(event) => updateAnimationDraft({ skewFromYDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toXDeg")}</span><input id="shape-animation-skew-to-x" type="number" step="1" value={animationDraft.skewToXDeg} onChange={(event) => updateAnimationDraft({ skewToXDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toYDeg")}</span><input id="shape-animation-skew-to-y" type="number" step="1" value={animationDraft.skewToYDeg} onChange={(event) => updateAnimationDraft({ skewToYDeg: event.target.value })} /><span>°</span></label>
                 </>
               ) : null}
             </div>
 
             <label className={styles.field}>
               <span>{t("inspector.animation.durationMs")}</span>
-              <input id="shape-animation-duration" type="text" inputMode="numeric" value={animationDraft.durationMs} onChange={(event) => updateAnimationDraft({ durationMs: event.target.value })} />
+              <input id="shape-animation-duration" type="number" min="1" step="1" value={animationDraft.durationMs} onChange={(event) => updateAnimationDraft({ durationMs: event.target.value })} />
             </label>
             <label className={styles.checkboxRow}><input id="shape-animation-loop" type="checkbox" checked={animationDraft.loop} onChange={(event) => updateAnimationDraft({ loop: event.target.checked })} /><span>{t("inspector.animation.loop")}</span></label>
             <label className={styles.checkboxRow}><input id="shape-animation-autoplay" type="checkbox" checked={animationDraft.autoplay} onChange={(event) => updateAnimationDraft({ autoplay: event.target.checked })} /><span>{t("inspector.animation.autoplay")}</span></label>

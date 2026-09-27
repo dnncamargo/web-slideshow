@@ -1,6 +1,9 @@
 import { useState } from "react";
 
-import type { ShapeElement } from "@web-slideshow/document-schema";
+import {
+  ShapePathGeometrySchema,
+  type ShapeElement,
+} from "@web-slideshow/document-schema";
 
 import { useAuthoringHistory } from "../../authoring-history-context";
 import type { HistoryActionMeta } from "../../editor-history-state";
@@ -15,6 +18,10 @@ import {
   SHAPE_AUTHORING_PRESETS,
   type ShapePreset,
 } from "../../shape-geometry-authoring";
+import {
+  parseSvgPathData,
+  serializeSvgPathData,
+} from "../../svg-path-authoring";
 
 const numberChangeHistoryMeta = {
   kind: "number.change",
@@ -62,6 +69,12 @@ interface ShapeGeometryDrafts {
   qrContent: string;
   qrErrorCorrection: "L" | "M" | "Q" | "H";
   qrQuietZone: string;
+  pathSource: string;
+  pathViewBoxX: string;
+  pathViewBoxY: string;
+  pathViewBoxWidth: string;
+  pathViewBoxHeight: string;
+  pathFillRule: "nonzero" | "evenodd";
 }
 
 function createGeometryDrafts(
@@ -91,6 +104,12 @@ function createGeometryDrafts(
     qrQuietZone: geometry.mode === "generated" && geometry.generator === "qr-code"
       ? String(geometry.config.quietZone)
       : "",
+    pathSource: geometry.mode === "path" ? serializeSvgPathData(geometry.commands) : "",
+    pathViewBoxX: geometry.mode === "path" ? String(geometry.viewBox.x) : "0",
+    pathViewBoxY: geometry.mode === "path" ? String(geometry.viewBox.y) : "0",
+    pathViewBoxWidth: geometry.mode === "path" ? String(geometry.viewBox.width) : "100",
+    pathViewBoxHeight: geometry.mode === "path" ? String(geometry.viewBox.height) : "100",
+    pathFillRule: geometry.mode === "path" ? geometry.fillRule ?? "nonzero" : "nonzero",
   };
 }
 
@@ -112,6 +131,7 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
   const preset = getShapeGeometryPreset(element.geometry);
   const identity = `${element.id}:${geometryIdentity(element.geometry)}`;
   const [draftState, setDraftState] = useState<ShapeGeometryDrafts>(() => createGeometryDrafts(identity, element.geometry));
+  const [pathMessage, setPathMessage] = useState<string | null>(null);
   const drafts = draftState.identity === identity
     ? draftState
     : createGeometryDrafts(identity, element.geometry);
@@ -171,10 +191,53 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
 
   function replaceGeometry(nextPreset: Exclude<ShapePreset, "custom" | "qr-code">): void {
     if (preset === nextPreset) return;
+    setPathMessage(null);
     runDiscrete(presetHistoryMeta, () => onUpdate((current) => ({
       ...current,
       geometry: createShapeGeometry(nextPreset),
     })));
+  }
+
+  function applyPathDraft(): void {
+    if (element.geometry.mode !== "path") return;
+
+    try {
+      const viewBoxX = parseFiniteNumber(drafts.pathViewBoxX);
+      const viewBoxY = parseFiniteNumber(drafts.pathViewBoxY);
+      const viewBoxWidth = parseFiniteNumber(drafts.pathViewBoxWidth);
+      const viewBoxHeight = parseFiniteNumber(drafts.pathViewBoxHeight);
+      if (viewBoxX === undefined || viewBoxY === undefined || viewBoxWidth === undefined || viewBoxHeight === undefined || viewBoxWidth <= 0 || viewBoxHeight <= 0) {
+        throw new Error(t("inspector.shape.invalidViewBox"));
+      }
+
+      const commands = parseSvgPathData(drafts.pathSource);
+      const candidate = {
+        mode: "path" as const,
+        viewBox: { x: viewBoxX, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight },
+        commands,
+        ...(drafts.pathFillRule === "evenodd" ? { fillRule: "evenodd" as const } : {}),
+      };
+      const parsed = ShapePathGeometrySchema.safeParse(candidate);
+      if (!parsed.success) {
+        throw new Error(t("inspector.shape.invalidGeometry"));
+      }
+      if (geometryIdentity(parsed.data) === geometryIdentity(element.geometry)) {
+        setPathMessage(null);
+        return;
+      }
+
+      setPathMessage(null);
+      runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
+        ? { ...current, geometry: parsed.data }
+        : current));
+    } catch (error) {
+      setPathMessage(error instanceof Error ? error.message : "The SVG path data is invalid.");
+    }
+  }
+
+  function resetPathDraft(): void {
+    setDraftState(createGeometryDrafts(identity, element.geometry));
+    setPathMessage(null);
   }
 
   function updateTriangle(value: string): void {
@@ -257,6 +320,57 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
         </select>
       </label>
 
+      {element.geometry.mode === "path" && (
+        <>
+          <label className={styles.field}>
+            <span>{t("inspector.shape.pathSource")}</span>
+            <textarea
+              id="shape-path-source"
+              name="shapePathSource"
+              className={styles.textArea}
+              rows={5}
+              spellCheck={false}
+              value={drafts.pathSource}
+              onChange={(event) => {
+                setDraft("pathSource", event.target.value);
+                setPathMessage(null);
+              }}
+            />
+            <small className={styles.fieldHint}>{t("inspector.shape.pathSourceHint")}</small>
+          </label>
+          <div className={styles.fieldGrid}>
+            <label className={styles.field}>
+              <span>{t("inspector.shape.viewBoxX")}</span>
+              <input id="shape-path-viewbox-x" type="number" step="1" value={drafts.pathViewBoxX} onChange={(event) => setDraft("pathViewBoxX", event.target.value)} />
+            </label>
+            <label className={styles.field}>
+              <span>{t("inspector.shape.viewBoxY")}</span>
+              <input id="shape-path-viewbox-y" type="number" step="1" value={drafts.pathViewBoxY} onChange={(event) => setDraft("pathViewBoxY", event.target.value)} />
+            </label>
+            <label className={styles.field}>
+              <span>{t("inspector.shape.viewBoxWidth")}</span>
+              <input id="shape-path-viewbox-width" type="number" min="0.000001" step="1" value={drafts.pathViewBoxWidth} onChange={(event) => setDraft("pathViewBoxWidth", event.target.value)} />
+            </label>
+            <label className={styles.field}>
+              <span>{t("inspector.shape.viewBoxHeight")}</span>
+              <input id="shape-path-viewbox-height" type="number" min="0.000001" step="1" value={drafts.pathViewBoxHeight} onChange={(event) => setDraft("pathViewBoxHeight", event.target.value)} />
+            </label>
+          </div>
+          <label className={styles.field}>
+            <span>{t("inspector.shape.fillRule")}</span>
+            <select id="shape-path-fill-rule" value={drafts.pathFillRule} onChange={(event) => setDraft("pathFillRule", event.target.value as "nonzero" | "evenodd")}>
+              <option value="nonzero">nonzero</option>
+              <option value="evenodd">evenodd</option>
+            </select>
+          </label>
+          {pathMessage !== null ? <small className={styles.fieldHint}>{pathMessage}</small> : null}
+          <div className={styles.elementCrudActions}>
+            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={applyPathDraft}>{t("inspector.shape.applyPath")}</button>
+            <button id="shape-path-reset" type="button" className={styles.secondaryButton} onClick={resetPathDraft}>{t("inspector.shape.resetPath")}</button>
+          </div>
+        </>
+      )}
+
       {element.geometry.mode === "generated" && element.geometry.generator === "qr-code" && (
         <>
           <label className={styles.field}>
@@ -298,8 +412,7 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
             <input
               id="shape-qr-quiet-zone"
               name="shapeQrQuietZone"
-              type="text"
-              inputMode="numeric"
+              type="number"
               min="0"
               step="1"
               value={drafts.qrQuietZone}
@@ -325,10 +438,10 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
           <input
             id="shape-apex-x"
             name="shapeApexX"
-            type="text"
-            inputMode="decimal"
+            type="number"
             min="0"
             max="100"
+            step="1"
             value={drafts.apex}
             onChange={(event) => setDraft("apex", event.target.value)}
             onBlur={(event) => updateTriangle(event.currentTarget.value)}
@@ -343,8 +456,7 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
             <input
               id="shape-polygon-points"
               name="shapePolygonPoints"
-              type="text"
-              inputMode="numeric"
+              type="number"
               min="3"
               max="12"
               step="1"
@@ -359,10 +471,10 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
               <input
                 id="shape-polygon-inner-radius"
                 name="shapePolygonInnerRadius"
-                type="text"
-                inputMode="decimal"
+                type="number"
                 min="1"
                 max="100"
+                step="1"
                 value={drafts.innerRadius}
                 onChange={(event) => setDraft("innerRadius", event.target.value)}
                 onBlur={(event) => commitInnerRadius(event.currentTarget.value)}
@@ -375,8 +487,8 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
             <input
               id="shape-polygon-rotation"
               name="shapePolygonRotation"
-              type="text"
-              inputMode="decimal"
+              type="number"
+              step="1"
               value={drafts.rotation}
               onChange={(event) => setDraft("rotation", event.target.value)}
               onBlur={(event) => commitRotation(event.currentTarget.value)}

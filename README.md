@@ -322,7 +322,7 @@ Studio creates Shapes and exposes the bounded authoring flow through the Shape I
 
 The Inspector order is Geometry → Animation → Size → Appearance → Effects → Interaction. Shape animation is a bounded runtime capability with translate → rotate → skew transform order; it does not add scale, easing, keyframes or morphing.
 
-Shape uses the shared renderer in Studio preview, Library thumbnails, export and published Player output. A compatible source link can create an editable generated QR Shape next to the source. This does not automatically migrate existing QR Images, and QR geometry is never persisted as generated path data. Shape does not use Linked Styles or Custom Library Shape recipes, and arbitrary raw SVG markup is not an authoring surface.
+Shape uses the shared renderer in Studio preview, Library thumbnails, export and published Player output. A compatible source link can create an editable generated QR Shape next to the source. This does not automatically migrate existing QR Images, and QR geometry is never persisted as generated path data. Path Shapes support bounded SVG path-data (`d`) authoring normalized to canonical commands; arbitrary raw SVG/XML markup remains unsupported and is not an authoring surface. Shape does not use Linked Styles or Custom Library Shape recipes.
 
 Control sends Shape Play / Pause / Reset through the separate `live/shapeAnimationAction/<shapeSlot>` channel. The channel is independent from Plot animation, targets the published boot/version/slide/Shape occurrence, and carries transient runtime intent only; it does not change the canonical Presentation.
 

@@ -319,6 +319,126 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(state.link).toEqual(initial.link);
   });
 
+  it("uses native number controls for Shape geometry and animation drafts", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+    }));
+
+    expect(input("shape-apex-x").type).toBe("number");
+    expect(input("shape-apex-x").min).toBe("0");
+    expect(input("shape-apex-x").max).toBe("100");
+    expect(input("shape-apex-x").step).toBe("1");
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 0.45, rotationDeg: 15 } },
+    }));
+    expect(input("shape-polygon-points").type).toBe("number");
+    expect(input("shape-polygon-points").min).toBe("3");
+    expect(input("shape-polygon-points").max).toBe("12");
+    expect(input("shape-polygon-points").step).toBe("1");
+    expect(input("shape-polygon-inner-radius").type).toBe("number");
+    expect(input("shape-polygon-inner-radius").min).toBe("1");
+    expect(input("shape-polygon-inner-radius").max).toBe("100");
+    expect(input("shape-polygon-inner-radius").step).toBe("1");
+    expect(input("shape-polygon-rotation").type).toBe("number");
+    expect(input("shape-polygon-rotation").step).toBe("1");
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+    }));
+    expect(input("shape-qr-quiet-zone").type).toBe("number");
+    expect(input("shape-qr-quiet-zone").min).toBe("0");
+    expect(input("shape-qr-quiet-zone").step).toBe("1");
+
+    await act(async () => input("shape-animation-enabled").click());
+    await act(async () => input("shape-animation-rotate-enabled").click());
+    await act(async () => input("shape-animation-translate-enabled").click());
+    await act(async () => input("shape-animation-skew-enabled").click());
+
+    for (const id of [
+      "shape-animation-rotate-from",
+      "shape-animation-rotate-to",
+      "shape-animation-translate-from-x",
+      "shape-animation-translate-from-y",
+      "shape-animation-translate-to-x",
+      "shape-animation-translate-to-y",
+      "shape-animation-skew-from-x",
+      "shape-animation-skew-from-y",
+      "shape-animation-skew-to-x",
+      "shape-animation-skew-to-y",
+    ]) {
+      expect(input(id).type).toBe("number");
+      expect(input(id).step).toBe("1");
+    }
+    expect(input("shape-animation-duration").type).toBe("number");
+    expect(input("shape-animation-duration").min).toBe("1");
+    expect(input("shape-animation-duration").step).toBe("1");
+  });
+
+  it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {
+    await mount();
+
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "m 10 10 h 80 v 80 h -80 z");
+      setInputValue(input("shape-path-viewbox-width"), "120");
+      changeSelect(select("shape-path-fill-rule"), "evenodd");
+    });
+    expect(state.geometry).toEqual(RECTANGLE_GEOMETRY);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
+    expect(state.geometry).toEqual({
+      mode: "path",
+      viewBox: { x: 0, y: 0, width: 120, height: 100 },
+      commands: [
+        { type: "move", x: 10, y: 10 },
+        { type: "line", x: 90, y: 10 },
+        { type: "line", x: 90, y: 90 },
+        { type: "line", x: 10, y: 90 },
+        { type: "close" },
+      ],
+      fillRule: "evenodd",
+    });
+    expect(select("shape-geometry-preset").value).toBe("custom");
+
+    const appliedGeometry = state.geometry;
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "<svg>");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toBe(appliedGeometry);
+    expect(host.textContent).toContain("only the d value");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "M 1 1");
+      host.querySelector<HTMLButtonElement>("#shape-path-reset")?.click();
+    });
+    expect(textArea("shape-path-source").value).toBe("M 10 10 L 90 10 L 90 90 L 10 90 Z");
+  });
+
+  it("records one history action for Path Apply and restores it with undo", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(select("shape-geometry-preset").value).toBe("custom");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+  });
+
   it("records representative Shape changes in the shared Undo/Redo history", async () => {
     const presentation = historyPresentation();
     await act(async () => root.render(
