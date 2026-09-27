@@ -86,6 +86,18 @@ describe("Player", () => {
     expect(root.querySelector(".player-gallery-expanded")).toBeNull();
   });
 
+  it("forwards absolute Checkbox Control state through the Player façade", () => {
+    player.destroy();
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1, id: "player-checkbox", title: "Player Checkbox", description: "", aspectRatio: "16:9",
+      slides: [{ id: "slide", elements: [{ id: "topics-player", type: "topics", hidden: false, kind: "checkbox", items: [{ id: "item-player", content: { id: "content-player", children: [] }, children: [] }] }] }],
+    });
+    player = mountPlayer(root, presentation, { transition: "none" });
+
+    player.setCheckboxControlState(0, "slide", "topics-player", "item-player", "checked");
+    expect(root.querySelector<HTMLInputElement>("input[data-presentation-checkbox='true']")?.checked).toBe(true);
+  });
+
   it("exposes narrow Plot animation control through the Player façade", () => {
     player.destroy();
     const presentation = PresentationSchema.parse({

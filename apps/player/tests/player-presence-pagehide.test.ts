@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCurrent: vi.fn(),
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
+  subscribeLiveCheckboxControl: vi.fn(),
   createLivePlotAnimationActionTracker: vi.fn(),
   subscribeLivePlotAnimationAction: vi.fn(),
   subscribeLiveSlideTransition: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("../src/live-player-presence", () => ({ startPlayerPresence: mocks.start
 vi.mock("../src/live-state", () => ({ subscribeLiveProjectionState: mocks.subscribeLiveProjectionState }));
 vi.mock("../src/live-fullscreen-request", () => ({ subscribeLiveFullscreenRequest: mocks.subscribeLiveFullscreenRequest }));
 vi.mock("../src/live-gallery-control", () => ({ subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl }));
+vi.mock("../src/live-checkbox-control", () => ({ subscribeLiveCheckboxControl: mocks.subscribeLiveCheckboxControl }));
 vi.mock("../src/live-plot-animation-action", () => ({
   createLivePlotAnimationActionTracker: mocks.createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction: mocks.subscribeLivePlotAnimationAction,
@@ -66,6 +68,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
+    mocks.subscribeLiveCheckboxControl.mockReturnValue(vi.fn());
     mocks.createLivePlotAnimationActionTracker.mockReturnValue({});
     mocks.subscribeLivePlotAnimationAction.mockReturnValue(vi.fn());
     mocks.subscribeLiveSlideTransition.mockReturnValue(vi.fn());
@@ -180,6 +183,7 @@ describe("Player presence pagehide cleanup", () => {
     const scriptedActionCleanups = [vi.fn(), vi.fn()];
     const slideTransitionCleanups = [vi.fn(), vi.fn()];
     const playerControlsCleanups = [vi.fn(), vi.fn()];
+    const checkboxCleanups = [vi.fn(), vi.fn()];
     let recoveryHandler!: (request: unknown) => void;
     let loadCount = 0;
     let handleLive!: (event: unknown) => void;
@@ -218,6 +222,9 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLivePlayerControls
       .mockReturnValueOnce(playerControlsCleanups[0])
       .mockReturnValueOnce(playerControlsCleanups[1]);
+    mocks.subscribeLiveCheckboxControl
+      .mockReturnValueOnce(checkboxCleanups[0])
+      .mockReturnValueOnce(checkboxCleanups[1]);
 
     startPlayer(document.querySelector("#app")!);
     handleLive({
@@ -242,10 +249,12 @@ describe("Player presence pagehide cleanup", () => {
     expect(scriptedActionCleanups[0]).toHaveBeenCalledTimes(1);
     expect(slideTransitionCleanups[0]).toHaveBeenCalledTimes(1);
     expect(playerControlsCleanups[0]).toHaveBeenCalledTimes(1);
+    expect(checkboxCleanups[0]).toHaveBeenCalledTimes(1);
     expect(mocks.subscribeLiveSlideTransition).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLivePlayerControls).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLiveFullscreenRequest).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLiveGalleryControl).toHaveBeenCalledTimes(2);
+    expect(mocks.subscribeLiveCheckboxControl).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLiveScriptedAction).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLivePlayerControls.mock.calls[0]?.[1]).toBe(7);
     expect(mocks.subscribeLivePlayerControls.mock.calls[1]?.[1]).toBe(7);

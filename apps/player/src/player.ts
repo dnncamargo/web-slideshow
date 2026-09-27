@@ -3,6 +3,7 @@ import type {
   Presentation,
 } from "@web-slideshow/document-schema";
 import type { ScriptedReportMessage } from "@web-slideshow/renderer";
+import type { CheckboxRuntimeState } from "@web-slideshow/renderer";
 
 import {
   mountProjectionSurface,
@@ -149,6 +150,14 @@ export interface PlayerController {
   setGalleryActiveIndex(galleryId: string, targetIndex: number): void;
 
   setGalleryExpanded(galleryId: string, expanded: boolean): void;
+
+  setCheckboxControlState(
+    slot: number,
+    pageId: string,
+    elementId: string,
+    checkboxId: string,
+    state: CheckboxRuntimeState,
+  ): void;
 
   sendScriptedAction(elementId: string, portId: string): void;
 
@@ -663,6 +672,16 @@ export function mountPlayer(
 
     setGalleryExpanded(galleryId: string, expanded: boolean): void {
       projection.setGalleryExpanded(galleryId, expanded);
+    },
+
+    setCheckboxControlState(
+      slot: number,
+      pageId: string,
+      elementId: string,
+      checkboxId: string,
+      state: CheckboxRuntimeState,
+    ): void {
+      projection.setCheckboxControlState(slot, pageId, elementId, checkboxId, state);
     },
 
     sendScriptedAction(elementId: string, portId: string): void {

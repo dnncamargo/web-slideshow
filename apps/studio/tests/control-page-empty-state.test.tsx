@@ -17,6 +17,11 @@ const mocks = vi.hoisted(() => ({
     nextGallery: vi.fn(),
     setGalleryExpanded: vi.fn(),
   },
+  checkboxControl: {
+    targets: [],
+    sendFailed: false,
+    setCheckboxState: vi.fn(),
+  },
   plotAnimationControl: {
     plotTargets: [],
     actionsEnabled: false,
@@ -39,6 +44,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("../src/features/control/realtime-db", () => ({
   isRealtimeDatabaseConfigured: () => true,
+  getRealtimeDatabaseOrNull: () => null,
 }));
 vi.mock("../src/features/control/live-current", () => ({
   activateLivePresentation: mocks.activateLivePresentation,
@@ -60,6 +66,9 @@ vi.mock("../src/features/control/use-live-session-control", () => ({
 }));
 vi.mock("../src/features/control/use-live-gallery-control", () => ({
   useLiveGalleryControl: () => mocks.galleryControl,
+}));
+vi.mock("../src/features/control/use-live-checkbox-control", () => ({
+  useLiveCheckboxControl: () => mocks.checkboxControl,
 }));
 vi.mock("../src/features/control/use-live-plot-animation-control", () => ({
   useLivePlotAnimationControl: () => mocks.plotAnimationControl,
@@ -102,6 +111,7 @@ describe("ControlPage empty state recovery", () => {
     mocks.push.mockReset();
     mocks.presenterProps = null;
     mocks.galleryControl.sendFailed = false;
+    mocks.checkboxControl.sendFailed = false;
     mocks.plotAnimationControl.sendFailed = false;
     mocks.scriptedStateControl.sendFailed = false;
     mocks.transitionControl.sendFailed = false;
@@ -241,6 +251,12 @@ describe("ControlPage empty state recovery", () => {
 
     expect(mocks.presenterProps?.sendFailed).toBe(true);
     mocks.galleryControl.sendFailed = false;
+    mocks.checkboxControl.sendFailed = true;
+    render();
+    expect(mocks.presenterProps?.sendFailed).toBe(true);
+    expect(mocks.presenterProps?.checkboxTargets).toBe(mocks.checkboxControl.targets);
+    expect(mocks.presenterProps?.setCheckboxState).toBe(mocks.checkboxControl.setCheckboxState);
+    mocks.checkboxControl.sendFailed = false;
     mocks.scriptedStateControl.sendFailed = true;
     render();
     expect(mocks.presenterProps?.sendFailed).toBe(true);

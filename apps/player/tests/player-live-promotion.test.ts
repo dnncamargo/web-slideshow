@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveProjectionState: vi.fn(),
   subscribeLiveFullscreenRequest: vi.fn(),
   subscribeLiveGalleryControl: vi.fn(),
+  subscribeLiveCheckboxControl: vi.fn(),
   mountPlayer: vi.fn(),
   liveHandler: undefined as
     | ((event: {
@@ -53,6 +54,9 @@ vi.mock("../src/live-fullscreen-request", () => ({
 
 vi.mock("../src/live-gallery-control", () => ({
   subscribeLiveGalleryControl: mocks.subscribeLiveGalleryControl,
+}));
+vi.mock("../src/live-checkbox-control", () => ({
+  subscribeLiveCheckboxControl: mocks.subscribeLiveCheckboxControl,
 }));
 
 vi.mock("../src/player", () => ({
@@ -121,6 +125,7 @@ describe("Player live version promotion", () => {
     mocks.subscribeLiveProjectionState.mockReturnValue(vi.fn());
     mocks.subscribeLiveFullscreenRequest.mockReturnValue(vi.fn());
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
+    mocks.subscribeLiveCheckboxControl.mockReturnValue(vi.fn());
   });
 
   it("keeps V1 visible, discards stale V2, maps V3, then attaches its baseline ACK", async () => {

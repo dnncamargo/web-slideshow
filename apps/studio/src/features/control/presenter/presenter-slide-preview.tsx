@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   fitLogicalSlideGeometry,
@@ -9,7 +9,9 @@ import {
   paletteColorCssVariableName,
   renderSlide,
   resolveLogicalSlideSize,
+  setCheckboxRuntimeState,
 } from "@web-slideshow/renderer";
+import type { CheckboxRuntimeState } from "@web-slideshow/renderer";
 import { materializeSlide, type Presentation, type Slide } from "@web-slideshow/document-schema";
 
 import styles from "./presenter-view.module.css";
@@ -17,6 +19,13 @@ import styles from "./presenter-view.module.css";
 export interface PresenterGalleryTarget {
   elementId: string;
   targetIndex: number;
+}
+
+export interface PresenterCheckboxTarget {
+  slot: number;
+  elementId: string;
+  checkboxId: string;
+  state: CheckboxRuntimeState;
 }
 
 function getGalleryItems(gallery: HTMLElement): HTMLElement[] {
@@ -72,12 +81,56 @@ export function projectGalleryTargets(
   }
 }
 
+function presentationCheckboxes(root: ParentNode): HTMLInputElement[] {
+  return Array.from(root.querySelectorAll<HTMLInputElement>(
+    'input[data-presentation-checkbox="true"]',
+  ));
+}
+
+function checkboxForOwner(
+  owner: HTMLElement,
+  checkboxId: string,
+): HTMLInputElement | null {
+  for (const input of owner.querySelectorAll<HTMLInputElement>(
+    'input[data-presentation-checkbox="true"]',
+  )) {
+    if (input.dataset.presentationCheckboxId !== checkboxId) continue;
+    if (input.closest("[data-presentation-id]") !== owner) continue;
+    return input;
+  }
+  return null;
+}
+
+/** Projects absolute Checkbox state without emitting renderer onChange events. */
+export function projectCheckboxTargets(
+  root: ParentNode,
+  targets: readonly PresenterCheckboxTarget[],
+): void {
+  const owners = Array.from(root.querySelectorAll<HTMLElement>("[data-presentation-id]"));
+  for (const target of targets) {
+    const owner = owners.find(
+      (candidate) => candidate.dataset.presentationId === target.elementId,
+    );
+    if (!owner) continue;
+    const input = checkboxForOwner(owner, target.checkboxId);
+    if (!input) continue;
+    setCheckboxRuntimeState(input, target.state);
+  }
+}
+
 export interface PresenterSlidePreviewProps {
   presentation: Presentation;
   slide: Slide;
   aspectRatio: Presentation["aspectRatio"];
   variant: "current" | "next";
   galleryTargets?: readonly PresenterGalleryTarget[];
+  checkboxTargets?: readonly PresenterCheckboxTarget[];
+  onCheckboxChange?(
+    slot: number,
+    elementId: string,
+    checkboxId: string,
+    state: CheckboxRuntimeState,
+  ): void;
 }
 
 /**
@@ -94,6 +147,8 @@ export function PresenterSlidePreview({
   aspectRatio,
   variant,
   galleryTargets = [],
+  checkboxTargets = [],
+  onCheckboxChange,
 }: PresenterSlidePreviewProps) {
   const effectiveSlide = useMemo(
     () => materializeSlide(presentation, slide).slide,
@@ -146,15 +201,38 @@ export function PresenterSlidePreview({
     return () => window.removeEventListener("resize", measure);
   }, [aspectRatio]);
 
+  const handleCheckboxChange = useCallback((input: HTMLInputElement, state: CheckboxRuntimeState) => {
+    if (variant !== "current" || onCheckboxChange === undefined) return;
+    if (!previewSurfaceRef.current || !previewSurfaceRef.current.contains(input)) return;
+    const checkboxId = input.dataset.presentationCheckboxId;
+    const owner = input.closest<HTMLElement>("[data-presentation-id]");
+    const elementId = owner?.dataset.presentationId;
+    if (checkboxId === undefined || elementId === undefined) return;
+    const inputs = presentationCheckboxes(previewSurfaceRef.current);
+    const slot = inputs.indexOf(input);
+    if (slot < 0) return;
+    onCheckboxChange(slot, elementId, checkboxId, state);
+  }, [onCheckboxChange, variant]);
+
   useEffect(() => {
     if (!previewSurfaceRef.current) return;
-    hydrateRendererRuntime(previewSurfaceRef.current);
-  }, [markup]);
+    hydrateRendererRuntime(
+      previewSurfaceRef.current,
+      variant === "current"
+        ? { checkboxes: { onChange: handleCheckboxChange } }
+        : { checkboxes: { onChange: undefined } },
+    );
+  }, [handleCheckboxChange, markup, variant]);
 
   useEffect(() => {
     if (!previewSurfaceRef.current) return;
     projectGalleryTargets(previewSurfaceRef.current, galleryTargets);
   }, [galleryTargets, markup]);
+
+  useEffect(() => {
+    if (!previewSurfaceRef.current) return;
+    projectCheckboxTargets(previewSurfaceRef.current, checkboxTargets);
+  }, [checkboxTargets, markup]);
 
   return (
     <div
