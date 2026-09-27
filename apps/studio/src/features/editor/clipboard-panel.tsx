@@ -120,7 +120,7 @@ function SnapshotCard({
   session: ClipboardSessionState;
   presentation: Presentation;
   onSelect: (entryId: string) => void;
-  canPaste: boolean;
+  canPaste: boolean | ((entryId: string) => boolean);
   onPaste: (entryId: string) => void;
   onPin: (entryId: string) => void;
   onRemove: (entryId: string) => void;
@@ -130,6 +130,9 @@ function SnapshotCard({
   removeLabel: string;
 }) {
   const label = typeLabel(entry.element);
+  const canPasteEntry = typeof canPaste === "function"
+    ? canPaste(entry.id)
+    : canPaste;
 
   return (
     <article
@@ -137,7 +140,7 @@ function SnapshotCard({
       aria-label={label}
       onClick={() => onSelect(entry.id)}
       onDoubleClick={() => {
-        if (canPaste) onPaste(entry.id);
+        if (canPasteEntry) onPaste(entry.id);
       }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -209,7 +212,7 @@ export function ClipboardPanel({
   pinnedLabel: string;
   onClear: () => void;
   onSelect: (entryId: string) => void;
-  canPaste?: boolean;
+  canPaste?: boolean | ((entryId: string) => boolean);
   onPaste: (entryId: string) => void;
   onCancelPendingCut: () => void;
   onPin: (entryId: string) => void;
