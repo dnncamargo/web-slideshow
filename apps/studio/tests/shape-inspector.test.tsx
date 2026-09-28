@@ -26,6 +26,13 @@ const RECTANGLE_GEOMETRY: ShapeElement["geometry"] = {
   ],
 };
 
+const SH6E_ACCEPTANCE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 124 124" fill="none">
+<rect width="124" height="124" rx="24" fill="#F97316"/>
+<path d="M19.375 36.7818V100.625C19.375 102.834 21.1659 104.625 23.375 104.625H87.2181C90.7818 104.625 92.5664 100.316 90.0466 97.7966L26.2034 33.9534C23.6836 31.4336 19.375 33.2182 19.375 36.7818Z" fill="white"/>
+<circle cx="63.2109" cy="37.5391" r="18.1641" fill="black"/>
+<rect opacity="0.4" x="81.1328" y="80.7198" width="17.5687" height="17.3876" rx="4" transform="rotate(-45 81.1328 80.7198)" fill="#FDBA74"/>
+</svg>`;
+
 function shapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   return {
     id: "shape-1",
@@ -57,7 +64,7 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options });
 }
 
-function historyPresentation(): Presentation {
+function historyPresentation(shapeOverrides: Partial<ShapeElement> = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "shape-history",
@@ -65,7 +72,7 @@ function historyPresentation(): Presentation {
     slides: [{
       id: "slide-1",
       title: "Slide 1",
-      elements: [shapeElement({ id: "shape-history-1" })],
+      elements: [shapeElement({ id: "shape-history-1", ...shapeOverrides })],
     }],
   });
 }
@@ -521,7 +528,9 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
   });
 
   it("applies a single-layer SVG appearance and opacity to the current Shape", async () => {
-    await mount();
+    const transform = { translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 };
+    const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
+    await mount(shapeElement({ transform, animation }));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
@@ -529,6 +538,8 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
     expect(state.style).toMatchObject({ fill: { type: "color", color: "#123456" }, stroke: { width: 2, color: "#ff0000" } });
     expect(state.effect).toEqual({ opacity: 0.4 });
+    expect(state.transform).toEqual(transform);
+    expect(state.animation).toEqual(animation);
   });
 
   it("replaces a selected Shape with a fitted compound SVG container in one history action", async () => {
@@ -551,6 +562,79 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(container?.querySelector('[data-presentation-type="shape"]')?.getAttribute("style")).toContain("width:200px;height:100px");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
+  });
+
+  it("imports the exact SH6E acceptance SVG as four ordered child Shapes", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), SH6E_ACCEPTANCE_SVG);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+
+    const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
+    const children = Array.from(container?.querySelectorAll<HTMLElement>('[data-presentation-type="shape"]') ?? []);
+    expect(container).not.toBeNull();
+    expect(children).toHaveLength(4);
+    expect(children.map((child) => child.getAttribute("data-presentation-id"))).toEqual([
+      "shape-history-1-svg-1",
+      "shape-history-1-svg-2",
+      "shape-history-1-svg-3",
+      "shape-history-1-svg-4",
+    ]);
+    expect(container?.innerHTML).toContain("#f97316");
+    expect(container?.innerHTML).toContain("#ffffff");
+    expect(container?.innerHTML).toContain("#000000");
+    expect(container?.innerHTML).toContain("#fdba74");
+    expect(children[3]?.getAttribute("style")).toContain("opacity:0.4");
+  });
+
+  it("rejects compound SVG import when the selected Shape has a transform", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({ transform: { rotationDeg: 30 } })} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
+  });
+
+  it("rejects compound SVG import when the selected Shape has animation without adding history", async () => {
+    const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({ animation })} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-fill-type"), "gradient"));
+    expect(select("shape-fill-type").value).toBe("gradient");
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(select("shape-fill-type").value).toBe("gradient");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(select("shape-fill-type").value).toBe("color");
     expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
   });
 

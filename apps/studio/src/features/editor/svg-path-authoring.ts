@@ -378,6 +378,12 @@ function parseSvgOpacity(value: string | undefined): number | undefined {
   return parsed;
 }
 
+const SVG_COLOR_KEYWORDS = new Map([
+  ["black", "#000000"],
+  ["white", "#ffffff"],
+  ["transparent", "rgba(0, 0, 0, 0)"],
+]);
+
 function parseSvgPaint(value: string | undefined): string | "none" | undefined {
   if (value === undefined) return undefined;
   const trimmed = value.trim();
@@ -385,6 +391,8 @@ function parseSvgPaint(value: string | undefined): string | "none" | undefined {
   if (/^(?:url|context-|currentColor)/i.test(trimmed)) {
     throw new SvgPathAuthoringError("SVG paint references and currentColor are not supported.");
   }
+  const keyword = SVG_COLOR_KEYWORDS.get(trimmed.toLowerCase());
+  if (keyword !== undefined) return keyword;
   const normalized = normalizeColor(trimmed);
   if (normalized === undefined) {
     throw new SvgPathAuthoringError(`SVG paint "${trimmed}" is not a supported HEX or RGBA color.`);

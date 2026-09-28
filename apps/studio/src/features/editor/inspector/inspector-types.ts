@@ -33,9 +33,14 @@ export interface ShapeSvgImportComposition {
   layers: SvgImportLayer[];
 }
 
+export type ShapeSvgImportFailureReason =
+  | "compound-transform-animation"
+  | "compound-import-unavailable"
+  | "compound-replacement-failed";
+
 export type ShapeSvgImportResult =
   | { ok: true }
-  | { ok: false; message: string };
+  | { ok: false; reason: ShapeSvgImportFailureReason };
 
 export type ShapeSvgImportCompositionHandler = (
   composition: ShapeSvgImportComposition,

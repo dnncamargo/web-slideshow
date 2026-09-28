@@ -215,7 +215,14 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
             throw new Error(t("inspector.shape.compoundImportUnavailable"));
           }
           const result = onImportSvgComposition({ viewBox: imported.viewBox, layers });
-          if (!result.ok) throw new Error(result.message);
+          if (!result.ok) {
+            const message = result.reason === "compound-transform-animation"
+              ? t("inspector.shape.compoundTransformAnimation")
+              : result.reason === "compound-import-unavailable"
+                ? t("inspector.shape.compoundImportUnavailable")
+                : t("inspector.shape.compoundImportFailed");
+            throw new Error(message);
+          }
           setPathMessage(null);
           return;
         }

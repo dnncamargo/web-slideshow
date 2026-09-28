@@ -3976,7 +3976,10 @@ export function EditorWorkspace({
   ): ReturnType<ShapeSvgImportCompositionHandler> {
     const selected = selectedDocumentElement;
     if (!selected || selected.type !== "shape" || composition.layers.length < 2) {
-      return { ok: false, message: "The selected element cannot receive a compound SVG." };
+      return { ok: false, reason: "compound-replacement-failed" };
+    }
+    if (selected.transform !== undefined || selected.animation !== undefined) {
+      return { ok: false, reason: "compound-transform-animation" };
     }
 
     const target = authoringTarget;
@@ -4017,8 +4020,6 @@ export function EditorWorkspace({
           geometry: layer.geometry,
           ...(layer.style === undefined ? {} : { style: layer.style }),
           ...(layer.effect === undefined ? {} : { effect: layer.effect }),
-          ...(currentShape.transform === undefined ? {} : { transform: currentShape.transform }),
-          ...(currentShape.animation === undefined ? {} : { animation: currentShape.animation }),
         }));
         const nextContainer: ContainerElement = {
           id: currentShape.id,
@@ -4048,7 +4049,7 @@ export function EditorWorkspace({
 
     return imported
       ? { ok: true }
-      : { ok: false, message: "The selected Shape could not be replaced with the imported SVG layers." };
+      : { ok: false, reason: "compound-replacement-failed" };
   }
 
   function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
