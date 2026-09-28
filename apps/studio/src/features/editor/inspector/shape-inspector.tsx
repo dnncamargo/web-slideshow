@@ -8,7 +8,6 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
-import { ElementInteractionSection } from "./sections/element-interaction-section";
 import { ShapeAppearanceSection } from "./sections/shape-appearance-section";
 import { ShapeEffectsSection } from "./sections/shape-effects-section";
 import { ShapeGeometrySection } from "./sections/shape-geometry-section";
@@ -467,11 +466,6 @@ export function ShapeInspector({
         })}
       />
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="shape"
-      />
     </>
   );
 }

@@ -165,26 +165,6 @@ describe("TextInspector rich text authoring", () => {
     return input;
   }
 
-  function linkUrlInput(): HTMLInputElement {
-    const input = container.querySelector<HTMLInputElement>("#text-link-url");
-
-    if (!input) {
-      throw new Error("text-link-url input not found");
-    }
-
-    return input;
-  }
-
-  function linkTargetSelect(): HTMLSelectElement {
-    const select = container.querySelector<HTMLSelectElement>("#text-link-target");
-
-    if (!select) {
-      throw new Error("text-link-target select not found");
-    }
-
-    return select;
-  }
-
   function variantSelect(): HTMLSelectElement {
     const select = container.querySelector<HTMLSelectElement>("#text-variant");
 
@@ -874,14 +854,14 @@ describe("TextInspector rich text authoring", () => {
     });
   });
 
-  it("keeps the variant and link controls available", async () => {
+  it("keeps the variant control available while leaving Interaction to ElementInspector", async () => {
     await act(async () => {
       mount(richTextElement());
     });
 
     expect(variantSelect().value).toBe("body");
-    expect(linkUrlInput().value).toBe("");
-    expect(linkTargetSelect().value).toBe("same");
+    expect(container.querySelector("#text-link-url")).toBeNull();
+    expect(container.querySelector("#text-link-target")).toBeNull();
   });
 
   it("renders the Text Inspector sections in the canonical order", async () => {
@@ -901,7 +881,6 @@ describe("TextInspector rich text authoring", () => {
       "Appearance",
       "Effects",
       "Placement",
-      "Interaction",
     ]);
 
     const variantSection = variantSelect().closest("details");
@@ -966,7 +945,7 @@ describe("TextInspector rich text authoring", () => {
       Array.from(container.querySelectorAll("details")).map(
         (section) => section.querySelector("summary")?.textContent,
       ).slice(-2),
-    ).toEqual(["Placement", "Interaction"]);
+    ).toEqual(["Effects", "Placement"]);
   });
 
   it("changes the canonical text variant from Typography", async () => {

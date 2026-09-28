@@ -34,6 +34,7 @@ import type {
 } from "./inspector/inspector-types";
 import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
+import { ElementInteractionSection } from "./inspector/sections/element-interaction-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
@@ -161,7 +162,6 @@ function ElementTypeInspector({
   onSelectTableStructuralNode,
   galleryItemIndex,
   onGalleryItemIndexChange,
-  onCreateQrFromLink,
   rootLocalContentReceiver,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
@@ -176,7 +176,6 @@ function ElementTypeInspector({
           onDetachLinkedStyle={onDetachLinkedStyle}
           parent={parent}
           layerControls={layerControls}
-          onCreateQrFromLink={onCreateQrFromLink}
           rootLocalContentReceiver={rootLocalContentReceiver}
         />
       );
@@ -191,7 +190,6 @@ function ElementTypeInspector({
           parent={parent}
           ancestorContainers={ancestorContainers}
           layerControls={layerControls}
-          onCreateQrFromLink={onCreateQrFromLink}
         />
       );
 
@@ -228,7 +226,6 @@ function ElementTypeInspector({
             if (onCropEditingChange) onCropEditingChange(editing);
             else onCropEditingImageIdChange?.(editing ? element.id : null);
           }}
-          onCreateQrFromLink={onCreateQrFromLink}
         />
       );
 
@@ -436,7 +433,6 @@ export function ElementInspector({
         onSelectTableStructuralNode={onSelectTableStructuralNode}
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
-        onCreateQrFromLink={onCreateQrFromLink}
         rootLocalContentReceiver={rootLocalContentReceiver}
       />
 
@@ -474,6 +470,15 @@ export function ElementInspector({
             disabledFields={targetPositionProperties}
           />
         ) : null
+      )}
+
+      {(element.type === "text" || element.type === "image" || element.type === "container" || element.type === "shape") && (
+        <ElementInteractionSection
+          element={element}
+          onUpdate={onUpdate}
+          controlPrefix={element.type}
+          onCreateQrFromLink={element.type === "shape" ? undefined : onCreateQrFromLink}
+        />
       )}
     </>
   );

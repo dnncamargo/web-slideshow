@@ -708,7 +708,19 @@ Completed using the existing Divider visual/style schema, Gradient and ColorValu
 
 Completed the target-specific expansion for Code, Terminal, Simple Table, Structured Table and Divider, while preserving Container and Topics. The completed implementation covers each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. The result is not a generic all-elements abstraction, and the target contracts are intentionally not identical.
 
-## 4. Text effects — shadow / glow ← NEXT
+## 1. Inspector canonical order ← CURRENT
+
+Normalize the canonical Inspector tail so Placement is penultimate and Interaction is final for linkable Text, Image, Container and Shape elements, while generic non-linkable Placement remains unchanged.
+
+## 2. Scripted Control ports vertical layout
+
+Stack Scripted Control port controls vertically without changing the Scripted document contract or runtime protocol.
+
+## 3. Duplicate ID genealogy normalization
+
+Normalize duplicate-ID genealogy using the established identity rules without changing the canonical schema version or unrelated authoring behavior.
+
+## 4. Text effects — shadow / glow
 
 Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
 
@@ -780,12 +792,16 @@ P12   UX / Properties refinement                            ✅
        Root Definitions / structural normalization            ✅
 
 NEXT:
-  1. Text effects — shadow / glow
+  1. Inspector canonical order
+  2. Scripted Control ports vertical layout
+  3. Duplicate ID genealogy normalization
+  4. Text effects — shadow / glow
 
 IMMEDIATE QUEUE:
-  1. Table Size ✅
-  2. Divider gradient ✅
-  3. Linked Styles target expansion ✅
+  1. Inspector canonical order ← CURRENT
+  2. Scripted Control ports vertical layout
+  3. Duplicate ID genealogy normalization
+  4. Text effects — shadow / glow
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -803,4 +819,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — shadow / glow audit before changing production code.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Inspector canonical order checkpoint.

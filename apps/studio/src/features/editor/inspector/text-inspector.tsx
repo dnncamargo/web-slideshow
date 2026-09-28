@@ -1,7 +1,6 @@
 import {
   type ContainerElement,
   type PresentationElement,
-  type TextElement,
   type ElementEffect,
   type ElementTypography,
   type TextVisualStyle,
@@ -21,14 +20,9 @@ import { RichTextAuthoringControl } from "./rich-text-authoring-control";
 
 import { InspectorSection } from "./inspector-section";
 
-import type {
-  CreateQrCodeFromLink,
-  TypographyInspectorProps,
-} from "./inspector-types";
+import type { TypographyInspectorProps } from "./inspector-types";
 
 import { CanonicalTextAppearanceSection } from "./sections/canonical-text-appearance-section";
-
-import { ElementInteractionSection } from "./sections/element-interaction-section";
 
 import {
   shouldShowElementPositioning,
@@ -71,12 +65,10 @@ export function TextInspector({
   parent = null,
   ancestorContainers,
   layerControls = null,
-  onCreateQrFromLink,
 }: TypographyInspectorProps<TextInspectorElement> & {
   parent?: ContainerElement | null;
   ancestorContainers?: readonly ContainerElement[];
   layerControls?: ElementLayerControls | null;
-  onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -350,12 +342,6 @@ export function TextInspector({
         />
       )}
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="text"
-        onCreateQrFromLink={onCreateQrFromLink}
-      />
     </>
   );
 }

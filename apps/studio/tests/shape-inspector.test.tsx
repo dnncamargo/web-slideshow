@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PresentationSchema, type Presentation, type ShapeElement } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { ElementInspector } from "../src/features/editor/element-inspector";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { ShapeInspector } from "../src/features/editor/inspector/shape-inspector";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
@@ -122,6 +123,36 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
               state = next;
               render();
             }}
+          />
+        </PresentationColorPaletteProvider>
+      </StudioI18nProvider>,
+    );
+    await act(async () => render());
+  }
+
+  async function mountInElementInspector(initial: ShapeElement = shapeElement()): Promise<void> {
+    state = initial;
+    const render = () => root.render(
+      <StudioI18nProvider>
+        <PresentationColorPaletteProvider colors={[{ id: "brand", name: "Brand", value: "#123456" }]}>
+          <ElementInspector
+            element={state}
+            onUpdate={(update) => {
+              const next = update(state);
+              if (next.type !== "shape") throw new Error("expected Shape update");
+              state = next;
+              render();
+            }}
+            onContainerFitModeChange={() => true}
+            fontResources={[]}
+            preserveImageProportion={false}
+            onPreserveImageProportionChange={() => {}}
+            focalEditingImageId={null}
+            onFocalEditingImageIdChange={() => {}}
+            parent={null}
+            layerControls={{ index: 0, count: 1, onMoveTo: () => {} }}
+            topicsAuthoringControls={{ onAddTopLevelTopic: () => null, onAddChildTopic: () => null }}
+            tableAuthoringControls={{ onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} }}
           />
         </PresentationColorPaletteProvider>
       </StudioI18nProvider>,
@@ -258,7 +289,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
   });
 
   it("supports canonical links but does not expose QR creation", async () => {
-    await mount();
+    await mountInElementInspector();
     const url = host.querySelector<HTMLInputElement>("#shape-link-url");
     if (!url) throw new Error("Shape URL input was not rendered");
 
