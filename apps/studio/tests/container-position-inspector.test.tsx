@@ -97,6 +97,7 @@ describe("Container canonical position inspector", () => {
     expect(host.textContent).not.toContain("Anchor");
     expect(host.textContent).not.toContain("X offset");
     expect(host.querySelector("#container-preserve-size")).toBeNull();
+    expect(host.querySelector("#container-position-mode")?.closest("details")?.querySelector("summary")?.textContent).toBe("Placement");
   });
 
   it("shows Preserve size only for a child in an effective Flow parent", async () => {

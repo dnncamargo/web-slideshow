@@ -69,8 +69,8 @@ function elementWithoutLink(element: LinkableElement): LinkableElement {
 // ============================================================
 // BEGIN: ELEMENT INTERACTION SECTION
 //
-// Shared semantic Interaction control used by Text, Image
-// and Container.
+// Shared semantic Interaction control used by Text, Image, Container
+// and Shape.
 //
 // The section never creates a link just by mounting. URL commits
 // happen on blur or Enter; invalid drafts are never written to

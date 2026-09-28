@@ -8,6 +8,7 @@ import {
   createUniqueId,
   type SlideLayoutPreset,
 } from "./preset-structure";
+import { allocateDuplicateId } from "./duplicate-id";
 
 export type { SlideLayoutPreset } from "./preset-structure";
 
@@ -31,11 +32,7 @@ function cloneElementWithUniqueIds(
     );
 
 
-  const id =
-    createUniqueId(
-      `${element.id}-copy`,
-      usedIds,
-    );
+  const id = allocateDuplicateId(element.id, usedIds);
 
 
   usedIds.add(
@@ -415,11 +412,7 @@ export function duplicateSlideWithUniqueIds(
     );
 
 
-  const id =
-    createUniqueId(
-      `${source.id}-copy`,
-      usedIds,
-    );
+  const id = allocateDuplicateId(source.id, usedIds);
 
 
   return {

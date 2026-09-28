@@ -9,13 +9,13 @@ import type {
   ElementLink,
   ImageElement,
   PresentationElement,
+  ShapeElement,
   TextElement,
 } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
+import { ElementInspector } from "../src/features/editor/element-inspector";
 import { ImageInspector } from "../src/features/editor/inspector/image-inspector";
-import { TextInspector } from "../src/features/editor/inspector/text-inspector";
 import { ElementInteractionSection } from "../src/features/editor/inspector/sections/element-interaction-section";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -62,6 +62,16 @@ function containerElement(
     id: "container-1",
     hidden: false,
     children: [],
+    ...overrides,
+  };
+}
+
+function shapeElement(overrides: Partial<Omit<ShapeElement, "type" | "hidden">> = {}): ShapeElement {
+  return {
+    type: "shape",
+    id: "shape-1",
+    hidden: false,
+    geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
     ...overrides,
   };
 }
@@ -1124,38 +1134,42 @@ describe("shared Interaction control in inspectors", () => {
     vi.clearAllMocks();
   });
 
-  it("TextInspector renders the Interaction section", async () => {
+  async function renderElementInspector(
+    element: PresentationElement,
+    onCreateQrFromLink?: (href: string) => void,
+  ): Promise<void> {
     await act(async () => {
       root.render(
         <StudioI18nProvider>
-          <TextInspector
-            element={textElement()}
+          <ElementInspector
+            element={element}
             onUpdate={() => {}}
+            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
+            preserveImageProportion={false}
+            onPreserveImageProportionChange={() => {}}
+            focalEditingImageId={null}
+            onFocalEditingImageIdChange={() => {}}
+            parent={null}
+            layerControls={{ index: 0, count: 1, onMoveTo: () => {} }}
+            topicsAuthoringControls={{ onAddTopLevelTopic: () => null, onAddChildTopic: () => null }}
+            tableAuthoringControls={{ onAddColumn: () => {}, onRemoveColumn: () => {}, onAddRow: () => {}, onRemoveRow: () => {}, onShowHeaderChange: () => {} }}
+            onCreateQrFromLink={onCreateQrFromLink}
           />
         </StudioI18nProvider>,
       );
     });
+  }
+
+  it("ElementInspector renders the shared Interaction section for Text", async () => {
+    await renderElementInspector(textElement());
 
     expect(urlInput(container, "text")).toBeDefined();
     expect(targetSelect(container, "text")).toBeDefined();
   });
 
-  it("ImageInspector renders the same Interaction section", async () => {
-    await act(async () => {
-      root.render(
-        <StudioI18nProvider>
-          <ImageInspector
-            element={imageElement()}
-            onUpdate={() => {}}
-            preserveImageProportion={false}
-            onPreserveImageProportionChange={() => {}}
-            focalEditing={false}
-            onFocalEditingChange={() => {}}
-          />
-        </StudioI18nProvider>,
-      );
-    });
+  it("ElementInspector renders the shared Interaction section for Image", async () => {
+    await renderElementInspector(imageElement());
 
     expect(urlInput(container, "image")).toBeDefined();
     expect(targetSelect(container, "image")).toBeDefined();
@@ -1253,20 +1267,34 @@ describe("shared Interaction control in inspectors", () => {
     expect(updated.style?.background).toBeUndefined();
   });
 
-  it("ContainerInspector renders the same Interaction section", async () => {
-    await act(async () => {
-      root.render(
-        <StudioI18nProvider>
-          <ContainerInspector
-            element={containerElement()}
-            onUpdate={() => {}}
-            onContainerFitModeChange={() => true}
-          />
-        </StudioI18nProvider>,
-      );
-    });
+  it("ElementInspector renders the shared Interaction section for Container", async () => {
+    await renderElementInspector(containerElement());
 
     expect(urlInput(container, "container")).toBeDefined();
     expect(targetSelect(container, "container")).toBeDefined();
+  });
+
+  it("preserves QR creation for Text, Image, and Container without granting it to Shape", async () => {
+    const onCreateQrFromLink = vi.fn();
+    const linked = { kind: "url" as const, href: "https://example.com/linked" };
+
+    for (const element of [
+      textElement({ link: linked }),
+      imageElement({ link: linked }),
+      containerElement({ link: linked }),
+    ]) {
+      await renderElementInspector(element, onCreateQrFromLink);
+      const button = Array.from(container.querySelectorAll("button")).find(
+        (candidate) => candidate.textContent?.includes("Create QR code from link"),
+      );
+      expect(button).toBeDefined();
+      await act(async () => button?.click());
+    }
+
+    await renderElementInspector(shapeElement({ link: linked }), onCreateQrFromLink);
+    expect(Array.from(container.querySelectorAll("button")).some(
+      (button) => button.textContent?.includes("Create QR code from link"),
+    )).toBe(false);
+    expect(onCreateQrFromLink).toHaveBeenCalledTimes(3);
   });
 });

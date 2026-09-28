@@ -78,6 +78,10 @@ describe("public Docs", () => {
     expect(findTopicText("element-shape")).toContain("Container");
     expect(findTopicText("element-shape")).toContain("rect");
     expect(findTopicText("element-shape")).toContain("circle");
+    expect(findTopicText("element-text")).toContain("Placement / Posicionamento");
+    expect(findTopicText("element-container")).toContain("Effects, Placement / Posicionamento e Interaction");
+    expect(findTopicText("element-image")).toContain("Effects, Placement / Posicionamento quando disponível e Interaction");
+    expect(findTopicText("element-shape")).toContain("Effects, Placement / Posicionamento quando disponível e Interaction");
     expect(findTopicText("element-interactive")).toContain("não possui Inspector dedicado");
 
     expect(findTopicText("scripted-api")).toContain("ScriptedRuntime.ports.onAction");

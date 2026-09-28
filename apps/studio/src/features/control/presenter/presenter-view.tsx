@@ -146,19 +146,20 @@ function ScriptedActionControls({ groups, disabled, triggerAction }: {
   triggerAction(scriptedSlot: number, portIndex: number): void;
 }) {
   return groups.map((group) => (
-    <div className={presenterStyles.scriptedActionGroup} key={group.elementId}>
+    <div className={presenterStyles.scriptedActionGroup} data-scripted-action-group key={group.elementId}>
       <span className={presenterStyles.scriptedActionLabel}>{group.title}</span>
       {group.actions.map((action) => (
-        <Button
-          key={action.portIndex}
-          variant="secondary"
-          size="compact"
-          disabled={disabled}
-          onClick={() => triggerAction(group.scriptedSlot, action.portIndex)}
-          aria-label={`${group.title}: ${action.label}`}
-        >
-          {action.label}
-        </Button>
+        <div className={presenterStyles.scriptedActionPort} data-scripted-action-port key={action.portIndex}>
+          <Button
+            variant="secondary"
+            size="compact"
+            disabled={disabled}
+            onClick={() => triggerAction(group.scriptedSlot, action.portIndex)}
+            aria-label={`${group.title}: ${action.label}`}
+          >
+            {action.label}
+          </Button>
+        </div>
       ))}
     </div>
  ));

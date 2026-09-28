@@ -10,9 +10,7 @@ import styles from "../editor-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
-import { ElementInteractionSection } from "./sections/element-interaction-section";
-
-import type { CreateQrCodeFromLink, TypedInspectorProps } from "./inspector-types";
+import type { TypedInspectorProps } from "./inspector-types";
 
 import { ImageSizeSection } from "./sections/image-size-section";
 import { CanonicalImageAppearanceSection } from "./sections/canonical-image-appearance-section";
@@ -36,7 +34,6 @@ export function ImageInspector({
   onFocalEditingChange,
   cropEditing = false,
   onCropEditingChange = () => {},
-  onCreateQrFromLink,
 }: TypedInspectorProps<ImageElement> & {
   preserveImageProportion: boolean;
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -44,7 +41,6 @@ export function ImageInspector({
   onFocalEditingChange: (editing: boolean) => void;
   cropEditing?: boolean;
   onCropEditingChange?: (editing: boolean) => void;
-  onCreateQrFromLink?: CreateQrCodeFromLink;
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -199,12 +195,6 @@ export function ImageInspector({
         onUpdateEffect={updateEffect}
       />
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="image"
-        onCreateQrFromLink={onCreateQrFromLink}
-      />
     </>
   );
 }

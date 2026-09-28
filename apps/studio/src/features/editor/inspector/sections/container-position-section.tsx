@@ -82,7 +82,7 @@ export function ContainerPositionSection({
   }
 
   return (
-    <InspectorSection title={t("inspector.position")} defaultOpen>
+    <InspectorSection title={t("inspector.placement")} defaultOpen>
       <label className={styles.field}>
         <span>{t("inspector.position")}</span>
 

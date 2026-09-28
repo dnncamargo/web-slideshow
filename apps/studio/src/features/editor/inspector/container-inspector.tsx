@@ -20,9 +20,7 @@ import { ContainerSpacingSection } from "./sections/container-spacing-section";
 
 import { ContainerPositionSection } from "./sections/container-position-section";
 
-import { ElementInteractionSection } from "./sections/element-interaction-section";
 import { ContainerLinkedStyleSection } from "./sections/container-linked-style-section";
-import type { CreateQrCodeFromLink } from "./inspector-types";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 interface ContainerInspectorProps {
@@ -46,8 +44,6 @@ interface ContainerInspectorProps {
     onMoveTo: (index: number) => void;
   } | null;
 
-  onCreateQrFromLink?: CreateQrCodeFromLink;
-
   rootLocalContentReceiver?: {
     allowed: boolean;
     onChange: (allowed: boolean) => void;
@@ -68,7 +64,6 @@ export function ContainerInspector({
   onDetachLinkedStyle = () => {},
   parent = null,
   layerControls = null,
-  onCreateQrFromLink,
   rootLocalContentReceiver,
 }: ContainerInspectorProps) {
   const { t } = useStudioI18n();
@@ -129,15 +124,6 @@ export function ContainerInspector({
         onContainerFitModeChange={onContainerFitModeChange}
       />
 
-      <ContainerPositionSection
-        element={effective}
-        localElement={element}
-        presentation={presentation}
-        onUpdate={updateContainer}
-        parent={parent}
-        layerControls={layerControls}
-      />
-
       <ContainerSizeSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
       <ContainerSpacingSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
@@ -146,11 +132,13 @@ export function ContainerInspector({
 
       <ContainerEffectsSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />
 
-      <ElementInteractionSection
-        element={element}
-        onUpdate={onUpdate}
-        controlPrefix="container"
-        onCreateQrFromLink={onCreateQrFromLink}
+      <ContainerPositionSection
+        element={effective}
+        localElement={element}
+        presentation={presentation}
+        onUpdate={updateContainer}
+        parent={parent}
+        layerControls={layerControls}
       />
 
     </>
