@@ -325,9 +325,8 @@
 
 .scriptedActionGroup {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   width: 100%;
   min-width: 0;
@@ -338,6 +337,11 @@
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.scriptedActionPort {
+  width: 100%;
+  min-width: 0;
 }
 
 .scriptedStateGroup {

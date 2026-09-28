@@ -708,11 +708,11 @@ Completed using the existing Divider visual/style schema, Gradient and ColorValu
 
 Completed the target-specific expansion for Code, Terminal, Simple Table, Structured Table and Divider, while preserving Container and Topics. The completed implementation covers each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. The result is not a generic all-elements abstraction, and the target contracts are intentionally not identical.
 
-## 1. Inspector canonical order ← CURRENT
+## 1. Inspector canonical order ✅
 
 Normalize the canonical Inspector tail so Placement is penultimate and Interaction is final for linkable Text, Image, Container and Shape elements, while generic non-linkable Placement remains unchanged.
 
-## 2. Scripted Control ports vertical layout
+## 2. Scripted Control ports vertical layout ← CURRENT
 
 Stack Scripted Control port controls vertically without changing the Scripted document contract or runtime protocol.
 
@@ -792,14 +792,14 @@ P12   UX / Properties refinement                            ✅
        Root Definitions / structural normalization            ✅
 
 NEXT:
-  1. Inspector canonical order
-  2. Scripted Control ports vertical layout
+  1. Inspector canonical order ✅
+  2. Scripted Control ports vertical layout ← CURRENT
   3. Duplicate ID genealogy normalization
   4. Text effects — shadow / glow
 
 IMMEDIATE QUEUE:
-  1. Inspector canonical order ← CURRENT
-  2. Scripted Control ports vertical layout
+  1. Inspector canonical order ✅
+  2. Scripted Control ports vertical layout ← CURRENT
   3. Duplicate ID genealogy normalization
   4. Text effects — shadow / glow
 
@@ -819,4 +819,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Inspector canonical order checkpoint.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Scripted Control ports vertical layout checkpoint.

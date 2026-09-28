@@ -639,11 +639,38 @@ describe("PresenterView controls", () => {
     expect(desktop?.previousElementSibling?.getAttribute("data-gallery-controls")).not.toBeNull();
     expect(desktop?.textContent).toContain("Scroller");
     expect(buttons.map((button) => button.textContent)).toEqual(["Scroll up", "Scroll down"]);
+    const desktopPorts = Array.from(desktop?.querySelectorAll<HTMLElement>("[data-scripted-action-port]") ?? []);
+    expect(desktopPorts).toHaveLength(2);
+    expect(desktopPorts.map((port) => port.querySelector("button")?.textContent)).toEqual(["Scroll up", "Scroll down"]);
+    expect(desktopPorts.every((port) => port.querySelectorAll("button").length === 1)).toBe(true);
     expect(buttons.every((button) => !button.disabled)).toBe(true);
     act(() => { buttons[1]?.click(); buttons[1]?.click(); });
     expect(triggerScriptedAction).toHaveBeenCalledTimes(2);
     expect(triggerScriptedAction).toHaveBeenLastCalledWith(1, 2);
-    expect(container.querySelector("[data-mobile-gallery-controls]")?.textContent).toContain("Scroll down");
+    const mobile = container.querySelector("[data-mobile-gallery-controls]");
+    expect(mobile?.textContent).toContain("Scroll down");
+    expect(mobile?.querySelectorAll("[data-scripted-action-port]")).toHaveLength(2);
+  });
+
+  it("keeps separate Scripted action groups and declared port order on both Control surfaces", () => {
+    render({
+      scriptedActionGroups: [
+        { scriptedSlot: 0, elementId: "scripted-a", title: "Kanban", actions: [{ portIndex: 4, portId: "first", label: "Conferir as Peças" }, { portIndex: 1, portId: "second", label: "Etapa 1 e 2" }] },
+        { scriptedSlot: 1, elementId: "scripted-b", title: "Outro", actions: [{ portIndex: 8, portId: "third", label: "Etapa 3" }, { portIndex: 2, portId: "fourth", label: "Etapa 4, 5" }] },
+      ],
+    });
+
+    const desktop = container.querySelector("[data-scripted-action-controls]");
+    const desktopGroups = Array.from(desktop?.querySelectorAll<HTMLElement>("[data-scripted-action-group]") ?? []);
+    expect(desktopGroups).toHaveLength(2);
+    expect(desktopGroups.map((group) => group.querySelector("span")?.textContent)).toEqual(["Kanban", "Outro"]);
+    expect(desktopGroups.map((group) => Array.from(group.querySelectorAll<HTMLButtonElement>("button")).map((button) => button.textContent))).toEqual([
+      ["Conferir as Peças", "Etapa 1 e 2"],
+      ["Etapa 3", "Etapa 4, 5"],
+    ]);
+
+    const mobile = container.querySelector("[data-mobile-gallery-controls]");
+    expect(mobile?.querySelectorAll("[data-scripted-action-port]")).toHaveLength(4);
   });
 
   it("keeps declared Scripted actions visible but disabled while transport or promotion is unsafe", () => {
