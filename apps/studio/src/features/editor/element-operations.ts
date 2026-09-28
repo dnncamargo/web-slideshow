@@ -20,6 +20,7 @@ import {
 
 import { DEFAULT_SHAPE_FILL_COLOR } from "./shape-defaults";
 import { displayName } from "@web-slideshow/instance-branding";
+import { allocateDuplicateId } from "./duplicate-id";
 
 import {
   getTextContentPlainText,
@@ -1275,7 +1276,7 @@ function cloneContentSlotWithUniqueIds(
   slot: ContentSlot,
   usedIds: Set<string>,
 ): ContentSlot {
-  const id = createUniqueId(`${slot.id}-copy`, usedIds);
+  const id = allocateDuplicateId(slot.id, usedIds);
   usedIds.add(id);
 
   return {
@@ -1291,7 +1292,7 @@ function cloneTopicItemWithUniqueIds(
   item: TopicItem,
   usedIds: Set<string>,
 ): TopicItem {
-  const id = createUniqueId(`${item.id}-copy`, usedIds);
+  const id = allocateDuplicateId(item.id, usedIds);
   usedIds.add(id);
 
   return {
@@ -1309,7 +1310,7 @@ function clonePresentationElementWithUniqueIds(
   usedIds: Set<string>,
 ): PresentationElement {
   const clone = structuredClone(source);
-  const id = createUniqueId(`${source.id}-copy`, usedIds);
+  const id = allocateDuplicateId(source.id, usedIds);
   usedIds.add(id);
 
   if (clone.type === "container") {
@@ -1337,7 +1338,7 @@ function clonePresentationElementWithUniqueIds(
       ...clone,
       id,
       columns: clone.columns.map((column) => {
-        const columnId = createUniqueId(`${column.id}-copy`, usedIds);
+        const columnId = allocateDuplicateId(column.id, usedIds);
         usedIds.add(columnId);
 
         return {
@@ -1347,7 +1348,7 @@ function clonePresentationElementWithUniqueIds(
         };
       }),
       rows: clone.rows.map((row) => {
-        const rowId = createUniqueId(`${row.id}-copy`, usedIds);
+        const rowId = allocateDuplicateId(row.id, usedIds);
         usedIds.add(rowId);
 
         return {

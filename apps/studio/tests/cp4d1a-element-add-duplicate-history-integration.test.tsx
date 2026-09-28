@@ -274,6 +274,14 @@ describe("CP4D1A element Add and Duplicate history", () => {
     expect(container.querySelector('[data-presentation-id="image-1-copy"]')).toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
     expect(container.querySelector('[data-presentation-id="image-1-copy"]')).not.toBeNull();
+
+    await selectElement("image-1-copy");
+    await act(async () => duplicateButton().click());
+    expect(container.querySelector('[data-presentation-id="image-1-copy-2"]')).not.toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(container.querySelector('[data-presentation-id="image-1-copy-2"]')).toBeNull();
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
+    expect(container.querySelector('[data-presentation-id="image-1-copy-2"]')).not.toBeNull();
   });
 
   it("keeps Add and Duplicate as separate actions", async () => {

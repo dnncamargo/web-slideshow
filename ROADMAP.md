@@ -712,13 +712,13 @@ Completed the target-specific expansion for Code, Terminal, Simple Table, Struct
 
 Normalize the canonical Inspector tail so Placement is penultimate and Interaction is final for linkable Text, Image, Container and Shape elements, while generic non-linkable Placement remains unchanged.
 
-## 2. Scripted Control ports vertical layout ← CURRENT
+## 2. Scripted Control ports vertical layout ✅
 
 Stack Scripted Control port controls vertically without changing the Scripted document contract or runtime protocol.
 
-## 3. Duplicate ID genealogy normalization
+## 3. Duplicate ID genealogy normalization ← CURRENT
 
-Normalize duplicate-ID genealogy using the established identity rules without changing the canonical schema version or unrelated authoring behavior.
+Normalize new duplicate IDs from a stable pre-copy family root, including malformed historical trailing copy suffixes, without migration, canonical schema changes, or unrelated authoring behavior.
 
 ## 4. Text effects — shadow / glow
 
@@ -793,14 +793,14 @@ P12   UX / Properties refinement                            ✅
 
 NEXT:
   1. Inspector canonical order ✅
-  2. Scripted Control ports vertical layout ← CURRENT
-  3. Duplicate ID genealogy normalization
+  2. Scripted Control ports vertical layout ✅
+  3. Duplicate ID genealogy normalization ← CURRENT
   4. Text effects — shadow / glow
 
 IMMEDIATE QUEUE:
   1. Inspector canonical order ✅
-  2. Scripted Control ports vertical layout ← CURRENT
-  3. Duplicate ID genealogy normalization
+  2. Scripted Control ports vertical layout ✅
+  3. Duplicate ID genealogy normalization ← CURRENT
   4. Text effects — shadow / glow
 
 RELEASE GATE STILL PENDING:
@@ -819,4 +819,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Scripted Control ports vertical layout checkpoint.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Duplicate ID genealogy normalization checkpoint.
