@@ -667,7 +667,7 @@ The following current-state work is complete at its recorded closure point:
 - **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
-- **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy generation remains a separate, unchanged source of future `-copy` genealogy.
+- **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy authoring is handled separately in Studio and now derives new duplicate IDs from a stable pre-copy family root without migrating existing IDs.
 - **Root Definitions / structural normalization** — SM6E1–SM6E3. The canonical `rootDefinitions` collection, shared preset structural primitive, same-workspace lifecycle, This Presentation browser/management, explicit/default Slide association, receiver authorization, owner-aware master and Slide-local authoring, state-aware assignment safety, Element Style compatibility, resource composition, History, persistence, import/export, publish, Player, Control, Library-thumbnail and renderer acceptance are complete. `schemaVersion` remains literally `1`; V1 intentionally keeps one effective Root per Slide, disallows nested Roots and per-Slide master property overrides, and blocks destructive reassignment instead of migrating content automatically.
 
 These completions do not change `schemaVersion`, the Presentation schema, persistence format, publication model, or Player/Studio boundaries.
@@ -716,11 +716,11 @@ Normalize the canonical Inspector tail so Placement is penultimate and Interacti
 
 Stack Scripted Control port controls vertically without changing the Scripted document contract or runtime protocol.
 
-## 3. Duplicate ID genealogy normalization ← CURRENT
+## 3. Duplicate ID genealogy normalization ✅
 
 Normalize new duplicate IDs from a stable pre-copy family root, including malformed historical trailing copy suffixes, without migration, canonical schema changes, or unrelated authoring behavior.
 
-## 4. Text effects — shadow / glow
+## 4. Text effects — shadow / glow ← NEXT
 
 Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
 
@@ -792,16 +792,13 @@ P12   UX / Properties refinement                            ✅
        Root Definitions / structural normalization            ✅
 
 NEXT:
-  1. Inspector canonical order ✅
-  2. Scripted Control ports vertical layout ✅
-  3. Duplicate ID genealogy normalization ← CURRENT
-  4. Text effects — shadow / glow
+  1. Text effects — shadow / glow ← NEXT
 
 IMMEDIATE QUEUE:
   1. Inspector canonical order ✅
   2. Scripted Control ports vertical layout ✅
-  3. Duplicate ID genealogy normalization ← CURRENT
-  4. Text effects — shadow / glow
+  3. Duplicate ID genealogy normalization ✅
+  4. Text effects — shadow / glow ← NEXT
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -819,4 +816,4 @@ FUTURE / DEFERRED:
   remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and continue with the next queued refinement after the Duplicate ID genealogy normalization checkpoint.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — shadow / glow audit before changing production code.
