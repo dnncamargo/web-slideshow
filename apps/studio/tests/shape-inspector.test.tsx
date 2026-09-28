@@ -10,6 +10,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { ShapeInspector } from "../src/features/editor/inspector/shape-inspector";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
+import { createShapeGeometry } from "../src/features/editor/shape-geometry-authoring";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -409,6 +410,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
   it("shows rounded corners only for QR geometry and keeps Border for every Shape", async () => {
     const nonQrGeometries: ShapeElement["geometry"][] = [
       RECTANGLE_GEOMETRY,
+      createShapeGeometry("ellipse"),
       {
         mode: "path",
         viewBox: { x: 0, y: 0, width: 100, height: 100 },
@@ -516,6 +518,40 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(select("shape-geometry-preset").value).toBe("custom");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");
+  });
+
+  it("applies a single-layer SVG appearance and opacity to the current Shape", async () => {
+    await mount();
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
+    expect(state.style).toMatchObject({ fill: { type: "color", color: "#123456" }, stroke: { width: 2, color: "#ff0000" } });
+    expect(state.effect).toEqual({ opacity: 0.4 });
+  });
+
+  it("replaces a selected Shape with a fitted compound SVG container in one history action", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
+    expect(container).not.toBeNull();
+    expect(container?.querySelectorAll('[data-presentation-type="shape"]')).toHaveLength(2);
+    expect(container?.getAttribute("data-presentation-id")).toBe("shape-history-1");
+    expect(container?.querySelector('[data-presentation-type="shape"]')?.getAttribute("style")).toContain("width:200px;height:100px");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
   });
 
   it("records representative Shape changes in the shared Undo/Redo history", async () => {

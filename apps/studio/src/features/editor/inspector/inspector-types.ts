@@ -8,6 +8,7 @@ import type {
   Presentation,
   PresentationElement,
 } from "@web-slideshow/document-schema";
+import type { SvgImportLayer } from "../svg-path-authoring";
 
 export type ElementInspectorUpdate = (
   update: (element: PresentationElement) => PresentationElement,
@@ -26,6 +27,19 @@ export interface ShapePreviewControls {
   onPause(): void;
   onReset(): void;
 }
+
+export interface ShapeSvgImportComposition {
+  viewBox: { x: number; y: number; width: number; height: number };
+  layers: SvgImportLayer[];
+}
+
+export type ShapeSvgImportResult =
+  | { ok: true }
+  | { ok: false; message: string };
+
+export type ShapeSvgImportCompositionHandler = (
+  composition: ShapeSvgImportComposition,
+) => ShapeSvgImportResult;
 
 export type UpdateElementTypography = (
   update: (

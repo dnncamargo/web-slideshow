@@ -12,7 +12,11 @@ import { ElementInteractionSection } from "./sections/element-interaction-sectio
 import { ShapeAppearanceSection } from "./sections/shape-appearance-section";
 import { ShapeEffectsSection } from "./sections/shape-effects-section";
 import { ShapeGeometrySection } from "./sections/shape-geometry-section";
-import type { ShapePreviewControls, TypedInspectorProps } from "./inspector-types";
+import type {
+  ShapePreviewControls,
+  ShapeSvgImportCompositionHandler,
+  TypedInspectorProps,
+} from "./inspector-types";
 import type { ElementEffect } from "@web-slideshow/document-schema";
 import { InspectorSection } from "./inspector-section";
 import styles from "../editor-workspace.module.css";
@@ -129,7 +133,11 @@ export function ShapeInspector({
   element,
   onUpdate,
   previewControls,
-}: TypedInspectorProps<ShapeElement> & { previewControls?: ShapePreviewControls }) {
+  onImportSvgComposition,
+}: TypedInspectorProps<ShapeElement> & {
+  previewControls?: ShapePreviewControls;
+  onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+}) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const [transformDraft, setTransformDraft] = useState<ShapeTransformDraft>(() => shapeTransformDraft(element.transform));
@@ -299,6 +307,7 @@ export function ShapeInspector({
       <ShapeGeometrySection
         element={element}
         onUpdate={(update) => onUpdate((current) => current.type === "shape" ? update(current) : current)}
+        onImportSvgComposition={onImportSvgComposition}
       />
 
       <InspectorSection title={t("inspector.shape.transform")} defaultOpen>

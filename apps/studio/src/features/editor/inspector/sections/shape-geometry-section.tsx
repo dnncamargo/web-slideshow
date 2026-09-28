@@ -22,6 +22,7 @@ import {
   parseSvgPathAuthoringSource,
   serializeSvgPathData,
 } from "../../svg-path-authoring";
+import type { ShapeSvgImportCompositionHandler } from "../inspector-types";
 
 const numberChangeHistoryMeta = {
   kind: "number.change",
@@ -123,9 +124,10 @@ function presetLabel(
 interface ShapeGeometrySectionProps {
   element: ShapeElement;
   onUpdate: (update: (element: ShapeElement) => ShapeElement) => void;
+  onImportSvgComposition?: ShapeSvgImportCompositionHandler;
 }
 
-export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySectionProps) {
+export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition }: ShapeGeometrySectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const preset = getShapeGeometryPreset(element.geometry);
@@ -203,6 +205,45 @@ export function ShapeGeometrySection({ element, onUpdate }: ShapeGeometrySection
 
     try {
       const imported = parseSvgPathAuthoringSource(drafts.pathSource);
+      if (imported.kind === "svg") {
+        const layers = imported.layers ?? [];
+        if (layers.length === 0 || imported.viewBox === undefined) {
+          throw new Error(t("inspector.shape.invalidGeometry"));
+        }
+        if (layers.length > 1) {
+          if (onImportSvgComposition === undefined) {
+            throw new Error(t("inspector.shape.compoundImportUnavailable"));
+          }
+          const result = onImportSvgComposition({ viewBox: imported.viewBox, layers });
+          if (!result.ok) throw new Error(result.message);
+          setPathMessage(null);
+          return;
+        }
+        const layer = layers[0];
+        if (layer === undefined) throw new Error(t("inspector.shape.invalidGeometry"));
+        const nextStyle = {
+          ...(element.style?.borderRadius === undefined ? {} : { borderRadius: element.style.borderRadius }),
+          ...layer.style,
+        };
+        const nextEffect = {
+          ...(element.effect?.shadow === undefined ? {} : { shadow: element.effect.shadow }),
+          ...(layer.effect?.opacity === undefined
+            ? element.effect?.opacity === undefined ? {} : { opacity: element.effect.opacity }
+            : { opacity: layer.effect.opacity }),
+        };
+        const hasStyle = Object.keys(nextStyle).length > 0;
+        const hasEffect = Object.keys(nextEffect).length > 0;
+        setPathMessage(null);
+        runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
+          ? {
+              ...current,
+              geometry: layer.geometry,
+              ...(hasStyle ? { style: nextStyle } : { style: undefined }),
+              ...(hasEffect ? { effect: nextEffect } : { effect: undefined }),
+            }
+          : current));
+        return;
+      }
       const viewBox = imported.viewBox ?? (() => {
         const viewBoxX = parseFiniteNumber(drafts.pathViewBoxX);
         const viewBoxY = parseFiniteNumber(drafts.pathViewBoxY);

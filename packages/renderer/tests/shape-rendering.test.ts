@@ -251,6 +251,7 @@ describe("canonical Shape renderer", () => {
     expect(html).toContain('stroke="#ff0000"');
     expect(html).toContain('stroke-dasharray="8 4"');
     expect(html).toContain('rx="3px" ry="3px"');
+    expect(html.match(/rx="3px" ry="3px"/g)).toHaveLength(2);
     expect(html).toContain('x="0" y="0" width="29" height="29"');
     expect(html).toContain('overflow="visible"');
   });
@@ -269,6 +270,7 @@ describe("canonical Shape renderer", () => {
     expect(html).toContain('stroke-dasharray="1 4"');
     expect(html).toContain('stroke-linecap="round"');
     expect(html).toContain('rx="0.5rem" ry="0.5rem"');
+    expect(html.match(/rx="0.5rem" ry="0.5rem"/g)).toHaveLength(2);
     expect(html.match(/stroke="url\(#presentation-shape-stroke-/g)).toHaveLength(1);
   });
 

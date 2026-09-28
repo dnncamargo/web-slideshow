@@ -247,6 +247,12 @@ function renderStroke(
   };
 }
 
+function renderQrSurfaceRadius(style: ShapeElement["style"]): string {
+  if (style?.borderRadius === undefined) return "";
+  const radius = escapeHtml(renderLength(style.borderRadius));
+  return ` rx="${radius}" ry="${radius}"`;
+}
+
 function renderImageStyle(
   fill: Extract<NonNullable<NonNullable<ShapeElement["style"]>["fill"]>, { type: "image" }>,
 ): string {
@@ -394,14 +400,14 @@ export function renderShape(element: ShapeElement): string {
     'vector-effect="non-scaling-stroke"',
   ];
   const frameMarkup = renderedGeometry.frame !== undefined && element.style?.stroke !== undefined
-    ? `<rect x="${number(renderedGeometry.frame.x)}" y="${number(renderedGeometry.frame.y)}" width="${number(renderedGeometry.frame.width)}" height="${number(renderedGeometry.frame.height)}" fill="none" ${stroke.attributes.join(" ")}${element.style.borderRadius !== undefined ? ` rx="${escapeHtml(renderLength(element.style.borderRadius))}" ry="${escapeHtml(renderLength(element.style.borderRadius))}"` : ""} vector-effect="non-scaling-stroke"></rect>`
+    ? `<rect x="${number(renderedGeometry.frame.x)}" y="${number(renderedGeometry.frame.y)}" width="${number(renderedGeometry.frame.width)}" height="${number(renderedGeometry.frame.height)}" fill="none" ${stroke.attributes.join(" ")}${renderQrSurfaceRadius(element.style)} vector-effect="non-scaling-stroke"></rect>`
     : "";
   const imageMarkup = imageFill
     ? `<foreignObject x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" clip-path="url(#${clipId})">${renderImageSurface(imageFill)}</foreignObject>`
     : "";
   const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="${renderedGeometry.preserveAspectRatio ?? "none"}" width="100%" height="100%" overflow="visible" aria-hidden="true">` +
     (definitions ? `<defs>${definitions}</defs>` : "") +
-    (renderedGeometry.background === "light" ? `<rect x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" fill="#ffffff"></rect>` : "") +
+    (renderedGeometry.background === "light" ? `<rect x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" fill="#ffffff"${isQr ? renderQrSurfaceRadius(element.style) : ""}></rect>` : "") +
     imageMarkup +
     `<path ${pathAttributes.join(" ")}></path>` +
     frameMarkup +

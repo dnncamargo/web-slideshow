@@ -94,6 +94,8 @@ describe("bounded SVG path authoring", () => {
 
     expect(parsed.viewBox).toEqual({ x: -5, y: 2, width: 120, height: 80 });
     expect(parsed.fillRule).toBe("evenodd");
+    expect(parsed.kind).toBe("svg");
+    expect(parsed.layers).toHaveLength(2);
     expect(parsed.commands).toHaveLength(7);
     expect(serializeSvgPathData(parsed.commands)).not.toContain("<");
   });
@@ -113,17 +115,54 @@ describe("bounded SVG path authoring", () => {
     "<svg><image href=\"https://example.com/a.png\" /><path d=\"M0 0L1 1\" /></svg>",
     "<svg><use href=\"#shape\" /><path d=\"M0 0L1 1\" /></svg>",
     "<svg onload=\"alert(1)\"><path d=\"M0 0L1 1\" /></svg>",
-    "<svg><path transform=\"rotate(20)\" d=\"M0 0L1 1\" /></svg>",
-    "<svg><rect width=\"10\" height=\"10\" /></svg>",
+    "<svg><path transform=\"bogus(20)\" d=\"M0 0L1 1\" /></svg>",
+    "<svg><text>unsupported</text></svg>",
     "<svg><path d=\"M0 0L1 1\" style=\"fill:url(#x)\" /></svg>",
     "<svg><path d=\"M0 0L1 1\" /></svg>",
   ])("rejects unsafe, unsupported, or incomplete SVG envelope %s", (source) => {
     expect(() => parseSvgPathAuthoringSource(source)).toThrow();
   });
 
-  it("rejects conflicting inherited fill rules", () => {
-    expect(() => parseSvgPathAuthoringSource(
+  it("keeps conflicting inherited fill rules on their individual Shape layers", () => {
+    const parsed = parseSvgPathAuthoringSource(
       `<svg viewBox="0 0 10 10"><g fill-rule="evenodd"><path d="M0 0L1 1" /></g><path fill-rule="nonzero" d="M2 2L3 3" /></svg>`,
-    )).toThrow(/consistent fill-rule/);
+    );
+    expect(parsed.layers?.map((layer) => layer.geometry.fillRule)).toEqual(["evenodd", undefined]);
+  });
+
+  it("materializes basic primitives with inherited appearance and opacity", () => {
+    const parsed = parseSvgPathAuthoringSource(`
+      <svg viewBox="0 0 100 80" fill="#112233" stroke="#ff0000" stroke-width="2" opacity="0.5">
+        <rect x="1" y="2" width="10" height="20" />
+        <circle cx="30" cy="30" r="4" fill="none" />
+        <line x1="0" y1="0" x2="10" y2="10" />
+        <polyline points="0,0 5,5 10,0" />
+        <polygon points="20,20 30,20 25,30" fill="#abcdef" />
+        <ellipse cx="50" cy="50" rx="5" ry="3" />
+      </svg>
+    `);
+    expect(parsed.layers).toHaveLength(6);
+    expect(parsed.layers?.[0]?.style).toEqual({ fill: { type: "color", color: "#112233" }, stroke: { width: 2, style: "solid", color: "#ff0000" } });
+    expect(parsed.layers?.[0]?.effect).toEqual({ opacity: 0.5 });
+    expect(parsed.layers?.[1]?.style?.fill).toBeUndefined();
+    expect(parsed.layers?.[4]?.style?.fill).toEqual({ type: "color", color: "#abcdef" });
+    expect(parsed.layers?.[5]?.geometry.commands.some((command) => command.type === "cubic")).toBe(true);
+  });
+
+  it("bakes bounded transforms into canonical commands", () => {
+    const parsed = parseSvgPathAuthoringSource(`<svg viewBox="0 0 20 20"><g transform="translate(5 7) scale(2)"><rect x="1" y="2" width="3" height="4" /></g></svg>`);
+    expect(parsed.layers?.[0]?.geometry.commands[0]).toEqual({ type: "move", x: 7, y: 11 });
+    expect(parsed.layers?.[0]?.geometry.commands).not.toContainEqual(expect.objectContaining({ type: "arc" }));
+  });
+
+  it("supports matrix transforms and normalizes transformed path arcs", () => {
+    const parsed = parseSvgPathAuthoringSource(`<svg viewBox="0 0 20 20"><path transform="matrix(1 0 0 1 3 4)" d="M0 0 A 5 5 0 0 1 10 0" /></svg>`);
+    expect(parsed.layers?.[0]?.geometry.commands[0]).toEqual({ type: "move", x: 3, y: 4 });
+    expect(parsed.layers?.[0]?.geometry.commands).not.toContainEqual(expect.objectContaining({ type: "arc" }));
+  });
+
+  it("rejects unsupported paint references and CSS", () => {
+    expect(() => parseSvgPathAuthoringSource(`<svg viewBox="0 0 10 10"><defs /><path d="M0 0L1 1" fill="url(#paint)" /></svg>`)).toThrow();
+    expect(() => parseSvgPathAuthoringSource(`<svg viewBox="0 0 10 10"><path d="M0 0L1 1" style="fill:#fff" /></svg>`)).toThrow();
   });
 });

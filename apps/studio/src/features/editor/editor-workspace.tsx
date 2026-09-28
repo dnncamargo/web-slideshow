@@ -297,7 +297,13 @@ import {
   resolveClipboardPasteDestination,
 } from "./clipboard-operations";
 
-import type { PlotPreviewControls, ShapePreviewControls, TableAuthoringControls } from "./inspector/inspector-types";
+import type {
+  PlotPreviewControls,
+  ShapePreviewControls,
+  ShapeSvgImportComposition,
+  ShapeSvgImportCompositionHandler,
+  TableAuthoringControls,
+} from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
 import { createQrShapeElement } from "./qr-shape-authoring";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
@@ -363,9 +369,11 @@ import styles from "./editor-workspace.module.css";
 // ============================================================
 
 import type {
+  ContainerElement,
   GalleryElement,
   PresentationElement,
   Presentation,
+  ShapeElement,
   Slide,
 } from "@web-slideshow/document-schema";
 
@@ -3963,6 +3971,86 @@ export function EditorWorkspace({
     }
   }
 
+  function importSelectedShapeSvgComposition(
+    composition: ShapeSvgImportComposition,
+  ): ReturnType<ShapeSvgImportCompositionHandler> {
+    const selected = selectedDocumentElement;
+    if (!selected || selected.type !== "shape" || composition.layers.length < 2) {
+      return { ok: false, message: "The selected element cannot receive a compound SVG." };
+    }
+
+    const target = authoringTarget;
+    let imported = false;
+    const allocateId = (base: string, usedIds: Set<string>): string => {
+      let candidate = base;
+      let suffix = 2;
+      while (usedIds.has(candidate)) {
+        candidate = `${base}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(candidate);
+      return candidate;
+    };
+
+    commitAuthoringAction(
+      target,
+      {
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "shape.svgImport" },
+      },
+      (current, currentTarget) => {
+        const owned = resolveOwnedAuthoringTree(current, currentTarget, selected.id);
+        if (!owned) return current;
+        const currentShape = findElementById(owned.elements, selected.id);
+        if (currentShape?.type !== "shape") return current;
+
+        const usedIds = collectPresentationAuthoringIds(current);
+        const children: ShapeElement[] = composition.layers.map((layer, index) => ({
+          id: allocateId(`${selected.id}-svg-${index + 1}`, usedIds),
+          type: "shape",
+          hidden: false,
+          layout: {
+            width: composition.viewBox.width,
+            height: composition.viewBox.height,
+          },
+          geometry: layer.geometry,
+          ...(layer.style === undefined ? {} : { style: layer.style }),
+          ...(layer.effect === undefined ? {} : { effect: layer.effect }),
+          ...(currentShape.transform === undefined ? {} : { transform: currentShape.transform }),
+          ...(currentShape.animation === undefined ? {} : { animation: currentShape.animation }),
+        }));
+        const nextContainer: ContainerElement = {
+          id: currentShape.id,
+          type: "container",
+          hidden: currentShape.hidden,
+          layout: {
+            ...currentShape.layout,
+            children: {
+              mode: "stack",
+              fit: {
+                mode: "contain",
+                sourceWidth: composition.viewBox.width,
+                sourceHeight: composition.viewBox.height,
+              },
+            },
+          },
+          ...(currentShape.effect === undefined ? {} : { effect: currentShape.effect }),
+          ...(currentShape.link === undefined ? {} : { link: currentShape.link }),
+          children,
+        };
+        const nextElements = updateElementById(owned.elements, selected.id, () => nextContainer);
+        if (nextElements === owned.elements) return current;
+        imported = true;
+        return replaceOwnedAuthoringTree(current, currentTarget, selected.id, nextElements);
+      },
+    );
+
+    return imported
+      ? { ok: true }
+      : { ok: false, message: "The selected Shape could not be replaced with the imported SVG layers." };
+  }
+
   function runSelectedPlotPreview(command: (controller: PlotAnimationController) => void): void {
     if (selectedDocumentElement?.type !== "plot") return;
     const canvas = slideCanvasRef.current;
@@ -7303,6 +7391,7 @@ export function EditorWorkspace({
                           element={selectedDocumentElement}
                           readOnly={rootDefinitionInspectorReadOnly}
                           onUpdate={updateSelectedElement}
+                          onImportSvgComposition={importSelectedShapeSvgComposition}
                           plotPreviewControls={plotPreviewControls}
                           shapePreviewControls={shapePreviewControls}
                           onContainerFitModeChange={handleContainerFitModeChange}
