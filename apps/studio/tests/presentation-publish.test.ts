@@ -189,6 +189,39 @@ function representativeRootPresentation() {
   });
 }
 
+function representativeShapePresentation(): Presentation {
+  return PresentationSchema.parse({
+    ...createBlankPresentation("pres-1"),
+    slides: [{
+      id: "shape-publish-slide",
+      title: "",
+      summary: "",
+      speakerNotes: "",
+      elements: [{
+        id: "shape-publish",
+        type: "shape",
+        hidden: false,
+        layout: { position: "absolute", left: 12, top: 16, width: 280, height: 180 },
+        geometry: {
+          mode: "generated",
+          generator: "qr-code",
+          config: { value: "https://example.test/published", errorCorrection: "H", quietZone: 8 },
+        },
+        style: {
+          fill: { type: "color", color: "#111827" },
+          stroke: { width: 2, color: "#fbbf24" },
+        },
+        animation: {
+          durationMs: 1200,
+          loop: false,
+          translate: { fromXPercent: 0, fromYPercent: 0, toXPercent: 20, toYPercent: 0 },
+        },
+        link: { kind: "url", href: "https://example.test/published", target: "_blank" },
+      }],
+    }],
+  });
+}
+
 describe("transactional presentation publishing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -487,6 +520,30 @@ describe("transactional presentation publishing", () => {
         presentationJson: exactJson,
       }),
     );
+  });
+
+  it("publishes canonical Shape state without generated QR runtime data", async () => {
+    const presentation = representativeShapePresentation();
+    const draft = draftData({ presentation });
+    const transaction = setupTransaction(draft);
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-shape" })
+      .mockReturnValueOnce({ id: "version-shape" })
+      .mockReturnValueOnce({ id: "pointer-shape" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentationJson: string;
+    };
+    const published = JSON.parse(versionPayload.presentationJson) as Presentation;
+    const shape = published.slides[0]?.elements[0];
+
+    expect(published).toEqual(presentation);
+    expect(shape).toEqual(presentation.slides[0]?.elements[0]);
+    expect(versionPayload.presentationJson).not.toContain("modules");
+    expect(versionPayload.presentationJson).not.toContain("generatedPath");
   });
 
   it("publishes referential Root Definitions unchanged in the immutable version", async () => {

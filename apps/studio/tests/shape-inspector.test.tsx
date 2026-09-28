@@ -10,6 +10,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { ShapeInspector } from "../src/features/editor/inspector/shape-inspector";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
+import { createShapeGeometry } from "../src/features/editor/shape-geometry-authoring";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -24,6 +25,13 @@ const RECTANGLE_GEOMETRY: ShapeElement["geometry"] = {
     { type: "close" },
   ],
 };
+
+const SH6E_ACCEPTANCE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 124 124" fill="none">
+<rect width="124" height="124" rx="24" fill="#F97316"/>
+<path d="M19.375 36.7818V100.625C19.375 102.834 21.1659 104.625 23.375 104.625H87.2181C90.7818 104.625 92.5664 100.316 90.0466 97.7966L26.2034 33.9534C23.6836 31.4336 19.375 33.2182 19.375 36.7818Z" fill="white"/>
+<circle cx="63.2109" cy="37.5391" r="18.1641" fill="black"/>
+<rect opacity="0.4" x="81.1328" y="80.7198" width="17.5687" height="17.3876" rx="4" transform="rotate(-45 81.1328 80.7198)" fill="#FDBA74"/>
+</svg>`;
 
 function shapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   return {
@@ -56,7 +64,7 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options });
 }
 
-function historyPresentation(): Presentation {
+function historyPresentation(shapeOverrides: Partial<ShapeElement> = {}): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "shape-history",
@@ -64,7 +72,7 @@ function historyPresentation(): Presentation {
     slides: [{
       id: "slide-1",
       title: "Slide 1",
-      elements: [shapeElement({ id: "shape-history-1" })],
+      elements: [shapeElement({ id: "shape-history-1", ...shapeOverrides })],
     }],
   });
 }
@@ -317,6 +325,317 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(state.layout).toEqual(initial.layout);
     expect(state.effect).toEqual(initial.effect);
     expect(state.link).toEqual(initial.link);
+  });
+
+  it("uses native number controls for Shape geometry and animation drafts", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+    }));
+
+    expect(input("shape-apex-x").type).toBe("number");
+    expect(input("shape-apex-x").min).toBe("0");
+    expect(input("shape-apex-x").max).toBe("100");
+    expect(input("shape-apex-x").step).toBe("1");
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 0.45, rotationDeg: 15 } },
+    }));
+    expect(input("shape-polygon-points").type).toBe("number");
+    expect(input("shape-polygon-points").min).toBe("3");
+    expect(input("shape-polygon-points").max).toBe("12");
+    expect(input("shape-polygon-points").step).toBe("1");
+    expect(input("shape-polygon-inner-radius").type).toBe("number");
+    expect(input("shape-polygon-inner-radius").min).toBe("1");
+    expect(input("shape-polygon-inner-radius").max).toBe("100");
+    expect(input("shape-polygon-inner-radius").step).toBe("1");
+    expect(input("shape-polygon-rotation").type).toBe("number");
+    expect(input("shape-polygon-rotation").step).toBe("1");
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+    }));
+    expect(input("shape-qr-quiet-zone").type).toBe("number");
+    expect(input("shape-qr-quiet-zone").min).toBe("0");
+    expect(input("shape-qr-quiet-zone").step).toBe("1");
+
+    await act(async () => input("shape-animation-enabled").click());
+    await act(async () => input("shape-animation-rotate-enabled").click());
+    await act(async () => input("shape-animation-translate-enabled").click());
+    await act(async () => input("shape-animation-skew-enabled").click());
+
+    for (const id of [
+      "shape-animation-rotate-from",
+      "shape-animation-rotate-to",
+      "shape-animation-translate-from-x",
+      "shape-animation-translate-from-y",
+      "shape-animation-translate-to-x",
+      "shape-animation-translate-to-y",
+      "shape-animation-skew-from-x",
+      "shape-animation-skew-from-y",
+      "shape-animation-skew-to-x",
+      "shape-animation-skew-to-y",
+    ]) {
+      expect(input(id).type).toBe("number");
+      expect(input(id).step).toBe("1");
+    }
+    expect(input("shape-animation-duration").type).toBe("number");
+    expect(input("shape-animation-duration").min).toBe("1");
+    expect(input("shape-animation-duration").step).toBe("1");
+
+    expect(input("shape-transform-translate-x").type).toBe("number");
+    expect(input("shape-transform-translate-y").type).toBe("number");
+    expect(input("shape-transform-rotation").type).toBe("number");
+  });
+
+  it("applies authored transform sparsely and supports rounded-corner length input", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+      style: { fill: { type: "color", color: "#22d3ee" }, stroke: { width: 2, style: "solid", color: "#123456" } },
+    }));
+
+    await act(async () => {
+      setInputValue(input("shape-transform-translate-x"), "12");
+      setInputValue(input("shape-transform-translate-y"), "-4");
+      setInputValue(input("shape-transform-rotation"), "30");
+      host.querySelector<HTMLButtonElement>("#shape-transform-apply")?.click();
+    });
+    expect(state.transform).toEqual({ translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 });
+
+    await act(async () => setInputValue(input("shape-border-radius"), "12"));
+    expect(state.style?.borderRadius).toBe(12);
+    await act(async () => changeSelect(host.querySelector<HTMLSelectElement>("#shape-border-radius-unit")!, "rem"));
+    expect(state.style?.borderRadius).toBe("0.75rem");
+
+    await act(async () => {
+      const reset = host.querySelector<HTMLButtonElement>("#shape-border-radius")?.parentElement?.parentElement?.querySelector<HTMLButtonElement>("button");
+      reset?.click();
+    });
+    expect(state.style?.borderRadius).toBeUndefined();
+    expect(state.style?.stroke).toEqual({ width: 2, style: "solid", color: "#123456" });
+  });
+
+  it("shows rounded corners only for QR geometry and keeps Border for every Shape", async () => {
+    const nonQrGeometries: ShapeElement["geometry"][] = [
+      RECTANGLE_GEOMETRY,
+      createShapeGeometry("ellipse"),
+      {
+        mode: "path",
+        viewBox: { x: 0, y: 0, width: 100, height: 100 },
+        commands: [
+          { type: "move", x: 100, y: 50 },
+          { type: "arc", radiusX: 50, radiusY: 50, rotationDeg: 0, largeArc: false, sweep: true, x: 0, y: 50 },
+          { type: "arc", radiusX: 50, radiusY: 50, rotationDeg: 0, largeArc: false, sweep: true, x: 100, y: 50 },
+          { type: "close" },
+        ],
+      },
+      { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+      { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 1 } },
+      { mode: "generated", generator: "polygon", config: { points: 5, innerRadius: 0.45 } },
+      {
+        mode: "path",
+        viewBox: { x: 0, y: 0, width: 100, height: 100 },
+        commands: [{ type: "move", x: 10, y: 10 }, { type: "line", x: 90, y: 10 }, { type: "close" }],
+      },
+    ];
+
+    for (const geometry of nonQrGeometries) {
+      await mount(shapeElement({ geometry, style: { stroke: { width: 1, style: "solid", color: "#111111" } } }));
+      expect(host.querySelector("#shape-border-radius")).toBeNull();
+      expect(host.querySelector("#shape-border-style")).not.toBeNull();
+    }
+
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "qr-code", config: { value: "A", errorCorrection: "M", quietZone: 4 } },
+      style: { stroke: { width: 1, style: "solid", color: "#111111" }, borderRadius: 8 },
+    }));
+    expect(host.querySelector("#shape-border-radius")).not.toBeNull();
+    expect(host.querySelector("#shape-border-style")).not.toBeNull();
+    expect(input("shape-border-radius").value).toBe("8");
+  });
+
+  it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {
+    await mount();
+
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "m 10 10 h 80 v 80 h -80 z");
+      setInputValue(input("shape-path-viewbox-width"), "120");
+      changeSelect(select("shape-path-fill-rule"), "evenodd");
+    });
+    expect(state.geometry).toEqual(RECTANGLE_GEOMETRY);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
+    expect(state.geometry).toEqual({
+      mode: "path",
+      viewBox: { x: 0, y: 0, width: 120, height: 100 },
+      commands: [
+        { type: "move", x: 10, y: 10 },
+        { type: "line", x: 90, y: 10 },
+        { type: "line", x: 90, y: 90 },
+        { type: "line", x: 10, y: 90 },
+        { type: "close" },
+      ],
+      fillRule: "evenodd",
+    });
+    expect(select("shape-geometry-preset").value).toBe("custom");
+
+    const appliedGeometry = state.geometry;
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "<svg>");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toBe(appliedGeometry);
+    expect(host.textContent).toContain("SVG");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100" fill-rule="evenodd"><g><path d="M 0 0 L 100 0 L 100 100 Z" /></g></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toMatchObject({
+      viewBox: { x: 0, y: 0, width: 200, height: 100 },
+      fillRule: "evenodd",
+    });
+    expect(state.geometry.mode === "path" ? state.geometry.commands[0] : undefined).toEqual({ type: "move", x: 0, y: 0 });
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "M 1 1");
+      host.querySelector<HTMLButtonElement>("#shape-path-reset")?.click();
+    });
+    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 Z");
+  });
+
+  it("records one history action for Path Apply and restores it with undo", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(select("shape-geometry-preset").value).toBe("custom");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(select("shape-geometry-preset").value).toBe("rectangle");
+  });
+
+  it("applies a single-layer SVG appearance and opacity to the current Shape", async () => {
+    const transform = { translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 };
+    const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
+    await mount(shapeElement({ transform, animation }));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
+    expect(state.style).toMatchObject({ fill: { type: "color", color: "#123456" }, stroke: { width: 2, color: "#ff0000" } });
+    expect(state.effect).toEqual({ opacity: 0.4 });
+    expect(state.transform).toEqual(transform);
+    expect(state.animation).toEqual(animation);
+  });
+
+  it("replaces a selected Shape with a fitted compound SVG container in one history action", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
+    expect(container).not.toBeNull();
+    expect(container?.querySelectorAll('[data-presentation-type="shape"]')).toHaveLength(2);
+    expect(container?.getAttribute("data-presentation-id")).toBe("shape-history-1");
+    expect(container?.querySelector('[data-presentation-type="shape"]')?.getAttribute("style")).toContain("width:200px;height:100px");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
+  });
+
+  it("imports the exact SH6E acceptance SVG as four ordered child Shapes", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation()} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), SH6E_ACCEPTANCE_SVG);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+
+    const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
+    const children = Array.from(container?.querySelectorAll<HTMLElement>('[data-presentation-type="shape"]') ?? []);
+    expect(container).not.toBeNull();
+    expect(children).toHaveLength(4);
+    expect(children.map((child) => child.getAttribute("data-presentation-id"))).toEqual([
+      "shape-history-1-svg-1",
+      "shape-history-1-svg-2",
+      "shape-history-1-svg-3",
+      "shape-history-1-svg-4",
+    ]);
+    expect(container?.innerHTML).toContain("#f97316");
+    expect(container?.innerHTML).toContain("#ffffff");
+    expect(container?.innerHTML).toContain("#000000");
+    expect(container?.innerHTML).toContain("#fdba74");
+    expect(children[3]?.getAttribute("style")).toContain("opacity:0.4");
+  });
+
+  it("rejects compound SVG import when the selected Shape has a transform", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({ transform: { rotationDeg: 30 } })} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
+  });
+
+  it("rejects compound SVG import when the selected Shape has animation without adding history", async () => {
+    const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({ animation })} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-fill-type"), "gradient"));
+    expect(select("shape-fill-type").value).toBe("gradient");
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(select("shape-fill-type").value).toBe("gradient");
+    await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
+    expect(select("shape-fill-type").value).toBe("color");
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
   });
 
   it("records representative Shape changes in the shared Undo/Redo history", async () => {

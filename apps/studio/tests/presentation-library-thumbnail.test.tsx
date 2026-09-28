@@ -104,6 +104,35 @@ function croppedImageSlide(id: string): Slide {
   };
 }
 
+function animatedShapeSlide(id: string): Slide {
+  return {
+    id,
+    title: "",
+    summary: "",
+    speakerNotes: "",
+    elements: [{
+      id: `${id}-shape`,
+      type: "shape",
+      hidden: false,
+      geometry: {
+        mode: "path",
+        viewBox: { x: 0, y: 0, width: 100, height: 100 },
+        commands: [
+          { type: "move", x: 10, y: 10 },
+          { type: "line", x: 90, y: 90 },
+          { type: "line", x: 10, y: 90 },
+          { type: "close" },
+        ],
+      },
+      animation: {
+        durationMs: 1000,
+        loop: false,
+        rotate: { fromDeg: 0, toDeg: 90 },
+      },
+    }],
+  };
+}
+
 function emptySlide(id: string): Slide {
   return {
     id,
@@ -249,6 +278,7 @@ describe("presentation thumbnail preview", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    vi.unstubAllGlobals();
     document.body.innerHTML = "";
   });
 
@@ -268,6 +298,22 @@ describe("presentation thumbnail preview", () => {
     expect(slide?.getAttribute("data-presentation-slide-id")).toBe("slide-1");
     expect(container.textContent).toContain("Hello world");
     expect(container.querySelector('[data-presentation-type="text"]')).not.toBeNull();
+  });
+
+  it("keeps animated Shapes static in Library thumbnails", () => {
+    const requestAnimationFrame = vi.fn(() => 1);
+    const cancelAnimationFrame = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+
+    renderNode(
+      <PresentationThumbnailPreview
+        preview={previewData(animatedShapeSlide("animated-slide"))}
+      />,
+    );
+
+    expect(container.querySelector('[data-presentation-type="shape"]')).not.toBeNull();
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
   });
 
   it("preserves cropped Image hydration across an ordinary unchanged preview rerender", () => {

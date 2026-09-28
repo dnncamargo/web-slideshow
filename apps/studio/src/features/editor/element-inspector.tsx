@@ -28,6 +28,7 @@ import type {
   CreateQrCodeFromLink,
   PlotPreviewControls,
   ShapePreviewControls,
+  ShapeSvgImportCompositionHandler,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
@@ -47,6 +48,8 @@ interface ElementInspectorProps {
   plotPreviewControls?: PlotPreviewControls;
 
   shapePreviewControls?: ShapePreviewControls;
+
+  onImportSvgComposition?: ShapeSvgImportCompositionHandler;
 
   onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
@@ -128,6 +131,7 @@ function ElementTypeInspector({
   onUpdate,
   plotPreviewControls,
   shapePreviewControls,
+  onImportSvgComposition,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -200,7 +204,7 @@ function ElementTypeInspector({
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "shape":
-      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} />;
+      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} onImportSvgComposition={onImportSvgComposition} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
@@ -312,6 +316,7 @@ export function ElementInspector({
   onUpdate,
   plotPreviewControls,
   shapePreviewControls,
+  onImportSvgComposition,
   onContainerFitModeChange,
   fontResources,
   presentation,
@@ -401,6 +406,7 @@ export function ElementInspector({
         }}
         plotPreviewControls={plotPreviewControls}
         shapePreviewControls={shapePreviewControls}
+        onImportSvgComposition={onImportSvgComposition}
         onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}

@@ -117,6 +117,7 @@ describe("Shape appearance and intent", () => {
       style: {
         fill: { type: "color", color: "#ff0000" },
         stroke: { width: 2, color: "#000000", style: "solid" },
+        borderRadius: "1rem",
       },
       effect: {
         opacity: 0.8,
@@ -131,9 +132,12 @@ describe("Shape appearance and intent", () => {
         translate: { fromXPercent: 0, fromYPercent: 0, toXPercent: 25, toYPercent: -10 },
         skew: { fromXDeg: 0, fromYDeg: 0, toXDeg: 10, toYDeg: -5 },
       },
+      transform: { translateXPercent: 12.5, translateYPercent: -8, rotationDeg: 30 },
     });
 
     expect(parsed.style?.fill).toEqual({ type: "color", color: "#ff0000" });
+    expect(parsed.style?.borderRadius).toBe("1rem");
+    expect(parsed.transform).toEqual({ translateXPercent: 12.5, translateYPercent: -8, rotationDeg: 30 });
     expect(ShapeElementSchema.safeParse({ ...shape, style: { fill: { type: "gradient", gradient: {
       type: "linear",
       stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }],
@@ -153,8 +157,23 @@ describe("Shape appearance and intent", () => {
     { animation: { durationMs: 1000, translate: { fromXPercent: 0, fromYPercent: 0, toXPercent: Number.POSITIVE_INFINITY, toYPercent: 0 } } },
     { animation: { durationMs: 1000, unknown: true, rotate: { fromDeg: 0, toDeg: 1 } } },
     { style: { unknown: true } },
+    { style: { borderRadius: true } },
+    { transform: { translateXPercent: Number.NaN } },
+    { transform: { rotationDeg: Number.POSITIVE_INFINITY } },
+    { transform: { unknown: 1 } },
   ])("rejects invalid Shape appearance or animation %j", (change) => {
     expect(ShapeElementSchema.safeParse({ ...shape, ...change }).success).toBe(false);
+  });
+
+  it("keeps authored transform sparse and accepts length-based corner radius", () => {
+    const parsed = ShapeElementSchema.parse({
+      ...shape,
+      style: { borderRadius: 12 },
+      transform: { rotationDeg: -45 },
+    });
+
+    expect(parsed.style).toEqual({ borderRadius: 12 });
+    expect(parsed.transform).toEqual({ rotationDeg: -45 });
   });
 });
 

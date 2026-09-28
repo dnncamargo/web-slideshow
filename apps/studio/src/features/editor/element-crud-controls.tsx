@@ -135,10 +135,6 @@ const insertionDescription =
             {t("element.text")}
           </option>
 
-          <option value="shape">
-            {t("element.shape")}
-          </option>
-
           <option value="container">
             {t("element.container")}
           </option>
@@ -181,6 +177,10 @@ const insertionDescription =
 
           <option value="scripted">
             {t("element.scripted")}
+          </option>
+
+          <option value="shape">
+            {t("element.shape")}
           </option>
 
           <option value="plot">

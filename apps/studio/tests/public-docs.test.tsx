@@ -71,8 +71,13 @@ describe("public Docs", () => {
 
     const elementGroup = docsGroups.find((group) => group.title === "Elementos e Inspector");
     expect(elementGroup?.topics.map((topic) => topic.title)).toEqual([
-      "Text", "Container", "Image", "Gallery", "Code", "Terminal", "Table", "Topics", "Divider", "Embed", "Blocks", "Plot", "Scripted", "Interactive",
+      "Text", "Container", "Image", "Gallery", "Code", "Terminal", "Table", "Topics", "Divider", "Embed", "Blocks", "Plot", "Shape", "Scripted", "Interactive",
     ]);
+    expect(findTopicText("element-shape")).toContain("QR Code");
+    expect(findTopicText("element-shape")).toContain("Play / Pause / Reset");
+    expect(findTopicText("element-shape")).toContain("Container");
+    expect(findTopicText("element-shape")).toContain("rect");
+    expect(findTopicText("element-shape")).toContain("circle");
     expect(findTopicText("element-interactive")).toContain("não possui Inspector dedicado");
 
     expect(findTopicText("scripted-api")).toContain("ScriptedRuntime.ports.onAction");

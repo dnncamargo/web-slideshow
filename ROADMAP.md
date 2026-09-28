@@ -416,6 +416,43 @@ Physical acceptance on the target Android interactive display with Firefox 116 r
 
 ---
 
+# Shape integration ✅
+
+Reference: PR #209 and the SH6 integration acceptance checkpoint.
+
+Shape integration is complete without changing the canonical schema version; `schemaVersion` remains literally `1`.
+
+Completed capability line:
+
+- canonical Shape element with path and bounded generated geometry intent;
+- Studio Shape creation, Geometry authoring and Shape Inspector integration;
+- Rectangle, Ellipse, Triangle, Polygon and Star presets;
+- generated QR Shape authoring with editable content, error correction and quiet zone;
+- bounded raw SVG `d` authoring;
+- safe static SVG import with basic primitive normalization and 2D transform flattening;
+- single-layer Shape import and compound Container + Shape materialization;
+- imported appearance and opacity normalization with canonical-only persistence;
+- Appearance, Effects, Size and Interaction integration;
+- shared renderer coverage across Studio preview, Library thumbnails, export and publication/Player output;
+- bounded Shape animation with rotation, translation, skew, duration, loop and autoplay;
+- local Studio preview and separate Control→Player Play/Pause/Reset live actions;
+- strict separate Shape live-action RTDB channel, independent from Plot animation.
+- QR rounded background and outer Border semantics.
+
+Permanent Shape boundary:
+
+```text
+authored path / supported static SVG / bounded generator intent
+→ canonical Shape/Container representation
+→ shared renderer
+```
+
+The current contract supports bounded raw SVG path-data (`d`) and a safe static SVG subset containing `svg`, `g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline` and `polygon`. Supported `fill`, `stroke`, `stroke-width`, `fill-rule` and `opacity`, including compatible inherited values, normalize into canonical Shape style/effects. Supported `matrix(...)`, `translate(...)`, `scale(...)`, `rotate(...)`, `skewX(...)` and `skewY(...)` transforms flatten into canonical geometry. One visual layer remains a Shape; multiple layers are materialized as a Container in stack mode with ordered Shape children. Raw XML, source transform strings and source primitive tags are never persisted. Unsupported or unsafe content is rejected rather than silently persisted or executed, including scripts, external references, CSS/style markup, text and unsupported SVG capabilities. Shape Transform provides authored translation/rotation, while bounded animation remains separate and composes after it. QR modules remain square; the white QR surface and outer Border frame share the canonical Rounded corners radius, with Border paint/style support on the single outer frame.
+
+Parameterized complex forms such as arrows, braces, speech balloons and thought balloons remain a future semantic-generator boundary. Adding them requires a separate architecture checkpoint rather than silently expanding the current Shape presets.
+
+---
+
 # Deterministic Studio test debt ✅
 
 Reference: PR #144.

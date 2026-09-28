@@ -9,7 +9,7 @@ import {
 } from "../src/renderer-runtime";
 
 type ShapeNode = {
-  dataset: { presentationId: string; presentationType: string };
+  dataset: { presentationId: string; presentationType: string; presentationAuthoredTransform?: string };
   style: { transform: string; transformOrigin: string };
   querySelector: () => null;
 };
@@ -47,7 +47,13 @@ function shape(id: string, animation: NonNullable<ShapeElement["animation"]>): S
 
 function node(element: ShapeElement): ShapeNode {
   return {
-    dataset: { presentationId: element.id, presentationType: "shape" },
+    dataset: {
+      presentationId: element.id,
+      presentationType: "shape",
+      ...(element.transform === undefined ? {} : {
+        presentationAuthoredTransform: `translate(${element.transform.translateXPercent ?? 0}%, ${element.transform.translateYPercent ?? 0}%)${element.transform.rotationDeg === undefined ? "" : ` rotate(${element.transform.rotationDeg}deg)`}`,
+      }),
+    },
     style: { transform: "", transformOrigin: "" },
     querySelector: () => null,
   };
@@ -139,6 +145,22 @@ describe("Shape animation runtime", () => {
 
     expect(shapeNode.style.transformOrigin).toBe("50% 50%");
     expect(shapeNode.style.transform).toBe("translate(10%, 20%) rotate(45deg) skew(10deg, 20deg)");
+  });
+
+  it("composes animation after authored transform and restores authored state on reset", () => {
+    const element = {
+      ...shape("shape-static", { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 90 } }),
+      transform: { translateXPercent: 12, rotationDeg: 15 },
+    } satisfies ShapeElement;
+    const shapeNode = node(element);
+    const root = new FakeRoot([shapeNode]);
+    hydrateRendererRuntime(runtimeRoot(root), { shapeAnimations: { slide: slide([element]) } });
+    runNextFrame(0);
+    runNextFrame(500);
+
+    expect(shapeNode.style.transform).toBe("translate(12%, 0%) rotate(15deg) rotate(45deg)");
+    getShapeAnimationController(runtimeRoot(root), element.id)?.reset();
+    expect(shapeNode.style.transform).toBe("translate(12%, 0%) rotate(15deg) rotate(0deg)");
   });
 
   it("wraps loops and completes non-looping animations at the exact endpoint", () => {

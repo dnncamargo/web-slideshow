@@ -199,14 +199,10 @@ export function mountProjectionSurface(
 
   function hydrateCurrentSlideRuntime(): void {
     const slide = currentEffectiveSlide;
-    if (
-      slide !== undefined &&
-      options.animatePlots !== false &&
-      !prefersReducedMotion()
-    ) {
+    if (slide !== undefined && !prefersReducedMotion()) {
       hydrateRendererRuntime(slideSurface, {
+        ...(options.animatePlots === false ? {} : { plotAnimations: { slide } }),
         ...(options.animateShapes === false ? {} : { shapeAnimations: { slide } }),
-        plotAnimations: { slide },
       });
     } else {
       hydrateRendererRuntime(slideSurface);

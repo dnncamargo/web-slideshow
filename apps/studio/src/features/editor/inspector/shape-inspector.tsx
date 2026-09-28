@@ -4,6 +4,7 @@ import {
   ShapeAnimationSchema,
   type ShapeAnimation,
   type ShapeElement,
+  type ShapeTransform,
 } from "@web-slideshow/document-schema";
 
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
@@ -11,7 +12,11 @@ import { ElementInteractionSection } from "./sections/element-interaction-sectio
 import { ShapeAppearanceSection } from "./sections/shape-appearance-section";
 import { ShapeEffectsSection } from "./sections/shape-effects-section";
 import { ShapeGeometrySection } from "./sections/shape-geometry-section";
-import type { ShapePreviewControls, TypedInspectorProps } from "./inspector-types";
+import type {
+  ShapePreviewControls,
+  ShapeSvgImportCompositionHandler,
+  TypedInspectorProps,
+} from "./inspector-types";
 import type { ElementEffect } from "@web-slideshow/document-schema";
 import { InspectorSection } from "./inspector-section";
 import styles from "../editor-workspace.module.css";
@@ -33,6 +38,30 @@ const DEFAULT_SHAPE_ANIMATION = {
   skewToXDeg: "20",
   skewToYDeg: "0",
 } as const;
+
+const DEFAULT_SHAPE_TRANSFORM = {
+  translateXPercent: "0",
+  translateYPercent: "0",
+  rotationDeg: "0",
+} as const;
+
+type ShapeTransformDraft = {
+  translateXPercent: string;
+  translateYPercent: string;
+  rotationDeg: string;
+};
+
+function shapeTransformDraft(transform: ShapeTransform | undefined): ShapeTransformDraft {
+  return {
+    translateXPercent: String(transform?.translateXPercent ?? DEFAULT_SHAPE_TRANSFORM.translateXPercent),
+    translateYPercent: String(transform?.translateYPercent ?? DEFAULT_SHAPE_TRANSFORM.translateYPercent),
+    rotationDeg: String(transform?.rotationDeg ?? DEFAULT_SHAPE_TRANSFORM.rotationDeg),
+  };
+}
+
+function transformIdentity(transform: ShapeTransform | undefined): string {
+  return JSON.stringify(transform ?? null);
+}
 
 type ShapeAnimationDraft = {
   enabled: boolean;
@@ -104,15 +133,32 @@ export function ShapeInspector({
   element,
   onUpdate,
   previewControls,
-}: TypedInspectorProps<ShapeElement> & { previewControls?: ShapePreviewControls }) {
+  onImportSvgComposition,
+}: TypedInspectorProps<ShapeElement> & {
+  previewControls?: ShapePreviewControls;
+  onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+}) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
+  const [transformDraft, setTransformDraft] = useState<ShapeTransformDraft>(() => shapeTransformDraft(element.transform));
+  const [hydratedTransform, setHydratedTransform] = useState({
+    id: element.id,
+    transform: transformIdentity(element.transform),
+  });
+  const [transformMessage, setTransformMessage] = useState<string | null>(null);
   const [animationDraft, setAnimationDraft] = useState<ShapeAnimationDraft>(() => shapeAnimationDraft(element.animation));
   const [hydratedAnimation, setHydratedAnimation] = useState({
     id: element.id,
     animation: animationIdentity(element.animation),
   });
   const [animationMessage, setAnimationMessage] = useState<string | null>(null);
+
+  const currentTransformIdentity = transformIdentity(element.transform);
+  if (hydratedTransform.id !== element.id || hydratedTransform.transform !== currentTransformIdentity) {
+    setHydratedTransform({ id: element.id, transform: currentTransformIdentity });
+    setTransformDraft(shapeTransformDraft(element.transform));
+    setTransformMessage(null);
+  }
 
   const currentAnimationIdentity = animationIdentity(element.animation);
   if (hydratedAnimation.id !== element.id || hydratedAnimation.animation !== currentAnimationIdentity) {
@@ -132,6 +178,49 @@ export function ShapeInspector({
   };
 
   const animationDirty = JSON.stringify(animationDraft) !== JSON.stringify(shapeAnimationDraft(element.animation));
+  const transformDirty = JSON.stringify(transformDraft) !== JSON.stringify(shapeTransformDraft(element.transform));
+
+  function updateTransformDraft(update: Partial<ShapeTransformDraft>): void {
+    setTransformDraft((current) => ({ ...current, ...update }));
+    setTransformMessage(null);
+  }
+
+  function applyTransformDraft(): void {
+    const values = [
+      Number(transformDraft.translateXPercent),
+      Number(transformDraft.translateYPercent),
+      Number(transformDraft.rotationDeg),
+    ];
+    if (transformDraft.translateXPercent.trim() === "") values[0] = 0;
+    if (transformDraft.translateYPercent.trim() === "") values[1] = 0;
+    if (transformDraft.rotationDeg.trim() === "") values[2] = 0;
+    if (values.some((value) => !Number.isFinite(value))) {
+      setTransformMessage(t("inspector.shape.transformInvalid"));
+      return;
+    }
+
+    const [translateXPercent, translateYPercent, rotationDeg] = values;
+    const candidate = {
+      ...(translateXPercent !== 0 ? { translateXPercent } : {}),
+      ...(translateYPercent !== 0 ? { translateYPercent } : {}),
+      ...(rotationDeg !== 0 ? { rotationDeg } : {}),
+    };
+    const nextTransform = Object.keys(candidate).length === 0 ? undefined : candidate;
+    if (transformIdentity(nextTransform) === transformIdentity(element.transform)) {
+      setTransformMessage(null);
+      return;
+    }
+
+    setTransformMessage(null);
+    runDiscrete("shape.transform", () => onUpdate((current) => current.type === "shape"
+      ? { ...current, transform: nextTransform }
+      : current));
+  }
+
+  function resetTransformDraft(): void {
+    setTransformDraft(shapeTransformDraft(element.transform));
+    setTransformMessage(null);
+  }
 
   function updateAnimationDraft(update: Partial<ShapeAnimationDraft>): void {
     setAnimationDraft((current) => ({ ...current, ...update }));
@@ -218,7 +307,37 @@ export function ShapeInspector({
       <ShapeGeometrySection
         element={element}
         onUpdate={(update) => onUpdate((current) => current.type === "shape" ? update(current) : current)}
+        onImportSvgComposition={onImportSvgComposition}
       />
+
+      <InspectorSection title={t("inspector.shape.transform")} defaultOpen>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.translateX")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-translate-x" name="shapeTransformTranslateX" type="number" step="1" value={transformDraft.translateXPercent} onChange={(event) => updateTransformDraft({ translateXPercent: event.target.value })} />
+            <span>%</span>
+          </div>
+        </label>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.translateY")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-translate-y" name="shapeTransformTranslateY" type="number" step="1" value={transformDraft.translateYPercent} onChange={(event) => updateTransformDraft({ translateYPercent: event.target.value })} />
+            <span>%</span>
+          </div>
+        </label>
+        <label className={styles.field}>
+          <span>{t("inspector.shape.rotation")}</span>
+          <div className={styles.unitInput}>
+            <input id="shape-transform-rotation" name="shapeTransformRotation" type="number" step="1" value={transformDraft.rotationDeg} onChange={(event) => updateTransformDraft({ rotationDeg: event.target.value })} />
+            <span>°</span>
+          </div>
+        </label>
+        {transformMessage !== null ? <small className={styles.fieldHint}>{transformMessage}</small> : null}
+        <div className={styles.elementCrudActions}>
+          <button id="shape-transform-apply" type="button" className={styles.secondaryButton} disabled={!transformDirty} onClick={applyTransformDraft}><span>{t("inspector.shape.applyTransform")}</span></button>
+          <button id="shape-transform-reset" type="button" className={styles.secondaryButton} disabled={!transformDirty} onClick={resetTransformDraft}><span>{t("inspector.shape.resetTransform")}</span></button>
+        </div>
+      </InspectorSection>
 
       <InspectorSection title={t("inspector.animation")} defaultOpen>
         <label className={styles.checkboxRow}>
@@ -249,11 +368,11 @@ export function ShapeInspector({
                 <>
                   <label className={styles.field}>
                     <span>{t("inspector.animation.fromDeg")}</span>
-                    <input id="shape-animation-rotate-from" type="text" inputMode="decimal" value={animationDraft.rotateFromDeg} onChange={(event) => updateAnimationDraft({ rotateFromDeg: event.target.value })} />
+                    <input id="shape-animation-rotate-from" type="number" step="1" value={animationDraft.rotateFromDeg} onChange={(event) => updateAnimationDraft({ rotateFromDeg: event.target.value })} />
                   </label>
                   <label className={styles.field}>
                     <span>{t("inspector.animation.toDeg")}</span>
-                    <input id="shape-animation-rotate-to" type="text" inputMode="decimal" value={animationDraft.rotateToDeg} onChange={(event) => updateAnimationDraft({ rotateToDeg: event.target.value })} />
+                    <input id="shape-animation-rotate-to" type="number" step="1" value={animationDraft.rotateToDeg} onChange={(event) => updateAnimationDraft({ rotateToDeg: event.target.value })} />
                   </label>
                 </>
               ) : null}
@@ -272,10 +391,10 @@ export function ShapeInspector({
               </label>
               {animationDraft.translateEnabled ? (
                 <>
-                  <label className={styles.field}><span>{t("inspector.animation.fromX")}</span><input id="shape-animation-translate-from-x" type="text" inputMode="decimal" value={animationDraft.translateFromXPercent} onChange={(event) => updateAnimationDraft({ translateFromXPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.fromY")}</span><input id="shape-animation-translate-from-y" type="text" inputMode="decimal" value={animationDraft.translateFromYPercent} onChange={(event) => updateAnimationDraft({ translateFromYPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toX")}</span><input id="shape-animation-translate-to-x" type="text" inputMode="decimal" value={animationDraft.translateToXPercent} onChange={(event) => updateAnimationDraft({ translateToXPercent: event.target.value })} /><span>%</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toY")}</span><input id="shape-animation-translate-to-y" type="text" inputMode="decimal" value={animationDraft.translateToYPercent} onChange={(event) => updateAnimationDraft({ translateToYPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromX")}</span><input id="shape-animation-translate-from-x" type="number" step="1" value={animationDraft.translateFromXPercent} onChange={(event) => updateAnimationDraft({ translateFromXPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromY")}</span><input id="shape-animation-translate-from-y" type="number" step="1" value={animationDraft.translateFromYPercent} onChange={(event) => updateAnimationDraft({ translateFromYPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toX")}</span><input id="shape-animation-translate-to-x" type="number" step="1" value={animationDraft.translateToXPercent} onChange={(event) => updateAnimationDraft({ translateToXPercent: event.target.value })} /><span>%</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toY")}</span><input id="shape-animation-translate-to-y" type="number" step="1" value={animationDraft.translateToYPercent} onChange={(event) => updateAnimationDraft({ translateToYPercent: event.target.value })} /><span>%</span></label>
                 </>
               ) : null}
             </div>
@@ -293,17 +412,17 @@ export function ShapeInspector({
               </label>
               {animationDraft.skewEnabled ? (
                 <>
-                  <label className={styles.field}><span>{t("inspector.animation.fromXDeg")}</span><input id="shape-animation-skew-from-x" type="text" inputMode="decimal" value={animationDraft.skewFromXDeg} onChange={(event) => updateAnimationDraft({ skewFromXDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.fromYDeg")}</span><input id="shape-animation-skew-from-y" type="text" inputMode="decimal" value={animationDraft.skewFromYDeg} onChange={(event) => updateAnimationDraft({ skewFromYDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toXDeg")}</span><input id="shape-animation-skew-to-x" type="text" inputMode="decimal" value={animationDraft.skewToXDeg} onChange={(event) => updateAnimationDraft({ skewToXDeg: event.target.value })} /><span>°</span></label>
-                  <label className={styles.field}><span>{t("inspector.animation.toYDeg")}</span><input id="shape-animation-skew-to-y" type="text" inputMode="decimal" value={animationDraft.skewToYDeg} onChange={(event) => updateAnimationDraft({ skewToYDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromXDeg")}</span><input id="shape-animation-skew-from-x" type="number" step="1" value={animationDraft.skewFromXDeg} onChange={(event) => updateAnimationDraft({ skewFromXDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.fromYDeg")}</span><input id="shape-animation-skew-from-y" type="number" step="1" value={animationDraft.skewFromYDeg} onChange={(event) => updateAnimationDraft({ skewFromYDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toXDeg")}</span><input id="shape-animation-skew-to-x" type="number" step="1" value={animationDraft.skewToXDeg} onChange={(event) => updateAnimationDraft({ skewToXDeg: event.target.value })} /><span>°</span></label>
+                  <label className={styles.field}><span>{t("inspector.animation.toYDeg")}</span><input id="shape-animation-skew-to-y" type="number" step="1" value={animationDraft.skewToYDeg} onChange={(event) => updateAnimationDraft({ skewToYDeg: event.target.value })} /><span>°</span></label>
                 </>
               ) : null}
             </div>
 
             <label className={styles.field}>
               <span>{t("inspector.animation.durationMs")}</span>
-              <input id="shape-animation-duration" type="text" inputMode="numeric" value={animationDraft.durationMs} onChange={(event) => updateAnimationDraft({ durationMs: event.target.value })} />
+              <input id="shape-animation-duration" type="number" min="1" step="1" value={animationDraft.durationMs} onChange={(event) => updateAnimationDraft({ durationMs: event.target.value })} />
             </label>
             <label className={styles.checkboxRow}><input id="shape-animation-loop" type="checkbox" checked={animationDraft.loop} onChange={(event) => updateAnimationDraft({ loop: event.target.checked })} /><span>{t("inspector.animation.loop")}</span></label>
             <label className={styles.checkboxRow}><input id="shape-animation-autoplay" type="checkbox" checked={animationDraft.autoplay} onChange={(event) => updateAnimationDraft({ autoplay: event.target.checked })} /><span>{t("inspector.animation.autoplay")}</span></label>
@@ -335,6 +454,7 @@ export function ShapeInspector({
 
       <ShapeAppearanceSection
         elementId={element.id}
+        isQr={element.geometry.mode === "generated" && element.geometry.generator === "qr-code"}
         style={element.style}
         onUpdateStyle={(update) => onUpdate((current) => current.type === "shape" ? { ...current, style: update(current.style) } : current)}
       />

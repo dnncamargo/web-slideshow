@@ -73,6 +73,10 @@ export function getShapeGeometryPreset(
   geometry: ShapeElement["geometry"],
 ): ShapePreset {
   if (geometry.mode === "path") {
+    const rectangle = createShapeGeometry("rectangle");
+    const ellipse = createShapeGeometry("ellipse");
+    if (JSON.stringify(geometry) === JSON.stringify(rectangle)) return "rectangle";
+    if (JSON.stringify(geometry) === JSON.stringify(ellipse)) return "ellipse";
     return "custom";
   }
 
@@ -88,7 +92,7 @@ export function getShapeGeometryPreset(
     return "polygon";
   }
 
-  if (geometry.config.points === 5 && geometry.config.innerRadius === 0.45) {
+  if (geometry.config.innerRadius !== undefined && geometry.config.innerRadius > 0 && geometry.config.innerRadius < 1) {
     return "star";
   }
 
