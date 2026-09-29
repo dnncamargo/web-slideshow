@@ -3,6 +3,7 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 import { resolveFirebaseClientConfig } from "./firebase-config";
 
@@ -31,6 +32,7 @@ export function getFirebaseApp(): FirebaseApp {
 
 let cachedAuth: Auth | null = null;
 let cachedFirestore: Firestore | null = null;
+let cachedStorage: FirebaseStorage | null = null;
 
 export function getFirebaseAuth(): Auth {
   if (!cachedAuth) {
@@ -46,4 +48,12 @@ export function getFirebaseFirestore(): Firestore {
   }
 
   return cachedFirestore;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!cachedStorage) {
+    cachedStorage = getStorage(getFirebaseApp());
+  }
+
+  return cachedStorage;
 }

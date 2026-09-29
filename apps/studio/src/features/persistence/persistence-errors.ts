@@ -35,6 +35,13 @@ export class FirestoreOperationError extends PersistenceError {
   }
 }
 
+export class FirebaseStorageOperationError extends PersistenceError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "FirebaseStorageOperationError";
+  }
+}
+
 export class InvalidPersistedPresentationError extends PersistenceError {}
 
 export class PresentationRecoveryFailedError extends PersistenceError {
