@@ -87,4 +87,5 @@ export {
 export {
   uploadManagedAsset,
   type ManagedAssetUploadResult,
+  type ManagedAssetUploadOptions,
 } from "./managed-asset-storage";

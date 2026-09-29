@@ -14,12 +14,17 @@ export interface ManagedAssetUploadResult {
   sizeBytes: number;
 }
 
+export interface ManagedAssetUploadOptions {
+  contentType?: string;
+}
+
 function createAssetId(): string {
   return crypto.randomUUID();
 }
 
 export async function uploadManagedAsset(
   file: File,
+  options: ManagedAssetUploadOptions = {},
 ): Promise<ManagedAssetUploadResult> {
   const user = requireAuthenticatedFirebaseUser(
     () => getFirebaseAuth().currentUser,
@@ -28,9 +33,10 @@ export async function uploadManagedAsset(
   const storagePath = `users/${user.uid}/assets/${assetId}`;
   const storageRef = ref(getFirebaseStorage(), storagePath);
   const metadata: UploadMetadata = {};
+  const contentType = options.contentType ?? file.type;
 
-  if (file.type) {
-    metadata.contentType = file.type;
+  if (contentType) {
+    metadata.contentType = contentType;
   }
 
   try {
@@ -41,7 +47,7 @@ export async function uploadManagedAsset(
       assetId,
       storagePath,
       downloadUrl,
-      contentType: file.type,
+      contentType,
       sizeBytes: file.size,
     };
   } catch (error) {

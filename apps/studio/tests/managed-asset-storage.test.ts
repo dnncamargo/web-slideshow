@@ -83,6 +83,32 @@ describe("uploadManagedAsset", () => {
     );
   });
 
+  it("allows an explicit content type to override an empty File MIME", async () => {
+    const result = await uploadManagedAsset(file("font.woff2", ""), {
+      contentType: "font/woff2",
+    });
+
+    expect(result.contentType).toBe("font/woff2");
+    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
+      storageRef,
+      expect.any(File),
+      { contentType: "font/woff2" },
+    );
+  });
+
+  it("allows an explicit content type to override a conflicting File MIME", async () => {
+    const result = await uploadManagedAsset(file("font.woff2", "application/octet-stream"), {
+      contentType: "font/woff2",
+    });
+
+    expect(result.contentType).toBe("font/woff2");
+    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
+      storageRef,
+      expect.any(File),
+      { contentType: "font/woff2" },
+    );
+  });
+
   it("translates upload failures into the persistence error model", async () => {
     const cause = new Error("storage unavailable");
     storageMocks.uploadBytes.mockRejectedValue(cause);
