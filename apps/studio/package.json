@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts"
+    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts",
+    "test:storage-rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/storage-rules-emulator.test.ts"
   },
   "dependencies": {
     "@web-slideshow/document-schema": "workspace:*",

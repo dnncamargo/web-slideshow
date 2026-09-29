@@ -72,6 +72,7 @@ export {
   FirebaseConfigurationError,
   FirebaseAuthenticationError,
   FirestoreOperationError,
+  FirebaseStorageOperationError,
   InvalidFolderNameError,
   InvalidCustomLibraryItemForPersistenceError,
   InvalidPersistedCustomLibraryItemError,
@@ -83,3 +84,7 @@ export {
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,
 } from "./persistence-errors";
+export {
+  uploadManagedAsset,
+  type ManagedAssetUploadResult,
+} from "./managed-asset-storage";
