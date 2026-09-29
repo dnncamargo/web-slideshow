@@ -19,6 +19,7 @@ type TestLiveState =
 const testDependencies = vi.hoisted(() => ({
   push: vi.fn(),
   signOut: vi.fn(async () => {}),
+  uploadManagedAsset: vi.fn(),
   liveState: { kind: "none" } as TestLiveState,
 }));
 
@@ -40,6 +41,10 @@ vi.mock("../src/features/control/live-current", () => ({
   },
   activateLivePresentation: vi.fn(async () => {}),
   endLivePresentation: vi.fn(async () => {}),
+}));
+
+vi.mock("@/features/persistence/managed-asset-storage", () => ({
+  uploadManagedAsset: testDependencies.uploadManagedAsset,
 }));
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -328,6 +333,20 @@ function setLibraryInputValue(input: HTMLInputElement | null, value: string): vo
   act(() => input.dispatchEvent(new Event("input", { bubbles: true })));
 }
 
+async function selectLibraryFontFile(container: HTMLDivElement, file: File): Promise<void> {
+  const input = container.querySelector<HTMLInputElement>("#custom-library-font-file");
+  if (!input) throw new Error("expected custom library font file input");
+
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [file],
+  });
+  await act(async () => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+  });
+}
+
 async function selectImportFile(container: HTMLDivElement, file: File) {
   const input = container.querySelector<HTMLInputElement>('input[type="file"]');
   if (!input) throw new Error("expected import input");
@@ -395,6 +414,7 @@ describe("presentation library workspace controls", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     testDependencies.liveState = { kind: "none" };
+    testDependencies.uploadManagedAsset.mockReset();
   });
 
   afterEach(async () => {
@@ -1202,6 +1222,146 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).toContain("2 faces");
     expect(container.textContent).toContain("Fontsource");
     expect(container.querySelectorAll("[id^='presentation-']")).toHaveLength(0);
+  });
+
+  it("uploads a new Custom Library font family through the real Library writer", async () => {
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    const downloadUrl = "https://cdn.example.test/uploaded-sans-regular.ttf";
+    const file = new File([new Uint8Array([1, 2, 3])], "uploaded-sans.ttf", { type: "font/ttf" });
+    testDependencies.uploadManagedAsset.mockResolvedValue({
+      assetId: "asset-uploaded-sans-regular",
+      storagePath: "users/test-user/assets/asset-uploaded-sans-regular",
+      downloadUrl,
+      contentType: "font/ttf",
+      sizeBytes: file.size,
+    });
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await act(async () => { findButton(container, "Fonts").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    await act(async () => { findButton(container, "+ Add font").click(); await Promise.resolve(); });
+
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => {
+      source.value = "upload";
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flushWorkspaceEffects();
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "Uploaded Sans");
+    await selectLibraryFontFile(container, file);
+
+    await act(async () => {
+      findButton(container, "Upload face").click();
+      await Promise.resolve();
+    });
+    await flushWorkspaceEffects();
+
+    const expectedFace: FontFaceResource = {
+      weight: 400,
+      style: "normal",
+      source: { type: "url", url: downloadUrl, format: "truetype" },
+    };
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "font/ttf" });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Uploaded Sans", faces: [expectedFace] });
+    expect(fonts.getCurrent()).toEqual([{ id: "font-1", font: { family: "Uploaded Sans", faces: [expectedFace] } }]);
+    expect(container.textContent).toContain("Uploaded Sans");
+    expect(container.textContent).toContain("1 face");
+
+    await act(async () => { findButton(container, "Close").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    const uploadedFontRow = container.querySelector<HTMLButtonElement>(
+      '[data-custom-library-font-row][aria-label="Uploaded Sans"]',
+    );
+    if (!uploadedFontRow) throw new Error("expected Uploaded Sans font row");
+    act(() => uploadedFontRow.click());
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("TRUETYPE");
+    expect(container.querySelector('[aria-label="Details"]')?.textContent).toContain("400");
+  });
+
+  it("uploads a new face to an existing Custom Library font family through the real Library writer", async () => {
+    const { repository } = repositoryFor([]);
+    const existingFace: FontFaceResource = {
+      weight: 400,
+      style: "normal",
+      source: { type: "url", url: "https://cdn.example.test/uploaded-sans-regular.woff2", format: "woff2" },
+    };
+    const newFace: FontFaceResource = {
+      weight: 700,
+      style: "italic",
+      source: { type: "url", url: "https://cdn.example.test/uploaded-sans-bold-italic.woff2", format: "woff2" },
+    };
+    const existing = { id: "uploaded-sans", font: { family: "Uploaded Sans", faces: [existingFace] } };
+    const fonts = customLibraryFontRepositoryFor([existing]);
+    const file = new File([new Uint8Array([4, 5, 6])], "uploaded-sans-bold-italic.woff2", { type: "font/woff2" });
+    testDependencies.uploadManagedAsset.mockResolvedValue({
+      assetId: "asset-uploaded-sans-bold-italic",
+      storagePath: "users/test-user/assets/asset-uploaded-sans-bold-italic",
+      downloadUrl: newFace.source.url,
+      contentType: "font/woff2",
+      sizeBytes: file.size,
+    });
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    await act(async () => { findButton(container, "Fonts").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    await act(async () => { findButton(container, "+ Add font").click(); await Promise.resolve(); });
+
+    const source = container.querySelector<HTMLSelectElement>("#custom-library-font-source");
+    if (!source) throw new Error("expected font source selector");
+    act(() => {
+      source.value = "upload";
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flushWorkspaceEffects();
+    setLibraryInputValue(container.querySelector("#custom-library-font-family"), "Uploaded Sans");
+    const weight = container.querySelector<HTMLSelectElement>("#custom-library-font-weight");
+    if (!weight) throw new Error("expected font weight selector");
+    act(() => {
+      weight.value = "700";
+      weight.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const style = container.querySelector<HTMLSelectElement>("#custom-library-font-style");
+    if (!style) throw new Error("expected font style selector");
+    act(() => {
+      style.value = "italic";
+      style.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await selectLibraryFontFile(container, file);
+
+    await act(async () => {
+      findButton(container, "Upload face").click();
+      await Promise.resolve();
+    });
+    await flushWorkspaceEffects();
+
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "font/woff2" });
+    expect(fonts.updateFont).toHaveBeenCalledWith("uploaded-sans", {
+      family: "Uploaded Sans",
+      faces: [existingFace, newFace],
+    });
+    expect(fonts.getCurrent()).toEqual([{
+      id: "uploaded-sans",
+      font: { family: "Uploaded Sans", faces: [existingFace, newFace] },
+    }]);
+    expect(container.textContent).toContain("Uploaded Sans");
+    expect(container.textContent).toContain("2 faces");
+
+    await act(async () => { findButton(container, "Close").click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+    const uploadedFontRow = container.querySelector<HTMLButtonElement>(
+      '[data-custom-library-font-row][aria-label="Uploaded Sans"]',
+    );
+    if (!uploadedFontRow) throw new Error("expected Uploaded Sans font row");
+    act(() => uploadedFontRow.click());
+    const details = container.querySelector('[aria-label="Details"]')?.textContent;
+    expect(details).toContain("400");
+    expect(details).toContain("700");
+    expect(details).toContain("Italic");
+    expect(details).toContain("WOFF2");
   });
 
   it("retries a failed Fonts load and does not load fonts from other destinations", async () => {
