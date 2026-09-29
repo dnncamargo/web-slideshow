@@ -8,7 +8,6 @@ const VARS = {
   NEXT_PUBLIC_FIREBASE_API_KEY: "",
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "",
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: "",
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "",
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "",
   NEXT_PUBLIC_FIREBASE_APP_ID: "",
 };
@@ -43,12 +42,11 @@ describe("firebase client config resolution", () => {
     );
   });
 
-  it("resolves config only when all variables are present", () => {
+  it("resolves config without Firebase Storage configuration", () => {
     setEnv({
       NEXT_PUBLIC_FIREBASE_API_KEY: "key",
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "domain",
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: "project",
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "bucket",
       NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "sender",
       NEXT_PUBLIC_FIREBASE_APP_ID: "app",
     });
@@ -59,7 +57,6 @@ describe("firebase client config resolution", () => {
       apiKey: "key",
       authDomain: "domain",
       projectId: "project",
-      storageBucket: "bucket",
       messagingSenderId: "sender",
       appId: "app",
     });
