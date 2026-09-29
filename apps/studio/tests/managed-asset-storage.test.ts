@@ -1,35 +1,33 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const storageMocks = vi.hoisted(() => ({
-  getDownloadURL: vi.fn(),
-  ref: vi.fn(),
-  uploadBytes: vi.fn(),
+const uploadMocks = vi.hoisted(() => ({
+  upload: vi.fn(),
 }));
 
 const authMocks = vi.hoisted(() => ({
   getFirebaseAuth: vi.fn(),
-  getFirebaseStorage: vi.fn(),
 }));
 
-vi.mock("firebase/storage", () => ({
-  getDownloadURL: storageMocks.getDownloadURL,
-  ref: storageMocks.ref,
-  uploadBytes: storageMocks.uploadBytes,
+vi.mock("@vercel/blob/client", () => ({
+  upload: uploadMocks.upload,
 }));
 
 vi.mock("../src/features/persistence/firebase-client", () => ({
   getFirebaseAuth: authMocks.getFirebaseAuth,
-  getFirebaseStorage: authMocks.getFirebaseStorage,
 }));
 
 import { uploadManagedAsset } from "../src/features/persistence/managed-asset-storage";
 import {
   FirebaseAuthenticationError,
-  FirebaseStorageOperationError,
+  ManagedAssetUploadError,
 } from "../src/features/persistence/persistence-errors";
 
-const storage = { name: "storage" };
-const storageRef = { fullPath: "users/user-1/assets/asset-1" };
+const assetId = "123e4567-e89b-12d3-a456-426614174000";
+const user = {
+  getIdToken: vi.fn(),
+  isAnonymous: false,
+  uid: "user-1",
+};
 
 function file(name = "font.ttf", type = "font/ttf", contents = "font-data") {
   return new File([contents], name, { type });
@@ -37,112 +35,139 @@ function file(name = "font.ttf", type = "font/ttf", contents = "font-data") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  authMocks.getFirebaseAuth.mockReturnValue({
-    currentUser: { uid: "user-1", isAnonymous: false },
+  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => assetId) });
+  user.getIdToken.mockResolvedValue("firebase-id-token");
+  authMocks.getFirebaseAuth.mockReturnValue({ currentUser: user });
+  uploadMocks.upload.mockResolvedValue({
+    url: "https://blob.vercel-storage.com/users/user-1/assets/asset",
   });
-  authMocks.getFirebaseStorage.mockReturnValue(storage);
-  storageMocks.ref.mockReturnValue(storageRef);
-  storageMocks.uploadBytes.mockResolvedValue({ metadata: {} });
-  storageMocks.getDownloadURL.mockResolvedValue(
-    "https://firebasestorage.googleapis.com/download/asset-1",
-  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("uploadManagedAsset", () => {
-  it("uploads under the current user's owner-scoped path with a generated asset ID", async () => {
+  it("uses the authenticated UID and generated UUID for a logical owner-scoped path", async () => {
     const result = await uploadManagedAsset(file("my font.ttf"));
 
     expect(result).toEqual({
-      assetId: expect.any(String),
-      storagePath: expect.stringMatching(/^users\/user-1\/assets\/[0-9a-f-]+$/),
-      downloadUrl: "https://firebasestorage.googleapis.com/download/asset-1",
+      assetId,
+      storagePath: `users/user-1/assets/${assetId}`,
+      downloadUrl:
+        "https://blob.vercel-storage.com/users/user-1/assets/asset",
       contentType: "font/ttf",
       sizeBytes: 9,
     });
     expect(result.storagePath).not.toContain("my font.ttf");
-    expect(storageMocks.ref).toHaveBeenCalledWith(
-      storage,
-      result.storagePath,
-    );
-    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
-      storageRef,
+    expect(user.getIdToken).toHaveBeenCalledOnce();
+    expect(uploadMocks.upload).toHaveBeenCalledWith(
+      `users/user-1/assets/${assetId}`,
       expect.any(File),
-      { contentType: "font/ttf" },
+      expect.objectContaining({
+        access: "public",
+        clientPayload: JSON.stringify({
+          idToken: "firebase-id-token",
+          contentType: "font/ttf",
+        }),
+        contentType: "font/ttf",
+        handleUploadUrl: "/api/managed-assets/upload",
+      }),
     );
-    expect(storageMocks.getDownloadURL).toHaveBeenCalledWith(storageRef);
   });
 
-  it("returns an empty content type without inventing one when the File has none", async () => {
+  it("uses the File MIME when no content type override is supplied", async () => {
+    await uploadManagedAsset(file("notes.txt", "text/plain"));
+
+    expect(uploadMocks.upload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(File),
+      expect.objectContaining({
+        clientPayload: JSON.stringify({
+          idToken: "firebase-id-token",
+          contentType: "text/plain",
+        }),
+        contentType: "text/plain",
+      }),
+    );
+  });
+
+  it("preserves an empty File MIME without inventing a content type", async () => {
     const result = await uploadManagedAsset(file("notes.txt", ""));
 
     expect(result.contentType).toBe("");
-    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
-      storageRef,
+    expect(uploadMocks.upload).toHaveBeenCalledWith(
+      expect.any(String),
       expect.any(File),
-      {},
+      expect.objectContaining({
+        clientPayload: JSON.stringify({
+          idToken: "firebase-id-token",
+          contentType: "",
+        }),
+        contentType: "",
+      }),
     );
   });
 
-  it("allows an explicit content type to override an empty File MIME", async () => {
-    const result = await uploadManagedAsset(file("font.woff2", ""), {
-      contentType: "font/woff2",
-    });
-
-    expect(result.contentType).toBe("font/woff2");
-    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
-      storageRef,
-      expect.any(File),
+  it("allows an explicit content type to override the File MIME", async () => {
+    const result = await uploadManagedAsset(
+      file("font.woff2", "application/octet-stream"),
       { contentType: "font/woff2" },
     );
-  });
-
-  it("allows an explicit content type to override a conflicting File MIME", async () => {
-    const result = await uploadManagedAsset(file("font.woff2", "application/octet-stream"), {
-      contentType: "font/woff2",
-    });
 
     expect(result.contentType).toBe("font/woff2");
-    expect(storageMocks.uploadBytes).toHaveBeenCalledWith(
-      storageRef,
+    expect(uploadMocks.upload).toHaveBeenCalledWith(
+      expect.any(String),
       expect.any(File),
-      { contentType: "font/woff2" },
+      expect.objectContaining({
+        clientPayload: JSON.stringify({
+          idToken: "firebase-id-token",
+          contentType: "font/woff2",
+        }),
+        contentType: "font/woff2",
+      }),
     );
   });
 
-  it("translates upload failures into the persistence error model", async () => {
+  it("translates Blob upload failures into the persistence error model", async () => {
     const cause = new Error("storage unavailable");
-    storageMocks.uploadBytes.mockRejectedValue(cause);
+    uploadMocks.upload.mockRejectedValue(cause);
 
-    const error = await uploadManagedAsset(file()).catch((value: unknown) => value);
+    const error = await uploadManagedAsset(file()).catch(
+      (value: unknown) => value,
+    );
 
-    expect(error).toBeInstanceOf(FirebaseStorageOperationError);
-    expect((error as FirebaseStorageOperationError).cause).toBe(cause);
+    expect(error).toBeInstanceOf(ManagedAssetUploadError);
+    expect((error as ManagedAssetUploadError).cause).toBe(cause);
   });
 
-  it("translates download URL failures into the persistence error model", async () => {
-    const cause = new Error("download URL unavailable");
-    storageMocks.getDownloadURL.mockRejectedValue(cause);
+  it("preserves authentication failures before calling Blob", async () => {
+    const cause = new Error("token unavailable");
+    user.getIdToken.mockRejectedValue(cause);
 
-    const error = await uploadManagedAsset(file()).catch((value: unknown) => value);
+    const error = await uploadManagedAsset(file()).catch(
+      (value: unknown) => value,
+    );
 
-    expect(error).toBeInstanceOf(FirebaseStorageOperationError);
-    expect((error as FirebaseStorageOperationError).cause).toBe(cause);
+    expect(error).toBeInstanceOf(FirebaseAuthenticationError);
+    expect((error as FirebaseAuthenticationError).cause).toBe(cause);
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
-  it("uses the existing non-anonymous authoring guard", async () => {
+  it("rejects unauthenticated and anonymous users before requesting a token", async () => {
     authMocks.getFirebaseAuth.mockReturnValue({ currentUser: null });
     await expect(uploadManagedAsset(file())).rejects.toBeInstanceOf(
       FirebaseAuthenticationError,
     );
-    expect(storageMocks.ref).not.toHaveBeenCalled();
-    expect(storageMocks.uploadBytes).not.toHaveBeenCalled();
+    expect(user.getIdToken).not.toHaveBeenCalled();
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
 
     authMocks.getFirebaseAuth.mockReturnValue({
-      currentUser: { uid: "anonymous", isAnonymous: true },
+      currentUser: { isAnonymous: true, uid: "anonymous" },
     });
     await expect(uploadManagedAsset(file())).rejects.toBeInstanceOf(
       FirebaseAuthenticationError,
     );
-    expect(storageMocks.uploadBytes).not.toHaveBeenCalled();
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 });

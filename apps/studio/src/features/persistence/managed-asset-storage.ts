@@ -1,10 +1,13 @@
 "use client";
 
-import { getDownloadURL, ref, uploadBytes, type UploadMetadata } from "firebase/storage";
+import { upload } from "@vercel/blob/client";
 
 import { requireAuthenticatedFirebaseUser } from "./authenticated-user";
-import { getFirebaseAuth, getFirebaseStorage } from "./firebase-client";
-import { FirebaseStorageOperationError } from "./persistence-errors";
+import { getFirebaseAuth } from "./firebase-client";
+import {
+  FirebaseAuthenticationError,
+  ManagedAssetUploadError,
+} from "./persistence-errors";
 
 export interface ManagedAssetUploadResult {
   assetId: string;
@@ -31,27 +34,36 @@ export async function uploadManagedAsset(
   );
   const assetId = createAssetId();
   const storagePath = `users/${user.uid}/assets/${assetId}`;
-  const storageRef = ref(getFirebaseStorage(), storagePath);
-  const metadata: UploadMetadata = {};
   const contentType = options.contentType ?? file.type;
 
-  if (contentType) {
-    metadata.contentType = contentType;
+  let idToken: string;
+
+  try {
+    idToken = await user.getIdToken();
+  } catch (error) {
+    throw new FirebaseAuthenticationError(
+      "Failed to acquire a Firebase authentication token.",
+      error,
+    );
   }
 
   try {
-    await uploadBytes(storageRef, file, metadata);
-    const downloadUrl = await getDownloadURL(storageRef);
+    const blob = await upload(storagePath, file, {
+      access: "public",
+      clientPayload: JSON.stringify({ idToken, contentType }),
+      contentType,
+      handleUploadUrl: "/api/managed-assets/upload",
+    });
 
     return {
       assetId,
       storagePath,
-      downloadUrl,
+      downloadUrl: blob.url,
       contentType,
       sizeBytes: file.size,
     };
   } catch (error) {
-    throw new FirebaseStorageOperationError(
+    throw new ManagedAssetUploadError(
       "Failed to upload managed asset.",
       error,
     );

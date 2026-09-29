@@ -35,10 +35,10 @@ export class FirestoreOperationError extends PersistenceError {
   }
 }
 
-export class FirebaseStorageOperationError extends PersistenceError {
+export class ManagedAssetUploadError extends PersistenceError {
   constructor(message: string, cause?: unknown) {
     super(message, cause);
-    this.name = "FirebaseStorageOperationError";
+    this.name = "ManagedAssetUploadError";
   }
 }
 
