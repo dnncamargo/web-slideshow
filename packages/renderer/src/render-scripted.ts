@@ -1,8 +1,10 @@
 import type {
+  FontResource,
   ScriptedElement,
 } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { renderFontResources } from "./render-font-resources";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 import { renderGradientBorder } from "./render-visual";
 import { renderLength } from "./render-length";
@@ -23,10 +25,10 @@ import {
 // document is fully isolated from the application origin.
 //
 // The srcdoc is a complete renderer-generated document. The CSP meta
-// below is a fixed defense-in-depth policy layered on top of the
-// sandbox. connect/frame/object sources are all 'none'; HTTPS is granted only
-// as a deliberate narrow image-load exception through img-src. General
-// networking remains denied.
+  // below is a fixed defense-in-depth policy layered on top of the
+  // sandbox. connect/frame/object sources are all 'none'; HTTPS is granted
+  // only as deliberate narrow image/font-load exceptions through img-src and
+  // font-src. General networking remains denied.
 //
 // Authored html/css/script are transported ONLY as data attribute
 // values (JSON.stringify escaped through escapeHtml). The renderer
@@ -63,7 +65,7 @@ const SCRIPTED_CSP =
   "style-src 'unsafe-inline';" +
   "img-src https: data: blob:;" +
   "media-src data: blob:;" +
-  "font-src data:;" +
+  "font-src https: data:;" +
   "connect-src 'none';" +
   "frame-src 'none';" +
   "object-src 'none';" +
@@ -312,7 +314,13 @@ function serializedPayloadValue(value: unknown): string {
 // is the unmodified renderer constant.
 function buildScriptedDocument(
   element: ScriptedElement,
+  fonts?: readonly FontResource[],
 ): string {
+  const fontResources = renderFontResources(fonts);
+  const fontResourceStyle = fontResources
+    ? `<style data-presentation-font-resources>${fontResources}</style>`
+    : "";
+
   return (
     "<!doctype html><html><head>" +
     "<meta charset=\"utf-8\">" +
@@ -323,6 +331,7 @@ function buildScriptedDocument(
     "<title>" +
     escapeHtml(element.title) +
     "</title>" +
+    fontResourceStyle +
     "</head><body>" +
     "<div id=\"scripted-runtime-root\"></div>" +
     "<template id=\"scripted-runtime-payload\"" +
@@ -350,6 +359,7 @@ function buildScriptedDocument(
 
 export function renderScripted(
   element: ScriptedElement,
+  fonts?: readonly FontResource[],
 ): string {
   if (element.hidden) {
     return "";
@@ -437,7 +447,7 @@ export function renderScripted(
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +
-    ` srcdoc="${escapeHtml(buildScriptedDocument(element))}"` +
+    ` srcdoc="${escapeHtml(buildScriptedDocument(element, fonts))}"` +
     ` style="${escapeHtml(iframeStyles.join(";"))}"` +
     `></iframe>`
   );

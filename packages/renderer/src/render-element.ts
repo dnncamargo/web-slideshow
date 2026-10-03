@@ -381,7 +381,7 @@ export function renderElement(
     case "blocks":
       return renderBlocks(element);
     case "scripted":
-      return renderScripted(element);
+      return renderScripted(element, context?.presentation.resources?.fonts);
 
     case "plot":
       return renderPlot(element);

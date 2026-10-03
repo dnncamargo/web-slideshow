@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import type {
+  FontResource,
+  Presentation,
   ScriptedElement,
 } from "@web-slideshow/document-schema";
 
 import { renderElement } from "../src/render-element";
+import { renderFontResources } from "../src/render-font-resources";
 import { renderScripted } from "../src/render-scripted";
+import {
+  createPresentation,
+  createSlide,
+} from "./fixtures/render-fixtures";
 
 function scripted(
   overrides: Partial<ScriptedElement> = {},
@@ -28,6 +35,32 @@ function scripted(
 
     hidden: false,
 
+    ...overrides,
+  };
+}
+
+function presentationWithFonts(fonts: FontResource[]): Presentation {
+  return createPresentation({
+    slides: [createSlide({ elements: [scripted()] })],
+    resources: { fonts },
+  });
+}
+
+function fontResource(
+  overrides: Partial<FontResource> = {},
+): FontResource {
+  return {
+    id: "demo-font",
+    family: "Demo Sans",
+    faces: [{
+      weight: 400,
+      style: "normal",
+      source: {
+        type: "url",
+        url: "https://cdn.example.com/demo-sans.woff2",
+        format: "woff2",
+      },
+    }],
     ...overrides,
   };
 }
@@ -563,7 +596,7 @@ describe("renderScripted srcdoc CSP", () => {
     expect(cspDirectives(csp).get("form-action")).toBe("'none'");
   });
 
-  it("allows HTTPS only for images and keeps other resource directives exact", () => {
+  it("allows HTTPS only for images and fonts and keeps other directives exact", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
     const directives = cspDirectives(csp);
 
@@ -573,7 +606,7 @@ describe("renderScripted srcdoc CSP", () => {
       ["style-src", "'unsafe-inline'"],
       ["img-src", "https: data: blob:"],
       ["media-src", "data: blob:"],
-      ["font-src", "data:"],
+      ["font-src", "https: data:"],
       ["connect-src", "'none'"],
       ["frame-src", "'none'"],
       ["object-src", "'none'"],
@@ -586,10 +619,119 @@ describe("renderScripted srcdoc CSP", () => {
       expect(value).not.toContain("*");
       expect(value).not.toContain("'self'");
 
-      if (name !== "img-src") {
+      if (name !== "img-src" && name !== "font-src") {
         expect(value).not.toContain("https:");
       }
     }
+  });
+});
+
+describe("renderScripted presentation font resources", () => {
+  it("omits the renderer-owned font style without Presentation font resources", () => {
+    const srcdoc = extractSrcdoc(renderScripted(scripted()));
+
+    expect(srcdoc).not.toContain("data-presentation-font-resources");
+  });
+
+  it("propagates Presentation font resources through renderElement", () => {
+    const fonts = [fontResource()];
+    const srcdoc = extractSrcdoc(
+      renderElement(scripted(), { presentation: presentationWithFonts(fonts) }),
+    );
+    const expectedCss = renderFontResources(fonts);
+
+    expect(srcdoc).toContain(
+      `<style data-presentation-font-resources>${expectedCss}</style>`,
+    );
+    expect(srcdoc.indexOf("data-presentation-font-resources")).toBeLessThan(
+      srcdoc.indexOf('data-scripted-runtime-bootstrap="true"'),
+    );
+  });
+
+  it("renders truetype faces with canonical family, URL, format, and descriptors", () => {
+    const fonts = [fontResource({
+      family: "Demo Serif",
+      faces: [{
+        weight: 700,
+        style: "italic",
+        unicodeRange: "U+0000-00FF",
+        source: {
+          type: "url",
+          url: "https://cdn.example.com/demo-serif.ttf",
+          format: "truetype",
+        },
+      }],
+    })];
+    const srcdoc = extractSrcdoc(
+      renderElement(scripted(), { presentation: presentationWithFonts(fonts) }),
+    );
+
+    expect(srcdoc).toContain('font-family:"Demo Serif"');
+    expect(srcdoc).toContain('url("https://cdn.example.com/demo-serif.ttf")');
+    expect(srcdoc).toContain('format("truetype")');
+    expect(srcdoc).toContain("font-weight:700");
+    expect(srcdoc).toContain("font-style:italic");
+    expect(srcdoc).toContain("unicode-range:U+0000-00FF");
+  });
+
+  it("preserves woff2 serializer parity, multiple faces, and deduplication", () => {
+    const face = {
+      weight: 400 as const,
+      style: "normal" as const,
+      source: {
+        type: "url" as const,
+        url: "https://cdn.example.com/demo-sans.woff2",
+        format: "woff2" as const,
+      },
+    };
+    const fonts = [fontResource({ faces: [
+      face,
+      { ...face },
+      { ...face, weight: 700 },
+    ] })];
+    const srcdoc = extractSrcdoc(
+      renderElement(scripted(), { presentation: presentationWithFonts(fonts) }),
+    );
+    const expectedCss = renderFontResources(fonts);
+
+    expect(srcdoc).toContain(expectedCss);
+    expect(expectedCss.split("@font-face").length - 1).toBe(2);
+    expect(srcdoc.split("@font-face").length - 1).toBe(2);
+  });
+
+  it("keeps hostile font metadata inside the single renderer-owned style", () => {
+    const fonts = [fontResource({
+      family: 'Unsafe"</style>',
+      faces: [{
+        source: {
+          type: "url",
+          url: 'https://cdn.example.com/font")}.woff2?<tag>',
+          format: "woff2",
+        },
+      }],
+    })];
+    const srcdoc = extractSrcdoc(
+      renderElement(scripted(), { presentation: presentationWithFonts(fonts) }),
+    );
+    const styleTags = srcdoc.match(/<style\b[^>]*>/g) ?? [];
+    const styleCloses = srcdoc.match(/<\/style>/g) ?? [];
+
+    expect(styleTags).toHaveLength(1);
+    expect(styleCloses).toHaveLength(1);
+    expect(srcdoc).not.toContain("</style><script");
+    expect(srcdoc).toContain("\\22 ");
+    expect(srcdoc).toContain("\\3c ");
+    expect(srcdoc).toContain("\\3e ");
+  });
+
+  it("does not mutate Presentation or Scripted data while rendering", () => {
+    const element = scripted();
+    const presentation = presentationWithFonts([fontResource()]);
+    const before = JSON.stringify({ element, presentation });
+
+    renderElement(element, { presentation });
+
+    expect(JSON.stringify({ element, presentation })).toBe(before);
   });
 });
 
