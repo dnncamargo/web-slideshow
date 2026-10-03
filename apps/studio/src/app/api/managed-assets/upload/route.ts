@@ -2,6 +2,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
+import { isManagedAssetContentType } from "../../../../features/persistence/managed-asset-content-types";
 import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
 
 const ASSET_PATH_PATTERN =
@@ -47,6 +48,7 @@ function parseClientPayload(
     typeof parsed.idToken !== "string" ||
     !parsed.idToken.trim() ||
     typeof parsed.contentType !== "string" ||
+    !isManagedAssetContentType(parsed.contentType) ||
     parsed.contentType.length > MAX_CONTENT_TYPE_LENGTH ||
     !/^[\x20-\x7e]*$/.test(parsed.contentType)
   ) {

@@ -17,6 +17,7 @@ vi.mock("../src/features/auth/firebase-admin-auth", () => ({
 }));
 
 import { POST } from "../src/app/api/managed-assets/upload/route";
+import { MANAGED_ASSET_CONTENT_TYPES } from "../src/features/persistence/managed-asset-content-types";
 import { FirebaseAuthenticationError } from "../src/features/persistence/persistence-errors";
 
 type BeforeGenerateToken = (
@@ -85,6 +86,19 @@ beforeEach(() => {
 });
 
 describe("managed asset upload route", () => {
+  it.each(MANAGED_ASSET_CONTENT_TYPES)("accepts supported managed-asset MIME %s", async (contentType) => {
+    const response = await POST(
+      request(
+        payload(
+          "users/owner/assets/123e4567-e89b-12d3-a456-426614174000",
+          clientPayload("firebase-id-token", contentType),
+        ),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("authorizes a non-anonymous Firebase user and constrains the Blob token MIME", async () => {
     const response = await POST(
       request(
@@ -149,6 +163,23 @@ describe("managed asset upload route", () => {
     expect(response.status).toBe(401);
     expect(authMocks.verifyFirebaseIdToken).not.toHaveBeenCalled();
   });
+
+  it.each(["video/mp4", "", "application/x-custom"])(
+    "rejects unsupported managed-asset MIME %s",
+    async (contentType) => {
+      const response = await POST(
+        request(
+          payload(
+            "users/owner/assets/123e4567-e89b-12d3-a456-426614174000",
+            clientPayload("firebase-id-token", contentType),
+          ),
+        ),
+      );
+
+      expect(response.status).toBe(401);
+      expect(authMocks.verifyFirebaseIdToken).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects malformed and anonymous Firebase tokens", async () => {
     authMocks.verifyFirebaseIdToken.mockRejectedValueOnce(

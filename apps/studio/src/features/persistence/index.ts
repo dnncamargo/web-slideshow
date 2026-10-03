@@ -17,6 +17,8 @@ export { FirestoreCustomLibraryPaletteRepository } from "./firestore-custom-libr
 export { getDefaultCustomLibraryPaletteRepository } from "./custom-library-palette-repository-instance";
 export { FirestoreCustomLibraryFontRepository } from "./firestore-custom-library-font-repository";
 export { getDefaultCustomLibraryFontRepository } from "./custom-library-font-repository-instance";
+export { FirestoreCustomLibraryFileRepository } from "./firestore-custom-library-file-repository";
+export { getDefaultCustomLibraryFileRepository } from "./custom-library-file-repository-instance";
 export type {
   CustomLibraryItemRecord,
   CustomLibraryRepository,
@@ -30,6 +32,14 @@ export type {
   CustomLibraryFontRecord,
 } from "../custom-library/custom-library-font";
 export type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
+export type {
+  CustomLibraryFileDraft,
+  CustomLibraryFileRecord,
+  CustomLibraryFileSource,
+  CustomLibraryFileKind,
+  CustomLibraryFileRepresentation,
+} from "../custom-library/custom-library-file";
+export type { CustomLibraryFileRepository } from "../custom-library/custom-library-file-repository";
 export {
   MAX_FOLDER_NAME_LENGTH,
   isValidFolderName,
@@ -80,6 +90,8 @@ export {
   InvalidPersistedCustomLibraryPaletteError,
   InvalidCustomLibraryFontForPersistenceError,
   InvalidPersistedCustomLibraryFontError,
+  InvalidCustomLibraryFileForPersistenceError,
+  InvalidPersistedCustomLibraryFileError,
   InvalidPersistedPresentationError,
   InvalidPresentationForPersistenceError,
   PresentationRecoveryFailedError,
@@ -89,3 +101,8 @@ export {
   type ManagedAssetUploadResult,
   type ManagedAssetUploadOptions,
 } from "./managed-asset-storage";
+export {
+  MANAGED_ASSET_CONTENT_TYPES,
+  isManagedAssetContentType,
+  type ManagedAssetContentType,
+} from "./managed-asset-content-types";

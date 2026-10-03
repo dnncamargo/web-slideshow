@@ -61,6 +61,33 @@ afterAll(async () => {
 });
 
 describe("Firestore deletion authorization", () => {
+  it("allows only the non-anonymous owner to access Custom Library files", async () => {
+    const file = {
+      name: "Workshop audio",
+      kind: "audio",
+      representation: "binary",
+      source: {
+        assetId: "123e4567-e89b-12d3-a456-426614174000",
+        storagePath: "users/file-owner/assets/123e4567-e89b-12d3-a456-426614174000",
+        downloadUrl: "https://blob.vercel-storage.test/workshop.mp3",
+        contentType: "audio/mpeg",
+        sizeBytes: 42,
+      },
+    };
+    const owner = testEnv.authenticatedContext("file-owner").firestore();
+    const other = testEnv.authenticatedContext("file-other").firestore();
+    const anonymous = testEnv.authenticatedContext("file-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
+    const unauthenticated = testEnv.unauthenticatedContext().firestore();
+    const fileRef = doc(owner, "users", "file-owner", "customLibraryFiles", "file-1");
+
+    await assertSucceeds(setDoc(fileRef, file));
+    await assertSucceeds(getDocs(collection(owner, "users", "file-owner", "customLibraryFiles")));
+    await assertFails(getDocs(collection(other, "users", "file-owner", "customLibraryFiles")));
+    await assertFails(setDoc(doc(other, "users", "file-owner", "customLibraryFiles", "file-2"), file));
+    await assertFails(getDocs(collection(anonymous, "users", "file-owner", "customLibraryFiles")));
+    await assertFails(getDocs(collection(unauthenticated, "users", "file-owner", "customLibraryFiles")));
+  });
+
   it("binds pointer create and update to an immutable ownerUid", async () => {
     const owner = testEnv.authenticatedContext("pointer-owner").firestore();
     const other = testEnv.authenticatedContext("pointer-other").firestore();
