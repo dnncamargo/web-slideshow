@@ -112,6 +112,37 @@ Custom Library resource
 → Presentation owns the resulting canonical data
 ```
 
+## Managed assets and Presentation Resources
+
+Firebase remains responsible for Auth, Firestore and Realtime Database state. Managed binary files use Vercel Blob. Custom Library resources are private reusable masters/sources; applying one materializes the required canonical data into the Presentation, including public resource URLs needed by runtime when applicable.
+
+The ownership boundary is:
+
+```text
+private Custom Library resource
+→ materialize/copy into Presentation
+→ published/exported Presentation carries its canonical runtime data/resources
+```
+
+Player and published presentation runtime do not depend on private Custom Library records. A managed asset store supplies bytes where required; it does not create a private runtime dependency or a generic persisted `FileResource` model.
+
+Presentation Resources have two independent dimensions:
+
+| Semantic kind | Examples |
+|---|---|
+| Text | `.txt` |
+| Markdown | `.md` |
+| Structured Data | `.csv`, `.json`, `.xml` |
+| Image | `.png`, `.jpg`/`.jpeg`, `.webp`, `.gif`, `.svg` |
+| Audio | `.mp3`, `.wav`, `.ogg` |
+| Font | `.ttf`, `.woff`, `.woff2`, `.otf` |
+
+Representation is separate from semantic kind: `text` or `binary`. For example, Markdown is a Markdown document represented as text; JSON is Structured Data represented as text; SVG is an Image represented as text; PNG is an Image represented as binary; MP3 is Audio represented as binary; and TTF is Font represented as binary. Markdown expresses document structure and semantics; it does not inherently define visual appearance.
+
+The product should be driven primarily by semantic resource kind. File extension is import/validation evidence rather than canonical resource identity. MIME type and extension may participate in import detection, validation, upload constraints and media handling.
+
+This taxonomy is a product/architecture direction only. It does not introduce a new persisted schema, freeze implementation field names, or change `schemaVersion`, which remains literally `1`.
+
 Editor History is a current authoring capability. It provides session-only Undo/Redo over canonical Presentation snapshots; History is not persisted into the document or carried into a new Editor session.
 
 Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.
@@ -348,9 +379,24 @@ Presentation.resources.fonts
 → matching typography.fontFamily
 ```
 
-Custom Library fonts can be materialized into the Presentation. FontResource removal is blocked while the family is referenced by any current canonical typography-bearing location, including nested Topics/Table ContentSlots, Code, Terminal body/title, Text Styles and Linked Styles.
+The managed font path is current for Custom Library file uploads:
 
-Direct manual FontResource creation under **This Presentation** remains deferred because the existing Custom Library → Presentation workflow is complete. Library-thumbnail font-resource style injection parity remains a separate backlog item.
+```text
+Custom Library TTF / WOFF2 upload
+→ Vercel Blob managed asset storage
+→ materialize into Presentation.resources.fonts
+→ renderer-generated @font-face
+```
+
+FontResource removal is blocked while the family is referenced by any current canonical typography-bearing location, including nested Topics/Table ContentSlots, Code, Terminal body/title, Text Styles and Linked Styles.
+
+PRs #213–#215 established managed asset storage, Custom Library TTF/WOFF2 upload and the migration of managed binary storage from Firebase Storage to Vercel Blob. Firebase Storage is not the current managed binary provider.
+
+PR #216 exposes Presentation font resources inside Scripted. Scripted reuses `Presentation.resources.fonts` and the canonical `renderFontResources()` output, injecting renderer-owned font CSS into the Scripted `srcdoc`. The sandbox remains `allow-scripts` without `allow-same-origin`; `connect-src` remains `'none'`; `font-src` permits `https:` and `data:`. PR #216 did not expand `media-src` to HTTPS.
+
+Library thumbnails already render FontResources through `PresentationThumbnailPreview`, the shared renderer and Presentation context. The preview reuses `renderFontResources(preview.presentation.resources?.fonts)`, and the resulting `style[data-presentation-font-resources]` is covered by tests. This parity is implemented, not a pending backlog item.
+
+Direct manual FontResource creation under **This Presentation** remains deferred; the current workflow is Custom Library → Presentation materialization.
 
 ## Player options and Maintenance
 
@@ -463,6 +509,10 @@ Recent merged work includes:
 - manual font-family authoring and complete FontResource usage protection (PR #150);
 - Topics structural authoring refinement and Element Tree simplification (PR #152);
 - Embed viewport framing, provider compatibility and stable Control preview DOM (PR #154).
+- managed asset storage foundation (PR #213);
+- Custom Library TTF/WOFF2 font upload (PR #214);
+- managed binary storage migration from Firebase Storage to Vercel Blob (PR #215);
+- Presentation FontResources exposed inside the Scripted sandbox with the existing renderer-owned security boundary (PR #216).
 - Editor History / Undo-Redo over canonical Presentation snapshots, with semantic actions and a 30-action session bound.
 - parameterized Container Background Patterns with Pattern-owned colors, Size, Rotation and an expanded 14-preset catalog;
 - Pattern Color / Palette / Linked Container Style support, with preset identity remaining Studio-only and canonical documents remaining referential/parameterized;
@@ -570,4 +620,4 @@ Immediate execution order:
 
 The next implementation chat starts with the Text effects — shadow / glow audit, covering the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions.
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Library-thumbnail FontResource parity, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements. The explicit Text shadow/glow work is now in the immediate queue rather than this generic backlog.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements. The explicit Text shadow/glow work is now in the immediate queue rather than this generic backlog.

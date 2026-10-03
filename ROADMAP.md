@@ -477,7 +477,7 @@ Manual family names are system/browser family requests, not automatic downloads.
 
 Final PR #150 closure evidence included Studio typecheck PASS, full Studio suite **188 files / 2,245 tests / 0 failures**, remote Studio/Player checks PASS and manual acceptance PASS.
 
-Direct This Presentation FontResource authoring is deferred. Library-thumbnail FontResource style injection parity is a separate backlog item.
+Direct This Presentation FontResource authoring is deferred. Library-thumbnail FontResource style injection parity is recorded as complete in the later managed-assets/resource sequence below.
 
 ---
 
@@ -674,6 +674,38 @@ These completions do not change `schemaVersion`, the Presentation schema, persis
 
 ---
 
+# Managed assets and Presentation Resources ✅
+
+The completed managed-asset sequence is:
+
+- **Managed asset storage foundation** — PR #213.
+- **Custom Library font file upload** — PR #214, supporting TTF and WOFF2 files.
+- **Managed binary storage migration** — PR #215 moved managed binary storage from Firebase Storage to Vercel Blob. Firebase remains the Auth / Firestore / RTDB platform; Vercel Blob is the current managed binary asset store.
+- **Scripted FontResource parity** — PR #216 reuses `Presentation.resources.fonts` and the canonical `renderFontResources()` output, injecting renderer-owned font CSS into Scripted `srcdoc`. The sandbox remains `allow-scripts`, without `allow-same-origin`; `connect-src` remains `'none'`; `font-src` permits `https:` and `data:`; `media-src` was not expanded to HTTPS by this PR.
+
+Custom Library resources remain private reusable masters/sources. Applying one materializes/copies the required data into the Presentation, so the Presentation owns canonical runtime data/resources and published/exported presentations do not depend on private Custom Library state. Managed binary bytes live in managed asset storage where required, with public URL/resource metadata carried by the Presentation for runtime use. This does not define a generic `FileResource` schema.
+
+Library-thumbnail FontResource parity is implemented: `PresentationThumbnailPreview` renders with Presentation context and reuses `renderFontResources(preview.presentation.resources?.fonts)`. Tests verify the resulting `style[data-presentation-font-resources]` output. Direct This Presentation FontResource authoring remains deferred.
+
+## Presentation Resources direction
+
+The planned resource taxonomy separates semantic resource kind from physical/textual representation. The semantic direction is:
+
+- Text — `.txt`;
+- Markdown — `.md`;
+- Structured Data — `.csv`, `.json`, `.xml`;
+- Image — `.png`, `.jpg`/`.jpeg`, `.webp`, `.gif`, `.svg`;
+- Audio — `.mp3`, `.wav`, `.ogg`;
+- Font — `.ttf`, `.woff`, `.woff2`, `.otf`.
+
+Each kind may be represented as `text` or `binary`: Markdown, JSON and SVG are text examples, while PNG, MP3 and TTF are binary examples. Markdown is a document with structure/semantics and does not inherently define visual appearance.
+
+File extension is import/validation evidence, not canonical resource identity. Product behavior should be driven primarily by semantic resource kind; MIME type and extension may participate in import detection, validation, upload constraints and media handling. This is a product/architecture direction only: it does not add a persisted generic resource schema or change `schemaVersion`.
+
+The taxonomy is a future expansion direction. It does not mark Text, Markdown, Structured Data, Image or Audio resource-management capabilities complete; current completed managed-resource work is recorded above, including Fonts.
+
+---
+
 # Pattern and Container Color refinement ✅
 
 The current authoring and rendering model includes:
@@ -696,31 +728,37 @@ Do not infer rejected intermediate Pattern geometry or a generic Linked Style ta
 
 The recorded execution order is:
 
-## 1. Table Size ✅
+## Historical execution order
+
+### 1. Table Size ✅
 
 Completed using the existing canonical layout, renderer, Inspector, Canvas/resizing and Structured Table ContentSlot boundaries.
 
-## 2. Divider gradient ✅
+### 2. Divider gradient ✅
 
 Completed using the existing Divider visual/style schema, Gradient and ColorValue primitives, renderer behavior and Inspector conventions.
 
-## 3. Linked Styles target expansion ✅
+### 3. Linked Styles target expansion ✅
 
 Completed the target-specific expansion for Code, Terminal, Simple Table, Structured Table and Divider, while preserving Container and Topics. The completed implementation covers each target's canonical shareable properties, local-over-linked precedence, attach/switch/detach ownership, Resources authoring, usage discovery, propagation, History, Root Definition ownership/navigation and import/export references where relevant. The result is not a generic all-elements abstraction, and the target contracts are intentionally not identical.
 
-## 1. Inspector canonical order ✅
+## Completed continuation
 
-Normalize the canonical Inspector tail so Placement is penultimate and Interaction is final for linkable Text, Image, Container and Shape elements, while generic non-linkable Placement remains unchanged.
+### 1. Inspector canonical order ✅
 
-## 2. Scripted Control ports vertical layout ✅
+Completed the canonical Inspector tail normalization so Placement is penultimate and Interaction is final for linkable Text, Image, Container and Shape elements, while generic non-linkable Placement remains unchanged.
 
-Stack Scripted Control port controls vertically without changing the Scripted document contract or runtime protocol.
+### 2. Scripted Control ports vertical layout ✅
 
-## 3. Duplicate ID genealogy normalization ✅
+Completed the vertical stacking of Scripted Control port controls without changing the Scripted document contract or runtime protocol.
 
-Normalize new duplicate IDs from a stable pre-copy family root, including malformed historical trailing copy suffixes, without migration, canonical schema changes, or unrelated authoring behavior.
+### 3. Duplicate ID genealogy normalization ✅
 
-## 4. Text effects — shadow / glow ← NEXT
+Completed normalization of new duplicate IDs from a stable pre-copy family root, including malformed historical trailing copy suffixes, without migration, canonical schema changes, or unrelated authoring behavior.
+
+## Current next area
+
+### 1. Text effects — shadow / glow ← NEXT
 
 Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
 
@@ -744,7 +782,6 @@ Deferred candidates include:
 - **AI Converter** — convert external/source content into the existing canonical Presentation rather than introducing a second document model;
 - **Player hardening with local history/continuity** — stronger local recovery/history behavior without replacing immutable publication and Live ownership;
 - direct This Presentation FontResource authoring;
-- Library-thumbnail FontResource parity;
 - Topics → Text Style consumption;
 - Custom Library portability refinements;
 - remaining WYSIWYG/Text improvements (the explicit Text shadow/glow work is tracked in the immediate queue).
@@ -790,15 +827,17 @@ P12   UX / Properties refinement                            ✅
        Embed viewport + stable Control preview (#154)       ✅
        Editor History / Undo-Redo                            ✅
        Root Definitions / structural normalization            ✅
+       Managed asset storage foundation (#213)                ✅
+       Custom Library TTF/WOFF2 upload (#214)                ✅
+       Managed binary storage on Vercel Blob (#215)           ✅
+       Scripted FontResource parity (#216)                    ✅
+       Library-thumbnail FontResource rendering              ✅
 
 NEXT:
   1. Text effects — shadow / glow ← NEXT
 
 IMMEDIATE QUEUE:
-  1. Inspector canonical order ✅
-  2. Scripted Control ports vertical layout ✅
-  3. Duplicate ID genealogy normalization ✅
-  4. Text effects — shadow / glow ← NEXT
+  1. Text effects — shadow / glow ← NEXT
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -810,7 +849,6 @@ FUTURE / DEFERRED:
   AI Converter
   Player hardening with local history/continuity
   direct This Presentation FontResource authoring
-  Library-thumbnail FontResource parity
   Topics → Text Style consumption
   Custom Library portability
   remaining WYSIWYG/Text improvements
