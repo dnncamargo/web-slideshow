@@ -674,7 +674,7 @@ These completions do not change `schemaVersion`, the Presentation schema, persis
 
 ---
 
-# Managed assets and Presentation Resources ✅
+# Managed asset and FontResource foundation ✅
 
 The completed managed-asset sequence is:
 
@@ -698,7 +698,7 @@ The planned resource taxonomy separates semantic resource kind from physical/tex
 - Audio — `.mp3`, `.wav`, `.ogg`;
 - Font — `.ttf`, `.woff`, `.woff2`, `.otf`.
 
-Each kind may be represented as `text` or `binary`: Markdown, JSON and SVG are text examples, while PNG, MP3 and TTF are binary examples. Markdown is a document with structure/semantics and does not inherently define visual appearance.
+Representation is a separate, independent dimension classified as `text` or `binary`. Examples include Markdown → text, JSON → text, SVG → Image with a text representation, PNG → Image with a binary representation, MP3 → Audio with a binary representation and TTF → Font with a binary representation. Markdown is a document with structure/semantics and does not inherently define visual appearance.
 
 File extension is import/validation evidence, not canonical resource identity. Product behavior should be driven primarily by semantic resource kind; MIME type and extension may participate in import detection, validation, upload constraints and media handling. This is a product/architecture direction only: it does not add a persisted generic resource schema or change `schemaVersion`.
 
