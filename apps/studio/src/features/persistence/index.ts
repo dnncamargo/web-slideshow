@@ -72,7 +72,7 @@ export {
   FirebaseConfigurationError,
   FirebaseAuthenticationError,
   FirestoreOperationError,
-  FirebaseStorageOperationError,
+  ManagedAssetUploadError,
   InvalidFolderNameError,
   InvalidCustomLibraryItemForPersistenceError,
   InvalidPersistedCustomLibraryItemError,

@@ -9,10 +9,10 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts",
-    "test:storage-rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/storage-rules-emulator.test.ts"
+    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.0",
     "@web-slideshow/document-schema": "workspace:*",
     "@web-slideshow/firebase": "workspace:*",
     "@web-slideshow/instance-branding": "workspace:*",
@@ -20,6 +20,7 @@
     "@web-slideshow/theme": "workspace:*",
     "@web-slideshow/ui": "workspace:*",
     "firebase": "^12.17.1",
+    "firebase-admin": "^14.4.0",
     "next": "16.2.11",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
