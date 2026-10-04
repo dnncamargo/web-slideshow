@@ -147,6 +147,14 @@ describe("presentation persistence helpers", () => {
             ],
           },
         ],
+        files: [{
+          id: "file-notes",
+          name: "Notes",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "Keep this file local." },
+        }],
       },
       palette: { colors: [
         { id: "#ffffff", name: "#ffffff", value: "#ffffff" },
@@ -185,6 +193,7 @@ describe("presentation persistence helpers", () => {
       ],
     });
     const safe = makeFirestoreSafePresentation(source);
+    expect(parsePersistedPresentation({ presentationJson: JSON.stringify(safe) })).toEqual(source);
 
     expect(safe).toMatchObject({
       schemaVersion: 1,
@@ -192,6 +201,7 @@ describe("presentation persistence helpers", () => {
       title: "Complete",
     });
     expect(safe).toHaveProperty("resources");
+    expect(safe).toHaveProperty("resources.files", source.resources?.files);
     expect(safe).toHaveProperty("palette");
   });
 

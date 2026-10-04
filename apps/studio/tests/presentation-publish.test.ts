@@ -522,6 +522,39 @@ describe("transactional presentation publishing", () => {
     );
   });
 
+  it("preserves Presentation-owned generic files in the immutable publication snapshot", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      resources: {
+        files: [{
+          id: "file-notes",
+          name: "Notes",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "Published locally." },
+        }],
+      },
+    });
+    const draft = draftData({ presentation });
+    const transaction = setupTransaction(draft);
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-files" })
+      .mockReturnValueOnce({ id: "version-files" })
+      .mockReturnValueOnce({ id: "pointer-files" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentationJson: string;
+    };
+    expect(JSON.parse(versionPayload.presentationJson)).toEqual(presentation);
+    expect(JSON.parse(versionPayload.presentationJson)).toMatchObject({
+      resources: { files: presentation.resources?.files },
+    });
+  });
+
   it("publishes canonical Shape state without generated QR runtime data", async () => {
     const presentation = representativeShapePresentation();
     const draft = draftData({ presentation });

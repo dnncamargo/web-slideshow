@@ -4,6 +4,7 @@ import {
   FontFaceResourceSchema,
   FontResourceSchema,
   getFontResourceFaces,
+  PresentationFileResourceSchema,
   PresentationResourcesSchema,
 } from "../src";
 
@@ -206,4 +207,83 @@ describe("FontResourceSchema", () => {
     expect(PresentationResourcesSchema.parse({})).toEqual({});
     expect(PresentationResourcesSchema.parse({ fonts: [] })).toEqual({ fonts: [] });
   });
+});
+
+describe("PresentationFileResourceSchema", () => {
+  const binary = (kind: string, contentType: string) => ({
+    id: "file-resource",
+    name: "Workshop file",
+    kind,
+    representation: "binary",
+    contentType,
+    source: {
+      type: "url",
+      url: "https://cdn.example.com/workshop-file",
+    },
+  });
+
+  const text = (kind: string, contentType: string, content = "content") => ({
+    id: "file-resource",
+    name: "Workshop file",
+    kind,
+    representation: "text",
+    contentType,
+    source: {
+      type: "text",
+      content,
+    },
+  });
+
+  it.each([
+    ["binary raster", binary("image", "image/png")],
+    ["binary audio", binary("audio", "audio/mpeg")],
+    ["binary font", binary("font", "font/woff2")],
+    ["SVG text", text("image", "image/svg+xml", "<svg />")],
+    ["plain text", text("text", "text/plain")],
+    ["markdown", text("markdown", "text/markdown", "# Notes")],
+    ["CSV", text("structured-data", "text/csv", "a,b")],
+    ["JSON", text("structured-data", "application/json", "{}")],
+    ["XML", text("structured-data", "application/xml", "<root />")],
+  ])("accepts %s", (_name, resource) => {
+    expect(PresentationFileResourceSchema.safeParse(resource).success).toBe(true);
+  });
+
+  it("accepts empty text content", () => {
+    expect(
+      PresentationFileResourceSchema.safeParse(text("text", "text/plain", "")).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    { ...binary("audio", "audio/mpeg"), representation: "text", source: { type: "text", content: "" } },
+    { ...binary("image", "image/png"), representation: "text", source: { type: "text", content: "" } },
+    { ...text("markdown", "text/markdown"), representation: "binary", source: { type: "url", url: "https://cdn.example.com/file" } },
+    { ...text("image", "image/svg+xml"), contentType: "image/png" },
+    { ...text("text", "text/plain"), source: { type: "url", url: "https://cdn.example.com/file" } },
+    { ...binary("image", "image/png"), source: { type: "text", content: "" } },
+  ])("rejects incompatible kind, representation, MIME, or source type", (resource) => {
+    expect(PresentationFileResourceSchema.safeParse(resource).success).toBe(false);
+  });
+
+  it("rejects a non-HTTP(S) binary URL and extra fields", () => {
+    expect(
+      PresentationFileResourceSchema.safeParse({
+        ...binary("image", "image/png"),
+        source: { type: "url", url: "data:image/png;base64,AA==" },
+      }).success,
+    ).toBe(false);
+    expect(
+      PresentationFileResourceSchema.safeParse({
+        ...text("text", "text/plain"),
+        extra: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      PresentationFileResourceSchema.safeParse({
+        ...text("text", "text/plain"),
+        source: { type: "text", content: "content", extra: true },
+      }).success,
+    ).toBe(false);
+  });
+
 });

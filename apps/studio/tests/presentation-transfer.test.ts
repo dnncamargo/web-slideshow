@@ -26,6 +26,14 @@ function presentation(): Presentation {
         family: "Inter",
         source: { type: "url", url: "https://example.test/font.woff2", format: "woff2" },
       }],
+      files: [{
+        id: "file-notes",
+        name: "Notes",
+        kind: "text",
+        representation: "text",
+        contentType: "text/plain",
+        source: { type: "text", content: "Keep this file local." },
+      }],
     },
     palette: { colors: [{ id: "#123456", name: "#123456", value: "#123456" }] },
     slides: [{

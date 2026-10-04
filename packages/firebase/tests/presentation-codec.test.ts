@@ -14,6 +14,16 @@ function presentation() {
     schemaVersion: 1,
     id: "pres-1",
     title: "Topics",
+    resources: {
+      files: [{
+        id: "file-notes",
+        name: "Notes",
+        kind: "text",
+        representation: "text",
+        contentType: "text/plain",
+        source: { type: "text", content: "Codec content" },
+      }],
+    },
     palette: { colors: [{ id: "accent", name: "Accent", value: "#ff0000" }] },
     slides: [{
       id: "slide-1",
