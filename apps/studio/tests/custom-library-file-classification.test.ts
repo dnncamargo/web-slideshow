@@ -41,6 +41,10 @@ describe("classifyCustomLibraryFile", () => {
     expect(classifyCustomLibraryFile({ name: "photo.jpg", type: "text/plain" }).contentType).toBe("image/jpeg");
   });
 
+  it("classifies a filename with surrounding whitespace by its trimmed extension", () => {
+    expect(classifyCustomLibraryFile({ name: "  photo.png  ", type: "" }).contentType).toBe("image/png");
+  });
+
   it.each(["asset", "asset.exe", "asset.tar.gz"])("rejects unsupported extension %s", (name) => {
     expect(() => classifyCustomLibraryFile({ name, type: "" })).toThrow(UnsupportedCustomLibraryFileError);
   });

@@ -46,6 +46,7 @@ describe("library destination model", () => {
     expect(isCustomLibraryDestination("styles")).toBe(true);
     expect(isCustomLibraryDestination("palettes")).toBe(true);
     expect(isCustomLibraryDestination("fonts")).toBe(true);
+    expect(isCustomLibraryDestination("files")).toBe(true);
     expect(isCustomLibraryDestination("all")).toBe(false);
   });
 

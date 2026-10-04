@@ -33,6 +33,8 @@ import { getDefaultPresentationFolderRepository } from "../persistence/presentat
 import { getDefaultCustomLibraryRepository } from "../persistence/custom-library-repository-instance";
 import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "../persistence/custom-library-font-repository-instance";
+import { getDefaultCustomLibraryFileRepository } from "../persistence/custom-library-file-repository-instance";
+import { uploadManagedAsset } from "../persistence/managed-asset-storage";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
 import {
@@ -52,6 +54,13 @@ import type { CustomLibraryPaletteDraft } from "../custom-library/custom-library
 import { CustomLibraryPaletteEditor } from "../custom-library/custom-library-palette-editor";
 import type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
+import type { CustomLibraryFileRepository } from "../custom-library/custom-library-file-repository";
+import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
+import {
+  classifyCustomLibraryFile,
+  CUSTOM_LIBRARY_FILE_ACCEPT,
+  UnsupportedCustomLibraryFileError,
+} from "../custom-library/custom-library-file-classification";
 import { CustomLibraryFontAcquisition } from "../custom-library/custom-library-font-acquisition";
 import { areFontFacesEquivalent, normalizeFontFamily } from "../fonts/font-face-helpers";
 import type { FontFamilyFaces } from "../fonts/font-acquisition-types";
@@ -87,6 +96,9 @@ import { CustomLibraryPaletteDeleteDialog } from "../custom-library/custom-libra
 import { CustomLibraryFontBrowser } from "../custom-library/custom-library-font-browser";
 import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-details";
 import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
+import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
+import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
+import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
 import {
   buildPresentationExportFilename,
@@ -102,6 +114,7 @@ interface PresentationLibraryProps {
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
+  customLibraryFileRepository?: CustomLibraryFileRepository;
 }
 
 type LibraryStatus = "loading" | "ready" | "error";
@@ -114,7 +127,7 @@ type LibraryPaletteAuthoringState =
   | null;
 
 const SELECTION_INTERACTIVE_SELECTOR =
-  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row], [data-custom-library-font-row]";
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row], [data-custom-library-font-row], [data-custom-library-file-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
@@ -136,6 +149,8 @@ function destinationTitle(
       return t("library.palettes");
     case "fonts":
       return t("library.fonts");
+    case "files":
+      return t("library.files");
   }
 }
 
@@ -160,6 +175,7 @@ export function PresentationLibrary({
   customLibraryRepository = getDefaultCustomLibraryRepository(),
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
+  customLibraryFileRepository = getDefaultCustomLibraryFileRepository(),
 }: PresentationLibraryProps) {
   const { t } = useStudioI18n();
   const router = useRouter();
@@ -178,6 +194,16 @@ export function PresentationLibrary({
   const [customLibraryFontAuthoring, setCustomLibraryFontAuthoring] = useState(false);
   const [customLibraryFontError, setCustomLibraryFontError] = useState<string | null>(null);
   const [customLibraryFontWriteState, setCustomLibraryFontWriteState] = useState<"saving" | null>(null);
+  const [customLibraryFileStatus, setCustomLibraryFileStatus] = useState<"idle" | LibraryStatus>("idle");
+  const [customLibraryFiles, setCustomLibraryFiles] = useState<CustomLibraryFileRecord[]>([]);
+  const [selectedCustomLibraryFileId, setSelectedCustomLibraryFileId] = useState<string | null>(null);
+  const [customLibraryFileUploadState, setCustomLibraryFileUploadState] = useState<"uploading" | null>(null);
+  const [customLibraryFileError, setCustomLibraryFileError] = useState<string | null>(null);
+  const [customLibraryFileRenamePending, setCustomLibraryFileRenamePending] = useState(false);
+  const [customLibraryFileRenameError, setCustomLibraryFileRenameError] = useState<string | null>(null);
+  const [customLibraryFileDeleteTargetId, setCustomLibraryFileDeleteTargetId] = useState<string | null>(null);
+  const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
+  const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -226,14 +252,18 @@ export function PresentationLibrary({
   const customLibraryLoadRef = useRef(0);
   const customLibraryPaletteLoadRef = useRef(0);
   const customLibraryFontLoadRef = useRef(0);
+  const customLibraryFileLoadRef = useRef(0);
   const customLibraryFontsRef = useRef<CustomLibraryFontRecord[]>([]);
   const customLibraryFontWriteQueueRef = useRef(Promise.resolve());
   const customLibraryFontPendingWritesRef = useRef(0);
   const customLibraryDeleteRef = useRef(false);
   const customLibraryPaletteDeleteRef = useRef(false);
   const customLibraryFontDeleteRef = useRef(false);
+  const customLibraryFileDeleteRef = useRef(false);
+  const customLibraryFileRenameRef = useRef(false);
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const customLibraryFileInputRef = useRef<HTMLInputElement>(null);
   const folderRenameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -363,6 +393,30 @@ export function PresentationLibrary({
     queueMicrotask(() => void loadCustomLibraryFonts());
   }, [destination, loadCustomLibraryFonts]);
 
+  const loadCustomLibraryFiles = useCallback(async () => {
+    const request = customLibraryFileLoadRef.current + 1;
+    customLibraryFileLoadRef.current = request;
+    setCustomLibraryFileStatus("loading");
+    setCustomLibraryFileError(null);
+
+    try {
+      const files = await customLibraryFileRepository.listFiles();
+      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return;
+      setCustomLibraryFiles(files);
+      setCustomLibraryFileStatus("ready");
+    } catch (error) {
+      console.error("Library: could not load Custom Library files", error);
+      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return;
+      setCustomLibraryFileStatus("error");
+      setCustomLibraryFileError(t("customLibrary.fileBrowser.loadFailed"));
+    }
+  }, [customLibraryFileRepository, t]);
+
+  useEffect(() => {
+    if (destination !== "files") return;
+    void loadCustomLibraryFiles();
+  }, [destination, loadCustomLibraryFiles]);
+
   useEffect(() => {
     const unsubscribe = subscribeLiveCurrent(setLiveState);
     return () => unsubscribe?.();
@@ -392,6 +446,9 @@ export function PresentationLibrary({
     setCustomLibraryPaletteDeleteTargetId(null);
     setSelectedCustomLibraryFontId(null);
     setCustomLibraryFontDeleteTargetId(null);
+    setSelectedCustomLibraryFileId(null);
+    setCustomLibraryFileDeleteTargetId(null);
+    setCustomLibraryFileRenameError(null);
     if (next !== "palettes" && !paletteWriteRef.current) {
       setPaletteAuthoring(null);
       setCustomLibraryPaletteError(null);
@@ -414,6 +471,10 @@ export function PresentationLibrary({
     setSelectedCustomLibraryPaletteId((current) => (current === id ? null : id));
   }, []);
 
+  const handleToggleCustomLibraryFileSelection = useCallback((id: string) => {
+    setSelectedCustomLibraryFileId((current) => (current === id ? null : id));
+  }, []);
+
   const handleWorkspaceKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
       if (event.key === "Escape") {
@@ -421,6 +482,7 @@ export function PresentationLibrary({
         setSelectedCustomLibraryItemId(null);
         setSelectedCustomLibraryPaletteId(null);
         setSelectedCustomLibraryFontId(null);
+        setSelectedCustomLibraryFileId(null);
       }
     },
     [],
@@ -446,6 +508,7 @@ export function PresentationLibrary({
       setSelectedCustomLibraryItemId(null);
       setSelectedCustomLibraryPaletteId(null);
       setSelectedCustomLibraryFontId(null);
+      setSelectedCustomLibraryFileId(null);
     },
     [],
   );
@@ -492,6 +555,131 @@ export function PresentationLibrary({
     customLibraryPalettes.find((record) => record.id === selectedCustomLibraryPaletteId) ?? null;
   const selectedCustomLibraryFont =
     customLibraryFonts.find((record) => record.id === selectedCustomLibraryFontId) ?? null;
+  const selectedCustomLibraryFile =
+    customLibraryFiles.find((record) => record.id === selectedCustomLibraryFileId) ?? null;
+
+  const handleUploadCustomLibraryFile = useCallback(
+    async (event: ReactChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || customLibraryFileUploadState !== null) return;
+
+      setCustomLibraryFileUploadState("uploading");
+      setCustomLibraryFileError(null);
+
+      try {
+        const classification = classifyCustomLibraryFile(file);
+        const upload = await uploadManagedAsset(file, {
+          contentType: classification.contentType,
+        });
+        const draft = {
+          name: file.name.trim(),
+          kind: classification.kind,
+          representation: classification.representation,
+          source: {
+            assetId: upload.assetId,
+            storagePath: upload.storagePath,
+            downloadUrl: upload.downloadUrl,
+            contentType: classification.contentType,
+            sizeBytes: upload.sizeBytes,
+          },
+        } satisfies CustomLibraryFileRecord["file"];
+        const id = await customLibraryFileRepository.saveFile(draft);
+
+        if (!mountedRef.current) return;
+        setCustomLibraryFiles((files) => [...files, { id, file: draft }]);
+        setSelectedCustomLibraryFileId(id);
+      } catch (error) {
+        console.error("Library: could not upload Custom Library file", error);
+        if (mountedRef.current) {
+          setCustomLibraryFileError(
+            error instanceof UnsupportedCustomLibraryFileError
+              ? t("customLibrary.fileBrowser.unsupported")
+              : t("customLibrary.fileBrowser.uploadFailed"),
+          );
+        }
+      } finally {
+        event.target.value = "";
+        if (mountedRef.current) setCustomLibraryFileUploadState(null);
+      }
+    },
+    [customLibraryFileRepository, customLibraryFileUploadState, t],
+  );
+
+  const handleRenameCustomLibraryFile = useCallback(
+    (name: string) => {
+      if (!selectedCustomLibraryFile || customLibraryFileRenameRef.current) return;
+
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        setCustomLibraryFileRenameError(t("customLibrary.fileDetails.nameRequired"));
+        return;
+      }
+
+      customLibraryFileRenameRef.current = true;
+      setCustomLibraryFileRenamePending(true);
+      setCustomLibraryFileRenameError(null);
+
+      void (async () => {
+        try {
+          const nextFile = { ...selectedCustomLibraryFile.file, name: trimmedName };
+          await customLibraryFileRepository.updateFile(selectedCustomLibraryFile.id, nextFile);
+          if (!mountedRef.current) return;
+          setCustomLibraryFiles((files) =>
+            files.map((record) =>
+              record.id === selectedCustomLibraryFile.id
+                ? { ...record, file: nextFile }
+                : record,
+            ),
+          );
+        } catch (error) {
+          console.error("Library: could not rename Custom Library file", error);
+          if (mountedRef.current) {
+            setCustomLibraryFileRenameError(t("customLibrary.fileDetails.renameFailed"));
+          }
+        } finally {
+          customLibraryFileRenameRef.current = false;
+          if (mountedRef.current) setCustomLibraryFileRenamePending(false);
+        }
+      })();
+    },
+    [customLibraryFileRepository, selectedCustomLibraryFile, t],
+  );
+
+  const handleRequestCustomLibraryFileDelete = useCallback(() => {
+    if (!selectedCustomLibraryFile || customLibraryFileDeleteRef.current) return;
+    setCustomLibraryFileDeleteError(null);
+    setCustomLibraryFileDeleteTargetId(selectedCustomLibraryFile.id);
+  }, [selectedCustomLibraryFile]);
+
+  const handleConfirmCustomLibraryFileDelete = useCallback(async () => {
+    if (customLibraryFileDeleteRef.current || customLibraryFileDeleteTargetId === null) return;
+    const target = customLibraryFiles.find((record) => record.id === customLibraryFileDeleteTargetId);
+    if (!target) return;
+
+    customLibraryFileDeleteRef.current = true;
+    setDeletingCustomLibraryFileId(target.id);
+    setCustomLibraryFileDeleteError(null);
+
+    try {
+      await customLibraryFileRepository.deleteFile(target.id);
+      if (!mountedRef.current) return;
+      setCustomLibraryFiles((files) => files.filter((record) => record.id !== target.id));
+      setSelectedCustomLibraryFileId((current) => (current === target.id ? null : current));
+      setCustomLibraryFileDeleteTargetId(null);
+    } catch (error) {
+      console.error("Library: could not delete Custom Library file", error);
+      if (mountedRef.current) setCustomLibraryFileDeleteError(t("customLibrary.fileDelete.failed"));
+    } finally {
+      customLibraryFileDeleteRef.current = false;
+      if (mountedRef.current) setDeletingCustomLibraryFileId(null);
+    }
+  }, [customLibraryFileDeleteTargetId, customLibraryFileRepository, customLibraryFiles, t]);
+
+  const handleCancelCustomLibraryFileDelete = useCallback(() => {
+    if (customLibraryFileDeleteRef.current) return;
+    setCustomLibraryFileDeleteTargetId(null);
+    setCustomLibraryFileDeleteError(null);
+  }, []);
 
   const customLibraryFontFamilies = useMemo<FontFamilyFaces[]>(
     () => customLibraryFonts.map((record) => ({ family: record.font.family, faces: record.font.faces })),
@@ -1175,8 +1363,10 @@ export function PresentationLibrary({
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
+  const filesDestination = destination === "files";
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
+  const fileMutationPending = customLibraryFileUploadState !== null || customLibraryFileRenamePending || deletingCustomLibraryFileId !== null;
   const activeFolder = isFolderDestination(destination)
     ? folders.find((folder) => folder.id === destination.folderId) ?? null
     : null;
@@ -1235,6 +1425,14 @@ export function PresentationLibrary({
           hidden
           onChange={(event) => void handleImportFile(event)}
           aria-label={t("library.import")}
+        />
+        <input
+          ref={customLibraryFileInputRef}
+          type="file"
+          accept={CUSTOM_LIBRARY_FILE_ACCEPT}
+          hidden
+          onChange={(event) => void handleUploadCustomLibraryFile(event)}
+          aria-label={t("customLibrary.fileBrowser.upload")}
         />
         <StudioSidebar
           destination={destination}
@@ -1355,6 +1553,18 @@ export function PresentationLibrary({
                 {t("customLibrary.fontManagement.add")}
               </Button>
             ) : null}
+            {filesDestination && customLibraryFileStatus === "ready" ? (
+              <Button
+                className={styles.mobileHidden}
+                size="compact"
+                disabled={fileMutationPending}
+                onClick={() => customLibraryFileInputRef.current?.click()}
+              >
+                {customLibraryFileUploadState === "uploading"
+                  ? t("customLibrary.fileBrowser.uploading")
+                  : t("customLibrary.fileBrowser.upload")}
+              </Button>
+            ) : null}
           </div>
 
           <div className={styles.workspaceBody}>
@@ -1470,6 +1680,33 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
+              ) : filesDestination ? (
+                <>
+                  {customLibraryFileError && customLibraryFileStatus === "ready" ? (
+                    <p className={styles.errorText} role="alert">{customLibraryFileError}</p>
+                  ) : null}
+                  {customLibraryFileStatus === "loading" ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.loading")}</p>
+                  ) : null}
+                  {customLibraryFileStatus === "error" ? (
+                    <div className={styles.stateBlock}>
+                      <p>{customLibraryFileError ?? t("customLibrary.fileBrowser.loadFailed")}</p>
+                      <Button size="compact" onClick={() => void loadCustomLibraryFiles()}>
+                        {t("customLibrary.fileBrowser.retry")}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {customLibraryFileStatus === "ready" && customLibraryFiles.length === 0 ? (
+                    <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.empty")}</p>
+                  ) : null}
+                  {customLibraryFileStatus === "ready" && customLibraryFiles.length > 0 ? (
+                    <CustomLibraryFileBrowser
+                      records={customLibraryFiles}
+                      selectedId={selectedCustomLibraryFileId}
+                      onSelect={handleToggleCustomLibraryFileSelection}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
@@ -1532,6 +1769,15 @@ export function PresentationLibrary({
                   onDelete={handleRequestCustomLibraryFontDelete}
                 />
               )
+            ) : filesDestination ? (
+              <CustomLibraryFileDetails
+                record={selectedCustomLibraryFile}
+                pending={fileMutationPending}
+                renamePending={customLibraryFileRenamePending}
+                renameError={customLibraryFileRenameError}
+                onRename={handleRenameCustomLibraryFile}
+                onDelete={handleRequestCustomLibraryFileDelete}
+              />
             ) : (
               <PresentationDetails
                 summary={presentationDestination ? selected : null}
@@ -1595,6 +1841,22 @@ export function PresentationLibrary({
           error={customLibraryFontDeleteError}
           onCancel={handleCancelCustomLibraryFontDelete}
           onConfirm={() => void handleConfirmCustomLibraryFontDelete()}
+        />
+      ) : null}
+
+      {customLibraryFileDeleteTargetId !== null ? (
+        <DangerConfirmDialog
+          title={t("customLibrary.fileDelete.title")}
+          message={t("customLibrary.fileDelete.body", {
+            name: customLibraryFiles.find((record) => record.id === customLibraryFileDeleteTargetId)?.file.name ?? "",
+          })}
+          confirmLabel={t("customLibrary.fileDetails.delete")}
+          busyConfirmLabel={t("customLibrary.fileDelete.deleting")}
+          cancelLabel={t("customLibrary.fileDetails.cancel")}
+          busy={deletingCustomLibraryFileId !== null}
+          error={customLibraryFileDeleteError}
+          onCancel={handleCancelCustomLibraryFileDelete}
+          onConfirm={() => void handleConfirmCustomLibraryFileDelete()}
         />
       ) : null}
     </div>

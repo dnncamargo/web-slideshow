@@ -32,6 +32,8 @@ const CLASSIFICATION_BY_EXTENSION: Readonly<Record<string, ClassificationEntry>>
   ".xml": { kind: "structured-data", representation: "text", contentType: "application/xml" },
 };
 
+export const CUSTOM_LIBRARY_FILE_ACCEPT = Object.keys(CLASSIFICATION_BY_EXTENSION).join(",");
+
 export interface CustomLibraryFileClassification extends ClassificationEntry {
   extension: string;
 }
@@ -44,8 +46,9 @@ export class UnsupportedCustomLibraryFileError extends Error {
 }
 
 function getFilenameExtension(filename: string): string {
-  const lastDot = filename.lastIndexOf(".");
-  return lastDot >= 0 ? filename.slice(lastDot).toLowerCase() : "";
+  const trimmedFilename = filename.trim();
+  const trimmedLastDot = trimmedFilename.lastIndexOf(".");
+  return trimmedLastDot >= 0 ? trimmedFilename.slice(trimmedLastDot).toLowerCase() : "";
 }
 
 export function classifyCustomLibraryFile(file: Pick<File, "name" | "type">): CustomLibraryFileClassification {
