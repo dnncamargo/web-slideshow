@@ -61,6 +61,13 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
+import type { CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
+import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
+import {
+  addCustomLibraryFileToPresentation,
+  getCustomLibraryFileResourceId,
+  removeCustomLibraryFileFromPresentation,
+} from "@/features/custom-library/custom-library-file-apply";
 import {
   applyCustomLibraryItemToPresentation,
   type CustomLibraryElementOwner,
@@ -105,7 +112,7 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
-import { CustomResourcesWorkspace } from "./resources/custom-resources-workspace";
+import { CustomResourcesWorkspace, type CustomLibraryFileAddOutcome } from "./resources/custom-resources-workspace";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -177,7 +184,7 @@ import { findAncestorContainers, findElementLocation, visitElements, type Elemen
 import { getElementLabel, getParentTargets, resolveTreeDrop } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
-import { presentationUsesFontFamily } from "./font-resource-helpers";
+import { presentationUsesFileResource, presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, areTextStyleDefinitionsEqualForAuthoring, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, propagateTextStyleDefinitionChanges, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleLayoutProperties, TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { parseAuthoringLength } from "@web-slideshow/theme/element-style-defaults";
@@ -1084,6 +1091,7 @@ export function EditorWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository,
   customLibraryFontRepository,
+  customLibraryFileRepository,
   initialAuthoringTarget,
 }: {
   initialPresentation?: Presentation;
@@ -1093,6 +1101,7 @@ export function EditorWorkspace({
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
+  customLibraryFileRepository?: CustomLibraryFileRepository;
   initialAuthoringTarget?: AuthoringTarget;
 } = {}) {
   const { locale, t } = useStudioI18n();
@@ -1147,6 +1156,8 @@ export function EditorWorkspace({
     createHistoryState,
   );
   const presentation = history.present;
+  const presentationRef = useRef(presentation);
+  presentationRef.current = presentation;
   const authoringIntentRef = useRef<
     | { type: "continuous"; key: string; target: AuthoringTarget }
     | { type: "discrete"; meta: HistoryActionMeta; target: AuthoringTarget }
@@ -4558,6 +4569,59 @@ export function EditorWorkspace({
     return "removed";
   }
 
+  async function addCustomLibraryFile(record: CustomLibraryFileRecord): Promise<CustomLibraryFileAddOutcome> {
+    const file = record.file;
+    const fileResourceId = getCustomLibraryFileResourceId(record.id);
+    if (presentation.resources?.files?.some((resource) => resource.id === fileResourceId)) return "unchanged";
+    if (presentation.resources?.fonts?.some((resource) => resource.id === fileResourceId)) return "conflict";
+    let textContent: string | undefined;
+
+    if (file.representation === "text") {
+      try {
+        const response = await fetch(file.source.downloadUrl);
+        if (!response.ok) return "load-error";
+        textContent = await response.text();
+      } catch {
+        return "load-error";
+      }
+    }
+
+    const currentPresentation = presentationRef.current;
+    const preflight = addCustomLibraryFileToPresentation(currentPresentation, record, textContent);
+    if (preflight.kind !== "added") return preflight.kind;
+
+    commitPresentationGlobalAction(
+      {
+        kind: "file.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.import" },
+      },
+      (current) => {
+        const result = addCustomLibraryFileToPresentation(current, record, textContent);
+        return result.kind === "added" ? result.presentation : current;
+      },
+    );
+    return "added";
+  }
+
+  function removePresentationFile(fileResourceId: string): void {
+    if (!presentation.resources?.files?.some((file) => file.id === fileResourceId)) return;
+    if (presentationUsesFileResource(presentation, fileResourceId)) return;
+
+    commitPresentationGlobalAction(
+      {
+        kind: "file.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.remove" },
+      },
+      (current) => {
+        if (presentationUsesFileResource(current, fileResourceId)) return current;
+        const result = removeCustomLibraryFileFromPresentation(current, fileResourceId);
+        return result.kind === "removed" ? result.presentation : current;
+      },
+    );
+  }
+
   function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties }): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
@@ -7076,18 +7140,23 @@ export function EditorWorkspace({
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             customLibraryFontRepository={customLibraryFontRepository}
+            customLibraryFileRepository={customLibraryFileRepository}
             customLibraryRepository={customLibraryRepository}
             presentationColors={presentation.palette?.colors ?? []}
             presentationFonts={presentation.resources?.fonts ?? []}
+            presentationFiles={presentation.resources?.files ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
+            onAddLibraryFile={addCustomLibraryFile}
             onApplyElementStyle={applyCustomLibraryItem}
             allowElementStyleApply={elementStyleApplyAllowed}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
             onRemovePresentationFont={removePresentationFont}
+            onRemovePresentationFile={removePresentationFile}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
+            isPresentationFileInUse={(id) => presentationUsesFileResource(presentation, id)}
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}
             authoringHistory={authoringHistory}

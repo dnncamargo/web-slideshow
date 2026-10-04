@@ -65,6 +65,10 @@ export class InvalidCustomLibraryFontForPersistenceError extends PersistenceErro
 
 export class InvalidPersistedCustomLibraryFontError extends PersistenceError {}
 
+export class InvalidCustomLibraryFileForPersistenceError extends PersistenceError {}
+
+export class InvalidPersistedCustomLibraryFileError extends PersistenceError {}
+
 export class InvalidFolderNameError extends PersistenceError {
   constructor(message: string) {
     super(message);

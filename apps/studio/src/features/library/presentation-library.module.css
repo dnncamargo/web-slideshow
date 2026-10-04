@@ -721,6 +721,47 @@
   font-weight: 600;
 }
 
+.customLibraryFilePreview {
+  display: flex;
+  width: 96px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+}
+
+.customLibraryFilePreviewGlyph {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.customLibraryFileRenameInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-4);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-primary);
+  font: inherit;
+}
+
+.customLibraryFileRenameInput:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+.customLibraryFileRenameError {
+  margin: 14px 0 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 12px;
+}
+
 .customLibraryFontFaceList {
   display: flex;
   margin: 0;

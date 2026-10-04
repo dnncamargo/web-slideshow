@@ -43,7 +43,7 @@ describe("canonical element margin rendering", () => {
     ["blocks", { id: "blocks", type: "blocks", hidden: false, layout: { ...margin }, source: "move [10] steps" } satisfies BlocksElement],
     ["gallery", { id: "gallery", type: "gallery", hidden: false, layout: { ...margin }, items: [], fit: "contain" } satisfies GalleryElement],
     ["embed", { id: "embed", type: "embed", hidden: false, layout: { ...margin }, src: "https://example.com/", title: "Embedded content" } satisfies EmbedElement],
-    ["scripted", { id: "scripted", type: "scripted", hidden: false, layout: { ...margin }, title: "Scripted content", html: "", css: "", script: "", ports: [] } satisfies ScriptedElement],
+    ["scripted", { id: "scripted", type: "scripted", hidden: false, layout: { ...margin }, title: "Scripted content", html: "", css: "", script: "", ports: [], resourceIds: [] } satisfies ScriptedElement],
     ["plot", { id: "plot", type: "plot", hidden: false, layout: { ...margin }, source: "" } satisfies PlotElement],
   ] as const)("renders canonical margins for %s", (_name, element) => {
     expectCanonicalMargins(renderElement(element));

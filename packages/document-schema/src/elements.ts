@@ -712,6 +712,26 @@ const ScriptedPortsSchema = z.array(ScriptedPortSchema).superRefine(
   },
 );
 
+const ScriptedResourceIdsSchema = z.array(
+  z.string().refine(
+    (value) => value.trim().length > 0,
+    { message: "Scripted resource IDs must not be blank" },
+  ),
+).superRefine((resourceIds, context) => {
+  const seenIds = new Set<string>();
+
+  resourceIds.forEach((resourceId, index) => {
+    if (seenIds.has(resourceId)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [index],
+        message: "Scripted resource IDs must be unique",
+      });
+    }
+    seenIds.add(resourceId);
+  });
+});
+
 export const ScriptedElementSchema = z.object({
     id: ElementIdSchema,
     hidden: z.boolean().default(false),
@@ -732,6 +752,8 @@ export const ScriptedElementSchema = z.object({
     script: z.string().default(""),
 
     ports: ScriptedPortsSchema.default([]),
+
+    resourceIds: ScriptedResourceIdsSchema.default([]),
   }).strict();
 
 export type ScriptedElement =

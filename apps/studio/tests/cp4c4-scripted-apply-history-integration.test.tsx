@@ -37,6 +37,7 @@ const INITIAL_SCRIPTED: ScriptedElement = {
   css: ".a {\n  color: red;\n}\n",
   script: "const state = {\n  value: 'A'\n};\n",
   ports: INITIAL_PORTS,
+  resourceIds: [],
 };
 
 const APPLIED_PORTS: ScriptedElement["ports"] = [

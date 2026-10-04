@@ -111,6 +111,28 @@ describe("PresentationSchema", () => {
       ).toBe(true);
     });
 
+    it("accepts a generic file resource without changing schemaVersion", () => {
+      const parsed = PresentationSchema.parse({
+        ...defaultsInput,
+        resources: {
+          files: [{
+            id: "file-notes",
+            name: "Notes",
+            kind: "text",
+            representation: "text",
+            contentType: "text/plain",
+            source: { type: "text", content: "notes" },
+          }],
+        },
+      });
+
+      expect(parsed.schemaVersion).toBe(1);
+      expect(parsed.resources?.files?.[0]?.source).toEqual({
+        type: "text",
+        content: "notes",
+      });
+    });
+
     it.each(
       validStructureFixtures,
     )("accepts $name", ({ input }) => {

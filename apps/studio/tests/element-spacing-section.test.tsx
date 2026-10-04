@@ -31,7 +31,7 @@ const ELEMENT_BASES = {
   blocks: { id: "blocks-1", type: "blocks", hidden: false, source: "" },
   gallery: { id: "gallery-1", type: "gallery", hidden: false, items: [], fit: "contain" },
   embed: { id: "embed-1", type: "embed", hidden: false, src: "https://example.com/", title: "Embedded content" },
-  scripted: { id: "scripted-1", type: "scripted", hidden: false, title: "Scripted content", html: "", css: "", script: "", ports: [] },
+  scripted: { id: "scripted-1", type: "scripted", hidden: false, title: "Scripted content", html: "", css: "", script: "", ports: [], resourceIds: [] },
   plot: { id: "plot-1", type: "plot", hidden: false, source: "" },
 } satisfies Record<string, PresentationElement>;
 

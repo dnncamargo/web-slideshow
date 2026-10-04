@@ -8,7 +8,7 @@ import type {
 } from "@web-slideshow/document-schema";
 import { PresentationSchema } from "@web-slideshow/document-schema";
 
-import { presentationUsesFontFamily } from "../src/features/editor/font-resource-helpers";
+import { presentationUsesFileResource, presentationUsesFontFamily } from "../src/features/editor/font-resource-helpers";
 
 function text(id: string, fontFamily: string): PresentationElement {
   return {
@@ -292,5 +292,40 @@ describe("typography style font dependencies", () => {
     expect(presentationUsesFontFamily(presentation, "inter")).toBe(true);
     expect(presentationUsesFontFamily(presentation, "fira code")).toBe(true);
     expect(presentationUsesFontFamily(presentation, "Roboto")).toBe(false);
+  });
+});
+
+describe("Scripted Presentation File dependencies", () => {
+  it("detects selected files in nested authoring trees", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p",
+      title: "P",
+      resources: {
+        files: [{
+          id: "file-a",
+          name: "A",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "A" },
+        }],
+      },
+      rootDefinitions: [{
+        id: "master",
+        name: "Master",
+        root: { id: "root", type: "container", hidden: false, children: [{ id: "root-scripted", type: "scripted", hidden: false, resourceIds: ["file-a"] }] },
+        localChildTargetIds: ["root"],
+      }],
+      slides: [{
+        id: "s",
+        rootDefinitionId: "master",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "root", children: [{ id: "local-scripted", type: "scripted", hidden: false, resourceIds: ["file-a"] }] }],
+      }],
+    });
+
+    expect(presentationUsesFileResource(presentation, "file-a")).toBe(true);
+    expect(presentationUsesFileResource(presentation, "missing")).toBe(false);
   });
 });

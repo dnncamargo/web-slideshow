@@ -30,6 +30,7 @@ function scripted(
     ...overrides,
 
     ports: overrides.ports ?? [],
+    resourceIds: overrides.resourceIds ?? [],
   };
 }
 

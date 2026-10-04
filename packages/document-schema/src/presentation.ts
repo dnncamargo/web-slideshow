@@ -14,6 +14,7 @@ import { LinkedContainerStylesSchema } from "./linked-style";
 import { validatePresentationLinkedStyleReferences } from "./linked-style-validation";
 import { RootDefinitionSchema } from "./root-definition";
 import { validatePresentationRootDefinitionReferences } from "./root-definition-validation";
+import { validatePresentationFileReferences } from "./file-reference-validation";
 
 export {
   PresentationPaletteSchema,
@@ -59,6 +60,7 @@ export const PresentationSchema =
     validatePresentationTextStyleReferences(presentation, context);
     validatePresentationLinkedStyleReferences(presentation, context);
     validatePresentationRootDefinitionReferences(presentation, context);
+    validatePresentationFileReferences(presentation, context);
   });
 
 export type Presentation =
