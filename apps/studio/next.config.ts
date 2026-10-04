@@ -26,25 +26,6 @@ const nextConfig: NextConfig = {
   env: {
     WEB_SLIDESHOW_DISPLAY_NAME: readInstanceDisplayName(),
   },
-  headers: async () => [
-    {
-      source: "/downloads/print-companion",
-      headers: [
-        {
-          key: "Content-Type",
-          value: "application/vnd.android.package-archive",
-        },
-        {
-          key: "Content-Disposition",
-          value: 'attachment; filename="print-companion.apk"',
-        },
-        {
-          key: "X-Content-Type-Options",
-          value: "nosniff",
-        },
-      ],
-    },
-  ],
 };
 
 // ============================================================
