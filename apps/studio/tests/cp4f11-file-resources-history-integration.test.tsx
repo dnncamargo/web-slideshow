@@ -186,6 +186,35 @@ describe("Presentation File resource history integration", () => {
     expect(saved).toHaveLength(0);
   });
 
+  it("keeps a Presentation File removal disabled while Scripted references it", async () => {
+    const initial = PresentationSchema.parse({
+      ...presentation(),
+      resources: {
+        files: [{
+          id: "file-library-text-record",
+          name: "notes.txt",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "existing" },
+        }],
+      },
+      slides: [{
+        id: "slide",
+        title: "Slide",
+        elements: [{ id: "scripted", type: "scripted", hidden: false, resourceIds: ["file-library-text-record"] }],
+      }],
+    });
+    await mount(textFile, initial);
+    await openFileChooser();
+
+    const remove = host.querySelector<HTMLButtonElement>("[data-presentation-file-row] [data-resource-action='remove']");
+    expect(remove).not.toBeNull();
+    expect(remove?.disabled).toBe(true);
+    await act(async () => remove?.click());
+    expect(saved).toHaveLength(0);
+  });
+
   it("does not commit a text file after a failed download", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("offline", { status: 503 })));
     await mount(textFile);

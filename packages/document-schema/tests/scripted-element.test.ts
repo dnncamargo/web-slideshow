@@ -87,6 +87,25 @@ describe("Scripted element schema", () => {
     }
   });
 
+  it("defaults resourceIds to an empty array for existing Scripted elements", () => {
+    const result = ScriptedElementSchema.safeParse(scripted());
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data.resourceIds).toEqual([]);
+    }
+  });
+
+  it("preserves ordered resourceIds and rejects blanks or duplicates", () => {
+    const result = ScriptedElementSchema.safeParse(scripted({ resourceIds: ["file-b", "file-a"] }));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.resourceIds).toEqual(["file-b", "file-a"]);
+
+    expect(ScriptedElementSchema.safeParse(scripted({ resourceIds: ["file-a", "file-a"] })).success).toBe(false);
+    expect(ScriptedElementSchema.safeParse(scripted({ resourceIds: ["  "] })).success).toBe(false);
+  });
+
   it("accepts an explicit empty ports array", () => {
     const result = ScriptedElementSchema.safeParse(scripted({ ports: [] }));
 

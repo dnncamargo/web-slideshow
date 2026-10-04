@@ -36,7 +36,7 @@ function surface(type: GalleryElement["type"] | EmbedElement["type"] | ScriptedE
   if (type === "embed") return { type, id: "embed-1", hidden: false, src: "https://example.com/", title: "Embed", layout };
   if (type === "plot") return { type, id: "plot-1", hidden: false, source: "x", layout };
   if (type === "shape") return { type, id: "shape-1", hidden: false, geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } }, layout };
-  return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", ports: [], layout };
+  return { type, id: "scripted-1", hidden: false, title: "Scripted", html: "", css: "", script: "", ports: [], resourceIds: [], layout };
 }
 
 describe("canonical text canvas drag", () => {

@@ -56,6 +56,7 @@ function validScripted(id: string): PresentationElement {
     css: ".recovery {\n  gap:  4px;\n}\n",
     script: 'const recovery = "  exact  ";\nvoid recovery;\n',
     ports: [],
+    resourceIds: [],
     layout: { width: "66%", height: "48%" },
     style: { className: "recovery-scripted" },
   };

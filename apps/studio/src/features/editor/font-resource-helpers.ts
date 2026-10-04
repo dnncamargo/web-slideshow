@@ -13,6 +13,24 @@ import { normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import { someElement } from "./element-tree";
 import { forEachPresentationAuthoringTree } from "./presentation-authoring-trees";
 
+export function presentationUsesFileResource(
+  presentation: Presentation,
+  fileResourceId: string,
+): boolean {
+  let used = false;
+  forEachPresentationAuthoringTree(presentation, (elements) => {
+    if (used) return;
+    someElement(elements, (element) => {
+      if (element.type === "scripted" && element.resourceIds.includes(fileResourceId)) {
+        used = true;
+        return true;
+      }
+      return false;
+    });
+  });
+  return used;
+}
+
 export function createFontResourceId(
   family: string,
   existingIds: readonly string[],

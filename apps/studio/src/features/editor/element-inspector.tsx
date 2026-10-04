@@ -258,6 +258,7 @@ function ElementTypeInspector({
           key={element.id}
           element={element}
           onUpdate={onUpdate}
+          presentationFiles={presentation?.resources?.files ?? []}
         />
       );
 

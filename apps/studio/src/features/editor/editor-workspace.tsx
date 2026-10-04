@@ -184,7 +184,7 @@ import { findAncestorContainers, findElementLocation, visitElements, type Elemen
 import { getElementLabel, getParentTargets, resolveTreeDrop } from "./element-tree-helpers";
 import { createTextStyleFromText, detachTextStyle } from "./text-typography-authoring";
 
-import { presentationUsesFontFamily } from "./font-resource-helpers";
+import { presentationUsesFileResource, presentationUsesFontFamily } from "./font-resource-helpers";
 import { addCustomTextStyle, areTextStyleDefinitionsEqualForAuthoring, ensureStructuredTableTextStyles, ensureTopicsTextStyle, findTextStyleUsageLocations, isTextStyleUsed, listPresentationTextStyles, propagateTextStyleDefinitionChanges, removeUnusedCustomTextStyle, resetFundamentalTextStyleOverride, updateCustomTextStyle, upsertFundamentalTextStyleOverride, type TextStyleUsageLocation } from "./text-style-helpers";
 import type { TextStyleLayoutProperties, TextStyleRole, TextStyleVisualProperties, TextStyleTypographyProperties } from "@web-slideshow/document-schema";
 import { parseAuthoringLength } from "@web-slideshow/theme/element-style-defaults";
@@ -4606,6 +4606,7 @@ export function EditorWorkspace({
 
   function removePresentationFile(fileResourceId: string): void {
     if (!presentation.resources?.files?.some((file) => file.id === fileResourceId)) return;
+    if (presentationUsesFileResource(presentation, fileResourceId)) return;
 
     commitPresentationGlobalAction(
       {
@@ -4614,6 +4615,7 @@ export function EditorWorkspace({
         labelParams: { setting: "file.remove" },
       },
       (current) => {
+        if (presentationUsesFileResource(current, fileResourceId)) return current;
         const result = removeCustomLibraryFileFromPresentation(current, fileResourceId);
         return result.kind === "removed" ? result.presentation : current;
       },
@@ -7154,6 +7156,7 @@ export function EditorWorkspace({
             onRemovePresentationFont={removePresentationFont}
             onRemovePresentationFile={removePresentationFile}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
+            isPresentationFileInUse={(id) => presentationUsesFileResource(presentation, id)}
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}
             authoringHistory={authoringHistory}

@@ -1093,6 +1093,8 @@ export function createElement(
 
         ports: [],
 
+        resourceIds: [],
+
         layout: {
           width: "60%",
 

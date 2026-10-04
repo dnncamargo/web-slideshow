@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PresentationElement, ScriptedElement, Slide } from "@web-slideshow/document-schema";
+import type { PresentationElement, PresentationFileResource, ScriptedElement, Slide } from "@web-slideshow/document-schema";
 
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { ScriptedInspector } from "../src/features/editor/inspector/scripted-inspector";
@@ -51,6 +51,7 @@ function scripted(
     hidden: false,
     ...overrides,
     ports: overrides.ports ?? [],
+    resourceIds: overrides.resourceIds ?? [],
   };
 }
 
@@ -769,9 +770,10 @@ describe("ScriptedInspector port drafts", () => {
   let root: Root;
   let elementState: ScriptedElement;
   let updates: ScriptedElement[];
+  let presentationFiles: readonly PresentationFileResource[] = [];
 
   function renderInspector(): void {
-    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} onUpdate={(update) => {
+    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} presentationFiles={presentationFiles} onUpdate={(update) => {
       const next = update(elementState);
       if (next.type === "scripted") {
         elementState = next;
@@ -781,9 +783,10 @@ describe("ScriptedInspector port drafts", () => {
     }} /></StudioI18nProvider>);
   }
 
-  function mount(initial: ScriptedElement): void {
+  function mount(initial: ScriptedElement, files: readonly PresentationFileResource[] = []): void {
     elementState = initial;
     updates = [];
+    presentationFiles = files;
     renderInspector();
   }
 
@@ -849,6 +852,21 @@ describe("ScriptedInspector port drafts", () => {
     expect(updates).toHaveLength(1);
     expect(elementState.html).toBe("<p>source</p>");
     expect(elementState.ports).toEqual([{ id: "go", label: "Go", kind: "number", direction: "output" }]);
+  });
+
+  it("keeps resource selection local until Apply / Run and preserves selected order", async () => {
+    const files: PresentationFileResource[] = [
+      { id: "file-a", name: "A", kind: "text", representation: "text", contentType: "text/plain", source: { type: "text", content: "A" } },
+      { id: "file-b", name: "B", kind: "image", representation: "binary", contentType: "image/png", source: { type: "url", url: "https://cdn.example.com/b.png" } },
+    ];
+    await act(async () => mount(scripted(), files));
+    await act(async () => click('[data-presentation-scripted-resource-available-row] [data-presentation-scripted-resource-add]'));
+    await act(async () => click('[data-presentation-scripted-resource-available-row] [data-presentation-scripted-resource-add]'));
+    expect(updates).toHaveLength(0);
+    expect(container.querySelectorAll("[data-presentation-scripted-resource-row]")).toHaveLength(2);
+    await act(async () => click("#scripted-apply-run"));
+    expect(updates).toHaveLength(1);
+    expect(elementState.resourceIds).toEqual(["file-a", "file-b"]);
   });
 
   it("blocks invalid local ports without canonical writes", async () => {

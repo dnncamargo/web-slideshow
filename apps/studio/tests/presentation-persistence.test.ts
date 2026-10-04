@@ -481,6 +481,7 @@ describe("persistence round trip with Scripted", () => {
                   html,
                   css,
                   script,
+                  resourceIds: [],
                   layout: {
                     width: "73%",
                     height: "44%",
@@ -515,6 +516,7 @@ describe("persistence round trip with Scripted", () => {
         css,
         script,
         ports: [],
+        resourceIds: [],
         layout: {
           width: "73%",
           height: "44%",
@@ -548,6 +550,7 @@ describe("persistence round trip with Scripted", () => {
             css: ".source { color: teal; }\n",
             script: "console.log('source');\n",
             ports: [],
+            resourceIds: [],
           },
         ],
       },

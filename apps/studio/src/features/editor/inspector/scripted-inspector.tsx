@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type {
+  PresentationFileResource,
   ScriptedElement,
   ScriptedPort,
 } from "@web-slideshow/document-schema";
@@ -9,6 +10,7 @@ import { ScriptedElementSchema } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "../editor-workspace.module.css";
+import resourceStyles from "../resources/custom-resources-workspace.module.css";
 
 import { InspectorSection } from "./inspector-section";
 
@@ -49,7 +51,7 @@ function portsDraftIdentity(ports: ScriptedPort[]): string {
 
 type ScriptedAggregate = Pick<
   ScriptedElement,
-  "title" | "html" | "css" | "script" | "ports"
+  "title" | "html" | "css" | "script" | "ports" | "resourceIds"
 >;
 
 function scriptedAggregate(element: ScriptedElement): ScriptedAggregate {
@@ -59,6 +61,7 @@ function scriptedAggregate(element: ScriptedElement): ScriptedAggregate {
     css: element.css,
     script: element.script,
     ports: element.ports,
+    resourceIds: element.resourceIds,
   };
 }
 
@@ -70,7 +73,56 @@ function scriptedAggregatesEqual(
     && left.html === right.html
     && left.css === right.css
     && left.script === right.script
-    && portsDraftIdentity(left.ports) === portsDraftIdentity(right.ports);
+    && portsDraftIdentity(left.ports) === portsDraftIdentity(right.ports)
+    && JSON.stringify(left.resourceIds) === JSON.stringify(right.resourceIds);
+}
+
+function resourceUsageExample(resource: PresentationFileResource): string {
+  const address = `ScriptedRuntime.resources.get("${resource.id}")`;
+  if (resource.representation === "text" && resource.contentType === "application/json") {
+    return `const resource = ${address};\nconst data = JSON.parse(resource.content);`;
+  }
+  if (resource.representation === "text") {
+    return `const resource = ${address};\nconst content = resource.content;`;
+  }
+  if (resource.kind === "image") {
+    return `const resource = ${address};\ndocument.querySelector("img").src = resource.url;`;
+  }
+  if (resource.kind === "audio") {
+    return `const resource = ${address};\ndocument.querySelector("audio").src = resource.url;`;
+  }
+  return `const resource = ${address};\nconst url = resource.url;`;
+}
+
+function ScriptedResourceRow({
+  resource,
+  onRemove,
+}: {
+  resource: PresentationFileResource;
+  onRemove: () => void;
+}) {
+  const { t } = useStudioI18n();
+  const address = `ScriptedRuntime.resources.get("${resource.id}")`;
+
+  return (
+    <div className={resourceStyles.resourceItem} data-presentation-scripted-resource-row>
+      <div className={resourceStyles.resourceItemDetailsStack}>
+        <strong>{resource.name}</strong>
+        <span className={resourceStyles.masterPaletteCount}>{resource.kind} · {resource.contentType}</span>
+        <code>{address}</code>
+        <pre className={styles.fieldHint}>{resourceUsageExample(resource)}</pre>
+      </div>
+      <button
+        type="button"
+        className={resourceStyles.resourceIconAction}
+        data-presentation-scripted-resource-remove="true"
+        aria-label={t("scripted.removeResource", { name: resource.name })}
+        onClick={onRemove}
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
 function portDraftToCanonical(port: ScriptedPortDraft): unknown {
@@ -119,7 +171,10 @@ function nextPortId(ports: ScriptedPortDraft[]): string {
 export function ScriptedInspector({
   element,
   onUpdate,
-}: TypedInspectorProps<ScriptedElement>) {
+  presentationFiles = [],
+}: TypedInspectorProps<ScriptedElement> & {
+  presentationFiles?: readonly PresentationFileResource[];
+}) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
 
@@ -139,6 +194,8 @@ export function ScriptedInspector({
   );
   const [portsMessage, setPortsMessage] = useState<string | null>(null);
 
+  const [resourceIdsDraft, setResourceIdsDraft] = useState<string[]>(element.resourceIds);
+
   const [titleRequiredMessage, setTitleRequiredMessage] = useState<
     string | null
   >(null);
@@ -156,6 +213,7 @@ export function ScriptedInspector({
     css: string;
     script: string;
     ports: string;
+    resourceIds: string;
   }>({
     id: element.id,
     title: element.title,
@@ -163,6 +221,7 @@ export function ScriptedInspector({
     css: element.css,
     script: element.script,
     ports: portsDraftIdentity(element.ports),
+    resourceIds: JSON.stringify(element.resourceIds),
   });
 
   if (
@@ -172,6 +231,7 @@ export function ScriptedInspector({
     hydratedFor.css !== element.css ||
     hydratedFor.script !== element.script
     || hydratedFor.ports !== portsDraftIdentity(element.ports)
+    || hydratedFor.resourceIds !== JSON.stringify(element.resourceIds)
   ) {
     setHydratedFor({
       id: element.id,
@@ -180,6 +240,7 @@ export function ScriptedInspector({
       css: element.css,
       script: element.script,
       ports: portsDraftIdentity(element.ports),
+      resourceIds: JSON.stringify(element.resourceIds),
     });
 
     setTitleDraft(element.title);
@@ -187,6 +248,7 @@ export function ScriptedInspector({
     setCssDraft(element.css);
     setScriptDraft(element.script);
     setPortsDraft(portDrafts(element.ports));
+    setResourceIdsDraft(element.resourceIds);
     setSelectedPortIndex(element.ports.length > 0 ? 0 : null);
     setTitleRequiredMessage(null);
     setPortsMessage(null);
@@ -194,12 +256,14 @@ export function ScriptedInspector({
 
   // Dirty state is local UI state derived from the drafts. It is
   // never persisted to the canonical document.
+  const resourcesDirty = JSON.stringify(resourceIdsDraft) !== JSON.stringify(element.resourceIds);
   const dirty =
     titleDraft !== element.title ||
     htmlDraft !== element.html ||
     cssDraft !== element.css ||
     scriptDraft !== element.script ||
-    JSON.stringify(portsDraft) !== JSON.stringify(portDrafts(element.ports));
+    JSON.stringify(portsDraft) !== JSON.stringify(portDrafts(element.ports)) ||
+    resourcesDirty;
 
   const updateStyle: UpdateSurfaceStyle = (update) => {
     onUpdate((current) => {
@@ -237,6 +301,7 @@ export function ScriptedInspector({
       css: cssDraft,
       script: scriptDraft,
       ports: candidatePorts,
+      resourceIds: resourceIdsDraft,
     });
     if (!parsed.success) {
       setPortsMessage(t("scripted.invalidPort"));
@@ -249,6 +314,7 @@ export function ScriptedInspector({
       css: cssDraft,
       script: scriptDraft,
       ports: parsed.data.ports,
+      resourceIds: parsed.data.resourceIds,
     };
 
     if (!dirty || scriptedAggregatesEqual(candidate, scriptedAggregate(element))) {
@@ -286,6 +352,7 @@ export function ScriptedInspector({
         css: candidate.css,
         script: candidate.script,
         ports: currentParsed.data.ports,
+        resourceIds: currentParsed.data.resourceIds,
       };
     });
 
@@ -311,6 +378,7 @@ export function ScriptedInspector({
     setCssDraft(element.css);
     setScriptDraft(element.script);
     setPortsDraft(portDrafts(element.ports));
+    setResourceIdsDraft(element.resourceIds);
     setSelectedPortIndex(element.ports.length > 0 ? 0 : null);
     setTitleRequiredMessage(null);
     setPortsMessage(null);
@@ -327,6 +395,14 @@ export function ScriptedInspector({
     setPortsDraft((current) => [...current, { id: nextPortId(current), label: "Port", kind: "action" }]);
     setSelectedPortIndex(portsDraft.length);
     setPortsMessage(null);
+  }
+
+  function addResource(resourceId: string): void {
+    setResourceIdsDraft((current) => current.includes(resourceId) ? current : [...current, resourceId]);
+  }
+
+  function removeResource(resourceId: string): void {
+    setResourceIdsDraft((current) => current.filter((id) => id !== resourceId));
   }
 
   function removeSelectedPort(): void {
@@ -420,8 +496,12 @@ export function ScriptedInspector({
           />
         </label>
 
-        <div className={styles.inspectorDivider} />
-        <span>{t("scripted.ports")}</span>
+        <small className={styles.fieldHint}>
+          <span>{t("scripted.sandboxHelp")}</span>
+        </small>
+      </InspectorSection>
+
+      <InspectorSection title={t("scripted.ports")} defaultOpen>
         <small className={styles.fieldHint}><span>{t("scripted.portsHelp")}</span></small>
         <div className={styles.galleryItemSelector}>{portsDraft.map((port, index) => <div key={index} className={styles.galleryItemSelectorRow}><button type="button" className={`${styles.secondaryButton} ${styles.galleryItemSelectorButton} ${index === selectedPortIndex ? styles.galleryItemSelectorButtonSelected : ""}`} data-presentation-scripted-port-select="true" data-presentation-scripted-port-index={index} aria-pressed={index === selectedPortIndex} onClick={() => setSelectedPortIndex(index)}><span className={styles.galleryItemName}>{port.label || t("scripted.port")}</span></button></div>)}</div>
         <div className={styles.galleryItemActions}><button type="button" className="ps-ui-action" data-presentation-scripted-port-add="true" onClick={addPort}>+ {t("scripted.addPort")}</button>{selectedPort && <button type="button" className="ps-ui-action" data-presentation-scripted-port-remove="true" aria-label={t("inspector.remove")} onClick={removeSelectedPort}><span>{t("inspector.remove")}</span></button>}</div>
@@ -434,7 +514,38 @@ export function ScriptedInspector({
         </>}
         {portsMessage && <small className={styles.fieldHint}><span>{portsMessage}</span></small>}
 
-        <div className={styles.elementCrudActions}>
+      </InspectorSection>
+
+      <InspectorSection title={t("scripted.resources")} defaultOpen>
+        <small className={styles.fieldHint}><span>{t("scripted.resourcesHelp")}</span></small>
+        {presentationFiles.length === 0 ? (
+          <p className={styles.status}>{t("scripted.noResources")}</p>
+        ) : (
+          <>
+            <span className={resourceStyles.masterPaletteCount}>{t("scripted.resourceSelected")}</span>
+            <div className={resourceStyles.localFontList} data-presentation-scripted-resources>
+              {resourceIdsDraft.map((resourceId) => {
+                const resource = presentationFiles.find((file) => file.id === resourceId);
+                return resource ? <ScriptedResourceRow key={resource.id} resource={resource} onRemove={() => removeResource(resource.id)} /> : null;
+              })}
+            </div>
+            <span className={resourceStyles.masterPaletteCount}>{t("scripted.resourceAvailable")}</span>
+            <div className={resourceStyles.localFontList} data-presentation-scripted-resource-available>
+              {presentationFiles.filter((file) => !resourceIdsDraft.includes(file.id)).map((resource) => (
+                <div key={resource.id} className={resourceStyles.resourceItem} data-presentation-scripted-resource-available-row>
+                  <div className={resourceStyles.resourceItemDetailsStack}>
+                    <strong>{resource.name}</strong>
+                    <span className={resourceStyles.masterPaletteCount}>{resource.kind} · {resource.contentType}</span>
+                  </div>
+                  <button type="button" className={resourceStyles.resourceAction} data-presentation-scripted-resource-add="true" aria-label={t("scripted.addResource", { name: resource.name })} onClick={() => addResource(resource.id)}>+</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </InspectorSection>
+
+      <div className={styles.elementCrudActions}>
           <button
             id="scripted-apply-run"
             type="button"
@@ -460,16 +571,12 @@ export function ScriptedInspector({
           >
             <span>{t("scripted.reset")}</span>
           </button>
-        </div>
+      </div>
 
         <small className={styles.fieldHint}>
           <span>{t("scripted.applyHelp")}</span>
         </small>
 
-        <small className={styles.fieldHint}>
-          <span>{t("scripted.sandboxHelp")}</span>
-        </small>
-      </InspectorSection>
 
       <ElementSpacingSection
         layout={element.layout}

@@ -34,6 +34,8 @@ function scripted(
 
     ports: [],
 
+    resourceIds: [],
+
     hidden: false,
 
     ...overrides,
@@ -49,7 +51,7 @@ function presentationWithFonts(fonts: FontResource[]): Presentation {
 
 function presentationWithFiles(files: PresentationFileResource[]): Presentation {
   return createPresentation({
-    slides: [createSlide({ elements: [scripted()] })],
+    slides: [createSlide({ elements: [scripted({ resourceIds: files.map((file) => file.id) })] })],
     resources: { files },
   });
 }
@@ -741,8 +743,9 @@ describe("renderScripted Presentation file resources bootstrap", () => {
 
   it("serializes files through the safe payload in canonical order", () => {
     const presentation = presentationWithFiles(files);
-    const first = renderElement(scripted(), { presentation });
-    const second = renderElement(scripted(), { presentation });
+    const element = scripted({ resourceIds: files.map((file) => file.id) });
+    const first = renderElement(element, { presentation });
+    const second = renderElement(element, { presentation });
     const srcdoc = extractSrcdoc(first);
 
     expect(first).toBe(second);
@@ -754,6 +757,7 @@ describe("renderScripted Presentation file resources bootstrap", () => {
   it("installs resources before authored code and exposes only the exact API", () => {
     const element = scripted({
       script: "window.resourceApiAtStartup = Object.keys(ScriptedRuntime.resources).join(',');",
+      resourceIds: files.map((file) => file.id),
     });
     const { context, errors, runtimeWindow } = executeScriptedBootstrap(element, presentationWithFiles(files));
     const runtime = runtimeWindow.ScriptedRuntime;
@@ -801,6 +805,7 @@ describe("renderScripted Presentation file resources bootstrap", () => {
         "try { ScriptedRuntime.resources = {}; } catch (_error) {}",
         "try { ScriptedRuntime.resources.list = function () { return []; }; } catch (_error) {}",
       ].join("\n"),
+      resourceIds: files.map((file) => file.id),
     });
     const { errors, runtimeWindow } = executeScriptedBootstrap(element, presentation);
     const listed = runtimeWindow.ScriptedRuntime.resources.list();
@@ -810,6 +815,18 @@ describe("renderScripted Presentation file resources bootstrap", () => {
     expect(listed[0]?.name).toBe(files[0]?.name);
     expect(runtimeWindow.ScriptedRuntime.resources.get("file-image")).toBe(listed[0]);
     expect(JSON.stringify(presentation)).toBe(before);
+  });
+
+  it("serializes only the selected files in authored order and omits unresolved ids", () => {
+    const presentation = presentationWithFiles(files);
+    const element = scripted({ resourceIds: ["file-json", "file-image", "missing", "file-json"] });
+    const srcdoc = extractSrcdoc(renderElement(element, { presentation }));
+
+    expect(recoverPayload(srcdoc, "resources")).toEqual([
+      expected[6],
+      expected[0],
+      expected[6],
+    ]);
   });
 });
 

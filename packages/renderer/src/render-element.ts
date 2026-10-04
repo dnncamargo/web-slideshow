@@ -380,12 +380,17 @@ export function renderElement(
 
     case "blocks":
       return renderBlocks(element);
-    case "scripted":
+    case "scripted": {
+      const selectedFiles = element.resourceIds.flatMap((resourceId) => {
+        const file = context?.presentation.resources?.files?.find((candidate) => candidate.id === resourceId);
+        return file === undefined ? [] : [file];
+      });
       return renderScripted(
         element,
         context?.presentation.resources?.fonts,
-        context?.presentation.resources?.files,
+        selectedFiles,
       );
+    }
 
     case "plot":
       return renderPlot(element);
