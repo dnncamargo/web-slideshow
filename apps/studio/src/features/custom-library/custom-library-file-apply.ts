@@ -4,7 +4,7 @@ import {
   type Presentation,
 } from "@web-slideshow/document-schema";
 
-import type { CustomLibraryFileDraft } from "./custom-library-file";
+import type { CustomLibraryFileRecord } from "./custom-library-file";
 
 export type CustomLibraryFileApplyResult =
   | {
@@ -13,8 +13,14 @@ export type CustomLibraryFileApplyResult =
       fileResourceId: string;
     }
   | {
+      kind: "unchanged";
+      presentation: Presentation;
+      fileResourceId: string;
+    }
+  | {
       kind: "conflict";
       presentation: Presentation;
+      fileResourceId: string;
     };
 
 export type CustomLibraryFileRemoveResult =
@@ -27,24 +33,8 @@ export type CustomLibraryFileRemoveResult =
       presentation: Presentation;
     };
 
-function createFileResourceId(
-  name: string,
-  existingIds: readonly string[],
-): string {
-  const baseName = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "file";
-  const baseId = `file-${baseName}`;
-  const usedIds = new Set(existingIds);
-
-  if (!usedIds.has(baseId)) return baseId;
-
-  let suffix = 2;
-  while (usedIds.has(`${baseId}-${suffix}`)) suffix += 1;
-  return `${baseId}-${suffix}`;
+export function getCustomLibraryFileResourceId(libraryRecordId: string): string {
+  return `file-${libraryRecordId}`;
 }
 
 function withoutResources(presentation: Presentation): Presentation {
@@ -54,19 +44,23 @@ function withoutResources(presentation: Presentation): Presentation {
 
 export function addCustomLibraryFileToPresentation(
   presentation: Presentation,
-  libraryFile: CustomLibraryFileDraft,
+  libraryRecord: CustomLibraryFileRecord,
   textContent?: string,
 ): CustomLibraryFileApplyResult {
-  if (libraryFile.representation === "text" && textContent === undefined) {
-    return { kind: "conflict", presentation };
-  }
-
+  const libraryFile = libraryRecord.file;
+  const fileResourceId = getCustomLibraryFileResourceId(libraryRecord.id);
   const currentFiles = presentation.resources?.files ?? [];
   const currentFonts = presentation.resources?.fonts ?? [];
-  const fileResourceId = createFileResourceId(
-    libraryFile.name,
-    [...currentFonts.map((resource) => resource.id), ...currentFiles.map((resource) => resource.id)],
-  );
+
+  if (currentFiles.some((resource) => resource.id === fileResourceId)) {
+    return { kind: "unchanged", presentation, fileResourceId };
+  }
+  if (currentFonts.some((resource) => resource.id === fileResourceId)) {
+    return { kind: "conflict", presentation, fileResourceId };
+  }
+  if (libraryFile.representation === "text" && textContent === undefined) {
+    return { kind: "conflict", presentation, fileResourceId };
+  }
 
   const candidate = libraryFile.representation === "binary"
     ? {
@@ -97,10 +91,10 @@ export function addCustomLibraryFileToPresentation(
         };
       })();
 
-  if (candidate === null) return { kind: "conflict", presentation };
+  if (candidate === null) return { kind: "conflict", presentation, fileResourceId };
 
   const parsedResource = PresentationFileResourceSchema.safeParse(candidate);
-  if (!parsedResource.success) return { kind: "conflict", presentation };
+  if (!parsedResource.success) return { kind: "conflict", presentation, fileResourceId };
 
   const candidatePresentation = {
     ...presentation,
@@ -110,7 +104,7 @@ export function addCustomLibraryFileToPresentation(
     },
   };
   const parsedPresentation = PresentationSchema.safeParse(candidatePresentation);
-  if (!parsedPresentation.success) return { kind: "conflict", presentation };
+  if (!parsedPresentation.success) return { kind: "conflict", presentation, fileResourceId };
 
   return {
     kind: "added",

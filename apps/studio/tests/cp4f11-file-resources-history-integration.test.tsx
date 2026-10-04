@@ -129,6 +129,10 @@ describe("Presentation File resource history integration", () => {
     await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true })));
   }
 
+  async function redo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
+  }
+
   it("materializes binary files without fetching and creates one undoable history action", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -139,17 +143,47 @@ describe("Presentation File resource history integration", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     const added = await save();
     expect(added.resources?.files).toEqual([{
-      id: "file-diagram-png",
+      id: "file-library-binary-record",
       name: "diagram.png",
       kind: "image",
       representation: "binary",
       contentType: "image/png",
       source: { type: "url", url: binaryFile.file.source.downloadUrl },
     }]);
-    expect(JSON.stringify(added)).not.toContain(binaryFile.id);
+    expect(JSON.stringify(added)).not.toContain(binaryFile.file.source.assetId);
+    expect(JSON.stringify(added)).not.toContain(binaryFile.file.source.storagePath);
 
     await undo();
     expect((await save()).resources).toBeUndefined();
+    await redo();
+    expect((await save()).resources?.files?.[0]?.id).toBe("file-library-binary-record");
+  });
+
+  it("checks already-added text identity before fetching", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = PresentationSchema.parse({
+      ...presentation(),
+      resources: {
+        files: [{
+          id: "file-library-text-record",
+          name: "notes.txt",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "existing" },
+        }],
+      },
+    });
+    await mount(textFile, initial);
+    await openFileChooser();
+
+    const add = host.querySelector<HTMLButtonElement>("[aria-label='Add notes.txt']");
+    expect(add?.disabled).toBe(true);
+    await act(async () => add?.click());
+    await flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(saved).toHaveLength(0);
   });
 
   it("does not commit a text file after a failed download", async () => {
@@ -188,7 +222,7 @@ describe("Presentation File resource history integration", () => {
     const result = await save();
     expect(result.palette?.colors).toHaveLength(1);
     expect(result.resources?.files?.[0]).toEqual({
-      id: "file-notes-txt",
+      id: "file-library-text-record",
       name: "notes.txt",
       kind: "text",
       representation: "text",

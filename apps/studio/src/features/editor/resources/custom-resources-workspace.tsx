@@ -25,7 +25,8 @@ import type {
 import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
 import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
-import type { CustomLibraryFileDraft, CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
+import type { CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
+import { getCustomLibraryFileResourceId } from "@/features/custom-library/custom-library-file-apply";
 import { formatCustomLibraryFileSize } from "@/features/custom-library/custom-library-file";
 import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
@@ -62,7 +63,7 @@ interface CustomResourcesWorkspaceProps {
   presentationFiles?: readonly PresentationFileResource[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
-  onAddLibraryFile?: (file: CustomLibraryFileDraft) => Promise<CustomLibraryFileAddOutcome>;
+  onAddLibraryFile?: (record: CustomLibraryFileRecord) => Promise<CustomLibraryFileAddOutcome>;
   onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   allowElementStyleApply?: boolean;
   onAddPresentationColor: (name: string, value: Color) => void;
@@ -134,7 +135,7 @@ type FileLoadState =
   | { kind: "ready"; records: CustomLibraryFileRecord[] }
   | { kind: "error" };
 
-export type CustomLibraryFileAddOutcome = "added" | "conflict" | "load-error";
+export type CustomLibraryFileAddOutcome = "added" | "unchanged" | "conflict" | "load-error";
 
 const PREVIEW_COLOR_LIMIT = 6;
 
@@ -340,7 +341,7 @@ export function CustomResourcesWorkspace({
     setAddingFileId(file.id);
     setFileFeedback(null);
     try {
-      const kind = await onAddLibraryFile(file.file);
+      const kind = await onAddLibraryFile(file);
       setFileFeedback({ kind, name: file.file.name });
     } finally {
       setAddingFileId(null);
@@ -408,8 +409,8 @@ export function CustomResourcesWorkspace({
                   {fileChooserOpen ? t("customResources.close") : t("customResources.addFile")}
                 </button>
               </div>
-              {fileFeedback ? <p className={styles.status} role={fileFeedback.kind === "added" ? undefined : "alert"}>{fileFeedback.kind === "added" ? t("customResources.fileAdded", { name: fileFeedback.name }) : fileFeedback.kind === "load-error" ? t("customResources.fileContentLoadFailed") : t("customResources.fileAddFailed", { name: fileFeedback.name })}</p> : null}
-              {fileChooserOpen ? <MasterFileChooser loadState={fileLoadState} onRetry={loadFiles} onAdd={(file) => void addLibraryFile(file)} addingFileId={addingFileId} /> : null}
+              {fileFeedback ? <p className={styles.status} role={fileFeedback.kind === "added" || fileFeedback.kind === "unchanged" ? undefined : "alert"}>{fileFeedback.kind === "added" ? t("customResources.fileAdded", { name: fileFeedback.name }) : fileFeedback.kind === "unchanged" ? t("customResources.fileAlreadyAdded", { name: fileFeedback.name }) : fileFeedback.kind === "load-error" ? t("customResources.fileContentLoadFailed") : t("customResources.fileAddFailed", { name: fileFeedback.name })}</p> : null}
+              {fileChooserOpen ? <MasterFileChooser loadState={fileLoadState} presentationFiles={presentationFiles} onRetry={loadFiles} onAdd={(file) => void addLibraryFile(file)} addingFileId={addingFileId} /> : null}
             </div>
           </InspectorSection>
         </section>
@@ -1766,11 +1767,13 @@ function LocalPresentationFontRow({
 
 function MasterFileChooser({
   loadState,
+  presentationFiles,
   onRetry,
   onAdd,
   addingFileId,
 }: {
   loadState: FileLoadState;
+  presentationFiles: readonly PresentationFileResource[];
   onRetry: () => void;
   onAdd: (record: CustomLibraryFileRecord) => void;
   addingFileId: string | null;
@@ -1782,13 +1785,16 @@ function MasterFileChooser({
   if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFiles")}</p>;
 
   return <div className={styles.masterFontList}>
-    {loadState.records.map((record) => <div key={record.id} className={styles.resourceItem} data-custom-resource-file>
+    {loadState.records.map((record) => {
+      const alreadyAdded = presentationFiles.some((file) => file.id === getCustomLibraryFileResourceId(record.id));
+      return <div key={record.id} className={styles.resourceItem} data-custom-resource-file>
       <div className={styles.resourceItemDetailsStack}>
         <strong>{record.file.name}</strong>
-        <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${record.file.kind}`)} · {formatCustomLibraryFileSize(record.file.source.sizeBytes)}</span>
+        <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${record.file.kind}`)} · {formatCustomLibraryFileSize(record.file.source.sizeBytes)}{alreadyAdded ? ` · ${t("customResources.fileAlreadyAddedShort")}` : ""}</span>
       </div>
-      <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFile", { name: record.file.name })} disabled={addingFileId !== null} onClick={() => onAdd(record)}>+</button>
-    </div>)}
+      <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFile", { name: record.file.name })} disabled={addingFileId !== null || alreadyAdded} onClick={() => onAdd(record)}>+</button>
+    </div>;
+    })}
   </div>;
 }
 

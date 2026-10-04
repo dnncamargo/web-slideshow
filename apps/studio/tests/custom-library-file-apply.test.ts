@@ -9,7 +9,7 @@ import {
   addCustomLibraryFileToPresentation,
   removeCustomLibraryFileFromPresentation,
 } from "../src/features/custom-library/custom-library-file-apply";
-import type { CustomLibraryFileDraft } from "../src/features/custom-library/custom-library-file";
+import type { CustomLibraryFileDraft, CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
 
 const librarySource = {
   assetId: "123e4567-e89b-12d3-a456-426614174000",
@@ -40,9 +40,13 @@ function file(overrides: Partial<CustomLibraryFileDraft> = {}): CustomLibraryFil
   };
 }
 
+function record(id = "library-record", overrides: Partial<CustomLibraryFileDraft> = {}): CustomLibraryFileRecord {
+  return { id, file: file(overrides) };
+}
+
 describe("addCustomLibraryFileToPresentation", () => {
   it("materializes a binary file with a new local identity and only runtime data", () => {
-    const result = addCustomLibraryFileToPresentation(presentation(), file());
+    const result = addCustomLibraryFileToPresentation(presentation(), record("library-record"));
 
     expect(result.kind).toBe("added");
     if (result.kind !== "added") return;
@@ -54,6 +58,7 @@ describe("addCustomLibraryFileToPresentation", () => {
       contentType: "image/png",
       source: { type: "url", url: librarySource.downloadUrl },
     }]);
+    expect(result.fileResourceId).toBe("file-library-record");
     expect(result.fileResourceId).not.toBe(librarySource.assetId);
     expect(JSON.stringify(result.presentation)).not.toContain(librarySource.assetId);
     expect(JSON.stringify(result.presentation)).not.toContain(librarySource.storagePath);
@@ -61,7 +66,7 @@ describe("addCustomLibraryFileToPresentation", () => {
   });
 
   it("requires text content and stores it instead of the Blob URL", () => {
-    const textFile = file({
+    const textFile = record("text-record", {
       name: "Workshop notes",
       kind: "text",
       representation: "text",
@@ -83,7 +88,7 @@ describe("addCustomLibraryFileToPresentation", () => {
   it("accepts empty text content", () => {
     const result = addCustomLibraryFileToPresentation(
       presentation(),
-      file({
+      record("empty-text-record", {
         name: "Empty notes",
         kind: "text",
         representation: "text",
@@ -94,13 +99,39 @@ describe("addCustomLibraryFileToPresentation", () => {
     expect(result.kind).toBe("added");
   });
 
-  it("allocates collision-safe IDs and never merges explicit materializations", () => {
-    const first = addCustomLibraryFileToPresentation(presentation(), file());
+  it("adds distinct library records with identical metadata independently", () => {
+    const first = addCustomLibraryFileToPresentation(presentation(), record("record-a"));
     if (first.kind !== "added") throw new Error("expected first file to be added");
-    const second = addCustomLibraryFileToPresentation(first.presentation, file());
+    const second = addCustomLibraryFileToPresentation(first.presentation, record("record-b"));
     if (second.kind !== "added") throw new Error("expected second file to be added");
-    expect(second.fileResourceId).not.toBe(first.fileResourceId);
+    expect(first.fileResourceId).toBe("file-record-a");
+    expect(second.fileResourceId).toBe("file-record-b");
     expect(second.presentation.resources?.files).toHaveLength(2);
+  });
+
+  it("returns unchanged for a repeated record regardless of renamed metadata", () => {
+    const first = addCustomLibraryFileToPresentation(presentation(), record("record-a"));
+    if (first.kind !== "added") throw new Error("expected first file to be added");
+
+    const repeated = addCustomLibraryFileToPresentation(
+      first.presentation,
+      record("record-a", { name: "Renamed workshop image" }),
+    );
+    expect(repeated.kind).toBe("unchanged");
+    expect(repeated.presentation).toBe(first.presentation);
+    expect(repeated.fileResourceId).toBe(first.fileResourceId);
+  });
+
+  it("allows a record to be added again after its resource is removed", () => {
+    const first = addCustomLibraryFileToPresentation(presentation(), record("record-a"));
+    if (first.kind !== "added") throw new Error("expected first file to be added");
+    const removed = removeCustomLibraryFileFromPresentation(first.presentation, first.fileResourceId);
+    if (removed.kind !== "removed") throw new Error("expected file to be removed");
+
+    const addedAgain = addCustomLibraryFileToPresentation(removed.presentation, record("record-a"));
+    expect(addedAgain.kind).toBe("added");
+    if (addedAgain.kind !== "added") return;
+    expect(addedAgain.fileResourceId).toBe(first.fileResourceId);
   });
 
   it("preserves unrelated data and existing fonts", () => {
@@ -117,20 +148,39 @@ describe("addCustomLibraryFileToPresentation", () => {
         }],
       },
     });
-    const result = addCustomLibraryFileToPresentation(original, file());
+    const result = addCustomLibraryFileToPresentation(original, record());
     expect(result.kind).toBe("added");
     if (result.kind !== "added") return;
     expect(result.presentation.palette).toEqual(original.palette);
     expect(result.presentation.slides).toEqual(original.slides);
     expect(result.presentation.resources?.fonts).toEqual(original.resources?.fonts);
   });
+
+  it("reports a conflict when the deterministic file ID is owned by a font", () => {
+    const original = presentation({
+      resources: {
+        fonts: [{
+          id: "file-record-a",
+          family: "Inter",
+          source: {
+            type: "url",
+            url: "https://cdn.example.com/inter.woff2",
+            format: "woff2",
+          },
+        }],
+      },
+    });
+    const result = addCustomLibraryFileToPresentation(original, record("record-a"));
+    expect(result.kind).toBe("conflict");
+    expect(result.presentation).toBe(original);
+  });
 });
 
 describe("removeCustomLibraryFileFromPresentation", () => {
   it("removes one file while preserving other files and fonts", () => {
-    const first = addCustomLibraryFileToPresentation(presentation(), file());
+    const first = addCustomLibraryFileToPresentation(presentation(), record("record-a"));
     if (first.kind !== "added") throw new Error("expected first file to be added");
-    const second = addCustomLibraryFileToPresentation(first.presentation, file({ name: "Other image" }));
+    const second = addCustomLibraryFileToPresentation(first.presentation, record("record-b", { name: "Other image" }));
     if (second.kind !== "added") throw new Error("expected second file to be added");
     const withFont = PresentationSchema.parse({
       ...second.presentation,

@@ -286,4 +286,10 @@ describe("PresentationFileResourceSchema", () => {
     ).toBe(false);
   });
 
+  it("rejects duplicate file resource IDs", () => {
+    expect(PresentationResourcesSchema.safeParse({
+      files: [text("text", "text/plain"), text("text", "text/plain")],
+    }).success).toBe(false);
+  });
+
 });

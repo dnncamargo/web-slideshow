@@ -86,7 +86,7 @@ describe("Custom Resources Files", () => {
   function renderWorkspace(options: {
     fileRepository?: CustomLibraryFileRepository;
     files?: PresentationFileResource[];
-    onAdd?: (file: CustomLibraryFileRecord["file"]) => Promise<"added" | "conflict" | "load-error">;
+    onAdd?: (file: CustomLibraryFileRecord) => Promise<"added" | "unchanged" | "conflict" | "load-error">;
     onRemove?: (id: string) => void;
   } = {}): HTMLDivElement {
     const container = document.createElement("div");
@@ -143,9 +143,37 @@ describe("Custom Resources Files", () => {
 
     const add = container.querySelector<HTMLButtonElement>("[aria-label='Add lesson-notes.txt']");
     await act(async () => add?.click());
-    expect(onAdd).toHaveBeenCalledWith(libraryFile.file);
+    expect(onAdd).toHaveBeenCalledWith(libraryFile);
     await flush();
     expect(container.textContent).toContain("lesson-notes.txt added to this presentation.");
+  });
+
+  it("keeps an already-added library row visible but disables only that record", async () => {
+    const duplicateMetadataRecord: CustomLibraryFileRecord = {
+      ...libraryFile,
+      id: "different-library-record",
+    };
+    const container = renderWorkspace({
+      fileRepository: repository([libraryFile, duplicateMetadataRecord]),
+      files: [{
+        id: "file-private-library-record",
+        name: libraryFile.file.name,
+        kind: libraryFile.file.kind,
+        representation: "text",
+        contentType: libraryFile.file.source.contentType,
+        source: { type: "text", content: "notes" },
+      }],
+    });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.textContent).toContain("lesson-notes.txt");
+    expect(container.textContent).toContain("Already added");
+    const addButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("[aria-label='Add lesson-notes.txt']"));
+    expect(addButtons).toHaveLength(2);
+    expect(addButtons[0]?.disabled).toBe(true);
+    expect(addButtons[1]?.disabled).toBe(false);
   });
 
   it("renders presentation-owned files with canonical metadata and removes by local ID", async () => {

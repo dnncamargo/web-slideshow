@@ -176,7 +176,19 @@ export const PresentationFileResourceSchema = z
 
 export const PresentationResourcesSchema = z.object({
   fonts: z.array(FontResourceSchema).optional(),
-  files: z.array(PresentationFileResourceSchema).optional(),
+  files: z.array(PresentationFileResourceSchema).superRefine((files, context) => {
+    const seenIds = new Set<string>();
+    files.forEach((file, index) => {
+      if (seenIds.has(file.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "Presentation file resource IDs must be unique.",
+        });
+      }
+      seenIds.add(file.id);
+    });
+  }).optional(),
 });
 
 export type FontFormat = z.infer<typeof FontFormatSchema>;

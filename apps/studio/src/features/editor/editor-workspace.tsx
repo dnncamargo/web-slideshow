@@ -61,10 +61,11 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
-import type { CustomLibraryFileDraft } from "@/features/custom-library/custom-library-file";
+import type { CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
 import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
 import {
   addCustomLibraryFileToPresentation,
+  getCustomLibraryFileResourceId,
   removeCustomLibraryFileFromPresentation,
 } from "@/features/custom-library/custom-library-file-apply";
 import {
@@ -1155,6 +1156,8 @@ export function EditorWorkspace({
     createHistoryState,
   );
   const presentation = history.present;
+  const presentationRef = useRef(presentation);
+  presentationRef.current = presentation;
   const authoringIntentRef = useRef<
     | { type: "continuous"; key: string; target: AuthoringTarget }
     | { type: "discrete"; meta: HistoryActionMeta; target: AuthoringTarget }
@@ -4566,7 +4569,11 @@ export function EditorWorkspace({
     return "removed";
   }
 
-  async function addCustomLibraryFile(file: CustomLibraryFileDraft): Promise<CustomLibraryFileAddOutcome> {
+  async function addCustomLibraryFile(record: CustomLibraryFileRecord): Promise<CustomLibraryFileAddOutcome> {
+    const file = record.file;
+    const fileResourceId = getCustomLibraryFileResourceId(record.id);
+    if (presentation.resources?.files?.some((resource) => resource.id === fileResourceId)) return "unchanged";
+    if (presentation.resources?.fonts?.some((resource) => resource.id === fileResourceId)) return "conflict";
     let textContent: string | undefined;
 
     if (file.representation === "text") {
@@ -4579,8 +4586,9 @@ export function EditorWorkspace({
       }
     }
 
-    const preflight = addCustomLibraryFileToPresentation(presentation, file, textContent);
-    if (preflight.kind !== "added") return "conflict";
+    const currentPresentation = presentationRef.current;
+    const preflight = addCustomLibraryFileToPresentation(currentPresentation, record, textContent);
+    if (preflight.kind !== "added") return preflight.kind;
 
     commitPresentationGlobalAction(
       {
@@ -4589,7 +4597,7 @@ export function EditorWorkspace({
         labelParams: { setting: "file.import" },
       },
       (current) => {
-        const result = addCustomLibraryFileToPresentation(current, file, textContent);
+        const result = addCustomLibraryFileToPresentation(current, record, textContent);
         return result.kind === "added" ? result.presentation : current;
       },
     );
