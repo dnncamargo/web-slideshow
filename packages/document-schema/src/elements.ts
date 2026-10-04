@@ -159,30 +159,37 @@ export const ImageFitSchema = z.enum([
 
 export type ImageFit = z.infer<typeof ImageFitSchema>;
 
-export const ImageElementSchema = z.object({
-    id: ElementIdSchema,
-    type: z.literal("image"),
+const ImageElementBaseSchema = z.object({
+  id: ElementIdSchema,
+  type: z.literal("image"),
 
-    hidden: z.boolean().default(false),
+  hidden: z.boolean().default(false),
 
-    layout: ImageLayoutSchema.optional(),
+  layout: ImageLayoutSchema.optional(),
 
-    style: ImageVisualStyleSchema.optional(),
+  style: ImageVisualStyleSchema.optional(),
 
-    effect: ElementEffectSchema.optional(),
+  effect: ElementEffectSchema.optional(),
 
+  alt: z.string().default(""),
+
+  fit: ImageFitSchema.default("contain"),
+
+  focalPoint: ImageFocalPointSchema.optional(),
+
+  crop: ImageCropSchema.optional(),
+
+  link: ElementLinkSchema.optional(),
+}).strict();
+
+export const ImageElementSchema = z.union([
+  ImageElementBaseSchema.extend({
     src: z.string().min(1),
-
-    alt: z.string().default(""),
-
-    fit: ImageFitSchema.default("contain"),
-
-    focalPoint: ImageFocalPointSchema.optional(),
-
-    crop: ImageCropSchema.optional(),
-
-    link: ElementLinkSchema.optional(),
-  }).strict();
+  }).strict(),
+  ImageElementBaseSchema.extend({
+    fileResourceId: z.string().trim().min(1),
+  }).strict(),
+]);
 
 export type ImageElement = z.infer<typeof ImageElementSchema>;
 

@@ -556,6 +556,55 @@ describe("transactional presentation publishing", () => {
     });
   });
 
+  it("preserves raster Image File references in the immutable publication snapshot", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Published image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://cdn.example.test/published.png" },
+        }],
+      },
+      slides: [{
+        id: "slide-image",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "image-file-backed",
+          type: "image",
+          fileResourceId: "file-image",
+        }],
+      }],
+    });
+    const transaction = setupTransaction(draftData({ presentation }));
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-image-file" })
+      .mockReturnValueOnce({ id: "version-image-file" })
+      .mockReturnValueOnce({ id: "pointer-image-file" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentationJson: string;
+    };
+    const published = JSON.parse(versionPayload.presentationJson) as Presentation;
+    const publishedImage = published.slides[0]?.elements[0];
+
+    expect(published).toEqual(presentation);
+    expect(published.resources?.files).toEqual(presentation.resources?.files);
+    expect(publishedImage).toMatchObject({
+      type: "image",
+      fileResourceId: "file-image",
+    });
+    expect(publishedImage).not.toHaveProperty("src");
+  });
+
   it("publishes canonical Shape state without generated QR runtime data", async () => {
     const presentation = representativeShapePresentation();
     const draft = draftData({ presentation });

@@ -51,11 +51,27 @@ function renderImageCropBoxStyle(element: ImageElement): string {
     : "position:relative;overflow:hidden";
 }
 
-function renderCroppedImageMedia(element: ImageElement): string {
+function renderCroppedImageMedia(element: ImageElement, src: string): string {
   return `<img class="presentation-image-media"` +
-    ` src="${escapeHtml(element.src)}"` +
+    ` src="${escapeHtml(src)}"` +
     ` alt="${escapeHtml(element.alt)}"` +
     ` style="display:block;position:absolute;max-width:none">`;
+}
+
+function resolveImageSource(
+  element: ImageElement,
+  context: RenderContext | undefined,
+): string | null {
+  if ("src" in element) {
+    return element.src;
+  }
+
+  const file = context?.presentation.resources?.files?.find(
+    (candidate) => candidate.id === element.fileResourceId,
+  );
+  return file?.kind === "image" && file.representation === "binary"
+    ? file.source.url
+    : null;
 }
 
 function renderLinkContent(
@@ -187,7 +203,7 @@ function renderText(element: TextElement, context?: RenderContext): string {
   }
 }
 
-function renderLinkedImage(element: ImageElement, link: ElementLink): string {
+function renderLinkedImage(element: ImageElement, link: ElementLink, src: string): string {
   const classes = ["presentation-element", "presentation-image"];
 
   if (hasGradientBorder(element)) {
@@ -239,9 +255,9 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   }
 
   const media = element.crop
-    ? renderCroppedImageMedia(element)
+    ? renderCroppedImageMedia(element, src)
     : `<img class="presentation-image-media"` +
-      ` src="${escapeHtml(element.src)}"` +
+      ` src="${escapeHtml(src)}"` +
       ` alt="${escapeHtml(element.alt)}"` +
       ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">`;
 
@@ -252,13 +268,18 @@ function renderLinkedImage(element: ImageElement, link: ElementLink): string {
   return `<a ${attributes.join(" ")}><div class="presentation-image-crop-viewport">${media}</div></a>`;
 }
 
-function renderImage(element: ImageElement): string {
+function renderImage(element: ImageElement, context?: RenderContext): string {
   if (element.hidden) {
     return "";
   }
 
+  const src = resolveImageSource(element, context);
+  if (src === null) {
+    return "";
+  }
+
   if (element.link) {
-    return renderLinkedImage(element, element.link);
+    return renderLinkedImage(element, element.link, src);
   }
 
   if (element.crop) {
@@ -274,7 +295,7 @@ function renderImage(element: ImageElement): string {
     return (
       `<div ${attributes} ${renderCanonicalImageCropMetadata(element)}>` +
       `<div class="presentation-image-crop-viewport">` +
-      renderCroppedImageMedia(element) +
+      renderCroppedImageMedia(element, src) +
       `</div></div>`
     );
   }
@@ -290,7 +311,7 @@ function renderImage(element: ImageElement): string {
     return (
       `<div ${attributes}>` +
       `<img class="presentation-image-media"` +
-      ` src="${escapeHtml(element.src)}"` +
+      ` src="${escapeHtml(src)}"` +
       ` alt="${escapeHtml(element.alt)}"` +
       ` style="${escapeHtml(renderCanonicalImageMediaStyle(element))}">` +
       `</div>`
@@ -306,7 +327,7 @@ function renderImage(element: ImageElement): string {
 
   return (
     `<img ${attributes}` +
-    ` src="${escapeHtml(element.src)}"` +
+    ` src="${escapeHtml(src)}"` +
     ` alt="${escapeHtml(element.alt)}">`
   );
 }
@@ -348,7 +369,7 @@ export function renderElement(
       return renderText(element, context);
 
     case "image":
-      return renderImage(element);
+      return renderImage(element, context);
 
     case "container":
       return renderContainer(

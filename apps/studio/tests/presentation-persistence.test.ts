@@ -205,6 +205,43 @@ describe("presentation persistence helpers", () => {
     expect(safe).toHaveProperty("palette");
   });
 
+  it("preserves a Presentation File-backed Image through persistence snapshots", () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "pres-file-image",
+      title: "File Image",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://cdn.example.test/image.png" },
+        }],
+      },
+      slides: [{
+        id: "slide-1",
+        elements: [{ id: "image-1", type: "image", fileResourceId: "file-image" }],
+      }],
+    });
+
+    const safe = makeFirestoreSafePresentation(source);
+    const recovered = parsePersistedPresentation({
+      presentationJson: JSON.stringify(safe),
+    });
+
+    expect(recovered).toEqual(source);
+    expect(recovered.resources?.files?.[0]?.source).toEqual({
+      type: "url",
+      url: "https://cdn.example.test/image.png",
+    });
+    expect(recovered.slides[0]?.elements[0]).toMatchObject({
+      type: "image",
+      fileResourceId: "file-image",
+    });
+  });
+
   it("preserves slide and nested element order", () => {
     const source = basePresentation();
     source.slides = [

@@ -32,6 +32,21 @@ function validateElement(
   path: (string | number)[],
   addIssue: AddIssue,
 ): void {
+  if (element.type === "image" && "fileResourceId" in element) {
+    const file = presentation.resources?.files?.find((candidate) => candidate.id === element.fileResourceId);
+    if (file === undefined) {
+      addIssue(
+        [...path, "fileResourceId"],
+        `Image file reference does not resolve: ${element.fileResourceId}`,
+      );
+    } else if (file.kind !== "image" || file.representation !== "binary") {
+      addIssue(
+        [...path, "fileResourceId"],
+        `Image file reference must resolve to a binary image File: ${element.fileResourceId}`,
+      );
+    }
+  }
+
   if (element.type === "scripted") {
     const files = presentation.resources?.files ?? [];
     element.resourceIds.forEach((resourceId, index) => {
