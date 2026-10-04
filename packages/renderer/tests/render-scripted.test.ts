@@ -4,6 +4,7 @@ import { createContext, runInContext, runInNewContext } from "node:vm";
 import type {
   FontResource,
   Presentation,
+  PresentationFileResource,
   ScriptedElement,
 } from "@web-slideshow/document-schema";
 
@@ -43,6 +44,13 @@ function presentationWithFonts(fonts: FontResource[]): Presentation {
   return createPresentation({
     slides: [createSlide({ elements: [scripted()] })],
     resources: { fonts },
+  });
+}
+
+function presentationWithFiles(files: PresentationFileResource[]): Presentation {
+  return createPresentation({
+    slides: [createSlide({ elements: [scripted()] })],
+    resources: { files },
   });
 }
 
@@ -158,6 +166,16 @@ type ScriptedPortDescriptor = {
   step?: number;
 };
 
+type ScriptedResourceDescriptor = {
+  id: string;
+  name: string;
+  kind: string;
+  representation: "binary" | "text";
+  contentType: string;
+  url?: string;
+  content?: string;
+};
+
 type ScriptedRuntimeTestWindow = {
   ScriptedRuntime: {
     ports: {
@@ -165,6 +183,10 @@ type ScriptedRuntimeTestWindow = {
       onAction(id: string, handler: () => void): void;
       onInput(id: string, handler: (value: boolean | number) => void): void;
       report(id: string, value: boolean | number): void;
+    };
+    resources: {
+      list(): ReadonlyArray<ScriptedResourceDescriptor>;
+      get(id: string): ScriptedResourceDescriptor | null;
     };
   };
 };
@@ -174,7 +196,7 @@ type ScriptedMessageEvent = {
   data: unknown;
 };
 
-function executeScriptedBootstrap(element: ScriptedElement): {
+function executeScriptedBootstrap(element: ScriptedElement, presentation?: Presentation): {
   context: ReturnType<typeof createContext>;
   errors: unknown[];
   listener: ((event: ScriptedMessageEvent) => void) | undefined;
@@ -182,7 +204,10 @@ function executeScriptedBootstrap(element: ScriptedElement): {
   reports: unknown[];
   runtimeWindow: ScriptedRuntimeTestWindow;
 } {
-  const srcdoc = extractSrcdoc(renderScripted(element));
+  const rendered = presentation === undefined
+    ? renderScripted(element)
+    : renderElement(element, { presentation });
+  const srcdoc = extractSrcdoc(rendered);
   const reports: unknown[] = [];
   const errors: unknown[] = [];
   const root = { innerHTML: "" };
@@ -596,7 +621,7 @@ describe("renderScripted srcdoc CSP", () => {
     expect(cspDirectives(csp).get("form-action")).toBe("'none'");
   });
 
-  it("allows HTTPS only for images and fonts and keeps other directives exact", () => {
+  it("allows HTTPS only for images, media, and fonts and keeps other directives exact", () => {
     const csp = extractCsp(extractSrcdoc(renderScripted(scripted())));
     const directives = cspDirectives(csp);
 
@@ -605,7 +630,7 @@ describe("renderScripted srcdoc CSP", () => {
       ["script-src", "'unsafe-inline'"],
       ["style-src", "'unsafe-inline'"],
       ["img-src", "https: data: blob:"],
-      ["media-src", "data: blob:"],
+      ["media-src", "https: data: blob:"],
       ["font-src", "https: data:"],
       ["connect-src", "'none'"],
       ["frame-src", "'none'"],
@@ -619,10 +644,172 @@ describe("renderScripted srcdoc CSP", () => {
       expect(value).not.toContain("*");
       expect(value).not.toContain("'self'");
 
-      if (name !== "img-src" && name !== "font-src") {
+      if (name !== "img-src" && name !== "media-src" && name !== "font-src") {
         expect(value).not.toContain("https:");
       }
     }
+  });
+});
+
+describe("renderScripted Presentation file resources bootstrap", () => {
+  const files: PresentationFileResource[] = [
+    {
+      id: "file-image",
+      name: 'image "<& 日本語',
+      kind: "image",
+      representation: "binary",
+      contentType: "image/png",
+      source: { type: "url", url: "https://cdn.example.com/image.png" },
+    },
+    {
+      id: "file-audio",
+      name: "audio",
+      kind: "audio",
+      representation: "binary",
+      contentType: "audio/mpeg",
+      source: { type: "url", url: "https://cdn.example.com/audio.mp3" },
+    },
+    {
+      id: "file-font",
+      name: "font",
+      kind: "font",
+      representation: "binary",
+      contentType: "font/woff2",
+      source: { type: "url", url: "https://cdn.example.com/font.woff2" },
+    },
+    {
+      id: "file-text",
+      name: "plain text",
+      kind: "text",
+      representation: "text",
+      contentType: "text/plain",
+      source: { type: "text", content: 'plain </template><script>resource</script> & " 日本語' },
+    },
+    {
+      id: "file-markdown",
+      name: "markdown",
+      kind: "markdown",
+      representation: "text",
+      contentType: "text/markdown",
+      source: { type: "text", content: "# Markdown" },
+    },
+    {
+      id: "file-csv",
+      name: "CSV",
+      kind: "structured-data",
+      representation: "text",
+      contentType: "text/csv",
+      source: { type: "text", content: "name,value\nanswer,42" },
+    },
+    {
+      id: "file-json",
+      name: "JSON",
+      kind: "structured-data",
+      representation: "text",
+      contentType: "application/json",
+      source: { type: "text", content: '{"quote":"<value> & 日本語"}' },
+    },
+    {
+      id: "file-xml",
+      name: "XML",
+      kind: "structured-data",
+      representation: "text",
+      contentType: "application/xml",
+      source: { type: "text", content: '<root value="1" />' },
+    },
+    {
+      id: "file-svg",
+      name: "SVG",
+      kind: "image",
+      representation: "text",
+      contentType: "image/svg+xml",
+      source: { type: "text", content: '<svg viewBox="0 0 1 1"><path /></svg>' },
+    },
+  ];
+
+  const expected = [
+    { id: "file-image", name: 'image "<& 日本語', kind: "image", representation: "binary", contentType: "image/png", url: "https://cdn.example.com/image.png" },
+    { id: "file-audio", name: "audio", kind: "audio", representation: "binary", contentType: "audio/mpeg", url: "https://cdn.example.com/audio.mp3" },
+    { id: "file-font", name: "font", kind: "font", representation: "binary", contentType: "font/woff2", url: "https://cdn.example.com/font.woff2" },
+    { id: "file-text", name: "plain text", kind: "text", representation: "text", contentType: "text/plain", content: 'plain </template><script>resource</script> & " 日本語' },
+    { id: "file-markdown", name: "markdown", kind: "markdown", representation: "text", contentType: "text/markdown", content: "# Markdown" },
+    { id: "file-csv", name: "CSV", kind: "structured-data", representation: "text", contentType: "text/csv", content: "name,value\nanswer,42" },
+    { id: "file-json", name: "JSON", kind: "structured-data", representation: "text", contentType: "application/json", content: '{"quote":"<value> & 日本語"}' },
+    { id: "file-xml", name: "XML", kind: "structured-data", representation: "text", contentType: "application/xml", content: '<root value="1" />' },
+    { id: "file-svg", name: "SVG", kind: "image", representation: "text", contentType: "image/svg+xml", content: '<svg viewBox="0 0 1 1"><path /></svg>' },
+  ];
+
+  it("serializes files through the safe payload in canonical order", () => {
+    const presentation = presentationWithFiles(files);
+    const first = renderElement(scripted(), { presentation });
+    const second = renderElement(scripted(), { presentation });
+    const srcdoc = extractSrcdoc(first);
+
+    expect(first).toBe(second);
+    expect(recoverPayload(srcdoc, "resources")).toEqual(expected);
+    expect(srcdoc).not.toContain("<script>resource");
+    expect(JSON.stringify(presentation)).toContain("file-image");
+  });
+
+  it("installs resources before authored code and exposes only the exact API", () => {
+    const element = scripted({
+      script: "window.resourceApiAtStartup = Object.keys(ScriptedRuntime.resources).join(',');",
+    });
+    const { context, errors, runtimeWindow } = executeScriptedBootstrap(element, presentationWithFiles(files));
+    const runtime = runtimeWindow.ScriptedRuntime;
+    const listed = runtime.resources.list();
+
+    expect(errors).toHaveLength(0);
+    expect(runInContext("window.resourceApiAtStartup", context)).toBe("list,get");
+    expect(Object.keys(runtime)).toEqual(["ports", "resources"]);
+    expect(Object.keys(runtime.resources)).toEqual(["list", "get"]);
+    expect(listed).toEqual(expected);
+    expect(Object.isFrozen(runtime)).toBe(true);
+    expect(Object.isFrozen(runtime.resources)).toBe(true);
+    expect(Object.isFrozen(listed)).toBe(true);
+    expect(listed.every((resource) => Object.isFrozen(resource))).toBe(true);
+    expect(runtime.resources.list()).toBe(listed);
+    expect(runtime.resources.get("file-image")).toBe(listed[0]);
+    expect(runtime.resources.get("missing")).toBeNull();
+    expect(() => runtime.resources.get(42 as unknown as string)).toThrowError(
+      new TypeError("Scripted resource id must be a string"),
+    );
+    expect(Object.keys(listed[0]!)).toEqual(["id", "name", "kind", "representation", "contentType", "url"]);
+    expect(Object.keys(listed[3]!)).toEqual(["id", "name", "kind", "representation", "contentType", "content"]);
+    expect(listed[0]).not.toBe(files[0]);
+    expect("source" in listed[0]!).toBe(false);
+  });
+
+  it("returns a frozen empty snapshot without a Presentation context", () => {
+    const { errors, runtimeWindow } = executeScriptedBootstrap(scripted());
+    const listed = runtimeWindow.ScriptedRuntime.resources.list();
+
+    expect(errors).toHaveLength(0);
+    expect(listed).toEqual([]);
+    expect(Object.isFrozen(listed)).toBe(true);
+    expect(runtimeWindow.ScriptedRuntime.resources.get("missing")).toBeNull();
+  });
+
+  it("keeps descriptor and snapshot mutation attempts isolated", () => {
+    const presentation = presentationWithFiles(files);
+    const before = JSON.stringify(presentation);
+    const element = scripted({
+      script: [
+        "var snapshot = ScriptedRuntime.resources.list();",
+        "try { snapshot.push({ id: 'injected' }); } catch (_error) {}",
+        "try { snapshot[0].name = 'mutated'; } catch (_error) {}",
+        "try { ScriptedRuntime.resources = {}; } catch (_error) {}",
+        "try { ScriptedRuntime.resources.list = function () { return []; }; } catch (_error) {}",
+      ].join("\n"),
+    });
+    const { errors, runtimeWindow } = executeScriptedBootstrap(element, presentation);
+    const listed = runtimeWindow.ScriptedRuntime.resources.list();
+
+    expect(errors).toHaveLength(0);
+    expect(listed).toHaveLength(files.length);
+    expect(listed[0]?.name).toBe(files[0]?.name);
+    expect(runtimeWindow.ScriptedRuntime.resources.get("file-image")).toBe(listed[0]);
+    expect(JSON.stringify(presentation)).toBe(before);
   });
 });
 
@@ -1060,6 +1247,7 @@ describe("renderScripted ScriptedRuntime.ports bootstrap", () => {
           script: "",
           "element-id": "scripted-1",
           ports,
+          resources: [],
         };
 
         const value = payloads[name.slice(5)];

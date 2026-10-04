@@ -1,5 +1,6 @@
 import type {
   FontResource,
+  PresentationFileResource,
   ScriptedElement,
 } from "@web-slideshow/document-schema";
 
@@ -25,10 +26,10 @@ import {
 // document is fully isolated from the application origin.
 //
 // The srcdoc is a complete renderer-generated document. The CSP meta
-  // below is a fixed defense-in-depth policy layered on top of the
-  // sandbox. connect/frame/object sources are all 'none'; HTTPS is granted
-  // only as deliberate narrow image/font-load exceptions through img-src and
-  // font-src. General networking remains denied.
+// below is a fixed defense-in-depth policy layered on top of the
+// sandbox. connect/frame/object sources are all 'none'; HTTPS is granted
+// only as deliberate narrow image/font/media-load exceptions through img-src,
+// media-src, and font-src. General networking remains denied.
 //
 // Authored html/css/script are transported ONLY as data attribute
 // values (JSON.stringify escaped through escapeHtml). The renderer
@@ -64,7 +65,7 @@ const SCRIPTED_CSP =
   "script-src 'unsafe-inline';" +
   "style-src 'unsafe-inline';" +
   "img-src https: data: blob:;" +
-  "media-src data: blob:;" +
+  "media-src https: data: blob:;" +
   "font-src https: data:;" +
   "connect-src 'none';" +
   "frame-src 'none';" +
@@ -79,12 +80,12 @@ const SCRIPTED_CSP =
 // Order of operations inside the sandbox:
 // 1. resolve the payload element;
 // 2. resolve the Scripted root;
-// 3. decode html/css/script/element id/ports from the payload attributes;
+// 3. decode html/css/script/element id/ports/resources from the payload attributes;
 // 4. apply HTML to the Scripted root;
 // 5. create a <style> element and assign CSS through textContent;
 // 6. append the style to document.head;
-// 7. create the detached declared-port snapshot and install the fixed
-//    ScriptedRuntime.ports API;
+// 7. create the detached declared-port and Presentation File snapshots and
+//    install the fixed ScriptedRuntime APIs;
 // 8. create a <script> element and assign canonical script through
 //    textContent;
 // 9. append it only after HTML, CSS, and ScriptedRuntime.ports exist;
@@ -123,6 +124,10 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "var decodedPorts = decode('ports');" +
   "\n" +
   "var ports = Array.isArray(decodedPorts) ? decodedPorts : [];" +
+  "\n" +
+  "var decodedResources = decode('resources');" +
+  "\n" +
+  "var resources = Array.isArray(decodedResources) ? decodedResources : [];" +
   "\n" +
   "root.innerHTML = html;" +
   "\n" +
@@ -246,7 +251,45 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var portsApi = Object.freeze({ list: list, onAction: onAction, onInput: onInput, report: report });" +
   "\n" +
-  "var runtimeApi = Object.freeze({ ports: portsApi });" +
+  "function publicResource(resource) {" +
+  "\n" +
+  "  if (!plainRecord(resource) || typeof resource.id !== 'string' || typeof resource.name !== 'string' || typeof resource.kind !== 'string' || typeof resource.contentType !== 'string') { return null; }" +
+  "\n" +
+  "  if (resource.representation === 'binary' && typeof resource.url === 'string') { return Object.freeze({ id: resource.id, name: resource.name, kind: resource.kind, representation: 'binary', contentType: resource.contentType, url: resource.url }); }" +
+  "\n" +
+  "  if (resource.representation === 'text' && typeof resource.content === 'string') { return Object.freeze({ id: resource.id, name: resource.name, kind: resource.kind, representation: 'text', contentType: resource.contentType, content: resource.content }); }" +
+  "\n" +
+  "  return null;" +
+  "\n" +
+  "}" +
+  "\n" +
+  "var publicResources = [];" +
+  "\n" +
+  "var resourcesById = Object.create(null);" +
+  "\n" +
+  "for (var resourceIndex = 0; resourceIndex < resources.length; resourceIndex += 1) {" +
+  "\n" +
+  "  var publicResourceValue = publicResource(resources[resourceIndex]);" +
+  "\n" +
+  "  if (publicResourceValue !== null) { publicResources.push(publicResourceValue); resourcesById[publicResourceValue.id] = publicResourceValue; }" +
+  "\n" +
+  "}" +
+  "\n" +
+  "Object.freeze(publicResources);" +
+  "\n" +
+  "function resourceList() { return publicResources; }" +
+  "\n" +
+  "function resourceGet(id) {" +
+  "\n" +
+  "  if (typeof id !== 'string') { throw new TypeError('Scripted resource id must be a string'); }" +
+  "\n" +
+  "  return own(resourcesById, id) ? resourcesById[id] : null;" +
+  "\n" +
+  "}" +
+  "\n" +
+  "var resourcesApi = Object.freeze({ list: resourceList, get: resourceGet });" +
+  "\n" +
+  "var runtimeApi = Object.freeze({ ports: portsApi, resources: resourcesApi });" +
   "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
@@ -309,17 +352,51 @@ function serializedPayloadValue(value: unknown): string {
   return escapeHtml(JSON.stringify(value));
 }
 
+type ScriptedResourcePayload = {
+  id: string;
+  name: string;
+  kind: PresentationFileResource["kind"];
+  representation: PresentationFileResource["representation"];
+  contentType: string;
+  url?: string;
+  content?: string;
+};
+
+function scriptedResourcePayload(
+  files: readonly PresentationFileResource[] | undefined,
+): readonly ScriptedResourcePayload[] {
+  return (files ?? []).map((file) => file.representation === "binary"
+    ? {
+        id: file.id,
+        name: file.name,
+        kind: file.kind,
+        representation: file.representation,
+        contentType: file.contentType,
+        url: file.source.url,
+      }
+    : {
+        id: file.id,
+        name: file.name,
+        kind: file.kind,
+        representation: file.representation,
+        contentType: file.contentType,
+        content: file.source.content,
+      });
+}
+
 // A complete deterministic document. Authored strings appear only in
 // the payload template's data attributes; the inline bootstrap script
 // is the unmodified renderer constant.
 function buildScriptedDocument(
   element: ScriptedElement,
   fonts?: readonly FontResource[],
+  files?: readonly PresentationFileResource[],
 ): string {
   const fontResources = renderFontResources(fonts);
   const fontResourceStyle = fontResources
     ? `<style data-presentation-font-resources>${fontResources}</style>`
     : "";
+  const resourcePayload = scriptedResourcePayload(files);
 
   return (
     "<!doctype html><html><head>" +
@@ -349,6 +426,9 @@ function buildScriptedDocument(
     "\"" +
     " data-ports=\"" +
     serializedPayloadValue(element.ports) +
+    "\"" +
+    " data-resources=\"" +
+    serializedPayloadValue(resourcePayload) +
     "\"></template>" +
     "<script data-scripted-runtime-bootstrap=\"true\">" +
     SCRIPTED_BOOTSTRAP_SOURCE +
@@ -360,6 +440,7 @@ function buildScriptedDocument(
 export function renderScripted(
   element: ScriptedElement,
   fonts?: readonly FontResource[],
+  files?: readonly PresentationFileResource[],
 ): string {
   if (element.hidden) {
     return "";
@@ -447,7 +528,7 @@ export function renderScripted(
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +
-    ` srcdoc="${escapeHtml(buildScriptedDocument(element, fonts))}"` +
+    ` srcdoc="${escapeHtml(buildScriptedDocument(element, fonts, files))}"` +
     ` style="${escapeHtml(iframeStyles.join(";"))}"` +
     `></iframe>`
   );

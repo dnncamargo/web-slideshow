@@ -381,7 +381,11 @@ export function renderElement(
     case "blocks":
       return renderBlocks(element);
     case "scripted":
-      return renderScripted(element, context?.presentation.resources?.fonts);
+      return renderScripted(
+        element,
+        context?.presentation.resources?.fonts,
+        context?.presentation.resources?.files,
+      );
 
     case "plot":
       return renderPlot(element);
