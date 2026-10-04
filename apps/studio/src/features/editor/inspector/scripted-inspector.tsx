@@ -78,7 +78,8 @@ function scriptedAggregatesEqual(
 }
 
 function resourceUsageExample(resource: PresentationFileResource): string {
-  const address = `ScriptedRuntime.resources.get("${resource.id}")`;
+  const resourceIdLiteral = JSON.stringify(resource.id);
+  const address = `ScriptedRuntime.resources.get(${resourceIdLiteral})`;
   if (resource.representation === "text" && resource.contentType === "application/json") {
     return `const resource = ${address};\nconst data = JSON.parse(resource.content);`;
   }
@@ -102,7 +103,8 @@ function ScriptedResourceRow({
   onRemove: () => void;
 }) {
   const { t } = useStudioI18n();
-  const address = `ScriptedRuntime.resources.get("${resource.id}")`;
+  const resourceIdLiteral = JSON.stringify(resource.id);
+  const address = `ScriptedRuntime.resources.get(${resourceIdLiteral})`;
 
   return (
     <div className={resourceStyles.resourceItem} data-presentation-scripted-resource-row>
@@ -162,10 +164,9 @@ function nextPortId(ports: ScriptedPortDraft[]): string {
 //
 // Typing must NOT write canonical state on every keystroke: a
 // canonical update may rebuild the Scripted iframe and re-run its
-// script. All four authored fields therefore live in local drafts
-// that commit ONLY through the explicit Apply / Run action, which
-// produces exactly one canonical update containing title + html +
-// css + script together.
+// script. Content, Ports, and Resources therefore live in local
+// drafts that commit together ONLY through the explicit Apply / Run
+// action, which produces exactly one canonical update.
 // ============================================================
 
 export function ScriptedInspector({

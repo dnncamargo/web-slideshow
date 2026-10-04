@@ -864,9 +864,22 @@ describe("ScriptedInspector port drafts", () => {
     await act(async () => click('[data-presentation-scripted-resource-available-row] [data-presentation-scripted-resource-add]'));
     expect(updates).toHaveLength(0);
     expect(container.querySelectorAll("[data-presentation-scripted-resource-row]")).toHaveLength(2);
+    expect(container.textContent).toContain('ScriptedRuntime.resources.get("file-a")');
     await act(async () => click("#scripted-apply-run"));
     expect(updates).toHaveLength(1);
     expect(elementState.resourceIds).toEqual(["file-a", "file-b"]);
+  });
+
+  it("escapes resource ids in displayed ScriptedRuntime usage guidance", async () => {
+    const escapedId = 'file-"quoted"\\path';
+    const files: PresentationFileResource[] = [
+      { id: escapedId, name: "Escaped", kind: "text", representation: "text", contentType: "text/plain", source: { type: "text", content: "Escaped" } },
+    ];
+    await act(async () => mount(scripted({ resourceIds: [escapedId] }), files));
+
+    const expectedAddress = `ScriptedRuntime.resources.get(${JSON.stringify(escapedId)})`;
+    expect(container.textContent).toContain(expectedAddress);
+    expect(container.textContent).not.toContain(`ScriptedRuntime.resources.get("${escapedId}")`);
   });
 
   it("blocks invalid local ports without canonical writes", async () => {
