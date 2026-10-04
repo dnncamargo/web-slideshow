@@ -2806,6 +2806,7 @@ export function attachImageToGallery(
 
   if (
     image?.type !== "image" ||
+    !("src" in image) ||
     !gallery ||
     itemIndex < 0 ||
     itemIndex > gallery.items.length

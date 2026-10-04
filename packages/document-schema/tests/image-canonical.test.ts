@@ -49,6 +49,26 @@ describe("canonical Image contract", () => {
     }).success).toBe(true);
   });
 
+  it("accepts a Presentation File source", () => {
+    expect(ImageElementSchema.safeParse({
+      id: "image-resource",
+      type: "image",
+      fileResourceId: "file-image",
+    }).success).toBe(true);
+  });
+
+  it.each([
+    { src: "/image.png", fileResourceId: "file-image" },
+    {},
+    { fileResourceId: "   " },
+  ])("rejects an invalid mutually-exclusive Image source %o", (source) => {
+    expect(ImageElementSchema.safeParse({
+      id: "image-source",
+      type: "image",
+      ...source,
+    }).success).toBe(false);
+  });
+
   it("accepts Image background color, palette, gradient, and coexistence", () => {
     expect(ImageElementSchema.safeParse({
       ...baseImage,

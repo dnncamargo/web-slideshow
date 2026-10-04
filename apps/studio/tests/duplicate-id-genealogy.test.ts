@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PresentationElement, Slide } from "@web-slideshow/document-schema";
+import { ImageElementSchema, type PresentationElement, type Slide } from "@web-slideshow/document-schema";
 
 import { allocateDuplicateId } from "../src/features/editor/duplicate-id";
 import { duplicateElement } from "../src/features/editor/element-operations";
@@ -35,6 +35,18 @@ describe("duplicate ID genealogy", () => {
     expect(allocateDuplicateId("copy-machine", new Set())).toBe("copy-machine-copy");
     expect(allocateDuplicateId("my-copycat", new Set())).toBe("my-copycat-copy");
     expect(allocateDuplicateId("topic-copy-value", new Set())).toBe("topic-copy-value-copy");
+  });
+
+  it("preserves an Image File reference when duplicating", () => {
+    const source = ImageElementSchema.parse({
+      id: "resource-image",
+      type: "image",
+      fileResourceId: "file-image",
+    });
+
+    const duplicate = duplicateElement(source, new Set([source.id]));
+    expect(duplicate).toMatchObject({ type: "image", fileResourceId: "file-image" });
+    expect(duplicate).not.toHaveProperty("src");
   });
 
   it("normalizes repeated element duplicates without mutating the source", () => {

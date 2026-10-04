@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PresentationElement } from "@web-slideshow/document-schema";
+import { ImageElementSchema, type PresentationElement } from "@web-slideshow/document-schema";
 
 import {
   addClipboardEntry,
@@ -67,6 +67,19 @@ describe("Clipboard session state", () => {
     expect(snapshot.element).not.toBe(source);
     if (snapshot.element.type !== "container") throw new Error("expected a Container snapshot");
     expect(snapshot.element.children).not.toBe(source.children);
+  });
+
+  it("preserves an Image File reference without materializing a URL", () => {
+    const source = ImageElementSchema.parse({
+      id: "resource-image",
+      type: "image",
+      fileResourceId: "file-image",
+    });
+
+    const snapshot = createClipboardEntry(source);
+    expect(snapshot.element).toMatchObject({ type: "image", fileResourceId: "file-image" });
+    expect(snapshot.element).not.toHaveProperty("src");
+    expect(snapshot.element).not.toHaveProperty("fileResourceUrl");
   });
 
   it("keeps at most 15 newest disposable entries", () => {

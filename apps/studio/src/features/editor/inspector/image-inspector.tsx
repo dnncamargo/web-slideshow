@@ -1,6 +1,7 @@
 import type {
   ElementEffect,
   ImageVisualStyle,
+  PresentationFileResource,
   PresentationElement,
 } from "@web-slideshow/document-schema";
 
@@ -20,6 +21,7 @@ import { ElementSpacingSection } from "./sections/element-spacing-section";
 import { useAuthoringHistory } from "../authoring-history-context";
 
 type ImageElement = Extract<PresentationElement, { type: "image" }>;
+const DEFAULT_DIRECT_IMAGE_SOURCE = "/instance-demo.svg";
 
 // ============================================================
 // BEGIN: IMAGE INSPECTOR
@@ -34,6 +36,7 @@ export function ImageInspector({
   onFocalEditingChange,
   cropEditing = false,
   onCropEditingChange = () => {},
+  presentationFiles = [],
 }: TypedInspectorProps<ImageElement> & {
   preserveImageProportion: boolean;
   onPreserveImageProportionChange: (value: boolean) => void;
@@ -41,18 +44,24 @@ export function ImageInspector({
   onFocalEditingChange: (editing: boolean) => void;
   cropEditing?: boolean;
   onCropEditingChange?: (editing: boolean) => void;
+  presentationFiles?: readonly PresentationFileResource[];
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
   const updateImageText = (field: "src" | "alt", value: string): void => {
-    if (value === element[field]) return;
+    const currentValue = field === "src"
+      ? ("src" in element ? element.src : "")
+      : element.alt;
+    if (value === currentValue) return;
 
     const historyKey = `text:image-${element.id}-${field}`;
     const update = () => onUpdate((current) => {
       if (current.type !== "image") return current;
       return field === "src"
-        ? { ...current, src: value }
+        ? "src" in current
+          ? { ...current, src: value }
+          : current
         : { ...current, alt: value };
     });
 
@@ -68,6 +77,27 @@ export function ImageInspector({
     const meta = { kind: "element.setting", labelKey: "history.element.setting", labelParams: { setting: "image.fit" } } as const;
     if (authoringHistory) authoringHistory.discrete(meta, callback);
     else callback();
+  };
+
+  const imageFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "binary");
+  const fileSource = "fileResourceId" in element;
+  const selectedFile = fileSource
+    ? imageFiles.find((file) => file.id === element.fileResourceId)
+    : undefined;
+  const updateSource = (value: string): void => {
+    runDiscrete(() => onUpdate((current) => {
+      if (current.type !== "image") return current;
+      if (value === "direct") {
+        if ("src" in current) return current;
+        const { fileResourceId: _fileResourceId, ...directBase } = current;
+        return { ...directBase, src: DEFAULT_DIRECT_IMAGE_SOURCE };
+      }
+      if ("src" in current) {
+        const { src: _src, ...resourceBase } = current;
+        return { ...resourceBase, fileResourceId: value };
+      }
+      return { ...current, fileResourceId: value };
+    }));
   };
 
   const updateStyle = (
@@ -95,6 +125,26 @@ export function ImageInspector({
 
       <InspectorSection title={t("inspector.source")} defaultOpen>
         <label className={styles.field}>
+          <span>{t("image.sourceMode")}</span>
+          <select
+            id="image-source-mode"
+            name="imageSourceMode"
+            value={fileSource ? element.fileResourceId : "direct"}
+            onChange={(event) => updateSource(event.target.value)}
+          >
+            <option value="direct">{t("image.directSource")}</option>
+            {imageFiles.map((file) => (
+              <option key={file.id} value={file.id}>{file.name}</option>
+            ))}
+          </select>
+          {fileSource ? (
+            <small className={styles.fieldHint}>
+              <span>{selectedFile?.name ?? element.fileResourceId}</span>
+            </small>
+          ) : null}
+        </label>
+
+        <label className={styles.field}>
           <span>{t("inspector.source")}</span>
 
           <textarea
@@ -103,7 +153,8 @@ export function ImageInspector({
             className={styles.textArea}
             rows={3}
             spellCheck={false}
-            value={element.src}
+            value={"src" in element ? element.src : ""}
+            disabled={fileSource}
             onFocus={() => authoringHistory?.begin(`text:image-${element.id}-src`, textEditMeta)}
             onBlur={() => authoringHistory?.finish(`text:image-${element.id}-src`)}
             onChange={(event) => {

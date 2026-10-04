@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ImageElementSchema,
   PresentationSchema,
   type GalleryElement,
   type ImageElement,
@@ -79,6 +80,21 @@ describe("Gallery structural operations", () => {
     expect(updated.items[1]).toEqual({ src: "b.png", alt: "B", fit: "fill" });
     expect(findElementById(outcome.elements, "image")).toBeNull();
     expect(attachImageToGallery([{ id: "text", type: "text", hidden: false, variant: "body", content: "x" }, target], "text", "gallery", 2).changed).toBe(false);
+  });
+
+  it("rejects resource-backed Images instead of materializing their URL into Gallery", () => {
+    const source = ImageElementSchema.parse({
+      id: "resource-image",
+      type: "image",
+      fileResourceId: "file-image",
+      alt: "Resource",
+      fit: "contain",
+    });
+    const target = gallery([item("A")]);
+    const outcome = attachImageToGallery([source, target], "resource-image", "gallery", 1);
+
+    expect(outcome.changed).toBe(false);
+    expect(outcome.elements).toEqual([source, target]);
   });
 
   it("keeps converted documents valid at schemaVersion 1", () => {

@@ -10,8 +10,8 @@ const HTTPS_LINK = {
 } as const;
 
 function imageElement(
-  overrides: Partial<Omit<ImageElement, "type">> = {},
-): ImageElement {
+  overrides: Partial<Omit<Extract<ImageElement, { src: string }>, "type">> = {},
+): Extract<ImageElement, { src: string }> {
   return {
     type: "image",
     id: "image-link",

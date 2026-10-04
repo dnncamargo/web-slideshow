@@ -909,6 +909,8 @@ const englishMessages = {
     "Main-axis alignment is controlled by Distribution.",
   
   "image.sourceHint": "Image path or source.",
+  "image.sourceMode": "Source mode",
+  "image.directSource": "Direct URL",
   "image.alternativeText": "Alternative text",
   "image.fit": "Fit",
   "image.contain": "Contain",
@@ -2256,6 +2258,8 @@ const portugueseMessages = {
     "O alinhamento do eixo principal é controlado pela Distribuição.",
 
   "image.sourceHint": "Caminho ou origem da imagem.",
+  "image.sourceMode": "Modo da origem",
+  "image.directSource": "URL direta",
   "image.alternativeText": "Texto alternativo",
   "image.fit": "Ajuste",
   "image.contain": "Conter",

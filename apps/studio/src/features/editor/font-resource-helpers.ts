@@ -21,7 +21,10 @@ export function presentationUsesFileResource(
   forEachPresentationAuthoringTree(presentation, (elements) => {
     if (used) return;
     someElement(elements, (element) => {
-      if (element.type === "scripted" && element.resourceIds.includes(fileResourceId)) {
+      if (
+        (element.type === "scripted" && element.resourceIds.includes(fileResourceId)) ||
+        (element.type === "image" && "fileResourceId" in element && element.fileResourceId === fileResourceId)
+      ) {
         used = true;
         return true;
       }

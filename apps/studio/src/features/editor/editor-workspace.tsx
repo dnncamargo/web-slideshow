@@ -457,6 +457,17 @@ type OwnedImageMediaAuthoringTarget = {
 type GalleryItem = GalleryElement["items"][number];
 type ImageMediaValue = Extract<PresentationElement, { type: "image" }> | GalleryItem;
 
+function resolveImageMediaSource(
+  media: ImageMediaValue,
+  presentation: Presentation,
+): string | null {
+  if ("src" in media) return media.src;
+  const file = presentation.resources?.files?.find((candidate) => candidate.id === media.fileResourceId);
+  return file?.kind === "image" && file.representation === "binary"
+    ? file.source.url
+    : null;
+}
+
 function areImageMediaTargetsEqual(
   left: OwnedImageMediaAuthoringTarget | null,
   right: OwnedImageMediaAuthoringTarget | null,
@@ -2697,7 +2708,12 @@ export function EditorWorkspace({
         ? findCanvasElementById(canvas, cropEditingTarget.mediaTarget.elementId)
         : findCanvasGalleryItem(canvas, cropEditingTarget.mediaTarget.galleryId, cropEditingTarget.mediaTarget.itemIndex)
       : null;
-    const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media.src}`;
+    const source = resolveImageMediaSource(media, presentation);
+    if (source === null) {
+      setCropEditingMode(null);
+      return;
+    }
+    const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${source}`;
     const preview = cropSourceMetrics?.key === sourceKey && target
       ? resolveSourcePreviewBounds(
           getCanvasBounds(target),
@@ -2737,7 +2753,7 @@ export function EditorWorkspace({
     setCanvasCropOverlay({
       ...preview,
       target: cropEditingTarget,
-      source: media.src,
+      source,
       crop: resolveCropCanvasRect(preview, crop),
     });
   }, [canvasGeometry, cropEditingTarget, cropSourceMetrics, canvasCropPreview, currentImageMediaTarget, renderedSlide, cropMeasureVersion, presentation]);
@@ -6545,6 +6561,13 @@ export function EditorWorkspace({
   // END: EMPTY STATE
   // ==========================================================
 
+  const cropLoaderMedia = cropEditingTarget
+    ? resolveImageMediaTarget(cropEditingTarget)
+    : null;
+  const cropLoaderSource = cropLoaderMedia
+    ? resolveImageMediaSource(cropLoaderMedia, presentation) ?? ""
+    : "";
+
   return (
     <main className={styles.editor}>
       {/* =====================================================
@@ -6941,22 +6964,23 @@ export function EditorWorkspace({
             </div>
             {cropEditingTarget && currentImageMediaTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget) && (
               <img
-                key={`${imageMediaTargetKey(cropEditingTarget)}:${resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}`}
+                key={`${imageMediaTargetKey(cropEditingTarget)}:${cropLoaderSource}`}
                 className={styles.canvasCropSourceLoader}
-                src={resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}
+                src={cropLoaderSource}
                 alt=""
                 draggable={false}
-                data-crop-source-key={`${imageMediaTargetKey(cropEditingTarget)}:${resolveImageMediaTarget(cropEditingTarget)?.src ?? ""}`}
+                data-crop-source-key={`${imageMediaTargetKey(cropEditingTarget)}:${cropLoaderSource}`}
                 onLoad={(event) => {
                   const image = event.currentTarget;
                   const media = resolveImageMediaTarget(cropEditingTarget);
-                  const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${media?.src ?? ""}`;
+                  const source = media ? resolveImageMediaSource(media, presentation) : null;
+                  const sourceKey = `${imageMediaTargetKey(cropEditingTarget)}:${source ?? ""}`;
                   if (
-                    !media || sourceKey !== image.getAttribute("data-crop-source-key")
+                    !media || source === null || sourceKey !== image.getAttribute("data-crop-source-key")
                   ) return;
                   setCropSourceMetrics({
                     key: sourceKey,
-                    src: media.src,
+                    src: source,
                     width: image.naturalWidth,
                     height: image.naturalHeight,
                   });

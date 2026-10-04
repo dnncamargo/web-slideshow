@@ -212,6 +212,7 @@ function ElementTypeInspector({
         <ImageInspector
           element={element}
           onUpdate={onUpdate}
+          presentationFiles={presentation?.resources?.files ?? []}
           preserveImageProportion={preserveImageProportion}
           onPreserveImageProportionChange={onPreserveImageProportionChange}
           focalEditing={focalEditing ?? focalEditingImageId === element.id}
