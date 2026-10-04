@@ -61,6 +61,12 @@ import { addCustomLibraryPaletteToPresentation } from "@/features/custom-library
 import type { CustomLibraryFontDraft } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import { addCustomLibraryFontToPresentation } from "@/features/custom-library/custom-library-font-apply";
+import type { CustomLibraryFileDraft } from "@/features/custom-library/custom-library-file";
+import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
+import {
+  addCustomLibraryFileToPresentation,
+  removeCustomLibraryFileFromPresentation,
+} from "@/features/custom-library/custom-library-file-apply";
 import {
   applyCustomLibraryItemToPresentation,
   type CustomLibraryElementOwner,
@@ -105,7 +111,7 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
-import { CustomResourcesWorkspace } from "./resources/custom-resources-workspace";
+import { CustomResourcesWorkspace, type CustomLibraryFileAddOutcome } from "./resources/custom-resources-workspace";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -1084,6 +1090,7 @@ export function EditorWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository,
   customLibraryFontRepository,
+  customLibraryFileRepository,
   initialAuthoringTarget,
 }: {
   initialPresentation?: Presentation;
@@ -1093,6 +1100,7 @@ export function EditorWorkspace({
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
+  customLibraryFileRepository?: CustomLibraryFileRepository;
   initialAuthoringTarget?: AuthoringTarget;
 } = {}) {
   const { locale, t } = useStudioI18n();
@@ -4558,6 +4566,52 @@ export function EditorWorkspace({
     return "removed";
   }
 
+  async function addCustomLibraryFile(file: CustomLibraryFileDraft): Promise<CustomLibraryFileAddOutcome> {
+    let textContent: string | undefined;
+
+    if (file.representation === "text") {
+      try {
+        const response = await fetch(file.source.downloadUrl);
+        if (!response.ok) return "load-error";
+        textContent = await response.text();
+      } catch {
+        return "load-error";
+      }
+    }
+
+    const preflight = addCustomLibraryFileToPresentation(presentation, file, textContent);
+    if (preflight.kind !== "added") return "conflict";
+
+    commitPresentationGlobalAction(
+      {
+        kind: "file.import",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.import" },
+      },
+      (current) => {
+        const result = addCustomLibraryFileToPresentation(current, file, textContent);
+        return result.kind === "added" ? result.presentation : current;
+      },
+    );
+    return "added";
+  }
+
+  function removePresentationFile(fileResourceId: string): void {
+    if (!presentation.resources?.files?.some((file) => file.id === fileResourceId)) return;
+
+    commitPresentationGlobalAction(
+      {
+        kind: "file.remove",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.remove" },
+      },
+      (current) => {
+        const result = removeCustomLibraryFileFromPresentation(current, fileResourceId);
+        return result.kind === "removed" ? result.presentation : current;
+      },
+    );
+  }
+
   function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties }): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
@@ -7076,17 +7130,21 @@ export function EditorWorkspace({
           <CustomResourcesWorkspace
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             customLibraryFontRepository={customLibraryFontRepository}
+            customLibraryFileRepository={customLibraryFileRepository}
             customLibraryRepository={customLibraryRepository}
             presentationColors={presentation.palette?.colors ?? []}
             presentationFonts={presentation.resources?.fonts ?? []}
+            presentationFiles={presentation.resources?.files ?? []}
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
+            onAddLibraryFile={addCustomLibraryFile}
             onApplyElementStyle={applyCustomLibraryItem}
             allowElementStyleApply={elementStyleApplyAllowed}
             onAddPresentationColor={addNamedPresentationPaletteColor}
             onUpdatePresentationColor={updateNamedPresentationPaletteColor}
             onRemovePresentationColor={removePresentationPaletteColor}
             onRemovePresentationFont={removePresentationFont}
+            onRemovePresentationFile={removePresentationFile}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             presentationTextStyles={presentation.textStyles ?? []}
             presentation={presentation}

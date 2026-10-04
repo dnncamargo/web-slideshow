@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationFileResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
 import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -25,8 +25,12 @@ import type {
 import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
 import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "@/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
+import type { CustomLibraryFileDraft, CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
+import { formatCustomLibraryFileSize } from "@/features/custom-library/custom-library-file";
+import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
+import { getDefaultCustomLibraryFileRepository } from "@/features/persistence/custom-library-file-repository-instance";
 import { readAbsoluteNumber } from "../inspector/inspector-helpers";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { ColorControl } from "../inspector/sections/color-control";
@@ -52,16 +56,20 @@ interface CustomResourcesWorkspaceProps {
   customLibraryRepository?: CustomLibraryRepository;
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
+  customLibraryFileRepository?: CustomLibraryFileRepository;
   presentationColors: readonly PresentationPaletteColor[];
   presentationFonts: readonly FontResource[];
+  presentationFiles?: readonly PresentationFileResource[];
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
+  onAddLibraryFile?: (file: CustomLibraryFileDraft) => Promise<CustomLibraryFileAddOutcome>;
   onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   allowElementStyleApply?: boolean;
   onAddPresentationColor: (name: string, value: Color) => void;
   onUpdatePresentationColor: (id: string, patch: { name: string; value: Color }) => void;
   onRemovePresentationColor: (id: string) => void;
   onRemovePresentationFont: (id: string) => CustomLibraryFontRemoveOutcome;
+  onRemovePresentationFile?: (id: string) => void;
   isPresentationFontInUse: (family: string) => boolean;
   presentationTextStyles?: readonly TextStyle[];
   presentation?: Presentation;
@@ -120,6 +128,13 @@ type FontLoadState =
   | { kind: "loading" }
   | { kind: "ready"; records: CustomLibraryFontRecord[] }
   | { kind: "error" };
+
+type FileLoadState =
+  | { kind: "loading" }
+  | { kind: "ready"; records: CustomLibraryFileRecord[] }
+  | { kind: "error" };
+
+export type CustomLibraryFileAddOutcome = "added" | "conflict" | "load-error";
 
 const PREVIEW_COLOR_LIMIT = 6;
 
@@ -192,16 +207,20 @@ export function CustomResourcesWorkspace({
   customLibraryRepository,
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
+  customLibraryFileRepository = getDefaultCustomLibraryFileRepository(),
   presentationColors,
   presentationFonts,
+  presentationFiles = [],
   onAddLibraryPalette,
   onAddLibraryFont,
+  onAddLibraryFile = async () => "conflict",
   onApplyElementStyle,
   allowElementStyleApply = true,
   onAddPresentationColor,
   onUpdatePresentationColor,
   onRemovePresentationColor,
   onRemovePresentationFont,
+  onRemovePresentationFile = () => undefined,
   isPresentationFontInUse,
   presentationTextStyles = [],
   presentation,
@@ -240,6 +259,7 @@ export function CustomResourcesWorkspace({
   const { t } = useStudioI18n();
   const [loadState, setLoadState] = useState<PaletteLoadState>({ kind: "loading" });
   const [fontLoadState, setFontLoadState] = useState<FontLoadState>({ kind: "loading" });
+  const [fileLoadState, setFileLoadState] = useState<FileLoadState>({ kind: "loading" });
   const [elementStyleChooserOpen, setElementStyleChooserOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [localColorAddOpen, setLocalColorAddOpen] = useState(false);
@@ -247,8 +267,12 @@ export function CustomResourcesWorkspace({
   const [colorValue, setColorValue] = useState<Color>("#ffffff");
   const requestRevisionRef = useRef(0);
   const fontRequestRevisionRef = useRef(0);
+  const fileRequestRevisionRef = useRef(0);
   const [fontChooserOpen, setFontChooserOpen] = useState(false);
+  const [fileChooserOpen, setFileChooserOpen] = useState(false);
   const [fontFeedback, setFontFeedback] = useState<{ kind: CustomLibraryFontAddKind; family: string; count: number } | null>(null);
+  const [fileFeedback, setFileFeedback] = useState<{ kind: CustomLibraryFileAddOutcome; name: string } | null>(null);
+  const [addingFileId, setAddingFileId] = useState<string | null>(null);
   const [editingStyleId, setEditingStyleId] = useState<string | null>(null);
   const [addingStyle, setAddingStyle] = useState(false);
   const [pendingRootDefinitionDelete, setPendingRootDefinitionDelete] = useState<{ id: string; name: string } | null>(null);
@@ -282,18 +306,45 @@ export function CustomResourcesWorkspace({
       });
   }, [customLibraryFontRepository]);
 
+  const loadFiles = useCallback(() => {
+    const requestRevision = fileRequestRevisionRef.current + 1;
+    fileRequestRevisionRef.current = requestRevision;
+    setFileLoadState({ kind: "loading" });
+    void Promise.resolve()
+      .then(() => customLibraryFileRepository.listFiles())
+      .then((records) => {
+        if (requestRevision === fileRequestRevisionRef.current) setFileLoadState({ kind: "ready", records });
+      })
+      .catch(() => {
+        if (requestRevision === fileRequestRevisionRef.current) setFileLoadState({ kind: "error" });
+      });
+  }, [customLibraryFileRepository]);
+
   useEffect(() => {
     void Promise.resolve().then(loadPalettes);
     void Promise.resolve().then(loadFonts);
+    void Promise.resolve().then(loadFiles);
     return () => {
       requestRevisionRef.current += 1;
       fontRequestRevisionRef.current += 1;
+      fileRequestRevisionRef.current += 1;
     };
-  }, [loadFonts, loadPalettes]);
+  }, [loadFiles, loadFonts, loadPalettes]);
 
   function addLibraryFont(font: CustomLibraryFontDraft): void {
     const result = onAddLibraryFont(font);
     setFontFeedback({ kind: result.kind, family: font.family, count: result.addedFaces });
+  }
+
+  async function addLibraryFile(file: CustomLibraryFileRecord): Promise<void> {
+    setAddingFileId(file.id);
+    setFileFeedback(null);
+    try {
+      const kind = await onAddLibraryFile(file.file);
+      setFileFeedback({ kind, name: file.file.name });
+    } finally {
+      setAddingFileId(null);
+    }
   }
 
   function addIndividualColor(): void {
@@ -348,6 +399,17 @@ export function CustomResourcesWorkspace({
               </div>
               {fontFeedback ? <p className={styles.status} role={fontFeedback.kind === "conflict" ? "alert" : undefined}>{fontFeedback.kind === "added" ? t("customResources.fontAdded", { family: fontFeedback.family }) : fontFeedback.kind === "merged" ? t("customResources.fontMerged", { count: fontFeedback.count ?? 0, family: fontFeedback.family }) : fontFeedback.kind === "unchanged" ? t("customResources.fontUnchanged", { family: fontFeedback.family }) : t("customResources.fontConflict", { family: fontFeedback.family })}</p> : null}
               {fontChooserOpen ? <MasterFontChooser loadState={fontLoadState} onRetry={loadFonts} onAdd={addLibraryFont} /> : null}
+            </div>
+          </InspectorSection>
+          <InspectorSection title={t("customResources.files")} open={resourceSections.libraryFiles} onOpenChange={(open) => onResourceSectionChange("libraryFiles", open)}>
+            <div className={styles.group}>
+              <div className={styles.groupHeader}>
+                <button type="button" className={styles.resourceAction} onClick={() => setFileChooserOpen((open) => !open)}>
+                  {fileChooserOpen ? t("customResources.close") : t("customResources.addFile")}
+                </button>
+              </div>
+              {fileFeedback ? <p className={styles.status} role={fileFeedback.kind === "added" ? undefined : "alert"}>{fileFeedback.kind === "added" ? t("customResources.fileAdded", { name: fileFeedback.name }) : fileFeedback.kind === "load-error" ? t("customResources.fileContentLoadFailed") : t("customResources.fileAddFailed", { name: fileFeedback.name })}</p> : null}
+              {fileChooserOpen ? <MasterFileChooser loadState={fileLoadState} onRetry={loadFiles} onAdd={(file) => void addLibraryFile(file)} addingFileId={addingFileId} /> : null}
             </div>
           </InspectorSection>
         </section>
@@ -448,6 +510,13 @@ export function CustomResourcesWorkspace({
               {presentationFonts.map((font) => <LocalPresentationFontRow key={font.id} font={font} inUse={isPresentationFontInUse(font.family)} onRemove={onRemovePresentationFont} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFonts.length === 1 ? "customResources.fontCountOne" : "customResources.fontCountMany", { count: presentationFonts.length })}</span>
+            </InspectorSection>
+            <InspectorSection title={t("customResources.files")} count={presentationFiles.length} open={resourceSections.presentationFiles} onOpenChange={(open) => onResourceSectionChange("presentationFiles", open)}>
+            {presentationFiles.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationFiles")}</p> : null}
+            <div className={styles.localFontList} data-presentation-files>
+              {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} onRemove={onRemovePresentationFile} />)}
+            </div>
+            <span className={styles.colorCount}>{t(presentationFiles.length === 1 ? "customResources.fileCountOne" : "customResources.fileCountMany", { count: presentationFiles.length })}</span>
             </InspectorSection>
           </div>
         </section>
@@ -1692,6 +1761,52 @@ function LocalPresentationFontRow({
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
     </div>
     <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
+  </div>;
+}
+
+function MasterFileChooser({
+  loadState,
+  onRetry,
+  onAdd,
+  addingFileId,
+}: {
+  loadState: FileLoadState;
+  onRetry: () => void;
+  onAdd: (record: CustomLibraryFileRecord) => void;
+  addingFileId: string | null;
+}) {
+  const { t } = useStudioI18n();
+
+  if (loadState.kind === "loading") return <p className={styles.status}>{t("customResources.loadingFiles")}</p>;
+  if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.fileLoadFailed")}</p><button type="button" className={styles.resourceAction} onClick={onRetry}>{t("customResources.retry")}</button></div>;
+  if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFiles")}</p>;
+
+  return <div className={styles.masterFontList}>
+    {loadState.records.map((record) => <div key={record.id} className={styles.resourceItem} data-custom-resource-file>
+      <div className={styles.resourceItemDetailsStack}>
+        <strong>{record.file.name}</strong>
+        <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${record.file.kind}`)} · {formatCustomLibraryFileSize(record.file.source.sizeBytes)}</span>
+      </div>
+      <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFile", { name: record.file.name })} disabled={addingFileId !== null} onClick={() => onAdd(record)}>+</button>
+    </div>)}
+  </div>;
+}
+
+function LocalPresentationFileRow({
+  file,
+  onRemove,
+}: {
+  file: PresentationFileResource;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useStudioI18n();
+
+  return <div className={styles.resourceItem} data-presentation-file-row>
+    <div className={styles.resourceItemDetailsStack}>
+      <strong>{file.name}</strong>
+      <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${file.kind}`)} · {file.contentType}</span>
+    </div>
+    <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFile", { name: file.name })} onClick={() => onRemove(file.id)}>×</button>
   </div>;
 }
 
