@@ -521,7 +521,7 @@ export function CustomResourcesWorkspace({
             <InspectorSection title={t("customResources.files")} count={presentationFiles.length} open={resourceSections.presentationFiles} onOpenChange={(open) => onResourceSectionChange("presentationFiles", open)}>
             {presentationFiles.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationFiles")}</p> : null}
             <div className={styles.localFontList} data-presentation-files>
-              {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} inUse={isPresentationFileInUse(file.id)} active={activePresentationTextFileId === file.id} onEdit={onEditPresentationFile} onRemove={onRemovePresentationFile} />)}
+              {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} inUse={isPresentationFileInUse(file.id)} active={activePresentationTextFileId === file.id} textEditingActive={activePresentationTextFileId !== null} onEdit={onEditPresentationFile} onRemove={onRemovePresentationFile} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFiles.length === 1 ? "customResources.fileCountOne" : "customResources.fileCountMany", { count: presentationFiles.length })}</span>
             </InspectorSection>
@@ -1808,12 +1808,14 @@ function LocalPresentationFileRow({
   file,
   inUse,
   active,
+  textEditingActive,
   onEdit,
   onRemove,
 }: {
   file: PresentationFileResource;
   inUse: boolean;
   active: boolean;
+  textEditingActive: boolean;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
@@ -1831,7 +1833,7 @@ function LocalPresentationFileRow({
           className={styles.resourceAction}
           data-resource-action="edit"
           aria-label={`${t("customResources.edit")} ${file.name}`}
-          disabled={active}
+          disabled={active || textEditingActive}
           onClick={() => onEdit(file.id)}
         >
           {t("customResources.edit")}

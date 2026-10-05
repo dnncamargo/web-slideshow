@@ -78,6 +78,14 @@ function presentation(content = "before"): Presentation {
           contentType: "image/png",
           source: { type: "url", url: "https://example.com/diagram.png" },
         },
+        {
+          id: "second-text-file",
+          name: "other.txt",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "second canonical" },
+        },
       ],
     },
   });
@@ -130,8 +138,14 @@ describe("Presentation text file editing workspace", () => {
   }
 
   async function enterTextEditing(): Promise<void> {
+    await enterTextFileEditing("notes.txt");
+  }
+
+  async function enterTextFileEditing(name: string): Promise<void> {
     await openPresentationFiles();
-    const edit = host.querySelector<HTMLButtonElement>("[data-presentation-file-row] [data-resource-action='edit']");
+    const row = Array.from(host.querySelectorAll<HTMLElement>("[data-presentation-file-row]"))
+      .find((candidate) => candidate.querySelector("strong")?.textContent === name);
+    const edit = row?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
     if (!edit) throw new Error("Text file Edit action not found");
     await act(async () => edit.click());
   }
@@ -228,5 +242,31 @@ describe("Presentation text file editing workspace", () => {
     const redone = await saveCanonicalSnapshot();
     expect(redone.resources?.files?.find((file) => file.id === "file-library-text-record")?.source).toEqual({ type: "text", content: "after" });
     expect(redone.slides[0]?.elements[0]?.type === "scripted" ? redone.slides[0]?.elements[0]?.resourceIds : undefined).toEqual(["file-library-text-record"]);
+  });
+
+  it("isolates one active File draft from every other File", async () => {
+    await enterTextEditing();
+    await act(async () => setText("A draft"));
+
+    const secondFileRow = Array.from(host.querySelectorAll<HTMLElement>("[data-presentation-file-row]"))
+      .find((candidate) => candidate.querySelector("strong")?.textContent === "other.txt");
+    const secondEdit = secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
+    expect(secondEdit?.disabled).toBe(true);
+    await act(async () => secondEdit?.click());
+    expect(textarea().value).toBe("A draft");
+    expect(saved).toHaveLength(0);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    expect(secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']")?.disabled).toBe(false);
+
+    await enterTextFileEditing("other.txt");
+    expect(textarea().value).toBe("second canonical");
+    await act(async () => setText("B changed"));
+    await saveText();
+
+    const snapshot = await saveCanonicalSnapshot();
+    expect(snapshot.resources?.files?.find((file) => file.id === "file-library-text-record")?.source).toEqual({ type: "text", content: "before" });
+    expect(snapshot.resources?.files?.find((file) => file.id === "second-text-file")?.source).toEqual({ type: "text", content: "B changed" });
   });
 });

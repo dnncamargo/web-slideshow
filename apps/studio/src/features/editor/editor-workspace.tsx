@@ -4650,6 +4650,7 @@ export function EditorWorkspace({
   }
 
   function editPresentationTextFile(fileResourceId: string): void {
+    if (textEditingFileId !== null) return;
     const file = presentationRef.current.resources?.files?.find(
       (candidate) => candidate.id === fileResourceId && candidate.representation === "text",
     );
@@ -6794,6 +6795,7 @@ export function EditorWorkspace({
       <div className={styles.workspace}>
         {textEditingFile ? (
           <PresentationTextFileEditor
+            key={textEditingFile.id}
             file={textEditingFile}
             onSave={(content) => updatePresentationTextFileContent(textEditingFile.id, content)}
             onExit={() => setTextEditingFileId(null)}
