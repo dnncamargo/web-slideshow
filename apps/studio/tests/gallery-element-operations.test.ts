@@ -144,6 +144,21 @@ describe("Gallery element authoring", () => {
     }
   });
 
+  it("duplicate preserves a File-backed item without materializing a URL", () => {
+    const source = galleryElement({
+      items: [{ fileResourceId: "file-image", alt: "Resource" }],
+    });
+    const duplicate = duplicateElement(source, new Set());
+
+    if (duplicate.type === "gallery") {
+      expect(duplicate.items[0]).toEqual({
+        fileResourceId: "file-image",
+        alt: "Resource",
+      });
+      expect(duplicate.items[0]).not.toHaveProperty("src");
+    }
+  });
+
   it("duplicate items array is not the same reference", () => {
     const source = galleryElement();
 

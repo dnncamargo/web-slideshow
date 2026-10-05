@@ -43,7 +43,7 @@ describe("Gallery element schema", () => {
 
     if (result.success && result.data.type === "gallery") {
       expect(
-        result.data.items.map((item) => item.src),
+        result.data.items.map((item) => "src" in item ? item.src : item.fileResourceId),
       ).toEqual(["/first.png", "/second.png"]);
     }
   });
@@ -117,6 +117,20 @@ describe("Gallery element schema", () => {
     );
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts a Presentation File-backed item", () => {
+    expect(GalleryElementSchema.safeParse(gallery({
+      items: [{ fileResourceId: "file-image", alt: "Raster" }],
+    })).success).toBe(true);
+  });
+
+  it.each([
+    { src: "/photo.png", fileResourceId: "file-image" },
+    {},
+    { fileResourceId: "   " },
+  ])("rejects an invalid mutually-exclusive item source %o", (source) => {
+    expect(GalleryElementSchema.safeParse(gallery({ items: [{ ...source }] })).success).toBe(false);
   });
 
   it("rejects an unsupported fit", () => {

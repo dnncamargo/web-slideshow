@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ImageElementSchema, type PresentationElement } from "@web-slideshow/document-schema";
+import {
+  GalleryElementSchema,
+  ImageElementSchema,
+  type PresentationElement,
+} from "@web-slideshow/document-schema";
 
 import {
   addClipboardEntry,
@@ -80,6 +84,21 @@ describe("Clipboard session state", () => {
     expect(snapshot.element).toMatchObject({ type: "image", fileResourceId: "file-image" });
     expect(snapshot.element).not.toHaveProperty("src");
     expect(snapshot.element).not.toHaveProperty("fileResourceUrl");
+  });
+
+  it("preserves a Gallery File reference without materializing a URL", () => {
+    const source = GalleryElementSchema.parse({
+      id: "resource-gallery",
+      type: "gallery",
+      items: [{ fileResourceId: "file-image", alt: "Resource" }],
+    });
+
+    const snapshot = createClipboardEntry(source);
+    expect(snapshot.element).toMatchObject({
+      type: "gallery",
+      items: [{ fileResourceId: "file-image" }],
+    });
+    expect(snapshot.element).not.toHaveProperty("items.0.src");
   });
 
   it("keeps at most 15 newest disposable entries", () => {

@@ -193,13 +193,21 @@ export const ImageElementSchema = z.union([
 
 export type ImageElement = z.infer<typeof ImageElementSchema>;
 
-export const GalleryItemSchema = z.object({
-  src: z.string().min(1),
+const GalleryItemBaseSchema = z.object({
   alt: z.string().default(""),
   fit: z.enum(["contain", "cover", "fill"]).optional(),
   focalPoint: ImageFocalPointSchema.optional(),
   crop: ImageCropSchema.optional(),
 }).strict();
+
+export const GalleryItemSchema = z.union([
+  GalleryItemBaseSchema.extend({
+    src: z.string().min(1),
+  }).strict(),
+  GalleryItemBaseSchema.extend({
+    fileResourceId: z.string().trim().min(1),
+  }).strict(),
+]);
 
 export type GalleryItem =
   z.infer<typeof GalleryItemSchema>;

@@ -242,6 +242,44 @@ describe("presentation persistence helpers", () => {
     });
   });
 
+  it("preserves a Gallery File item through persistence snapshots", () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "pres-file-gallery",
+      title: "File Gallery",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://cdn.example.test/gallery.png" },
+        }],
+      },
+      slides: [{
+        id: "slide-1",
+        elements: [{
+          id: "gallery-1",
+          type: "gallery",
+          items: [{ fileResourceId: "file-image", alt: "Gallery image" }],
+        }],
+      }],
+    });
+
+    const safe = makeFirestoreSafePresentation(source);
+    const recovered = parsePersistedPresentation({ presentationJson: JSON.stringify(safe) });
+    const recoveredGallery = recovered.slides[0]?.elements[0];
+
+    expect(recovered).toEqual(source);
+    expect(recovered.resources?.files).toEqual(source.resources?.files);
+    expect(recoveredGallery).toMatchObject({
+      type: "gallery",
+      items: [{ fileResourceId: "file-image" }],
+    });
+    expect(recoveredGallery).not.toHaveProperty("items.0.src");
+  });
+
   it("preserves slide and nested element order", () => {
     const source = basePresentation();
     source.slides = [

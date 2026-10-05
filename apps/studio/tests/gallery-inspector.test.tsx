@@ -41,6 +41,10 @@ const DEFAULT_ITEMS = [
   { src: "/two.png", alt: "Two" },
 ];
 
+function itemSource(item: GalleryElement["items"][number]): string {
+  return "src" in item ? item.src : item.fileResourceId;
+}
+
 function galleryElement(
   overrides: Partial<Omit<GalleryElement, "type">> = {},
 ): GalleryElement {
@@ -343,8 +347,8 @@ describe("GalleryInspector", () => {
     await act(async () => {
       setTextAreaValue(itemSrc("#gallery-gallery-1-item-0-src"), "/changed.png");
     });
-    expect(updates[0]?.items[0]?.src).toBe("/changed.png");
-    expect(updates[0]?.items[1]?.src).toBe("/two.png");
+    expect(updates[0]?.items[0] && itemSource(updates[0].items[0])).toBe("/changed.png");
+    expect(updates[0]?.items[1] && itemSource(updates[0].items[1])).toBe("/two.png");
   });
 
   it("alt edit updates only the targeted item", async () => {
@@ -460,7 +464,7 @@ describe("GalleryInspector", () => {
       removeButtons()[0]?.click();
     });
     expect(updates[0]?.items).toHaveLength(1);
-    expect(updates[0]?.items[0]?.src).toBe("/two.png");
+    expect(updates[0]?.items[0] && itemSource(updates[0].items[0])).toBe("/two.png");
     expect(selectedItemIndex).toBe(0);
   });
 

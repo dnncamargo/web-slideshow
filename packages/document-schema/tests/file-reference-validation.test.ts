@@ -182,3 +182,45 @@ describe("Presentation File references from Image", () => {
     }
   });
 });
+
+describe("Presentation File references from Gallery", () => {
+  const gallery = (item: Record<string, unknown>) => ({
+    id: "gallery",
+    type: "gallery" as const,
+    items: [item],
+  });
+
+  it("accepts a raster binary Gallery item reference", () => {
+    const result = PresentationSchema.safeParse(presentation({
+      resources: { files: [imageResource] },
+      slides: [{ id: "slide-1", elements: [gallery({ fileResourceId: "file-image" })] }],
+    }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    ["missing", []],
+    ["svg-text", [{
+      id: "file-svg",
+      name: "SVG",
+      kind: "image" as const,
+      representation: "text" as const,
+      contentType: "image/svg+xml" as const,
+      source: { type: "text" as const, content: "<svg />" },
+    }]],
+    ["non-image", [resource]],
+  ])("rejects %s Gallery item File references at the item path", (caseName, files) => {
+    const result = PresentationSchema.safeParse(presentation({
+      resources: { files },
+      slides: [{ id: "slide-1", elements: [gallery({ fileResourceId: "file-image" })] }],
+    }));
+
+    expect(result.success, caseName).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: ["slides", 0, "elements", 0, "items", 0, "fileResourceId"] }),
+      ]));
+    }
+  });
+});

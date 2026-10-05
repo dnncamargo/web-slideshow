@@ -33,6 +33,7 @@ import {
   renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
   renderCanonicalImageStyle,
+  resolveCanonicalImageSource,
 } from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
@@ -56,22 +57,6 @@ function renderCroppedImageMedia(element: ImageElement, src: string): string {
     ` src="${escapeHtml(src)}"` +
     ` alt="${escapeHtml(element.alt)}"` +
     ` style="display:block;position:absolute;max-width:none">`;
-}
-
-function resolveImageSource(
-  element: ImageElement,
-  context: RenderContext | undefined,
-): string | null {
-  if ("src" in element) {
-    return element.src;
-  }
-
-  const file = context?.presentation.resources?.files?.find(
-    (candidate) => candidate.id === element.fileResourceId,
-  );
-  return file?.kind === "image" && file.representation === "binary"
-    ? file.source.url
-    : null;
 }
 
 function renderLinkContent(
@@ -273,7 +258,7 @@ function renderImage(element: ImageElement, context?: RenderContext): string {
     return "";
   }
 
-  const src = resolveImageSource(element, context);
+  const src = resolveCanonicalImageSource(element, context?.presentation);
   if (src === null) {
     return "";
   }
@@ -394,7 +379,7 @@ export function renderElement(
       return renderDivider(element, context?.presentation);
 
     case "gallery":
-      return renderGallery(element);
+      return renderGallery(element, context?.presentation);
 
     case "embed":
       return renderEmbed(element);

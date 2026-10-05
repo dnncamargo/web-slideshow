@@ -32,13 +32,17 @@ function item(src: string) {
   return { src, alt: src };
 }
 
+function itemSource(item: GalleryElement["items"][number]): string {
+  return "src" in item ? item.src : item.fileResourceId;
+}
+
 describe("Gallery structural operations", () => {
   it("reorders Gallery items in both directions using final indexes", () => {
     const forward = reorderGalleryItem([gallery([item("A"), item("B"), item("C"), item("D")])], "gallery", 1, 3);
     const backward = reorderGalleryItem([gallery([item("A"), item("B"), item("C")])], "gallery", 2, 0);
 
-    expect((forward.elements[0] as GalleryElement).items.map((entry) => entry.src)).toEqual(["A", "C", "D", "B"]);
-    expect((backward.elements[0] as GalleryElement).items.map((entry) => entry.src)).toEqual(["C", "A", "B"]);
+    expect((forward.elements[0] as GalleryElement).items.map(itemSource)).toEqual(["A", "C", "D", "B"]);
+    expect((backward.elements[0] as GalleryElement).items.map(itemSource)).toEqual(["C", "A", "B"]);
   });
 
   it("detaches media with effective fit, normal Image defaults, and no Gallery surface inheritance", () => {
@@ -76,13 +80,13 @@ describe("Gallery structural operations", () => {
     const outcome = attachImageToGallery([source, target], "image", "gallery", 1);
     const updated = findElementById(outcome.elements, "gallery") as GalleryElement;
 
-    expect(updated.items.map((entry) => entry.src)).toEqual(["A", "b.png", "C"]);
+    expect(updated.items.map(itemSource)).toEqual(["A", "b.png", "C"]);
     expect(updated.items[1]).toEqual({ src: "b.png", alt: "B", fit: "fill" });
     expect(findElementById(outcome.elements, "image")).toBeNull();
     expect(attachImageToGallery([{ id: "text", type: "text", hidden: false, variant: "body", content: "x" }, target], "text", "gallery", 2).changed).toBe(false);
   });
 
-  it("rejects resource-backed Images instead of materializing their URL into Gallery", () => {
+  it("preserves a File-backed Image reference when attaching to Gallery", () => {
     const source = ImageElementSchema.parse({
       id: "resource-image",
       type: "image",
@@ -93,8 +97,28 @@ describe("Gallery structural operations", () => {
     const target = gallery([item("A")]);
     const outcome = attachImageToGallery([source, target], "resource-image", "gallery", 1);
 
-    expect(outcome.changed).toBe(false);
-    expect(outcome.elements).toEqual([source, target]);
+    expect(outcome.changed).toBe(true);
+    expect((outcome.elements[0] as GalleryElement).items[1]).toEqual({
+      fileResourceId: "file-image",
+      alt: "Resource",
+      fit: "contain",
+    });
+    expect((outcome.elements[0] as GalleryElement).items[1]).not.toHaveProperty("src");
+    expect(findElementById(outcome.elements, "resource-image")).toBeNull();
+  });
+
+  it("preserves a File-backed Gallery item when detaching to Image", () => {
+    const source = gallery([{ fileResourceId: "file-image", alt: "Resource", fit: "fill" }]);
+    const outcome = detachGalleryItemToImage([source], new Set(), "gallery", 0, "gallery", "after");
+    const detached = findElementById(outcome.elements, outcome.imageId ?? "");
+
+    expect(detached).toMatchObject({
+      type: "image",
+      fileResourceId: "file-image",
+      alt: "Resource",
+      fit: "fill",
+    });
+    expect(detached).not.toHaveProperty("src");
   });
 
   it("keeps converted documents valid at schemaVersion 1", () => {

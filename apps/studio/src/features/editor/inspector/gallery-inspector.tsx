@@ -1,4 +1,4 @@
-import type { GalleryElement } from "@web-slideshow/document-schema";
+import type { GalleryElement, PresentationFileResource } from "@web-slideshow/document-schema";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "../editor-workspace.module.css";
 import { InspectorSection } from "./inspector-section";
@@ -13,9 +13,10 @@ import { useAuthoringHistory } from "../authoring-history-context";
 
 type GalleryFit = GalleryElement["fit"];
 type GalleryItem = GalleryElement["items"][number];
-const GALLERY_ITEM_DEFAULT: GalleryItem = { src: "/instance-demo.svg", alt: "" };
+const GALLERY_ITEM_DEFAULT = { src: "/instance-demo.svg", alt: "" } satisfies Extract<GalleryItem, { src: string }>;
 
 interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
+  presentationFiles?: readonly PresentationFileResource[];
   selectedItemIndex?: number | null;
   onSelectedItemIndexChange?: (index: number | null) => void;
   focalEditing?: boolean;
@@ -24,7 +25,7 @@ interface GalleryInspectorProps extends TypedInspectorProps<GalleryElement> {
   onCropEditingChange?: (editing: boolean) => void;
 }
 
-export function GalleryInspector({ element, onUpdate, selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined, focalEditing = false, onFocalEditingChange = () => undefined, cropEditing = false, onCropEditingChange = () => undefined }: GalleryInspectorProps) {
+export function GalleryInspector({ element, onUpdate, presentationFiles = [], selectedItemIndex = element.items.length > 0 ? 0 : null, onSelectedItemIndexChange = () => undefined, focalEditing = false, onFocalEditingChange = () => undefined, cropEditing = false, onCropEditingChange = () => undefined }: GalleryInspectorProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const textEditMeta = { kind: "text.edit", labelKey: "history.text.edit" } as const;
@@ -34,6 +35,7 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
     else callback();
   };
   const selectedItem = selectedItemIndex === null || selectedItemIndex === undefined ? undefined : element.items[selectedItemIndex];
+  const imageFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "binary");
   const updateGallery = (update: (gallery: GalleryElement) => GalleryElement) => onUpdate((current) => current.type === "gallery" ? update(current) : current);
   const updateStyle: UpdateSurfaceStyle = (update) => updateGallery((gallery) => ({ ...gallery, style: update(gallery.style) }));
   const updateSelectedItem = (update: (item: GalleryItem) => GalleryItem) => {
@@ -42,7 +44,10 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
   };
   const updateSelectedItemText = (field: "src" | "alt", value: string): void => {
     if (selectedItemIndex === null || selectedItemIndex === undefined || !selectedItem) return;
-    if (value === selectedItem[field]) return;
+    const currentValue = field === "src"
+      ? ("src" in selectedItem ? selectedItem.src : "")
+      : selectedItem.alt;
+    if (value === currentValue) return;
 
     const historyKey = `text:gallery-${element.id}-item-${selectedItemIndex}-${field}`;
     const update = () => updateSelectedItem((item) => field === "src"
@@ -56,6 +61,21 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
 
     authoringHistory.begin(historyKey, textEditMeta);
     authoringHistory.update(historyKey, update);
+  };
+  const updateSelectedItemSource = (value: string): void => {
+    if (selectedItemIndex === null || selectedItemIndex === undefined || !selectedItem) return;
+    runDiscrete("gallery.itemSource", () => updateSelectedItem((item) => {
+      if (value === "direct") {
+        if ("src" in item) return item;
+        const { fileResourceId: _fileResourceId, ...directBase } = item;
+        return { ...directBase, src: GALLERY_ITEM_DEFAULT.src };
+      }
+      if ("src" in item) {
+        const { src: _src, ...resourceBase } = item;
+        return { ...resourceBase, fileResourceId: value };
+      }
+      return { ...item, fileResourceId: value };
+    }));
   };
   const addItem = () => {
     const nextIndex = element.items.length;
@@ -121,7 +141,8 @@ export function GalleryInspector({ element, onUpdate, selectedItemIndex = elemen
         </>}
       </div>
       {selectedItem && selectedItemIndex !== null && selectedItemIndex !== undefined ? <>
-        <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={selectedItem.src} data-presentation-gallery-src="true" onFocus={() => authoringHistory?.begin(`text:gallery-${element.id}-item-${selectedItemIndex}-src`, textEditMeta)} onBlur={() => authoringHistory?.finish(`text:gallery-${element.id}-item-${selectedItemIndex}-src`)} onChange={(event) => updateSelectedItemText("src", event.target.value)} /></label>
+        <label className={styles.field}><span>{t("image.sourceMode")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-source-mode`} name={`galleryItemSourceMode_${element.id}`} value={"fileResourceId" in selectedItem ? selectedItem.fileResourceId : "direct"} onChange={(event) => updateSelectedItemSource(event.target.value)}><option value="direct">{t("image.directSource")}</option>{imageFiles.map((file) => <option key={file.id} value={file.id}>{file.name}</option>)}</select>{"fileResourceId" in selectedItem ? <small className={styles.fieldHint}><span>{imageFiles.find((file) => file.id === selectedItem.fileResourceId)?.name ?? selectedItem.fileResourceId}</span></small> : null}</label>
+        <label className={styles.field}><span>{t("inspector.source")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-src`} name={`galleryItemSrc_${element.id}`} className={styles.textArea} rows={2} spellCheck={false} value={"src" in selectedItem ? selectedItem.src : ""} disabled={"fileResourceId" in selectedItem} data-presentation-gallery-src="true" onFocus={() => authoringHistory?.begin(`text:gallery-${element.id}-item-${selectedItemIndex}-src`, textEditMeta)} onBlur={() => authoringHistory?.finish(`text:gallery-${element.id}-item-${selectedItemIndex}-src`)} onChange={(event) => updateSelectedItemText("src", event.target.value)} /></label>
         <label className={styles.field}><span>{t("gallery.name")}</span><textarea id={`gallery-${element.id}-item-${selectedItemIndex}-alt`} name={`galleryItemAlt_${element.id}`} className={styles.textArea} rows={2} value={selectedItem.alt} data-presentation-gallery-alt="true" onFocus={() => authoringHistory?.begin(`text:gallery-${element.id}-item-${selectedItemIndex}-alt`, textEditMeta)} onBlur={() => authoringHistory?.finish(`text:gallery-${element.id}-item-${selectedItemIndex}-alt`)} onChange={(event) => updateSelectedItemText("alt", event.target.value)} /></label>
         <label className={styles.field}><span>{t("image.fit")}</span><select id={`gallery-${element.id}-item-${selectedItemIndex}-fit`} value={selectedItem.fit ?? ""} onChange={(event) => { const fit = event.target.value as GalleryFit | ""; if (fit === (selectedItem.fit ?? "")) return; runDiscrete("gallery.itemFit", () => updateSelectedItem((item) => { if (fit === "") { const { fit: _fit, ...inherited } = item; return inherited; } return { ...item, fit }; })); }}><option value="">{t("gallery.inheritFit")}</option><option value="contain">{t("image.contain")}</option><option value="cover">{t("image.cover")}</option><option value="fill">{t("image.fill")}</option></select></label>
         <ImageCropControl crop={selectedItem.crop} idPrefix={`gallery-${element.id}-item-${selectedItemIndex}`} onCropChange={(crop) => updateSelectedItem((item) => ({ ...item, crop }))} onResetCrop={() => updateSelectedItem((item) => ({ ...item, crop: undefined }))} canvasEdit={{ editing: cropEditing, onEditingChange: onCropEditingChange }} />

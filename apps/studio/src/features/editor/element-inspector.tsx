@@ -264,7 +264,7 @@ function ElementTypeInspector({
       );
 
     case "gallery":
-      return <GalleryInspector element={element} onUpdate={onUpdate} selectedItemIndex={galleryItemIndex} onSelectedItemIndexChange={onGalleryItemIndexChange} focalEditing={focalEditing} onFocalEditingChange={onFocalEditingChange} cropEditing={cropEditing} onCropEditingChange={onCropEditingChange} />;
+      return <GalleryInspector element={element} onUpdate={onUpdate} presentationFiles={presentation?.resources?.files ?? []} selectedItemIndex={galleryItemIndex} onSelectedItemIndexChange={onGalleryItemIndexChange} focalEditing={focalEditing} onFocalEditingChange={onFocalEditingChange} cropEditing={cropEditing} onCropEditingChange={onCropEditingChange} />;
 
     case "topics":
       return (
