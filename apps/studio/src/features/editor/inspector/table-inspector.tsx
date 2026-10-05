@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   FontResource,
@@ -40,6 +40,10 @@ import {
 import { resolveNearestContainerColor, type InheritedColorSource } from "./color-inheritance";
 import { TargetLinkedStyleSection } from "./sections/target-linked-style-section";
 import { inspectTargetLinkedStyle } from "./linked-style-inspector";
+import {
+  isStructuredDataFile,
+  parseStructuredDataFile,
+} from "../table-structured-data-import";
 
 // ============================================================
 // BEGIN: TIPOS DO TABLE INSPECTOR
@@ -71,7 +75,7 @@ interface TableInspectorProps {
 
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 
-  presentation?: Pick<Presentation, "linkedStyles">;
+  presentation?: Pick<Presentation, "linkedStyles" | "resources">;
 
   onAttachLinkedStyle?: (id: string) => void;
 
@@ -485,7 +489,7 @@ function SimpleTableInspector({
   onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
 
   fontResources: readonly FontResource[];
-  presentation?: Pick<Presentation, "linkedStyles">;
+  presentation?: Pick<Presentation, "linkedStyles" | "resources">;
   parent?: ContainerElement | null;
   ancestorContainers?: readonly ContainerElement[];
   onAttachLinkedStyle?: (id: string) => void;
@@ -1097,7 +1101,7 @@ interface StructuredTableInspectorProps {
 
   onSelectTableStructuralNode?: (selection: TableStructuralSelection) => void;
 
-  presentation?: Pick<Presentation, "linkedStyles">;
+  presentation?: Pick<Presentation, "linkedStyles" | "resources">;
 
   onAttachLinkedStyle?: (id: string) => void;
 
@@ -1121,6 +1125,16 @@ function StructuredTableInspector({
   const disabledLayout = (["width", "height", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
   const disabledAppearance = (["background.color", "background.gradient", "borderRadius", "border", "headerBackground", "bodyRowAlternateBackground", "dividerOpacity", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
   const [pendingRemoval, setPendingRemoval] = useState<TableStructuralSelection>(null);
+  const [selectedImportFileId, setSelectedImportFileId] = useState(element.importSourceFileResourceId ?? "");
+  const [importError, setImportError] = useState<string | null>(null);
+  const structuredDataFiles = (presentation?.resources?.files ?? []).filter(isStructuredDataFile);
+  const selectedImportFile = structuredDataFiles.find((file) => file.id === selectedImportFileId);
+  const persistedImportFileId = element.importSourceFileResourceId;
+
+  useEffect(() => {
+    setSelectedImportFileId(persistedImportFileId ?? "");
+    setImportError(null);
+  }, [element.id, persistedImportFileId]);
 
   function updateTable(
     update: (table: StructuredTableElement) => StructuredTableElement,
@@ -1214,6 +1228,56 @@ function StructuredTableInspector({
           >
             <span>{t("table.removeRowAction")}</span>
           </button>
+        </div>
+      </InspectorSection>
+
+      <InspectorSection title={t("table.importData")} defaultOpen>
+        <div className={styles.inspectorGroup} data-presentation-table-data-import="true">
+          {structuredDataFiles.length === 0 ? (
+            <p className={styles.fieldHint}>{t("table.importDataHint")}</p>
+          ) : (
+            <>
+              <label className={styles.field}>
+                <span>{t("table.importDataFile")}</span>
+                <select
+                  className={styles.inspectorControl}
+                  data-presentation-table-import-file="true"
+                  value={selectedImportFileId}
+                  onChange={(event) => {
+                    setSelectedImportFileId(event.target.value);
+                    setImportError(null);
+                  }}
+                >
+                  <option value="">{t("table.importDataSelect")}</option>
+                  {persistedImportFileId && !structuredDataFiles.some((file) => file.id === persistedImportFileId) ? (
+                    <option value={persistedImportFileId}>{persistedImportFileId}</option>
+                  ) : null}
+                  {structuredDataFiles.map((file) => (
+                    <option key={file.id} value={file.id}>{file.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="ps-ui-action"
+                data-presentation-table-import-action="true"
+                disabled={selectedImportFile === undefined || tableAuthoringControls.onImportData === undefined}
+                onClick={() => {
+                  if (!selectedImportFile || !tableAuthoringControls.onImportData) return;
+                  const result = parseStructuredDataFile(selectedImportFile);
+                  if (!result.ok) {
+                    setImportError(t("table.importDataError", { reason: result.reason }));
+                    return;
+                  }
+                  setImportError(null);
+                  tableAuthoringControls.onImportData(element.id, result.data, selectedImportFile.id);
+                }}
+              >
+                {t("table.importDataAction")}
+              </button>
+              {importError ? <p className={styles.fieldHint} data-presentation-table-import-error="true">{importError}</p> : null}
+            </>
+          )}
         </div>
       </InspectorSection>
 

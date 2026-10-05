@@ -257,6 +257,7 @@ describe("canonical data element contracts", () => {
       type: "table",
       hidden: false,
       mode: "structured",
+      importSourceFileResourceId: "file-source",
       style: {
         headerBackground: { kind: "palette", colorId: "header" },
         bodyRowAlternateBackground: { kind: "palette", colorId: "alternate" },
@@ -267,6 +268,7 @@ describe("canonical data element contracts", () => {
     });
 
     expect(result.style?.dividerOpacity).toBe(0);
+    expect(result.importSourceFileResourceId).toBe("file-source");
     expect(result.style?.headerBackground).toEqual({ kind: "palette", colorId: "header" });
     for (const key of ["headerBackground", "bodyRowAlternateBackground"] as const) {
       expect(StructuredTableElementSchema.safeParse({
@@ -290,6 +292,22 @@ describe("canonical data element contracts", () => {
       ...result,
       style: { ...result.style, bodyRowBackground: "#222222" },
     }).success).toBe(false);
+  });
+
+  it("accepts Structured Table provenance optionally and rejects blank values without changing schema version", () => {
+    const base = {
+      id: "table-provenance",
+      type: "table" as const,
+      hidden: false,
+      mode: "structured" as const,
+      columns: [{ id: "column-1", header: { id: "header-1", children: [] } }],
+      rows: [{ id: "row-1", cells: [{ id: "cell-1", children: [] }] }],
+    };
+
+    expect(StructuredTableElementSchema.parse(base).importSourceFileResourceId).toBeUndefined();
+    expect(StructuredTableElementSchema.parse({ ...base, importSourceFileResourceId: "file-source" }).importSourceFileResourceId).toBe("file-source");
+    expect(StructuredTableElementSchema.safeParse({ ...base, importSourceFileResourceId: "   " }).success).toBe(false);
+    expect(PresentationSchema.parse({ schemaVersion: 1, id: "presentation-1", title: "Provenance", slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [base] }] }).schemaVersion).toBe(1);
   });
 
   it.each(["width", "height", "position", "top", "right", "bottom", "left", "opacity", "shadow"] as const)("rejects legacy aggregate style.%s", (field) => {

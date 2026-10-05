@@ -291,6 +291,7 @@ import {
   removeElementById,
   unwrapContainerPreservingChildren,
   removeRowFromStructuredTable,
+  replaceStructuredTableData,
   setStructuredTableShowHeader,
   appendTopicItemToTopics,
   appendChildTopicItemToTopics,
@@ -312,6 +313,7 @@ import type {
   TableAuthoringControls,
 } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
+import type { ImportedTableData } from "./table-structured-data-import";
 import { createQrShapeElement } from "./qr-shape-authoring";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 import { useChromeOsNativeSelectCompat } from "../app/chrome-os-native-select-compat";
@@ -6488,6 +6490,31 @@ export function EditorWorkspace({
             : replaceStructuralMovementOwner(current, authoringTarget, tableId, nextElements);
         },
       );
+    },
+
+    onImportData: (tableId: string, data: ImportedTableData, sourceFileResourceId: string) => {
+      const target = authoringTarget;
+      if (resolveStructuredTableInTarget(history.present, target, tableId) === null) return;
+
+      commitAuthoringAction(
+        target,
+        {
+          kind: "element.setting",
+          labelKey: "history.element.setting",
+          labelParams: { setting: "table.importData" },
+        },
+        (current, authoringTarget) => {
+          const prepared = ensureStructuredTableTextStyles(current).presentation;
+          const elements = resolveStructuralMovementOwner(prepared, authoringTarget, tableId)?.elements ?? null;
+          if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
+          const usedIds = collectPresentationAuthoringIds(prepared);
+          const nextElements = replaceStructuredTableData(elements, tableId, data, sourceFileResourceId, usedIds);
+          return nextElements === elements
+            ? current
+            : replaceStructuralMovementOwner(prepared, authoringTarget, tableId, nextElements);
+        },
+      );
+      setSelectedTableStructuralNode(null);
     },
 
     onShowHeaderChange: (tableId, showHeader) => {

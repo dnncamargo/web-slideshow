@@ -26,6 +26,7 @@ import {
   getTextContentPlainText,
   reconcileTextContentEdit,
 } from "./rich-text-authoring";
+import type { ImportedTableData } from "./table-structured-data-import";
 
 import {
   collectAuthoringIds,
@@ -2862,7 +2863,11 @@ export function attachImageToGallery(
 // across the whole presentation.
 // ============================================================
 
-function buildStructuredText(usedIds: Set<string>, content: string): PresentationElement {
+function buildStructuredText(
+  usedIds: Set<string>,
+  content: string,
+  variant: typeof SYSTEM_TABLE_CELL_TEXT_STYLE_ID | typeof SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID = SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+): PresentationElement {
   const textId = createUniqueId("table-text", usedIds);
   usedIds.add(textId);
 
@@ -2870,22 +2875,22 @@ function buildStructuredText(usedIds: Set<string>, content: string): Presentatio
     id: textId,
     type: "text",
     hidden: false,
-    variant: SYSTEM_TABLE_CELL_TEXT_STYLE_ID,
+    variant,
     content,
   };
 }
 
-function buildStructuredCell(usedIds: Set<string>): ContentSlot {
+function buildStructuredCell(usedIds: Set<string>, content = "Value"): ContentSlot {
   const slotId = createUniqueId("table-cell-slot", usedIds);
   usedIds.add(slotId);
 
   return {
     id: slotId,
-    children: [buildStructuredText(usedIds, "Value")],
+    children: [buildStructuredText(usedIds, content)],
   };
 }
 
-function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
+function buildStructuredColumn(usedIds: Set<string>, label = "Column"): StructuredTableColumn {
   const columnId = createUniqueId("table-column", usedIds);
   usedIds.add(columnId);
 
@@ -2905,7 +2910,7 @@ function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
           type: "text",
           hidden: false,
           variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID,
-          content: "Column",
+          content: label,
         },
       ],
     },
@@ -2915,6 +2920,7 @@ function buildStructuredColumn(usedIds: Set<string>): StructuredTableColumn {
 function buildStructuredRow(
   usedIds: Set<string>,
   columnCount: number,
+  values?: readonly string[],
 ): StructuredTableRow {
   const rowId = createUniqueId("table-row", usedIds);
   usedIds.add(rowId);
@@ -2922,7 +2928,7 @@ function buildStructuredRow(
   const cells: ContentSlot[] = [];
 
   for (let index = 0; index < columnCount; index += 1) {
-    cells.push(buildStructuredCell(usedIds));
+    cells.push(buildStructuredCell(usedIds, values?.[index] ?? "Value"));
   }
 
   return { id: rowId, cells };
@@ -3078,6 +3084,34 @@ export function setStructuredTableShowHeader(
   return applyStructuredTableMutation(elements, tableId, (table) =>
     table.showHeader === showHeader ? table : { ...table, showHeader },
   );
+}
+
+export function replaceStructuredTableData(
+  elements: PresentationElement[],
+  tableId: string,
+  data: ImportedTableData,
+  sourceFileResourceId: string,
+  usedIds: Set<string>,
+): PresentationElement[] {
+  if (
+    sourceFileResourceId.trim().length < 1 ||
+    data.columns.length < 1 ||
+    data.rows.some((row) => row.length !== data.columns.length)
+  ) {
+    return elements;
+  }
+
+  const target = findElementById(elements, tableId);
+  if (target?.type !== "table" || target.mode !== "structured") {
+    return elements;
+  }
+
+  return applyStructuredTableMutation(elements, tableId, (table, ids) => ({
+    ...table,
+    importSourceFileResourceId: sourceFileResourceId,
+    columns: data.columns.map((label) => buildStructuredColumn(ids, label)),
+    rows: data.rows.map((row) => buildStructuredRow(ids, data.columns.length, row)),
+  }), usedIds);
 }
 
 // ============================================================
