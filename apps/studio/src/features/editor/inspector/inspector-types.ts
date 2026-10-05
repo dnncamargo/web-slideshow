@@ -9,6 +9,7 @@ import type {
   PresentationElement,
 } from "@web-slideshow/document-schema";
 import type { SvgImportLayer } from "../svg-path-authoring";
+import type { ImportedTableData } from "../table-structured-data-import";
 
 export type ElementInspectorUpdate = (
   update: (element: PresentationElement) => PresentationElement,
@@ -105,4 +106,6 @@ export interface TableAuthoringControls {
   onRemoveRow: (tableId: string, index: number) => void;
 
   onShowHeaderChange: (tableId: string, showHeader: boolean) => void;
+
+  onImportData?: (tableId: string, data: ImportedTableData) => void;
 }
