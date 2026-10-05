@@ -890,6 +890,7 @@ const StructuredTableElementBaseSchema =
     linkedStyleId: z.string().trim().min(1).optional(),
     style: StructuredTableVisualStyleSchema.optional(),
     mode: z.literal("structured"),
+    importSourceFileResourceId: z.string().trim().min(1).optional(),
     showHeader: z.boolean().default(true),
     columns: z.array(StructuredTableColumnSchema),
     rows: z.array(StructuredTableRowSchema),

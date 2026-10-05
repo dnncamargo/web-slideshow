@@ -107,5 +107,5 @@ export interface TableAuthoringControls {
 
   onShowHeaderChange: (tableId: string, showHeader: boolean) => void;
 
-  onImportData?: (tableId: string, data: ImportedTableData) => void;
+  onImportData?: (tableId: string, data: ImportedTableData, sourceFileResourceId: string) => void;
 }

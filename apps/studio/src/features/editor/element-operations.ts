@@ -3090,9 +3090,11 @@ export function replaceStructuredTableData(
   elements: PresentationElement[],
   tableId: string,
   data: ImportedTableData,
+  sourceFileResourceId: string,
   usedIds: Set<string>,
 ): PresentationElement[] {
   if (
+    sourceFileResourceId.trim().length < 1 ||
     data.columns.length < 1 ||
     data.rows.some((row) => row.length !== data.columns.length)
   ) {
@@ -3106,6 +3108,7 @@ export function replaceStructuredTableData(
 
   return applyStructuredTableMutation(elements, tableId, (table, ids) => ({
     ...table,
+    importSourceFileResourceId: sourceFileResourceId,
     columns: data.columns.map((label) => buildStructuredColumn(ids, label)),
     rows: data.rows.map((row) => buildStructuredRow(ids, data.columns.length, row)),
   }), usedIds);

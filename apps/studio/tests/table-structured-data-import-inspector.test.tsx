@@ -18,15 +18,16 @@ import type { TableAuthoringControls } from "../src/features/editor/inspector/in
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function structuredTable(): StructuredTableElement {
+function structuredTable(id = "table", importSourceFileResourceId?: string): StructuredTableElement {
   return {
     type: "table",
-    id: "table",
+    id,
     mode: "structured",
     hidden: false,
     showHeader: true,
     columns: [],
     rows: [],
+    ...(importSourceFileResourceId ? { importSourceFileResourceId } : {}),
   };
 }
 
@@ -108,6 +109,7 @@ describe("Structured Table data import inspector", () => {
   it("shows only structured data files and does not mutate when selecting one", async () => {
     await act(async () => renderInspector());
     expect(container.querySelector('[data-presentation-table-data-import="true"]')).not.toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-presentation-table-data-import="true"]')?.className).toContain("inspectorGroup");
     const select = container.querySelector<HTMLSelectElement>("[data-presentation-table-import-file]");
     expect(select?.options).toHaveLength(4);
     expect(Array.from(select?.options ?? []).map((option) => option.textContent)).toEqual([
@@ -136,7 +138,35 @@ describe("Structured Table data import inspector", () => {
     expect(controls.onImportData).toHaveBeenCalledWith("table", {
       columns: ["name"],
       rows: [["Bob"]],
+    }, "data.json");
+  });
+
+  it("restores each Structured Table's persisted source when navigating between tables", async () => {
+    element = structuredTable("table-a", "data.csv");
+    await act(async () => renderInspector());
+    const select = container.querySelector<HTMLSelectElement>("[data-presentation-table-import-file]");
+    expect(select?.value).toBe("data.csv");
+
+    element = structuredTable("table-b", "data.json");
+    await act(async () => renderInspector());
+    expect(container.querySelector<HTMLSelectElement>("[data-presentation-table-import-file]")?.value).toBe("data.json");
+
+    element = structuredTable("table-a", "data.csv");
+    await act(async () => renderInspector());
+    expect(container.querySelector<HTMLSelectElement>("[data-presentation-table-import-file]")?.value).toBe("data.csv");
+  });
+
+  it("does not import until the selected source is explicitly submitted", async () => {
+    element = structuredTable("table-a", "data.csv");
+    await act(async () => renderInspector());
+    const select = container.querySelector<HTMLSelectElement>("[data-presentation-table-import-file]");
+    if (!select) throw new Error("file selector missing");
+    await act(async () => {
+      select.value = "data.json";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    expect(select.value).toBe("data.json");
+    expect(controls.onImportData).not.toHaveBeenCalled();
   });
 
   it("does not expose import for a Simple Table", async () => {

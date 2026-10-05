@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   FontResource,
@@ -1125,10 +1125,16 @@ function StructuredTableInspector({
   const disabledLayout = (["width", "height", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"] as const).filter((field) => property(`layout.${field}` as never).owned);
   const disabledAppearance = (["background.color", "background.gradient", "borderRadius", "border", "headerBackground", "bodyRowAlternateBackground", "dividerOpacity", "opacity"] as const).filter((field) => property((field === "opacity" ? "effect.opacity" : `style.${field}`) as never).owned);
   const [pendingRemoval, setPendingRemoval] = useState<TableStructuralSelection>(null);
-  const [selectedImportFileId, setSelectedImportFileId] = useState("");
+  const [selectedImportFileId, setSelectedImportFileId] = useState(element.importSourceFileResourceId ?? "");
   const [importError, setImportError] = useState<string | null>(null);
   const structuredDataFiles = (presentation?.resources?.files ?? []).filter(isStructuredDataFile);
   const selectedImportFile = structuredDataFiles.find((file) => file.id === selectedImportFileId);
+  const persistedImportFileId = element.importSourceFileResourceId;
+
+  useEffect(() => {
+    setSelectedImportFileId(persistedImportFileId ?? "");
+    setImportError(null);
+  }, [element.id, persistedImportFileId]);
 
   function updateTable(
     update: (table: StructuredTableElement) => StructuredTableElement,
@@ -1226,7 +1232,7 @@ function StructuredTableInspector({
       </InspectorSection>
 
       <InspectorSection title={t("table.importData")} defaultOpen>
-        <div data-presentation-table-data-import="true">
+        <div className={styles.inspectorGroup} data-presentation-table-data-import="true">
           {structuredDataFiles.length === 0 ? (
             <p className={styles.fieldHint}>{t("table.importDataHint")}</p>
           ) : (
@@ -1243,6 +1249,9 @@ function StructuredTableInspector({
                   }}
                 >
                   <option value="">{t("table.importDataSelect")}</option>
+                  {persistedImportFileId && !structuredDataFiles.some((file) => file.id === persistedImportFileId) ? (
+                    <option value={persistedImportFileId}>{persistedImportFileId}</option>
+                  ) : null}
                   {structuredDataFiles.map((file) => (
                     <option key={file.id} value={file.id}>{file.name}</option>
                   ))}
@@ -1261,7 +1270,7 @@ function StructuredTableInspector({
                     return;
                   }
                   setImportError(null);
-                  tableAuthoringControls.onImportData(element.id, result.data);
+                  tableAuthoringControls.onImportData(element.id, result.data, selectedImportFile.id);
                 }}
               >
                 {t("table.importDataAction")}

@@ -50,7 +50,7 @@ describe("Structured Table imported data materialization", () => {
     });
     const ids = collectPresentationAuthoringIds(presentation);
     const originalIds = new Set(ids);
-    const elements = replaceStructuredTableData(presentation.slides[0]!.elements, "table", data, ids);
+    const elements = replaceStructuredTableData(presentation.slides[0]!.elements, "table", data, "source.csv", ids);
     const imported = elements[0];
     if (imported?.type !== "table" || imported.mode !== "structured") throw new Error("Expected Structured Table");
 
@@ -60,6 +60,7 @@ describe("Structured Table imported data materialization", () => {
     expect(imported.style).toEqual({ headerBackground: "#123456" });
     expect(imported.effect).toEqual({ opacity: 0.8 });
     expect(imported.linkedStyleId).toBe("linked-table-style");
+    expect(imported.importSourceFileResourceId).toBe("source.csv");
     expect(imported.columns.map((column) => column.header.children[0])).toMatchObject([
       { type: "text", content: "Name", variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID },
       { type: "text", content: "Score", variant: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID },
@@ -91,9 +92,15 @@ describe("Structured Table imported data materialization", () => {
     const invalid: ImportedTableData = { columns: ["a", "b"], rows: [["one"]] };
     const simpleElements = [simple];
     const structuredElements = [table()];
-    expect(replaceStructuredTableData(simpleElements, "simple", data, new Set())).toBe(simpleElements);
-    expect(replaceStructuredTableData(structuredElements, "table", invalid, new Set())).toBe(structuredElements);
-    expect(replaceStructuredTableData(structuredElements, "missing", data, new Set())).toBe(structuredElements);
+    expect(replaceStructuredTableData(simpleElements, "simple", data, "source.csv", new Set())).toBe(simpleElements);
+    expect(replaceStructuredTableData(structuredElements, "table", invalid, "source.csv", new Set())).toBe(structuredElements);
+    expect(replaceStructuredTableData(structuredElements, "missing", data, "source.csv", new Set())).toBe(structuredElements);
+    expect(replaceStructuredTableData(structuredElements, "table", data, "   ", new Set())).toBe(structuredElements);
+    expect(structuredElements[0]).toEqual(table());
+
+    const provenanceElements = [{ ...table(), importSourceFileResourceId: "previous.csv" }];
+    expect(replaceStructuredTableData(provenanceElements, "table", invalid, "next.csv", new Set())).toBe(provenanceElements);
+    expect(provenanceElements[0]).toMatchObject({ importSourceFileResourceId: "previous.csv" });
   });
 
   it("does not make a source Structured Data File a runtime dependency", () => {
@@ -119,13 +126,14 @@ describe("Structured Table imported data materialization", () => {
       },
     });
     const ids = collectPresentationAuthoringIds(sourcePresentation);
-    const materializedElements = replaceStructuredTableData(sourcePresentation.slides[0]!.elements, "table", data, ids);
+    const materializedElements = replaceStructuredTableData(sourcePresentation.slides[0]!.elements, "table", data, "source.csv", ids);
     const materializedTable = materializedElements[0];
     const snapshot = PresentationSchema.parse({
       ...sourcePresentation,
       slides: [{ ...sourcePresentation.slides[0]!, elements: materializedElements }],
     });
     expect(materializedTable?.type).toBe("table");
+    expect(materializedTable && materializedTable.type === "table" && materializedTable.mode === "structured" ? materializedTable.importSourceFileResourceId : undefined).toBe("source.csv");
     expect(presentationUsesFileResource(snapshot, "source.csv")).toBe(false);
 
     const removed = removeCustomLibraryFileFromPresentation(snapshot, "source.csv");

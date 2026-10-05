@@ -30,6 +30,7 @@ function table(): StructuredTable {
     mode: "structured",
     hidden: false,
     showHeader: true,
+    importSourceFileResourceId: "source-a.csv",
     columns: [{ id: "old-column", header: { id: "old-header", children: [text("old-header-text", "Old")] } }],
     rows: [{ id: "old-row", cells: [{ id: "old-cell", children: [text("old-cell-text", "Old value")] }] }],
   };
@@ -43,6 +44,13 @@ function presentation(): Presentation {
     slides: [{ id: "slide", title: "Slide", elements: [table()] }],
     resources: {
       files: [{
+        id: "source-a.csv",
+        name: "source-a.csv",
+        kind: "structured-data",
+        representation: "text",
+        contentType: "text/csv",
+        source: { type: "text", content: "old,source\nOld,1" },
+      }, {
         id: "source.csv",
         name: "source.csv",
         kind: "structured-data",
@@ -117,6 +125,7 @@ describe("Structured Table data import history integration", () => {
 
     const imported = structuredClone(latest);
     const importedTable = getTable(imported);
+    expect(importedTable.importSourceFileResourceId).toBe("source.csv");
     expect(importedTable.columns.map((column) => column.header.children[0]?.type === "text" ? column.header.children[0].content : "")).toEqual(["name", "score"]);
     expect(importedTable.rows.map((row) => row.cells.map((cell) => cell.children[0]?.type === "text" ? cell.children[0].content : ""))).toEqual([["Alice", "10"], ["Bob", "20"]]);
     expect(imported.textStyles?.map((style) => style.id)).toEqual([

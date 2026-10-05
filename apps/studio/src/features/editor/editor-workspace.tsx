@@ -6492,7 +6492,7 @@ export function EditorWorkspace({
       );
     },
 
-    onImportData: (tableId: string, data: ImportedTableData) => {
+    onImportData: (tableId: string, data: ImportedTableData, sourceFileResourceId: string) => {
       const target = authoringTarget;
       if (resolveStructuredTableInTarget(history.present, target, tableId) === null) return;
 
@@ -6508,7 +6508,7 @@ export function EditorWorkspace({
           const elements = resolveStructuralMovementOwner(prepared, authoringTarget, tableId)?.elements ?? null;
           if (!elements || !resolveStructuredTableInTarget(prepared, authoringTarget, tableId)) return current;
           const usedIds = collectPresentationAuthoringIds(prepared);
-          const nextElements = replaceStructuredTableData(elements, tableId, data, usedIds);
+          const nextElements = replaceStructuredTableData(elements, tableId, data, sourceFileResourceId, usedIds);
           return nextElements === elements
             ? current
             : replaceStructuralMovementOwner(prepared, authoringTarget, tableId, nextElements);
