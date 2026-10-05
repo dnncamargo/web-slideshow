@@ -163,6 +163,34 @@ describe("Presentation text file editing workspace", () => {
     target.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
+  function setSelection(start: number, end = start): void {
+    textarea().focus();
+    textarea().setSelectionRange(start, end);
+  }
+
+  async function setIndentationMode(value: "2" | "4" | "tab"): Promise<void> {
+    const select = host.querySelector<HTMLSelectElement>("[data-text-file-indent]");
+    if (!select) throw new Error("Indentation control not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+      setter?.call(select, value);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  async function pressTab(shiftKey = false): Promise<void> {
+    const target = textarea();
+    target.focus();
+    await act(async () => {
+      target.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "Tab",
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+  }
+
   async function saveText(): Promise<void> {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
   }
@@ -242,6 +270,55 @@ describe("Presentation text file editing workspace", () => {
     const redone = await saveCanonicalSnapshot();
     expect(redone.resources?.files?.find((file) => file.id === "file-library-text-record")?.source).toEqual({ type: "text", content: "after" });
     expect(redone.slides[0]?.elements[0]?.type === "scripted" ? redone.slides[0]?.elements[0]?.resourceIds : undefined).toEqual(["file-library-text-record"]);
+  });
+
+  it("handles configurable local indentation without canonical writes", async () => {
+    await enterTextEditing();
+
+    setSelection(0);
+    await pressTab();
+    expect(textarea().value).toBe("  before");
+    expect(saved).toHaveLength(0);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await setIndentationMode("4");
+    setSelection(0);
+    await pressTab();
+    expect(textarea().value).toBe("    before");
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await setIndentationMode("tab");
+    setSelection(0);
+    await pressTab();
+    expect(textarea().value).toBe("\tbefore");
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await setIndentationMode("2");
+    await act(async () => setText("before"));
+    setSelection(0, 3);
+    await pressTab();
+    expect(textarea().value).toBe("  ore");
+    expect(textarea().selectionStart).toBe(2);
+    expect(textarea().selectionEnd).toBe(2);
+
+    await act(async () => setText("    before"));
+    setSelection(4);
+    await pressTab(true);
+    expect(textarea().value).toBe("  before");
+    expect(textarea().selectionStart).toBe(2);
+    expect(textarea().selectionEnd).toBe(2);
+
+    await act(async () => setText("before"));
+    setSelection(0);
+    await pressTab(true);
+    expect(textarea().value).toBe("before");
+    expect(saved).toHaveLength(0);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+    expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
   });
 
   it("isolates one active File draft from every other File", async () => {

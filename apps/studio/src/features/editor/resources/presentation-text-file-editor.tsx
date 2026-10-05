@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 
 import type { PresentationTextFileResource } from "@web-slideshow/document-schema";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./presentation-text-file-editor.module.css";
+
+type IndentationMode = "2" | "4" | "tab";
+
+function getIndentationUnit(mode: IndentationMode): string {
+  if (mode === "tab") return "\t";
+  return " ".repeat(Number(mode));
+}
 
 export function PresentationTextFileEditor({
   file,
@@ -19,7 +26,39 @@ export function PresentationTextFileEditor({
 }) {
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(file.source.content);
+  const [indentationMode, setIndentationMode] = useState<IndentationMode>("2");
   const dirty = draft !== file.source.content;
+
+  function handleTab(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    event.preventDefault();
+
+    const textarea = event.currentTarget;
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const unit = getIndentationUnit(indentationMode);
+
+    if (!event.shiftKey) {
+      textarea.setRangeText(unit, selectionStart, selectionEnd, "end");
+      setDraft(textarea.value);
+      return;
+    }
+
+    const lineStart = textarea.value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const removeCount = indentationMode === "tab"
+      ? textarea.value[lineStart] === "\t" ? 1 : 0
+      : Math.min(Number(indentationMode), textarea.value.slice(lineStart).search(/[^ ]|$/));
+
+    if (removeCount === 0) return;
+
+    textarea.setRangeText("", lineStart, lineStart + removeCount, "preserve");
+    setDraft(textarea.value);
+
+    const nextSelectionStart = Math.max(lineStart, selectionStart - removeCount);
+    const nextSelectionEnd = Math.max(nextSelectionStart, selectionEnd - removeCount);
+    textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+  }
 
   return (
     <>
@@ -47,6 +86,19 @@ export function PresentationTextFileEditor({
         <div className={styles.editorToolbar}>
           <span className={styles.editorToolbarTitle}>{file.name}</span>
           <div className={styles.editorToolbarActions}>
+            <label className={styles.indentationControl}>
+              <span>{t("editor.textFileIndent")}</span>
+              <select
+                aria-label={t("editor.textFileIndent")}
+                data-text-file-indent
+                value={indentationMode}
+                onChange={(event) => setIndentationMode(event.target.value as IndentationMode)}
+              >
+                <option value="2">{t("editor.textFileIndentTwo")}</option>
+                <option value="4">{t("editor.textFileIndentFour")}</option>
+                <option value="tab">{t("editor.textFileIndentTab")}</option>
+              </select>
+            </label>
             <button
               type="button"
               className={styles.toolbarAction}
@@ -83,6 +135,7 @@ export function PresentationTextFileEditor({
           aria-label={t("editor.textFileEditor")}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleTab}
           spellCheck={false}
         />
       </section>
