@@ -52,6 +52,24 @@ const SHAPE_SVG_FILE: PresentationFileResource = {
   source: { type: "text", content: `<svg viewBox="0 0 40 20"><rect width="30" height="10" fill="#123456" /></svg>` },
 };
 
+const SHAPE_COMPOUND_SVG_FILE: PresentationFileResource = {
+  id: "shape-compound-svg",
+  name: "Shape compound SVG",
+  kind: "image",
+  representation: "text",
+  contentType: "image/svg+xml",
+  source: { type: "text", content: `<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>` },
+};
+
+const SHAPE_UNSAFE_SVG_FILE: PresentationFileResource = {
+  id: "shape-unsafe-svg",
+  name: "Shape unsafe SVG",
+  kind: "image",
+  representation: "text",
+  contentType: "image/svg+xml",
+  source: { type: "text", content: `<svg viewBox="0 0 40 20"><script>alert(1)</script><rect width="30" height="10" /></svg>` },
+};
+
 function shapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   return {
     id: "shape-1",
@@ -83,11 +101,12 @@ function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options });
 }
 
-function historyPresentation(shapeOverrides: Partial<ShapeElement> = {}): Presentation {
+function historyPresentation(shapeOverrides: Partial<ShapeElement> = {}, files: readonly PresentationFileResource[] = []): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "shape-history",
     title: "Shape history",
+    ...(files.length > 0 ? { resources: { files } } : {}),
     slides: [{
       id: "slide-1",
       title: "Slide 1",
@@ -301,6 +320,59 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
     expect(state.style?.fill).toEqual({ type: "color", color: "#123456" });
     expect(JSON.stringify(state)).not.toContain("shape-svg");
+    expect(JSON.stringify(state)).not.toContain("<svg");
+  });
+
+  it("imports a compound SVG Presentation File as the existing ordered Shape container flow", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({}, [SHAPE_COMPOUND_SVG_FILE])} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-svg-file"), "shape-compound-svg"));
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
+
+    const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
+    const children = Array.from(container?.querySelectorAll<HTMLElement>('[data-presentation-type="shape"]') ?? []);
+    expect(container).not.toBeNull();
+    expect(children).toHaveLength(2);
+    expect(children.map((child) => child.getAttribute("data-presentation-id"))).toEqual([
+      "shape-history-1-svg-1",
+      "shape-history-1-svg-2",
+    ]);
+  });
+
+  it("keeps the existing compound SVG restriction when importing a Presentation File", async () => {
+    await act(async () => root.render(
+      <StudioI18nProvider>
+        <EditorWorkspace initialPresentation={historyPresentation({ transform: { rotationDeg: 30 } }, [SHAPE_COMPOUND_SVG_FILE])} />
+      </StudioI18nProvider>,
+    ));
+    const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
+    if (!canvasShape) throw new Error("rendered Shape was not found");
+    await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-svg-file"), "shape-compound-svg"));
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
+
+    expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
+    expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
+    expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
+  });
+
+  it("rejects an unsafe SVG Presentation File without replacing canonical Shape state", async () => {
+    const initial = shapeElement({ style: { fill: { type: "color", color: "#22d3ee" } } });
+    await mount(initial, [SHAPE_UNSAFE_SVG_FILE]);
+    const geometry = state.geometry;
+    await act(async () => changeSelect(select("shape-svg-file"), "shape-unsafe-svg"));
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
+
+    expect(state.geometry).toBe(geometry);
+    expect(state.style).toEqual(initial.style);
+    expect(host.textContent).toContain("SVG element <script> is not supported.");
+    expect(JSON.stringify(state)).not.toContain("shape-unsafe-svg");
     expect(JSON.stringify(state)).not.toContain("<svg");
   });
 
