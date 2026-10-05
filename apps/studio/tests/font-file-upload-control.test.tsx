@@ -144,7 +144,52 @@ describe("FontFileUploadControl", () => {
     });
   });
 
-  it.each(["font.otf", "font.woff", "font.zip"])(
+  it("accepts OTF filenames case-insensitively", async () => {
+    const onAddFontFace = vi.fn().mockResolvedValue(true);
+    mount([], onAddFontFace);
+    setInputValue(container, "font-upload-family", "My Font");
+    setFileValue(container, "font-upload-file", makeFile("MyFont.OTF"));
+
+    await act(async () => click(container, "font-upload-submit"));
+
+    expect(uploadManagedAssetMock).toHaveBeenCalledWith(
+      expect.any(File),
+      { contentType: "font/otf" },
+    );
+    expect(onAddFontFace).toHaveBeenCalledWith(
+      "My Font",
+      expect.objectContaining({
+        source: {
+          type: "url",
+          url: uploadResult.downloadUrl,
+          format: "opentype",
+        },
+      }),
+    );
+  });
+
+  it("accepts the supported font file types and excludes unsupported ones", () => {
+    mount();
+
+    const input = container.querySelector<HTMLInputElement>("#font-upload-file");
+    if (!input) throw new Error("font file input not found");
+    const acceptedTypes = input.accept.split(",");
+
+    expect(acceptedTypes).toEqual(
+      expect.arrayContaining([
+        ".ttf",
+        ".otf",
+        ".woff2",
+        "font/ttf",
+        "font/otf",
+        "font/woff2",
+      ]),
+    );
+    expect(acceptedTypes).not.toContain(".woff");
+    expect(acceptedTypes).not.toContain("font/woff");
+  });
+
+  it.each(["font.woff", "font.zip"])(
     "rejects unsupported extension %s before upload",
     async (name) => {
       const onAddFontFace = vi.fn().mockResolvedValue(true);
@@ -155,7 +200,7 @@ describe("FontFileUploadControl", () => {
       await act(async () => click(container, "font-upload-submit"));
 
       expect(container.textContent).toContain(
-        "Only .ttf and .woff2 files are supported.",
+        "Only .ttf, .otf and .woff2 files are supported.",
       );
       expect(uploadManagedAssetMock).not.toHaveBeenCalled();
       expect(onAddFontFace).not.toHaveBeenCalled();

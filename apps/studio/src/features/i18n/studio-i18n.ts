@@ -1207,7 +1207,7 @@ const englishMessages = {
   "customLibrary.fontManagement.fontFile": "Font file",
   "customLibrary.fontManagement.fontFileRequired": "Choose a font file.",
   "customLibrary.fontManagement.unsupportedFontFile":
-    "Only .ttf and .woff2 files are supported.",
+    "Only .ttf, .otf and .woff2 files are supported.",
   "customLibrary.fontManagement.uploadFace": "Upload face",
   "customLibrary.fontManagement.uploadFailed": "Could not upload the font file.",
   "customLibrary.fontManagement.saveFailed": "Could not save the font to Custom Library.",
@@ -2565,7 +2565,7 @@ const portugueseMessages = {
   "customLibrary.fontManagement.fontFile": "Arquivo da fonte",
   "customLibrary.fontManagement.fontFileRequired": "Escolha um arquivo de fonte.",
   "customLibrary.fontManagement.unsupportedFontFile":
-    "Somente arquivos .ttf e .woff2 são compatíveis.",
+    "Somente arquivos .ttf, .otf e .woff2 são compatíveis.",
   "customLibrary.fontManagement.uploadFace": "Enviar face",
   "customLibrary.fontManagement.uploadFailed": "Não foi possível enviar o arquivo da fonte.",
   "customLibrary.fontManagement.saveFailed": "Não foi possível salvar a fonte na Biblioteca Personalizada.",
