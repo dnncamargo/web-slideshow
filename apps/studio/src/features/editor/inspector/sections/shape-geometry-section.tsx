@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   ShapePathGeometrySchema,
+  type PresentationFileResource,
   type ShapeElement,
 } from "@web-slideshow/document-schema";
 
@@ -125,15 +126,24 @@ interface ShapeGeometrySectionProps {
   element: ShapeElement;
   onUpdate: (update: (element: ShapeElement) => ShapeElement) => void;
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+  presentationFiles?: readonly PresentationFileResource[];
 }
 
-export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition }: ShapeGeometrySectionProps) {
+export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition, presentationFiles = [] }: ShapeGeometrySectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const preset = getShapeGeometryPreset(element.geometry);
   const identity = `${element.id}:${geometryIdentity(element.geometry)}`;
   const [draftState, setDraftState] = useState<ShapeGeometryDrafts>(() => createGeometryDrafts(identity, element.geometry));
   const [pathMessage, setPathMessage] = useState<string | null>(null);
+  const [selectedSvgFileId, setSelectedSvgFileId] = useState("");
+  const [customPathDraftIdentity, setCustomPathDraftIdentity] = useState<string | null>(null);
+  const svgFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "text" && file.contentType === "image/svg+xml");
+  if (customPathDraftIdentity !== null && customPathDraftIdentity !== identity) {
+    setCustomPathDraftIdentity(null);
+  }
+  const customPathDraftActive = customPathDraftIdentity === identity && preset !== "qr-code";
+  const effectivePreset: ShapePreset = customPathDraftActive ? "custom" : preset;
   const drafts = draftState.identity === identity
     ? draftState
     : createGeometryDrafts(identity, element.geometry);
@@ -192,6 +202,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
   }
 
   function replaceGeometry(nextPreset: Exclude<ShapePreset, "custom" | "qr-code">): void {
+    setCustomPathDraftIdentity(null);
     if (preset === nextPreset) return;
     setPathMessage(null);
     runDiscrete(presetHistoryMeta, () => onUpdate((current) => ({
@@ -200,11 +211,9 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     })));
   }
 
-  function applyPathDraft(): void {
-    if (element.geometry.mode !== "path") return;
-
+  function applyPathDraft(source = drafts.pathSource): void {
     try {
-      const imported = parseSvgPathAuthoringSource(drafts.pathSource);
+      const imported = parseSvgPathAuthoringSource(source);
       if (imported.kind === "svg") {
         const layers = imported.layers ?? [];
         if (layers.length === 0 || imported.viewBox === undefined) {
@@ -223,6 +232,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
                 : t("inspector.shape.compoundImportFailed");
             throw new Error(message);
           }
+          setCustomPathDraftIdentity(null);
           setPathMessage(null);
           return;
         }
@@ -240,6 +250,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         };
         const hasStyle = Object.keys(nextStyle).length > 0;
         const hasEffect = Object.keys(nextEffect).length > 0;
+        setCustomPathDraftIdentity(null);
         setPathMessage(null);
         runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
           ? {
@@ -272,10 +283,12 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         throw new Error(t("inspector.shape.invalidGeometry"));
       }
       if (geometryIdentity(parsed.data) === geometryIdentity(element.geometry)) {
+        setCustomPathDraftIdentity(null);
         setPathMessage(null);
         return;
       }
 
+      setCustomPathDraftIdentity(null);
       setPathMessage(null);
       runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
         ? { ...current, geometry: parsed.data }
@@ -283,6 +296,12 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     } catch (error) {
       setPathMessage(error instanceof Error ? error.message : t("inspector.shape.invalidGeometry"));
     }
+  }
+
+  function importSelectedSvgFile(): void {
+    const file = svgFiles.find((candidate) => candidate.id === selectedSvgFileId);
+    if (file?.source.type !== "text") return;
+    applyPathDraft(file.source.content);
   }
 
   function resetPathDraft(): void {
@@ -353,24 +372,51 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         <select
           id="shape-geometry-preset"
           name="shapeGeometryPreset"
-          value={preset}
+          value={effectivePreset}
           onChange={(event) => {
             const nextPreset = event.target.value as ShapePreset;
-            if (SHAPE_AUTHORING_PRESETS.includes(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">)) {
+            if (nextPreset === "custom") {
+              setPathMessage(null);
+              setCustomPathDraftIdentity(identity);
+            } else if (SHAPE_AUTHORING_PRESETS.includes(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">)) {
               replaceGeometry(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">);
             }
           }}
           disabled={preset === "qr-code"}
         >
-          {preset === "custom" && <option value="custom">{t("inspector.shape.customPath")}</option>}
           {preset === "qr-code" && <option value="qr-code">{t("inspector.shape.qrCode")}</option>}
           {SHAPE_AUTHORING_PRESETS.map((option) => (
             <option key={option} value={option}>{presetLabel(option, t)}</option>
           ))}
+          {preset !== "qr-code" && <option value="custom">{t("inspector.shape.customPath")}</option>}
         </select>
       </label>
 
-      {element.geometry.mode === "path" && (
+      {effectivePreset === "custom" && svgFiles.length > 0 && (
+        <div className={styles.field}>
+          <span>{t("inspector.shape.svgFile")}</span>
+          <select
+            id="shape-svg-file"
+            name="shapeSvgFile"
+            value={selectedSvgFileId}
+            onChange={(event) => setSelectedSvgFileId(event.target.value)}
+          >
+            <option value="">{t("inspector.shape.selectSvgFile")}</option>
+            {svgFiles.map((file) => <option key={file.id} value={file.id}>{file.name}</option>)}
+          </select>
+          <button
+            id="shape-svg-file-import"
+            type="button"
+            className={styles.secondaryButton}
+            disabled={selectedSvgFileId === ""}
+            onClick={() => importSelectedSvgFile()}
+          >
+            {t("inspector.shape.importSvgFile")}
+          </button>
+        </div>
+      )}
+
+      {effectivePreset === "custom" && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.pathSource")}</span>
@@ -415,13 +461,13 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
           </label>
           {pathMessage !== null ? <small className={styles.fieldHint}>{pathMessage}</small> : null}
           <div className={styles.elementCrudActions}>
-            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={applyPathDraft}>{t("inspector.shape.applyPath")}</button>
+            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={() => applyPathDraft()}>{t("inspector.shape.applyPath")}</button>
             <button id="shape-path-reset" type="button" className={styles.secondaryButton} onClick={resetPathDraft}>{t("inspector.shape.resetPath")}</button>
           </div>
         </>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "qr-code" && (
+      {effectivePreset === "qr-code" && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.qrContent")}</span>
@@ -482,7 +528,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "triangle" && (
+      {effectivePreset === "triangle" && (
         <label className={styles.field}>
           <span>{t("inspector.shape.apexPosition")}</span>
           <input
@@ -499,7 +545,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </label>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "polygon" && (
+      {(effectivePreset === "polygon" || effectivePreset === "star") && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.points")}</span>

@@ -405,7 +405,7 @@ export function renderElement(
       return renderPlaceholder(element);
 
     case "shape":
-      return renderShape(element);
+      return renderShape(element, context?.presentation);
 
     default:
       return assertNever(element);

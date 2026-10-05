@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   ShapeAnimationSchema,
+  type PresentationFileResource,
   type ShapeAnimation,
   type ShapeElement,
   type ShapeTransform,
@@ -133,9 +134,11 @@ export function ShapeInspector({
   onUpdate,
   previewControls,
   onImportSvgComposition,
+  presentationFiles = [],
 }: TypedInspectorProps<ShapeElement> & {
   previewControls?: ShapePreviewControls;
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+  presentationFiles?: readonly PresentationFileResource[];
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -307,6 +310,7 @@ export function ShapeInspector({
         element={element}
         onUpdate={(update) => onUpdate((current) => current.type === "shape" ? update(current) : current)}
         onImportSvgComposition={onImportSvgComposition}
+        presentationFiles={presentationFiles}
       />
 
       <InspectorSection title={t("inspector.shape.transform")} defaultOpen>
@@ -455,6 +459,7 @@ export function ShapeInspector({
         elementId={element.id}
         isQr={element.geometry.mode === "generated" && element.geometry.generator === "qr-code"}
         style={element.style}
+        presentationFiles={presentationFiles}
         onUpdateStyle={(update) => onUpdate((current) => current.type === "shape" ? { ...current, style: update(current.style) } : current)}
       />
 

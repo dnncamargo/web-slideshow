@@ -24,7 +24,8 @@ export function presentationUsesFileResource(
       if (
         (element.type === "scripted" && element.resourceIds.includes(fileResourceId)) ||
         (element.type === "image" && "fileResourceId" in element && element.fileResourceId === fileResourceId) ||
-        (element.type === "gallery" && element.items.some((item) => "fileResourceId" in item && item.fileResourceId === fileResourceId))
+        (element.type === "gallery" && element.items.some((item) => "fileResourceId" in item && item.fileResourceId === fileResourceId)) ||
+        (element.type === "shape" && element.style?.fill?.type === "image" && "fileResourceId" in element.style.fill && element.style.fill.fileResourceId === fileResourceId)
       ) {
         used = true;
         return true;

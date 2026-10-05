@@ -2,6 +2,7 @@ import type {
   GalleryItem,
   ImageElement,
   Presentation,
+  ShapeElement,
 } from "@web-slideshow/document-schema";
 
 import { renderLength } from "./render-length";
@@ -9,7 +10,7 @@ import { renderBackground, renderBorder, renderGradientBorder, renderGradientBor
 import { escapeHtml } from "./escape-html";
 
 export function resolveCanonicalImageSource(
-  media: ImageElement | GalleryItem,
+  media: ImageElement | GalleryItem | Extract<NonNullable<ShapeElement["style"]>["fill"], { type: "image" }>,
   presentation?: Presentation,
 ): string | null {
   if ("src" in media) {

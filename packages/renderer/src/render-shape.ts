@@ -6,11 +6,12 @@ import type {
   ShapeGeometry,
   ShapeViewBox,
   ShapePathCommand,
+  Presentation,
 } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { createQrCodeGeometry } from "./qr-code-geometry";
-import { renderImageCropMetadata } from "./render-canonical-image";
+import { renderImageCropMetadata, resolveCanonicalImageSource } from "./render-canonical-image";
 import { renderColorValue } from "./render-palette";
 import { renderLength } from "./render-length";
 import { renderShadow } from "./render-visual";
@@ -267,8 +268,9 @@ function renderImageStyle(
 
 function renderImageSurface(
   fill: Extract<NonNullable<NonNullable<ShapeElement["style"]>["fill"]>, { type: "image" }>,
+  src: string,
 ): string {
-  const media = `<img class="presentation-image-media" src="${escapeHtml(fill.src)}" alt="" style="${escapeHtml(renderImageStyle(fill))}">`;
+  const media = `<img class="presentation-image-media" src="${escapeHtml(src)}" alt="" style="${escapeHtml(renderImageStyle(fill))}">`;
   if (!fill.crop) {
     return `<div class="presentation-shape-image-surface" style="width:100%;height:100%;overflow:hidden">${media}</div>`;
   }
@@ -280,7 +282,7 @@ function renderImageSurface(
     widthConstrained: true,
     heightConstrained: true,
   });
-  const croppedMedia = `<img class="presentation-image-media" src="${escapeHtml(fill.src)}" alt="" style="display:block;position:absolute;max-width:none">`;
+  const croppedMedia = `<img class="presentation-image-media" src="${escapeHtml(src)}" alt="" style="display:block;position:absolute;max-width:none">`;
   return `<div class="presentation-shape-image-crop" style="position:relative;width:100%;height:100%;overflow:hidden" ${metadata}><div class="presentation-image-crop-viewport" style="position:absolute;overflow:hidden">${croppedMedia}</div></div>`;
 }
 
@@ -377,7 +379,7 @@ function renderShapeBox(
   return `<${tag} ${attributes.join(" ")}>${content}</${tag}>`;
 }
 
-export function renderShape(element: ShapeElement): string {
+export function renderShape(element: ShapeElement, presentation?: Presentation): string {
   if (element.hidden) return "";
 
   const renderedGeometry = materializeGeometry(element.geometry);
@@ -387,8 +389,10 @@ export function renderShape(element: ShapeElement): string {
   const stroke = renderStroke(element.id, element.style?.stroke, renderedGeometry.viewBox);
   const isQr = renderedGeometry.frame !== undefined;
   const imageFill = element.style?.fill?.type === "image" ? element.style.fill : undefined;
+  const imageSource = imageFill === undefined ? null : resolveCanonicalImageSource(imageFill, presentation);
+  const resolvedImageFill = imageFill !== undefined && imageSource !== null ? imageFill : undefined;
   const clipId = `presentation-shape-clip-${encodedId(element.id)}`;
-  const clip = imageFill
+  const clip = resolvedImageFill
     ? `<clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><path d="${escapeHtml(renderedGeometry.path)}" fill-rule="${renderedGeometry.fillRule}" clip-rule="${renderedGeometry.fillRule}"></path></clipPath>`
     : "";
   const definitions = [fill.definition, stroke.definition, clip].filter(Boolean).join("");
@@ -402,8 +406,8 @@ export function renderShape(element: ShapeElement): string {
   const frameMarkup = renderedGeometry.frame !== undefined && element.style?.stroke !== undefined
     ? `<rect x="${number(renderedGeometry.frame.x)}" y="${number(renderedGeometry.frame.y)}" width="${number(renderedGeometry.frame.width)}" height="${number(renderedGeometry.frame.height)}" fill="none" ${stroke.attributes.join(" ")}${renderQrSurfaceRadius(element.style)} vector-effect="non-scaling-stroke"></rect>`
     : "";
-  const imageMarkup = imageFill
-    ? `<foreignObject x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" clip-path="url(#${clipId})">${renderImageSurface(imageFill)}</foreignObject>`
+  const imageMarkup = resolvedImageFill && imageSource !== null
+    ? `<foreignObject x="${number(renderedGeometry.viewBox.x)}" y="${number(renderedGeometry.viewBox.y)}" width="${number(renderedGeometry.viewBox.width)}" height="${number(renderedGeometry.viewBox.height)}" clip-path="url(#${clipId})">${renderImageSurface(resolvedImageFill, imageSource)}</foreignObject>`
     : "";
   const svg = `<svg class="presentation-shape-surface" viewBox="${number(renderedGeometry.viewBox.x)} ${number(renderedGeometry.viewBox.y)} ${number(renderedGeometry.viewBox.width)} ${number(renderedGeometry.viewBox.height)}" preserveAspectRatio="${renderedGeometry.preserveAspectRatio ?? "none"}" width="100%" height="100%" overflow="visible" aria-hidden="true">` +
     (definitions ? `<defs>${definitions}</defs>` : "") +

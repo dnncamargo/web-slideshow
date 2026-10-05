@@ -389,4 +389,89 @@ describe("Scripted Presentation File dependencies", () => {
 
     expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
   });
+
+  it("detects raster Presentation File-backed Shape fills in nested authoring trees", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-shape-image",
+      title: "P",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://example.test/image.png" },
+        }],
+      },
+      rootDefinitions: [{
+        id: "master",
+        name: "Master",
+        root: { id: "root", type: "container", hidden: false, children: [{
+          id: "root-shape",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image" } },
+        }] },
+        localChildTargetIds: ["root"],
+      }],
+      slides: [{
+        id: "s",
+        rootDefinitionId: "master",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "root", children: [{
+          id: "local-shape",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image" } },
+        }] }],
+      }],
+    });
+
+    expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
+    expect(presentationUsesFileResource(presentation, "missing")).toBe(false);
+  });
+
+  it("does not treat a materialized Shape as using its imported SVG source File", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-materialized-svg",
+      title: "P",
+      resources: {
+        files: [{
+          id: "file-svg",
+          name: "Imported SVG",
+          kind: "image",
+          representation: "text",
+          contentType: "image/svg+xml",
+          source: { type: "text", content: "<svg><rect /></svg>" },
+        }],
+      },
+      slides: [{
+        id: "s",
+        elements: [{
+          id: "materialized-shape",
+          type: "shape",
+          hidden: false,
+          geometry: {
+            mode: "path",
+            viewBox: { x: 0, y: 0, width: 40, height: 20 },
+            commands: [
+              { type: "move", x: 0, y: 0 },
+              { type: "line", x: 30, y: 0 },
+              { type: "line", x: 30, y: 10 },
+              { type: "line", x: 0, y: 10 },
+              { type: "close" },
+            ],
+          },
+          style: { fill: { type: "color", color: "#123456" } },
+        }],
+      }],
+    });
+
+    expect(presentationUsesFileResource(presentation, "file-svg")).toBe(false);
+  });
 });

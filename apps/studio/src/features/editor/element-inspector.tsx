@@ -202,7 +202,7 @@ function ElementTypeInspector({
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "shape":
-      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} onImportSvgComposition={onImportSvgComposition} />;
+      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} onImportSvgComposition={onImportSvgComposition} presentationFiles={presentation?.resources?.files ?? []} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;

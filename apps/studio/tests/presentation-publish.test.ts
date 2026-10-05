@@ -654,6 +654,52 @@ describe("transactional presentation publishing", () => {
     expect(publishedGallery).not.toHaveProperty("items.0.src");
   });
 
+  it("preserves raster Shape File fills in the immutable publication snapshot", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Published Shape image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://cdn.example.test/shape.png" },
+        }],
+      },
+      slides: [{
+        id: "slide-shape-image",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "shape-file-backed",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image" } },
+        }],
+      }],
+    });
+    const transaction = setupTransaction(draftData({ presentation }));
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-shape-file" })
+      .mockReturnValueOnce({ id: "version-shape-file" })
+      .mockReturnValueOnce({ id: "pointer-shape-file" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as { presentationJson: string };
+    const published = JSON.parse(versionPayload.presentationJson) as Presentation;
+    const publishedShape = published.slides[0]?.elements[0];
+
+    expect(published).toEqual(presentation);
+    expect(published.resources?.files).toEqual(presentation.resources?.files);
+    expect(publishedShape).toMatchObject({ style: { fill: { fileResourceId: "file-image" } } });
+    expect(publishedShape).not.toHaveProperty("style.fill.src");
+  });
+
   it("publishes canonical Shape state without generated QR runtime data", async () => {
     const presentation = representativeShapePresentation();
     const draft = draftData({ presentation });
