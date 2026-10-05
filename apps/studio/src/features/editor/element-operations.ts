@@ -3087,7 +3087,7 @@ export function setStructuredTableShowHeader(
 }
 
 export function replaceStructuredTableData(
-  elements: readonly PresentationElement[],
+  elements: PresentationElement[],
   tableId: string,
   data: ImportedTableData,
   usedIds: Set<string>,
@@ -3096,7 +3096,12 @@ export function replaceStructuredTableData(
     data.columns.length < 1 ||
     data.rows.some((row) => row.length !== data.columns.length)
   ) {
-    return [...elements];
+    return elements;
+  }
+
+  const target = findElementById(elements, tableId);
+  if (target?.type !== "table" || target.mode !== "structured") {
+    return elements;
   }
 
   return applyStructuredTableMutation(elements, tableId, (table, ids) => ({

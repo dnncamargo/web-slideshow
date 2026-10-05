@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -70,6 +72,7 @@ describe("structured data table import parsers", () => {
     expect(parseStructuredData("application/xml", "<people><person><name><given>Alice</given></name></person></people>")).toMatchObject({ ok: false, reason: "unsupported-structure" });
     expect(parseStructuredData("application/xml", "<people><person><name>Alice</name><name>Again</name></person></people>")).toMatchObject({ ok: false, reason: "unsupported-structure" });
     expect(parseStructuredData("application/xml", "<people><person><name>Alice</name></person><other><name>Bob</name></other></people>")).toMatchObject({ ok: false, reason: "unsupported-structure" });
+    expect(parseStructuredData("application/xml", "<people><person><name>&foo;</name></person></people>")).toEqual({ ok: false, reason: "invalid-xml" });
     expect(parseStructuredData("application/xml", "<people><person /></people>")).toMatchObject({ ok: false, reason: "unsupported-structure" });
     expect(parseStructuredData("application/xml", "<people />")).toMatchObject({ ok: false, reason: "unsupported-structure" });
   });

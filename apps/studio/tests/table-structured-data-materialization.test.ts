@@ -11,6 +11,7 @@ import { replaceStructuredTableData } from "../src/features/editor/element-opera
 import type { ImportedTableData } from "../src/features/editor/table-structured-data-import";
 import { collectPresentationAuthoringIds } from "../src/features/editor/presentation-authoring-trees";
 import { presentationUsesFileResource } from "../src/features/editor/font-resource-helpers";
+import { removeCustomLibraryFileFromPresentation } from "../src/features/custom-library/custom-library-file-apply";
 
 function text(id: string, content: string): PresentationElement {
   return { type: "text", id, hidden: false, variant: "body", content };
@@ -88,16 +89,23 @@ describe("Structured Table imported data materialization", () => {
       rows: [{ value: "old" }],
     };
     const invalid: ImportedTableData = { columns: ["a", "b"], rows: [["one"]] };
-    expect(replaceStructuredTableData([simple], "simple", data, new Set())).toEqual([simple]);
-    expect(replaceStructuredTableData([table()], "table", invalid, new Set())).toEqual([table()]);
+    const simpleElements = [simple];
+    const structuredElements = [table()];
+    expect(replaceStructuredTableData(simpleElements, "simple", data, new Set())).toBe(simpleElements);
+    expect(replaceStructuredTableData(structuredElements, "table", invalid, new Set())).toBe(structuredElements);
+    expect(replaceStructuredTableData(structuredElements, "missing", data, new Set())).toBe(structuredElements);
   });
 
   it("does not make a source Structured Data File a runtime dependency", () => {
-    const snapshot = PresentationSchema.parse({
+    const sourcePresentation = PresentationSchema.parse({
       schemaVersion: 1,
       id: "resource-lifecycle-presentation",
       title: "Resource lifecycle",
       slides: [{ id: "slide", title: "Slide", elements: [table()] }],
+      textStyles: [
+        { id: SYSTEM_TABLE_COLUMN_HEADER_TEXT_STYLE_ID, name: "Column header", role: "body" },
+        { id: SYSTEM_TABLE_CELL_TEXT_STYLE_ID, name: "Table cell", role: "body" },
+      ],
       linkedStyles: [{ target: "table", mode: "structured", id: "linked-table-style", name: "Linked table", style: { headerBackground: "#123456" } }],
       resources: {
         files: [{
@@ -110,6 +118,20 @@ describe("Structured Table imported data materialization", () => {
         }],
       },
     });
+    const ids = collectPresentationAuthoringIds(sourcePresentation);
+    const materializedElements = replaceStructuredTableData(sourcePresentation.slides[0]!.elements, "table", data, ids);
+    const materializedTable = materializedElements[0];
+    const snapshot = PresentationSchema.parse({
+      ...sourcePresentation,
+      slides: [{ ...sourcePresentation.slides[0]!, elements: materializedElements }],
+    });
+    expect(materializedTable?.type).toBe("table");
     expect(presentationUsesFileResource(snapshot, "source.csv")).toBe(false);
+
+    const removed = removeCustomLibraryFileFromPresentation(snapshot, "source.csv");
+    expect(removed.kind).toBe("removed");
+    if (removed.kind !== "removed") return;
+    expect(removed.presentation.resources).toBeUndefined();
+    expect(removed.presentation.slides[0]?.elements[0]).toEqual(materializedTable);
   });
 });
