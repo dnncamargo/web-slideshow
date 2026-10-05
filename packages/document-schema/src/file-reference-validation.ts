@@ -3,6 +3,27 @@ import type { Presentation } from "./presentation";
 
 type AddIssue = (path: (string | number)[], message: string) => void;
 
+function validateBinaryImageFileReference(
+  presentation: Presentation,
+  fileResourceId: string,
+  path: (string | number)[],
+  addIssue: AddIssue,
+  label: "Image" | "Gallery item",
+): void {
+  const file = presentation.resources?.files?.find((candidate) => candidate.id === fileResourceId);
+  if (file === undefined) {
+    addIssue(
+      path,
+      `${label} file reference does not resolve: ${fileResourceId}`,
+    );
+  } else if (file.kind !== "image" || file.representation !== "binary") {
+    addIssue(
+      path,
+      `${label} file reference must resolve to a binary image File: ${fileResourceId}`,
+    );
+  }
+}
+
 function validateSlot(
   presentation: Presentation,
   slot: ContentSlot,
@@ -33,18 +54,27 @@ function validateElement(
   addIssue: AddIssue,
 ): void {
   if (element.type === "image" && "fileResourceId" in element) {
-    const file = presentation.resources?.files?.find((candidate) => candidate.id === element.fileResourceId);
-    if (file === undefined) {
-      addIssue(
-        [...path, "fileResourceId"],
-        `Image file reference does not resolve: ${element.fileResourceId}`,
-      );
-    } else if (file.kind !== "image" || file.representation !== "binary") {
-      addIssue(
-        [...path, "fileResourceId"],
-        `Image file reference must resolve to a binary image File: ${element.fileResourceId}`,
-      );
-    }
+    validateBinaryImageFileReference(
+      presentation,
+      element.fileResourceId,
+      [...path, "fileResourceId"],
+      addIssue,
+      "Image",
+    );
+  }
+
+  if (element.type === "gallery") {
+    element.items.forEach((item, index) => {
+      if ("fileResourceId" in item) {
+        validateBinaryImageFileReference(
+          presentation,
+          item.fileResourceId,
+          [...path, "items", index, "fileResourceId"],
+          addIssue,
+          "Gallery item",
+        );
+      }
+    });
   }
 
   if (element.type === "scripted") {

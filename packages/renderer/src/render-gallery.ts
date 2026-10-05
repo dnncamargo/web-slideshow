@@ -1,7 +1,7 @@
-import type { GalleryElement } from "@web-slideshow/document-schema";
+import type { GalleryElement, Presentation } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
-import { renderImageCropMetadata } from "./render-canonical-image";
+import { renderImageCropMetadata, resolveCanonicalImageSource } from "./render-canonical-image";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 import { renderGradientBorder } from "./render-visual";
 import { renderLength } from "./render-length";
@@ -20,7 +20,10 @@ const GALLERY_IMAGE_STYLES = [
   "height:100%",
 ];
 
-export function renderGallery(element: GalleryElement): string {
+export function renderGallery(
+  element: GalleryElement,
+  presentation?: Presentation,
+): string {
   if (element.hidden) return "";
 
   const gradientBorder = element.style?.border?.gradient;
@@ -66,8 +69,9 @@ export function renderGallery(element: GalleryElement): string {
       ).concat(index > 0 ? ["visibility:hidden", "pointer-events:none"] : []).join(";"))}"`,
     ];
 
-    let image: string;
-    if (item.crop) {
+    const src = resolveCanonicalImageSource(item, presentation);
+    let image = "";
+    if (src !== null && item.crop) {
       itemAttributes.push(renderImageCropMetadata({
         crop: item.crop,
         fit: effectiveFit,
@@ -75,8 +79,8 @@ export function renderGallery(element: GalleryElement): string {
         widthConstrained: true,
         heightConstrained: !isIntrinsicSizingItem,
       }));
-      image = `<div class="presentation-image-crop-viewport" style="position:absolute"><img class="presentation-gallery-image presentation-image-media" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
-    } else {
+      image = `<div class="presentation-image-crop-viewport" style="position:absolute"><img class="presentation-gallery-image presentation-image-media" src="${escapeHtml(src)}" alt="${escapeHtml(item.alt)}" style="display:block;position:absolute;max-width:none"></div>`;
+    } else if (src !== null) {
       const sizingImageStyles = isIntrinsicSizingItem
         ? [
           "display:block",
@@ -86,7 +90,7 @@ export function renderGallery(element: GalleryElement): string {
           `object-position:${item.focalPoint?.x ?? 50}% ${item.focalPoint?.y ?? 50}%`,
         ]
         : imageStyles;
-      image = `<img class="presentation-gallery-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(sizingImageStyles.join(";"))}">`;
+      image = `<img class="presentation-gallery-image" src="${escapeHtml(src)}" alt="${escapeHtml(item.alt)}" style="${escapeHtml(sizingImageStyles.join(";"))}">`;
     }
 
     if (index > 0) itemAttributes.push('aria-hidden="true"');

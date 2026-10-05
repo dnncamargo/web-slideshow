@@ -23,7 +23,8 @@ export function presentationUsesFileResource(
     someElement(elements, (element) => {
       if (
         (element.type === "scripted" && element.resourceIds.includes(fileResourceId)) ||
-        (element.type === "image" && "fileResourceId" in element && element.fileResourceId === fileResourceId)
+        (element.type === "image" && "fileResourceId" in element && element.fileResourceId === fileResourceId) ||
+        (element.type === "gallery" && element.items.some((item) => "fileResourceId" in item && item.fileResourceId === fileResourceId))
       ) {
         used = true;
         return true;

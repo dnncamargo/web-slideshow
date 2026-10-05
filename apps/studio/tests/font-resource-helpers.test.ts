@@ -361,4 +361,32 @@ describe("Scripted Presentation File dependencies", () => {
     expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
     expect(presentationUsesFileResource(presentation, "missing")).toBe(false);
   });
+
+  it("detects Presentation File-backed Gallery items", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-gallery",
+      title: "P",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://example.test/image.png" },
+        }],
+      },
+      slides: [{
+        id: "s",
+        elements: [{
+          id: "gallery",
+          type: "gallery",
+          items: [{ fileResourceId: "file-image", alt: "Image" }],
+        }],
+      }],
+    });
+
+    expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
+  });
 });

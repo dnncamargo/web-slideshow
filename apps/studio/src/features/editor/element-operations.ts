@@ -2763,9 +2763,19 @@ export function detachGalleryItemToImage(
   const image = createElement("image", usedIds);
   if (image.type !== "image") return { elements, changed: false };
 
+  const imageWithoutDefaultSource = "src" in image
+    ? (() => {
+        const { src: _src, ...rest } = image;
+        return rest;
+      })()
+    : image;
+  const source = "src" in item
+    ? { src: item.src }
+    : { fileResourceId: item.fileResourceId };
+
   const detachedImage: PresentationElement = {
-    ...image,
-    src: item.src,
+    ...imageWithoutDefaultSource,
+    ...source,
     alt: item.alt,
     fit: item.fit ?? gallery.fit,
     ...(item.focalPoint === undefined ? {} : { focalPoint: item.focalPoint }),
@@ -2806,7 +2816,6 @@ export function attachImageToGallery(
 
   if (
     image?.type !== "image" ||
-    !("src" in image) ||
     !gallery ||
     itemIndex < 0 ||
     itemIndex > gallery.items.length
@@ -2815,7 +2824,9 @@ export function attachImageToGallery(
   }
 
   const item: GalleryItemValue = {
-    src: image.src,
+    ...( "src" in image
+      ? { src: image.src }
+      : { fileResourceId: image.fileResourceId }),
     alt: image.alt,
     fit: image.fit,
     ...(image.focalPoint === undefined ? {} : { focalPoint: image.focalPoint }),

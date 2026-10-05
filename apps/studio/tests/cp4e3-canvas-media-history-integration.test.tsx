@@ -44,11 +44,13 @@ function galleryElement(overrides: Partial<GalleryElement> = {}): GalleryElement
 function presentation(
   imageOverrides: Partial<ImageElement> = {},
   galleryOverrides: Partial<GalleryElement> = {},
+  resources?: Presentation["resources"],
 ): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "cp4e3-canvas-media-history",
     title: "CP4E3 canvas media history",
+    ...(resources === undefined ? {} : { resources }),
     slides: [{
       id: "slide-1",
       title: "First",
@@ -308,6 +310,34 @@ describe("CP4E3 canvas Crop/Focal history", () => {
     const redo = key("z", { ctrlKey: true, shiftKey: true });
     await act(async () => window.dispatchEvent(redo));
     expect(galleryFrom(await save(saved)).items[1]).toMatchObject({ crop: { x: 20, y: 20, width: 65, height: 50 } });
+  });
+
+  it("loads a File-backed Gallery item through the Presentation File URL for canvas Crop editing", async () => {
+    const fileUrl = "https://cdn.example.test/gallery-crop.png";
+    const initial = presentation({}, {
+        items: [{ fileResourceId: "file-gallery-image", alt: "Resource" }],
+      }, {
+        files: [{
+          id: "file-gallery-image",
+          name: "Gallery crop image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: fileUrl },
+        }],
+      });
+
+    await mount(initial);
+    await selectElement("gallery-1");
+    await selectGalleryItem(0);
+    await enterCrop();
+
+    const source = container.querySelector<HTMLImageElement>("[class*='canvasCropSourceLoader']");
+    if (!source) throw new Error("crop source loader was not rendered");
+    expect(source.getAttribute("src")).toBe(fileUrl);
+
+    await loadCropSource();
+    expect(container.querySelector("[class*='canvasCropHandleE']")).not.toBeNull();
   });
 
   it("isolates Gallery item Focal commits from every other item", async () => {

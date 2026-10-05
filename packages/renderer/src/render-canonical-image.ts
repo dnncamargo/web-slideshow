@@ -1,8 +1,28 @@
-import type { ImageElement } from "@web-slideshow/document-schema";
+import type {
+  GalleryItem,
+  ImageElement,
+  Presentation,
+} from "@web-slideshow/document-schema";
 
 import { renderLength } from "./render-length";
 import { renderBackground, renderBorder, renderGradientBorder, renderGradientBorderBox, renderShadow } from "./render-visual";
 import { escapeHtml } from "./escape-html";
+
+export function resolveCanonicalImageSource(
+  media: ImageElement | GalleryItem,
+  presentation?: Presentation,
+): string | null {
+  if ("src" in media) {
+    return media.src;
+  }
+
+  const file = presentation?.resources?.files?.find(
+    (candidate) => candidate.id === media.fileResourceId,
+  );
+  return file?.kind === "image" && file.representation === "binary"
+    ? file.source.url
+    : null;
+}
 
 function renderImageLayout(element: ImageElement): string[] {
   const layout = element.layout;

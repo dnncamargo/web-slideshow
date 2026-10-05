@@ -605,6 +605,55 @@ describe("transactional presentation publishing", () => {
     expect(publishedImage).not.toHaveProperty("src");
   });
 
+  it("preserves raster Gallery File references in the immutable publication snapshot", async () => {
+    const presentation = PresentationSchema.parse({
+      ...createBlankPresentation("pres-1"),
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Published gallery image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://cdn.example.test/gallery.png" },
+        }],
+      },
+      slides: [{
+        id: "slide-gallery-image",
+        title: "",
+        summary: "",
+        speakerNotes: "",
+        elements: [{
+          id: "gallery-file-backed",
+          type: "gallery",
+          items: [{ fileResourceId: "file-image", alt: "Published gallery image" }],
+        }],
+      }],
+    });
+    const transaction = setupTransaction(draftData({ presentation }));
+    mocks.doc
+      .mockReturnValueOnce({ id: "private-draft" })
+      .mockReturnValueOnce({ id: "publication-gallery-file" })
+      .mockReturnValueOnce({ id: "version-gallery-file" })
+      .mockReturnValueOnce({ id: "pointer-gallery-file" });
+
+    await repository.publishPresentation("pres-1");
+
+    const versionPayload = transaction.set.mock.calls[0]?.[1] as {
+      presentationJson: string;
+    };
+    const published = JSON.parse(versionPayload.presentationJson) as Presentation;
+    const publishedGallery = published.slides[0]?.elements[0];
+
+    expect(published).toEqual(presentation);
+    expect(published.resources?.files).toEqual(presentation.resources?.files);
+    expect(publishedGallery).toMatchObject({
+      type: "gallery",
+      items: [{ fileResourceId: "file-image" }],
+    });
+    expect(publishedGallery).not.toHaveProperty("items.0.src");
+  });
+
   it("publishes canonical Shape state without generated QR runtime data", async () => {
     const presentation = representativeShapePresentation();
     const draft = draftData({ presentation });
