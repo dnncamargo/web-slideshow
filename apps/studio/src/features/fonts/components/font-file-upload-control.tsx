@@ -26,19 +26,23 @@ type FontFaceSlot = Pick<
   FontFaceResource,
   "weight" | "style" | "subset" | "unicodeRange"
 >;
-type UploadableFontFormat = "truetype" | "woff2";
+type UploadableFontFormat = "truetype" | "opentype" | "woff2";
 type UploadState = "idle" | "uploading";
 
 const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
 
 function resolveFontFile(file: File): {
   format: UploadableFontFormat;
-  contentType: "font/ttf" | "font/woff2";
+  contentType: "font/ttf" | "font/otf" | "font/woff2";
 } | null {
   const name = file.name.toLowerCase();
 
   if (name.endsWith(".ttf")) {
     return { format: "truetype", contentType: "font/ttf" };
+  }
+
+  if (name.endsWith(".otf")) {
+    return { format: "opentype", contentType: "font/otf" };
   }
 
   if (name.endsWith(".woff2")) {
@@ -257,7 +261,7 @@ export function FontFileUploadControl({
           id={`${controlPrefix}-file`}
           name={`${controlPrefix}-file`}
           type="file"
-          accept=".ttf,.woff2,font/ttf,font/woff2"
+          accept=".ttf,.otf,.woff2,font/ttf,font/otf,font/woff2"
           disabled={uploading}
           onChange={(event) => {
             setFile(event.target.files?.[0] ?? null);
