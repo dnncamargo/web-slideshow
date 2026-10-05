@@ -87,6 +87,7 @@ describe("Custom Resources Files", () => {
     fileRepository?: CustomLibraryFileRepository;
     files?: PresentationFileResource[];
     onAdd?: (file: CustomLibraryFileRecord) => Promise<"added" | "unchanged" | "conflict" | "load-error">;
+    onEdit?: (id: string) => void;
     onRemove?: (id: string) => void;
   } = {}): HTMLDivElement {
     const container = document.createElement("div");
@@ -102,6 +103,7 @@ describe("Custom Resources Files", () => {
       onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
       onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
       onAddLibraryFile={options.onAdd}
+      onEditPresentationFile={options.onEdit}
       onApplyElementStyle={() => ({ ok: true })}
       onAddPresentationColor={() => undefined}
       onUpdatePresentationColor={() => undefined}
@@ -189,5 +191,31 @@ describe("Custom Resources Files", () => {
     await act(async () => remove?.click());
     expect(onRemove).toHaveBeenCalledWith("local-file-id");
     expect(fileRepository.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("offers Edit only for textual Presentation Files", async () => {
+    const onEdit = vi.fn();
+    const container = renderWorkspace({
+      fileRepository: repository([]),
+      files: [
+        {
+          id: "local-text-id",
+          name: "notes.txt",
+          kind: "text",
+          representation: "text",
+          contentType: "text/plain",
+          source: { type: "text", content: "notes" },
+        },
+        ...presentationFiles(),
+      ],
+      onEdit,
+    });
+
+    const edit = container.querySelector<HTMLButtonElement>("[data-presentation-file-row] [data-resource-action='edit']");
+    expect(edit?.textContent).toBe("Edit");
+    expect(container.querySelectorAll("[data-presentation-file-row] [data-resource-action='edit']")).toHaveLength(1);
+
+    await act(async () => edit?.click());
+    expect(onEdit).toHaveBeenCalledWith("local-text-id");
   });
 });

@@ -71,6 +71,8 @@ interface CustomResourcesWorkspaceProps {
   onRemovePresentationColor: (id: string) => void;
   onRemovePresentationFont: (id: string) => CustomLibraryFontRemoveOutcome;
   onRemovePresentationFile?: (id: string) => void;
+  onEditPresentationFile?: (id: string) => void;
+  activePresentationTextFileId?: string | null;
   isPresentationFileInUse?: (id: string) => boolean;
   isPresentationFontInUse: (family: string) => boolean;
   presentationTextStyles?: readonly TextStyle[];
@@ -223,6 +225,8 @@ export function CustomResourcesWorkspace({
   onRemovePresentationColor,
   onRemovePresentationFont,
   onRemovePresentationFile = () => undefined,
+  onEditPresentationFile = () => undefined,
+  activePresentationTextFileId = null,
   isPresentationFileInUse = () => false,
   isPresentationFontInUse,
   presentationTextStyles = [],
@@ -517,7 +521,7 @@ export function CustomResourcesWorkspace({
             <InspectorSection title={t("customResources.files")} count={presentationFiles.length} open={resourceSections.presentationFiles} onOpenChange={(open) => onResourceSectionChange("presentationFiles", open)}>
             {presentationFiles.length === 0 ? <p className={styles.status}>{t("customResources.noPresentationFiles")}</p> : null}
             <div className={styles.localFontList} data-presentation-files>
-              {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} inUse={isPresentationFileInUse(file.id)} onRemove={onRemovePresentationFile} />)}
+              {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} inUse={isPresentationFileInUse(file.id)} active={activePresentationTextFileId === file.id} onEdit={onEditPresentationFile} onRemove={onRemovePresentationFile} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFiles.length === 1 ? "customResources.fileCountOne" : "customResources.fileCountMany", { count: presentationFiles.length })}</span>
             </InspectorSection>
@@ -1803,10 +1807,14 @@ function MasterFileChooser({
 function LocalPresentationFileRow({
   file,
   inUse,
+  active,
+  onEdit,
   onRemove,
 }: {
   file: PresentationFileResource;
   inUse: boolean;
+  active: boolean;
+  onEdit: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
   const { t } = useStudioI18n();
@@ -1816,7 +1824,21 @@ function LocalPresentationFileRow({
       <strong>{file.name}</strong>
       <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${file.kind}`)} · {file.contentType}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
     </div>
-    <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFile", { name: file.name })} disabled={inUse} onClick={() => onRemove(file.id)}>×</button>
+    <div className={styles.resourceActionRow}>
+      {file.representation === "text" ? (
+        <button
+          type="button"
+          className={styles.resourceAction}
+          data-resource-action="edit"
+          aria-label={`${t("customResources.edit")} ${file.name}`}
+          disabled={active}
+          onClick={() => onEdit(file.id)}
+        >
+          {t("customResources.edit")}
+        </button>
+      ) : null}
+      <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFile", { name: file.name })} disabled={inUse || active} onClick={() => onRemove(file.id)}>×</button>
+    </div>
   </div>;
 }
 
