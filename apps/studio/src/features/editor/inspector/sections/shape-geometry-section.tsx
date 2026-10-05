@@ -137,7 +137,12 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
   const [draftState, setDraftState] = useState<ShapeGeometryDrafts>(() => createGeometryDrafts(identity, element.geometry));
   const [pathMessage, setPathMessage] = useState<string | null>(null);
   const [selectedSvgFileId, setSelectedSvgFileId] = useState("");
+  const [customPathDraftIdentity, setCustomPathDraftIdentity] = useState<string | null>(null);
   const svgFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "text" && file.contentType === "image/svg+xml");
+  if (customPathDraftIdentity !== null && customPathDraftIdentity !== identity) {
+    setCustomPathDraftIdentity(null);
+  }
+  const customPathDraftActive = customPathDraftIdentity === identity && preset !== "qr-code";
   const drafts = draftState.identity === identity
     ? draftState
     : createGeometryDrafts(identity, element.geometry);
@@ -196,6 +201,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
   }
 
   function replaceGeometry(nextPreset: Exclude<ShapePreset, "custom" | "qr-code">): void {
+    setCustomPathDraftIdentity(null);
     if (preset === nextPreset) return;
     setPathMessage(null);
     runDiscrete(presetHistoryMeta, () => onUpdate((current) => ({
@@ -225,6 +231,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
                 : t("inspector.shape.compoundImportFailed");
             throw new Error(message);
           }
+          setCustomPathDraftIdentity(null);
           setPathMessage(null);
           return;
         }
@@ -242,6 +249,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         };
         const hasStyle = Object.keys(nextStyle).length > 0;
         const hasEffect = Object.keys(nextEffect).length > 0;
+        setCustomPathDraftIdentity(null);
         setPathMessage(null);
         runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
           ? {
@@ -274,10 +282,12 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         throw new Error(t("inspector.shape.invalidGeometry"));
       }
       if (geometryIdentity(parsed.data) === geometryIdentity(element.geometry)) {
+        setCustomPathDraftIdentity(null);
         setPathMessage(null);
         return;
       }
 
+      setCustomPathDraftIdentity(null);
       setPathMessage(null);
       runDiscrete(presetHistoryMeta, () => onUpdate((current) => current.type === "shape"
         ? { ...current, geometry: parsed.data }
@@ -361,16 +371,19 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         <select
           id="shape-geometry-preset"
           name="shapeGeometryPreset"
-          value={preset}
+          value={customPathDraftActive ? "custom" : preset}
           onChange={(event) => {
             const nextPreset = event.target.value as ShapePreset;
-            if (SHAPE_AUTHORING_PRESETS.includes(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">)) {
+            if (nextPreset === "custom") {
+              setPathMessage(null);
+              setCustomPathDraftIdentity(identity);
+            } else if (SHAPE_AUTHORING_PRESETS.includes(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">)) {
               replaceGeometry(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">);
             }
           }}
           disabled={preset === "qr-code"}
         >
-          {preset === "custom" && <option value="custom">{t("inspector.shape.customPath")}</option>}
+          {preset !== "qr-code" && <option value="custom">{t("inspector.shape.customPath")}</option>}
           {preset === "qr-code" && <option value="qr-code">{t("inspector.shape.qrCode")}</option>}
           {SHAPE_AUTHORING_PRESETS.map((option) => (
             <option key={option} value={option}>{presetLabel(option, t)}</option>
@@ -402,7 +415,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </div>
       )}
 
-      {element.geometry.mode === "path" && (
+      {(element.geometry.mode === "path" || customPathDraftActive) && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.pathSource")}</span>

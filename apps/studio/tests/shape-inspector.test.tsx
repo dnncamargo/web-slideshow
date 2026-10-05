@@ -604,6 +604,69 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(input("shape-border-radius").value).toBe("8");
   });
 
+  it("offers Custom path for a Rectangle without mutating canonical geometry", async () => {
+    await mount();
+    const canonicalGeometry = state.geometry;
+
+    expect(Array.from(select("shape-geometry-preset").options).map((option) => option.value)).toContain("custom");
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+
+    expect(select("shape-geometry-preset").value).toBe("custom");
+    expect(textArea("shape-path-source")).not.toBeNull();
+    expect(state.geometry).toBe(canonicalGeometry);
+  });
+
+  it("enters Custom path draft mode from a generated Shape and applies valid path input", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+    }));
+    const generatedGeometry = state.geometry;
+
+    expect(Array.from(select("shape-geometry-preset").options).map((option) => option.value)).toContain("custom");
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    expect(select("shape-geometry-preset").value).toBe("custom");
+    expect(textArea("shape-path-source").value).toBe("");
+    expect(state.geometry).toBe(generatedGeometry);
+
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+    expect(state.geometry).not.toBe(generatedGeometry);
+    expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 100, height: 100 } });
+    expect(select("shape-geometry-preset").value).toBe("custom");
+  });
+
+  it("keeps Custom path draft mode and canonical geometry after invalid Apply", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+    }));
+    const generatedGeometry = state.geometry;
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    await act(async () => {
+      setInputValue(textArea("shape-path-source"), "<svg>");
+      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+    });
+
+    expect(state.geometry).toBe(generatedGeometry);
+    expect(select("shape-geometry-preset").value).toBe("custom");
+    expect(textArea("shape-path-source")).not.toBeNull();
+    expect(host.textContent).toContain("SVG");
+  });
+
+  it("leaves Custom path draft mode when an ordinary preset is selected", async () => {
+    await mount(shapeElement({
+      geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+    }));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    expect(select("shape-geometry-preset").value).toBe("custom");
+
+    await act(async () => changeSelect(select("shape-geometry-preset"), "triangle"));
+    expect(select("shape-geometry-preset").value).toBe("triangle");
+    expect(state.geometry).toMatchObject({ mode: "generated", generator: "triangle", config: { apexX: 50 } });
+    expect(host.querySelector("#shape-path-source")).toBeNull();
+  });
+
   it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {
     await mount();
 
