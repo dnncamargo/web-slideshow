@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ShapeElement } from "@web-slideshow/document-schema";
+import type { Presentation, ShapeElement } from "@web-slideshow/document-schema";
 
 import { createQrCodeGeometry, renderElement, renderShape } from "../src";
 
@@ -43,6 +43,27 @@ function shape(overrides: ShapeOverrides = {}): ShapeElement {
     ...(overrides.effect === undefined ? {} : { effect: overrides.effect }),
     ...(overrides.link === undefined ? {} : { link: overrides.link }),
     ...(overrides.transform === undefined ? {} : { transform: overrides.transform }),
+  };
+}
+
+function presentationWithImageFill(url = "https://example.test/shape.png"): Presentation {
+  return {
+    schemaVersion: 1,
+    id: "presentation-shape-image",
+    title: "Shape image",
+    description: "",
+    aspectRatio: "16:9",
+    resources: {
+      files: [{
+        id: "shape-image",
+        name: "Shape image",
+        kind: "image",
+        representation: "binary",
+        contentType: "image/png",
+        source: { type: "url", url },
+      }],
+    },
+    slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", elements: [] }],
   };
 }
 
@@ -208,6 +229,30 @@ describe("canonical Shape renderer", () => {
     expect(html).toContain('class="presentation-image-media"');
     expect(html).toContain(`object-fit:${fit}`);
     expect(html).toContain("object-position:25% 75%");
+  });
+
+  it("resolves raster Presentation Files through the shared renderer path", () => {
+    const html = renderElement(shape({
+      style: { fill: { type: "image", fileResourceId: "shape-image", fit: "cover", focalPoint: { x: 25, y: 75 }, crop: { x: 10, y: 20, width: 70, height: 60 } } },
+    }), { presentation: presentationWithImageFill() });
+
+    expect(html).toContain('src="https://example.test/shape.png"');
+    expect(html).toContain('data-presentation-image-fit="cover"');
+    expect(html).toContain('data-presentation-image-focal-x="25"');
+    expect(html).toContain('data-presentation-image-focal-y="75"');
+    expect(html).toContain("data-presentation-image-crop=");
+  });
+
+  it("omits unresolved Shape image media while preserving the Shape root and geometry", () => {
+    const html = renderElement(shape({
+      style: { fill: { type: "image", fileResourceId: "missing-image", fit: "contain" }, stroke: { width: 2, color: "#123456" } },
+    }), { presentation: presentationWithImageFill() });
+
+    expect(html).toContain('data-presentation-type="shape"');
+    expect(html).toContain('d="M 10 20');
+    expect(html).toContain('stroke="#123456"');
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain('src=""');
   });
 
   it("clips image fills with the same geometry and emits existing crop hydration metadata", () => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   ShapePathGeometrySchema,
+  type PresentationFileResource,
   type ShapeElement,
 } from "@web-slideshow/document-schema";
 
@@ -125,15 +126,18 @@ interface ShapeGeometrySectionProps {
   element: ShapeElement;
   onUpdate: (update: (element: ShapeElement) => ShapeElement) => void;
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+  presentationFiles?: readonly PresentationFileResource[];
 }
 
-export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition }: ShapeGeometrySectionProps) {
+export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition, presentationFiles = [] }: ShapeGeometrySectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const preset = getShapeGeometryPreset(element.geometry);
   const identity = `${element.id}:${geometryIdentity(element.geometry)}`;
   const [draftState, setDraftState] = useState<ShapeGeometryDrafts>(() => createGeometryDrafts(identity, element.geometry));
   const [pathMessage, setPathMessage] = useState<string | null>(null);
+  const [selectedSvgFileId, setSelectedSvgFileId] = useState("");
+  const svgFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "text" && file.contentType === "image/svg+xml");
   const drafts = draftState.identity === identity
     ? draftState
     : createGeometryDrafts(identity, element.geometry);
@@ -200,11 +204,9 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     })));
   }
 
-  function applyPathDraft(): void {
-    if (element.geometry.mode !== "path") return;
-
+  function applyPathDraft(source = drafts.pathSource): void {
     try {
-      const imported = parseSvgPathAuthoringSource(drafts.pathSource);
+      const imported = parseSvgPathAuthoringSource(source);
       if (imported.kind === "svg") {
         const layers = imported.layers ?? [];
         if (layers.length === 0 || imported.viewBox === undefined) {
@@ -283,6 +285,12 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     } catch (error) {
       setPathMessage(error instanceof Error ? error.message : t("inspector.shape.invalidGeometry"));
     }
+  }
+
+  function importSelectedSvgFile(): void {
+    const file = svgFiles.find((candidate) => candidate.id === selectedSvgFileId);
+    if (file?.source.type !== "text") return;
+    applyPathDraft(file.source.content);
   }
 
   function resetPathDraft(): void {
@@ -370,6 +378,30 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </select>
       </label>
 
+      {svgFiles.length > 0 && (
+        <div className={styles.field}>
+          <span>{t("inspector.shape.svgFile")}</span>
+          <select
+            id="shape-svg-file"
+            name="shapeSvgFile"
+            value={selectedSvgFileId}
+            onChange={(event) => setSelectedSvgFileId(event.target.value)}
+          >
+            <option value="">{t("inspector.shape.selectSvgFile")}</option>
+            {svgFiles.map((file) => <option key={file.id} value={file.id}>{file.name}</option>)}
+          </select>
+          <button
+            id="shape-svg-file-import"
+            type="button"
+            className={styles.secondaryButton}
+            disabled={selectedSvgFileId === ""}
+            onClick={() => importSelectedSvgFile()}
+          >
+            {t("inspector.shape.importSvgFile")}
+          </button>
+        </div>
+      )}
+
       {element.geometry.mode === "path" && (
         <>
           <label className={styles.field}>
@@ -415,7 +447,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
           </label>
           {pathMessage !== null ? <small className={styles.fieldHint}>{pathMessage}</small> : null}
           <div className={styles.elementCrudActions}>
-            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={applyPathDraft}>{t("inspector.shape.applyPath")}</button>
+            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={() => applyPathDraft()}>{t("inspector.shape.applyPath")}</button>
             <button id="shape-path-reset" type="button" className={styles.secondaryButton} onClick={resetPathDraft}>{t("inspector.shape.resetPath")}</button>
           </div>
         </>

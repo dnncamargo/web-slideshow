@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type Presentation, type ShapeElement } from "@web-slideshow/document-schema";
+import { PresentationSchema, type Presentation, type PresentationFileResource, type ShapeElement } from "@web-slideshow/document-schema";
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ElementInspector } from "../src/features/editor/element-inspector";
@@ -33,6 +33,24 @@ const SH6E_ACCEPTANCE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="400"
 <circle cx="63.2109" cy="37.5391" r="18.1641" fill="black"/>
 <rect opacity="0.4" x="81.1328" y="80.7198" width="17.5687" height="17.3876" rx="4" transform="rotate(-45 81.1328 80.7198)" fill="#FDBA74"/>
 </svg>`;
+
+const SHAPE_RASTER_FILE: PresentationFileResource = {
+  id: "shape-raster",
+  name: "Shape raster",
+  kind: "image",
+  representation: "binary",
+  contentType: "image/png",
+  source: { type: "url", url: "https://example.test/shape.png" },
+};
+
+const SHAPE_SVG_FILE: PresentationFileResource = {
+  id: "shape-svg",
+  name: "Shape SVG",
+  kind: "image",
+  representation: "text",
+  contentType: "image/svg+xml",
+  source: { type: "text", content: `<svg viewBox="0 0 40 20"><rect width="30" height="10" fill="#123456" /></svg>` },
+};
 
 function shapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   return {
@@ -110,7 +128,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     document.body.innerHTML = "";
   });
 
-  async function mount(initial: ShapeElement = shapeElement()): Promise<void> {
+  async function mount(initial: ShapeElement = shapeElement(), presentationFiles: readonly PresentationFileResource[] = []): Promise<void> {
     state = initial;
     const render = () => root.render(
       <StudioI18nProvider>
@@ -123,6 +141,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
               state = next;
               render();
             }}
+            presentationFiles={presentationFiles}
           />
         </PresentationColorPaletteProvider>
       </StudioI18nProvider>,
@@ -254,6 +273,35 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     });
     expect(host.textContent).not.toContain("Edit crop on canvas");
     expect(host.textContent).not.toContain("Edit focal point on canvas");
+  });
+
+  it("switches Shape image fills between direct URLs and raster Presentation Files", async () => {
+    await mount(shapeElement(), [SHAPE_RASTER_FILE, SHAPE_SVG_FILE]);
+
+    await act(async () => changeSelect(select("shape-fill-type"), "image"));
+    const sourceMode = select("shape-fill-source-mode");
+    expect(Array.from(sourceMode.options).map((option) => option.value)).toEqual(["direct", "shape-raster"]);
+
+    await act(async () => changeSelect(sourceMode, "shape-raster"));
+    expect(state.style?.fill).toEqual({ type: "image", fit: "contain", fileResourceId: "shape-raster" });
+    expect(textArea("shape-fill-source").disabled).toBe(true);
+
+    await act(async () => changeSelect(select("shape-fill-source-mode"), "direct"));
+    expect(state.style?.fill).toEqual({ type: "image", fit: "contain", src: "/instance-demo.svg" });
+    expect(textArea("shape-fill-source").disabled).toBe(false);
+  });
+
+  it("imports a selected SVG Presentation File through the existing safe Shape importer", async () => {
+    await mount(shapeElement(), [SHAPE_SVG_FILE, SHAPE_RASTER_FILE]);
+
+    expect(Array.from(select("shape-svg-file").options).map((option) => option.value)).toEqual(["", "shape-svg"]);
+    await act(async () => changeSelect(select("shape-svg-file"), "shape-svg"));
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
+
+    expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
+    expect(state.style?.fill).toEqual({ type: "color", color: "#123456" });
+    expect(JSON.stringify(state)).not.toContain("shape-svg");
+    expect(JSON.stringify(state)).not.toContain("<svg");
   });
 
   it("uses canonical Border and keeps fill when stroke is removed", async () => {

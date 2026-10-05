@@ -280,6 +280,43 @@ describe("presentation persistence helpers", () => {
     expect(recoveredGallery).not.toHaveProperty("items.0.src");
   });
 
+  it("preserves a Shape raster File fill through persistence snapshots", () => {
+    const source = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "pres-file-shape",
+      title: "File Shape",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Shape image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/webp",
+          source: { type: "url", url: "https://cdn.example.test/shape.webp" },
+        }],
+      },
+      slides: [{
+        id: "slide-1",
+        elements: [{
+          id: "shape-1",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image", fit: "cover" } },
+        }],
+      }],
+    });
+
+    const safe = makeFirestoreSafePresentation(source);
+    const recovered = parsePersistedPresentation({ presentationJson: JSON.stringify(safe) });
+    const recoveredShape = recovered.slides[0]?.elements[0];
+
+    expect(recovered).toEqual(source);
+    expect(recovered.resources?.files).toEqual(source.resources?.files);
+    expect(recoveredShape).toMatchObject({ style: { fill: { fileResourceId: "file-image", fit: "cover" } } });
+    expect(recoveredShape).not.toHaveProperty("style.fill.src");
+  });
+
   it("preserves slide and nested element order", () => {
     const source = basePresentation();
     source.slides = [

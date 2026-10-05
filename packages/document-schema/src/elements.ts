@@ -487,15 +487,23 @@ export const ShapeGradientFillSchema = z.object({
   gradient: GradientSchema,
 }).strict();
 
-export const ShapeImageFillSchema = z.object({
+const ShapeImageFillBaseSchema = z.object({
   type: z.literal("image"),
-  src: z.string().min(1),
   fit: ImageFitSchema.default("contain"),
   focalPoint: ImageFocalPointSchema.optional(),
   crop: ImageCropSchema.optional(),
 }).strict();
 
-export const ShapeFillSchema = z.discriminatedUnion("type", [
+export const ShapeImageFillSchema = z.union([
+  ShapeImageFillBaseSchema.extend({
+    src: z.string().min(1),
+  }).strict(),
+  ShapeImageFillBaseSchema.extend({
+    fileResourceId: z.string().trim().min(1),
+  }).strict(),
+]);
+
+export const ShapeFillSchema = z.union([
   ShapeColorFillSchema,
   ShapeGradientFillSchema,
   ShapeImageFillSchema,

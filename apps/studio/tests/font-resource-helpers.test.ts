@@ -389,4 +389,49 @@ describe("Scripted Presentation File dependencies", () => {
 
     expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
   });
+
+  it("detects raster Presentation File-backed Shape fills in nested authoring trees", () => {
+    const presentation = PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "p-shape-image",
+      title: "P",
+      resources: {
+        files: [{
+          id: "file-image",
+          name: "Image",
+          kind: "image",
+          representation: "binary",
+          contentType: "image/png",
+          source: { type: "url", url: "https://example.test/image.png" },
+        }],
+      },
+      rootDefinitions: [{
+        id: "master",
+        name: "Master",
+        root: { id: "root", type: "container", hidden: false, children: [{
+          id: "root-shape",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image" } },
+        }] },
+        localChildTargetIds: ["root"],
+      }],
+      slides: [{
+        id: "s",
+        rootDefinitionId: "master",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "root", children: [{
+          id: "local-shape",
+          type: "shape",
+          hidden: false,
+          geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
+          style: { fill: { type: "image", fileResourceId: "file-image" } },
+        }] }],
+      }],
+    });
+
+    expect(presentationUsesFileResource(presentation, "file-image")).toBe(true);
+    expect(presentationUsesFileResource(presentation, "missing")).toBe(false);
+  });
 });

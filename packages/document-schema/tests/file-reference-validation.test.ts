@@ -28,6 +28,26 @@ function container(id: string, children: unknown[]) {
   return { id, type: "container" as const, hidden: false, children };
 }
 
+function shape(id: string, fill: Record<string, unknown>) {
+  return {
+    id,
+    type: "shape" as const,
+    hidden: false,
+    geometry: {
+      mode: "path" as const,
+      viewBox: { x: 0, y: 0, width: 10, height: 10 },
+      commands: [
+        { type: "move" as const, x: 0, y: 0 },
+        { type: "line" as const, x: 10, y: 0 },
+        { type: "line" as const, x: 10, y: 10 },
+        { type: "line" as const, x: 0, y: 10 },
+        { type: "close" as const },
+      ],
+    },
+    style: { fill },
+  };
+}
+
 function presentation(overrides: Record<string, unknown> = {}) {
   return {
     schemaVersion: 1,
@@ -86,7 +106,7 @@ describe("Presentation File references from Scripted", () => {
       }],
     }));
 
-    expect(result.success).toBe(true);
+    expect(result.success, result.success ? undefined : JSON.stringify(result.error.issues)).toBe(true);
     expect(rootResult.success).toBe(true);
   });
 
@@ -222,5 +242,76 @@ describe("Presentation File references from Gallery", () => {
         expect.objectContaining({ path: ["slides", 0, "elements", 0, "items", 0, "fileResourceId"] }),
       ]));
     }
+  });
+});
+
+describe("Presentation File references from Shape image fills", () => {
+  const rasterFill = { type: "image", fileResourceId: "file-image" };
+
+  it("keeps an existing direct Shape image fill valid", () => {
+    const result = PresentationSchema.safeParse(presentation({
+      slides: [{ id: "slide-1", elements: [shape("shape", { type: "image", src: "/shape.png" })] }],
+    }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts raster references in nested authoring trees and keeps schemaVersion 1", () => {
+    const result = PresentationSchema.safeParse(presentation({
+      resources: { files: [imageResource] },
+      rootDefinitions: [{
+        id: "master-1",
+        name: "Master",
+        root: container("master-root", [shape("root-shape", rasterFill)]),
+        localChildTargetIds: ["master-root"],
+      }],
+      slides: [{
+        id: "slide-1",
+        rootDefinitionId: "master-1",
+        elements: [],
+        localRootChildren: [{ targetContainerId: "master-root", children: [shape("slide-shape", rasterFill), shape("local-shape", rasterFill)] }],
+      }],
+    }));
+
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.schemaVersion).toBe(1);
+  });
+
+  it.each([
+    ["missing", [], rasterFill],
+    ["svg-text", [{
+      id: "file-svg",
+      name: "SVG",
+      kind: "image" as const,
+      representation: "text" as const,
+      contentType: "image/svg+xml" as const,
+      source: { type: "text" as const, content: "<svg />" },
+    }], { type: "image", fileResourceId: "file-svg" }],
+    ["non-image", [resource], { type: "image", fileResourceId: "file-notes" }],
+  ])("rejects %s Shape image File references at style/fill/fileResourceId", (_caseName, files, fill) => {
+    const result = PresentationSchema.safeParse(presentation({
+      resources: { files },
+      slides: [{ id: "slide-1", elements: [shape("shape", fill)] }],
+    }));
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: ["slides", 0, "elements", 0, "style", "fill", "fileResourceId"] }),
+      ]));
+    }
+  });
+
+  it.each([
+    ["src and fileResourceId", { type: "image", src: "/shape.png", fileResourceId: "file-image" }],
+    ["neither source", { type: "image" }],
+    ["blank fileResourceId", { type: "image", fileResourceId: "   " }],
+  ])("rejects Shape image fill with %s", (_caseName, fill) => {
+    const result = PresentationSchema.safeParse(presentation({
+      resources: { files: [imageResource] },
+      slides: [{ id: "slide-1", elements: [shape("shape", fill)] }],
+    }));
+
+    expect(result.success).toBe(false);
   });
 });

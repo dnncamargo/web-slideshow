@@ -8,7 +8,7 @@ function validateBinaryImageFileReference(
   fileResourceId: string,
   path: (string | number)[],
   addIssue: AddIssue,
-  label: "Image" | "Gallery item",
+  label: "Image" | "Gallery item" | "Shape image fill",
 ): void {
   const file = presentation.resources?.files?.find((candidate) => candidate.id === fileResourceId);
   if (file === undefined) {
@@ -75,6 +75,16 @@ function validateElement(
         );
       }
     });
+  }
+
+  if (element.type === "shape" && element.style?.fill?.type === "image" && "fileResourceId" in element.style.fill) {
+    validateBinaryImageFileReference(
+      presentation,
+      element.style.fill.fileResourceId,
+      [...path, "style", "fill", "fileResourceId"],
+      addIssue,
+      "Shape image fill",
+    );
   }
 
   if (element.type === "scripted") {

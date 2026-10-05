@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type {
+  PresentationFileResource,
   ShapeElement,
   ShapeFill,
   ShapeVisualStyle,
@@ -32,6 +33,7 @@ interface ShapeAppearanceSectionProps {
   elementId: string;
   isQr: boolean;
   style: ShapeElement["style"];
+  presentationFiles?: readonly PresentationFileResource[];
   onUpdateStyle: (
     update: (style: ShapeElement["style"]) => ShapeElement["style"],
   ) => void;
@@ -57,27 +59,34 @@ export function ShapeAppearanceSection({
   elementId,
   isQr,
   style,
+  presentationFiles = [],
   onUpdateStyle,
 }: ShapeAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const fill = style?.fill;
   const imageFill = isImageFill(fill) ? fill : undefined;
+  const directSource = imageFill !== undefined && "src" in imageFill ? imageFill.src : "";
+  const imageFiles = presentationFiles.filter((file) => file.kind === "image" && file.representation === "binary");
+  const fileSource = imageFill !== undefined && "fileResourceId" in imageFill;
+  const selectedFile = fileSource
+    ? imageFiles.find((file) => file.id === imageFill.fileResourceId)
+    : undefined;
   const sourceHistoryKey = `text:shape-${elementId}-fill-src`;
-  const [sourceDraft, setSourceDraft] = useState(imageFill?.src ?? "");
+  const [sourceDraft, setSourceDraft] = useState(directSource);
   const [hydratedSource, setHydratedSource] = useState({
     elementId,
     fillType: fill?.type,
-    source: imageFill?.src,
+    source: directSource,
   });
 
   if (
     hydratedSource.elementId !== elementId ||
     hydratedSource.fillType !== fill?.type ||
-    hydratedSource.source !== imageFill?.src
+    hydratedSource.source !== directSource
   ) {
-    setHydratedSource({ elementId, fillType: fill?.type, source: imageFill?.src });
-    setSourceDraft(imageFill?.src ?? "");
+    setHydratedSource({ elementId, fillType: fill?.type, source: directSource });
+    setSourceDraft(directSource);
   }
 
   function updateNormalizedStyle(
@@ -124,7 +133,10 @@ export function ShapeAppearanceSection({
       return;
     }
 
-    const update = () => updateImageFill((current) => ({ ...current, src: value }));
+    const update = () => updateImageFill((current) => {
+      if ("fileResourceId" in current) return current;
+      return { ...current, src: value };
+    });
     if (!authoringHistory) {
       update();
       return;
@@ -132,6 +144,22 @@ export function ShapeAppearanceSection({
 
     authoringHistory.begin(sourceHistoryKey, SOURCE_HISTORY_META);
     authoringHistory.update(sourceHistoryKey, update);
+  }
+
+  function updateImageSourceMode(value: string): void {
+    runDiscrete("shape.fill.source", () => updateNormalizedStyle((current) => {
+      if (current === undefined || !isImageFill(current.fill)) return current;
+      if (value === "direct") {
+        if ("src" in current.fill) return current;
+        const { fileResourceId: _fileResourceId, ...directBase } = current.fill;
+        return { ...current, fill: { ...directBase, src: DEFAULT_SHAPE_IMAGE_SOURCE } };
+      }
+      if ("src" in current.fill) {
+        const { src: _src, ...resourceBase } = current.fill;
+        return { ...current, fill: { ...resourceBase, fileResourceId: value } };
+      }
+      return { ...current, fill: { ...current.fill, fileResourceId: value } };
+    }));
   }
 
   return (
@@ -190,6 +218,22 @@ export function ShapeAppearanceSection({
       {imageFill !== undefined && (
         <>
           <label className={styles.field}>
+            <span>{t("image.sourceMode")}</span>
+            <select
+              id="shape-fill-source-mode"
+              name="shapeFillSourceMode"
+              value={fileSource && imageFill !== undefined && "fileResourceId" in imageFill ? imageFill.fileResourceId : "direct"}
+              onChange={(event) => updateImageSourceMode(event.target.value)}
+            >
+              <option value="direct">{t("image.directSource")}</option>
+              {imageFiles.map((file) => (
+                <option key={file.id} value={file.id}>{file.name}</option>
+              ))}
+            </select>
+            {fileSource ? <small className={styles.fieldHint}><span>{selectedFile?.name ?? imageFill.fileResourceId}</span></small> : null}
+          </label>
+
+          <label className={styles.field}>
             <span>{t("inspector.source")}</span>
             <textarea
               id="shape-fill-source"
@@ -197,11 +241,12 @@ export function ShapeAppearanceSection({
               className={styles.textArea}
               rows={3}
               spellCheck={false}
-              value={sourceDraft}
+              value={fileSource ? "" : sourceDraft}
+              disabled={fileSource}
               onFocus={() => authoringHistory?.begin(sourceHistoryKey, SOURCE_HISTORY_META)}
               onBlur={() => {
                 if (sourceDraft.length === 0) {
-                  setSourceDraft(imageFill.src);
+                  setSourceDraft(directSource);
                 }
                 authoringHistory?.finish(sourceHistoryKey);
               }}
