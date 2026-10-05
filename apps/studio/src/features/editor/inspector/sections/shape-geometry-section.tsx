@@ -143,6 +143,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     setCustomPathDraftIdentity(null);
   }
   const customPathDraftActive = customPathDraftIdentity === identity && preset !== "qr-code";
+  const effectivePreset: ShapePreset = customPathDraftActive ? "custom" : preset;
   const drafts = draftState.identity === identity
     ? draftState
     : createGeometryDrafts(identity, element.geometry);
@@ -371,7 +372,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         <select
           id="shape-geometry-preset"
           name="shapeGeometryPreset"
-          value={customPathDraftActive ? "custom" : preset}
+          value={effectivePreset}
           onChange={(event) => {
             const nextPreset = event.target.value as ShapePreset;
             if (nextPreset === "custom") {
@@ -383,15 +384,15 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
           }}
           disabled={preset === "qr-code"}
         >
-          {preset !== "qr-code" && <option value="custom">{t("inspector.shape.customPath")}</option>}
           {preset === "qr-code" && <option value="qr-code">{t("inspector.shape.qrCode")}</option>}
           {SHAPE_AUTHORING_PRESETS.map((option) => (
             <option key={option} value={option}>{presetLabel(option, t)}</option>
           ))}
+          {preset !== "qr-code" && <option value="custom">{t("inspector.shape.customPath")}</option>}
         </select>
       </label>
 
-      {svgFiles.length > 0 && (
+      {effectivePreset === "custom" && svgFiles.length > 0 && (
         <div className={styles.field}>
           <span>{t("inspector.shape.svgFile")}</span>
           <select
@@ -415,7 +416,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </div>
       )}
 
-      {(element.geometry.mode === "path" || customPathDraftActive) && (
+      {effectivePreset === "custom" && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.pathSource")}</span>
@@ -466,7 +467,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "qr-code" && (
+      {effectivePreset === "qr-code" && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.qrContent")}</span>
@@ -527,7 +528,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "triangle" && (
+      {effectivePreset === "triangle" && (
         <label className={styles.field}>
           <span>{t("inspector.shape.apexPosition")}</span>
           <input
@@ -544,7 +545,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
         </label>
       )}
 
-      {element.geometry.mode === "generated" && element.geometry.generator === "polygon" && (
+      {(effectivePreset === "polygon" || effectivePreset === "star") && (
         <>
           <label className={styles.field}>
             <span>{t("inspector.shape.points")}</span>

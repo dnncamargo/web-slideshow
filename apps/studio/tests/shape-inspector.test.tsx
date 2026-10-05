@@ -312,6 +312,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
 
   it("imports a selected SVG Presentation File through the existing safe Shape importer", async () => {
     await mount(shapeElement(), [SHAPE_SVG_FILE, SHAPE_RASTER_FILE]);
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
 
     expect(Array.from(select("shape-svg-file").options).map((option) => option.value)).toEqual(["", "shape-svg"]);
     await act(async () => changeSelect(select("shape-svg-file"), "shape-svg"));
@@ -332,6 +333,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => changeSelect(select("shape-svg-file"), "shape-compound-svg"));
     await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
 
@@ -354,6 +356,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => changeSelect(select("shape-svg-file"), "shape-compound-svg"));
     await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
 
@@ -366,6 +369,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const initial = shapeElement({ style: { fill: { type: "color", color: "#22d3ee" } } });
     await mount(initial, [SHAPE_UNSAFE_SVG_FILE]);
     const geometry = state.geometry;
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => changeSelect(select("shape-svg-file"), "shape-unsafe-svg"));
     await act(async () => host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.click());
 
@@ -608,12 +612,45 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await mount();
     const canonicalGeometry = state.geometry;
 
-    expect(Array.from(select("shape-geometry-preset").options).map((option) => option.value)).toContain("custom");
+    expect(Array.from(select("shape-geometry-preset").options).map((option) => option.value)).toEqual([
+      "rectangle",
+      "ellipse",
+      "triangle",
+      "polygon",
+      "star",
+      "custom",
+    ]);
+    expect(host.querySelector("#shape-path-source")).toBeNull();
+    expect(host.querySelector("#shape-svg-file")).toBeNull();
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
 
     expect(select("shape-geometry-preset").value).toBe("custom");
     expect(textArea("shape-path-source")).not.toBeNull();
     expect(state.geometry).toBe(canonicalGeometry);
+  });
+
+  it("keeps ordinary Shape presets exclusive from the Custom path surface", async () => {
+    const ordinaryPresets: Array<{ value: string; geometry: ShapeElement["geometry"] }> = [
+      { value: "rectangle", geometry: RECTANGLE_GEOMETRY },
+      { value: "ellipse", geometry: createShapeGeometry("ellipse") },
+      { value: "triangle", geometry: createShapeGeometry("triangle") },
+      { value: "polygon", geometry: createShapeGeometry("polygon") },
+      { value: "star", geometry: createShapeGeometry("star") },
+    ];
+
+    for (const { value, geometry } of ordinaryPresets) {
+      await mount(shapeElement({ geometry }), [SHAPE_SVG_FILE]);
+
+      expect(select("shape-geometry-preset").value).toBe(value);
+      expect(host.querySelector("#shape-path-source")).toBeNull();
+      expect(host.querySelector("#shape-svg-file")).toBeNull();
+
+      await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+      expect(textArea("shape-path-source")).not.toBeNull();
+      expect(select("shape-svg-file")).not.toBeNull();
+      expect(host.querySelector("#shape-apex-x")).toBeNull();
+      expect(host.querySelector("#shape-polygon-points")).toBeNull();
+    }
   });
 
   it("enters Custom path draft mode from a generated Shape and applies valid path input", async () => {
@@ -671,6 +708,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await mount();
 
     expect(select("shape-geometry-preset").value).toBe("rectangle");
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
 
     await act(async () => {
@@ -731,6 +769,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
 
     await act(async () => {
       setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
@@ -745,6 +784,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const transform = { translateXPercent: 12, translateYPercent: -4, rotationDeg: 30 };
     const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
     await mount(shapeElement({ transform, animation }));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
@@ -765,6 +805,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>`);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
@@ -788,6 +829,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), SH6E_ACCEPTANCE_SVG);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
@@ -819,6 +861,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const canvasShape = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"]');
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
@@ -840,6 +883,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => changeSelect(select("shape-fill-type"), "gradient"));
     expect(select("shape-fill-type").value).toBe("gradient");
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     await act(async () => {
       setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
       host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
