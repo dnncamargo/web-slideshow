@@ -1,6 +1,20 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { json } from "@codemirror/lang-json";
+import { xml } from "@codemirror/lang-xml";
+import {
+  bracketMatching,
+  HighlightStyle,
+  indentOnInput,
+  indentUnit,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { PresentationTextFileResource } from "@web-slideshow/document-schema";
 
@@ -10,35 +24,25 @@ import styles from "./presentation-text-file-editor.module.css";
 
 type IndentationMode = "2" | "4" | "tab";
 
-const pairedDelimiters = {
-  "(": ")",
-  "[": "]",
-  "{": "}",
-  '"': '"',
-  "'": "'",
-  "`": "`",
-} as const;
-
 function getIndentationUnit(mode: IndentationMode): string {
   if (mode === "tab") return "\t";
   return " ".repeat(Number(mode));
 }
 
-function replaceTextareaSelection(
-  textarea: HTMLTextAreaElement,
-  selectionStart: number,
-  selectionEnd: number,
-  replacement: string,
-): boolean {
-  textarea.focus();
-  textarea.setSelectionRange(selectionStart, selectionEnd);
+const editorSyntaxHighlightStyle = HighlightStyle.define([
+  { tag: [tags.tagName, tags.propertyName], color: "var(--text-editor-syntax-property)" },
+  { tag: tags.attributeName, color: "var(--text-editor-syntax-attribute)" },
+  { tag: [tags.string, tags.attributeValue], color: "var(--text-editor-syntax-string)" },
+  { tag: tags.number, color: "var(--text-editor-syntax-number)" },
+  { tag: [tags.bool, tags.null, tags.keyword, tags.atom], color: "var(--text-editor-syntax-keyword)" },
+  { tag: [tags.comment, tags.meta], color: "var(--text-editor-syntax-comment)" },
+  { tag: tags.invalid, color: "var(--text-editor-syntax-invalid)" },
+]);
 
-  if (typeof document.execCommand === "function" && document.execCommand("insertText", false, replacement)) {
-    return true;
-  }
-
-  textarea.setRangeText(replacement, selectionStart, selectionEnd, "end");
-  return false;
+function getEditorLanguage(contentType: PresentationTextFileResource["contentType"]): Extension {
+  if (contentType === "application/json") return json();
+  if (contentType === "application/xml" || contentType === "image/svg+xml") return xml();
+  return [];
 }
 
 export function PresentationTextFileEditor({
@@ -53,77 +57,79 @@ export function PresentationTextFileEditor({
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(file.source.content);
   const [indentationMode, setIndentationMode] = useState<IndentationMode>("2");
+  const editorHostRef = useRef<HTMLDivElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+  const indentationCompartmentRef = useRef(new Compartment());
+  const initialContentRef = useRef(file.source.content);
+  const languageExtension = useMemo(() => getEditorLanguage(file.contentType), [file.contentType]);
+  const editorExtensions = useMemo<Extension[]>(() => [
+    languageExtension,
+    syntaxHighlighting(editorSyntaxHighlightStyle),
+    bracketMatching(),
+    EditorState.languageData.of(() => [{
+      closeBrackets: { brackets: ["(", "[", "{", "'", "\"", "`"] },
+    }]),
+    closeBrackets(),
+    indentOnInput(),
+    history(),
+    keymap.of([
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...historyKeymap,
+      indentWithTab,
+    ]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) setDraft(update.state.doc.toString());
+    }),
+  ], [languageExtension]);
+  const createEditorState = useCallback((content: string, mode: IndentationMode): EditorState => EditorState.create({
+    doc: content,
+    extensions: [
+      ...editorExtensions,
+      indentationCompartmentRef.current.of(indentUnit.of(getIndentationUnit(mode))),
+    ],
+  }), [editorExtensions]);
   const dirty = draft !== file.source.content;
 
-  function handleTab(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    event.preventDefault();
+  useEffect(() => {
+    const parent = editorHostRef.current;
+    if (!parent) return;
 
-    const textarea = event.currentTarget;
-    const selectionStart = textarea.selectionStart;
-    const selectionEnd = textarea.selectionEnd;
-    const unit = getIndentationUnit(indentationMode);
+    const view = new EditorView({
+      state: createEditorState(initialContentRef.current, "2"),
+      parent,
+    });
 
-    if (!event.shiftKey) {
-      const usedNativeEdit = replaceTextareaSelection(textarea, selectionStart, selectionEnd, unit);
-      if (!usedNativeEdit) setDraft(textarea.value);
-      return;
-    }
+    view.dom.dataset.textFileEditor = "";
+    editorViewRef.current = view;
 
-    const lineStart = textarea.value.lastIndexOf("\n", selectionStart - 1) + 1;
-    const removeCount = indentationMode === "tab"
-      ? textarea.value[lineStart] === "\t" ? 1 : 0
-      : Math.min(Number(indentationMode), textarea.value.slice(lineStart).search(/[^ ]|$/));
+    return () => {
+      editorViewRef.current = null;
+      view.destroy();
+    };
+  }, [createEditorState]);
 
-    if (removeCount === 0) return;
+  useEffect(() => {
+    const view = editorViewRef.current;
+    if (!view) return;
 
-    const usedNativeEdit = replaceTextareaSelection(textarea, lineStart, lineStart + removeCount, "");
+    view.dispatch({
+      effects: indentationCompartmentRef.current.reconfigure(
+        indentUnit.of(getIndentationUnit(indentationMode)),
+      ),
+    });
+  }, [indentationMode]);
 
-    const nextSelectionStart = Math.max(lineStart, selectionStart - removeCount);
-    const nextSelectionEnd = Math.max(nextSelectionStart, selectionEnd - removeCount);
-    textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
-    if (!usedNativeEdit) setDraft(textarea.value);
+  function getCurrentDraft(): string {
+    return editorViewRef.current?.state.doc.toString() ?? draft;
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+  function handleDiscard(): void {
+    const view = editorViewRef.current;
+    if (!view) return;
 
-    if (event.key === "Tab") {
-      handleTab(event);
-      return;
-    }
-
-    const textarea = event.currentTarget;
-    const selectionStart = textarea.selectionStart;
-    const selectionEnd = textarea.selectionEnd;
-    const closer = pairedDelimiters[event.key as keyof typeof pairedDelimiters];
-
-    if (closer) {
-      if (event.key === closer && textarea.value[selectionStart] === closer && selectionStart === selectionEnd) {
-        event.preventDefault();
-        textarea.setSelectionRange(selectionStart + 1, selectionStart + 1);
-        return;
-      }
-
-      event.preventDefault();
-      const usedNativeEdit = replaceTextareaSelection(
-        textarea,
-        selectionStart,
-        selectionEnd,
-        `${event.key}${textarea.value.slice(selectionStart, selectionEnd)}${closer}`,
-      );
-      const nextSelectionStart = selectionStart + 1;
-      const nextSelectionEnd = selectionEnd + 1;
-      textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
-      if (!usedNativeEdit) setDraft(textarea.value);
-      return;
-    }
-
-    if ((event.key === ")" || event.key === "]" || event.key === "}")
-      && textarea.value[selectionStart] === event.key
-      && selectionStart === selectionEnd) {
-      event.preventDefault();
-      textarea.setSelectionRange(selectionStart + 1, selectionStart + 1);
-    }
+    view.setState(createEditorState(file.source.content, indentationMode));
+    setDraft(file.source.content);
   }
 
   return (
@@ -170,7 +176,8 @@ export function PresentationTextFileEditor({
               className={styles.toolbarAction}
               data-text-file-action="save"
               onClick={() => {
-                if (dirty) onSave(draft);
+                const content = getCurrentDraft();
+                if (content !== file.source.content) onSave(content);
               }}
             >
               {t("topbar.save")}
@@ -180,7 +187,7 @@ export function PresentationTextFileEditor({
               className={styles.toolbarAction}
               data-text-file-action="discard"
               disabled={!dirty}
-              onClick={() => setDraft(file.source.content)}
+              onClick={handleDiscard}
             >
               {t("editor.textFileDiscard")}
             </button>
@@ -195,14 +202,11 @@ export function PresentationTextFileEditor({
             </button>
           </div>
         </div>
-        <textarea
-          className={styles.textArea}
+        <div
+          ref={editorHostRef}
+          className={styles.editorHost}
           data-text-file-editor
           aria-label={t("editor.textFileEditor")}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
         />
       </section>
     </>
