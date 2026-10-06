@@ -251,7 +251,7 @@ describe("Presentation text file editing workspace", () => {
       .find((details) => details.querySelector("[data-presentation-files]"));
     const summary = filesDetails?.querySelector<HTMLElement>("summary");
     if (!summary) throw new Error("Presentation Files section not found");
-    await act(async () => summary.click());
+    if (!filesDetails?.open) await act(async () => summary.click());
   }
 
   async function enterTextEditing(): Promise<void> {
@@ -382,6 +382,17 @@ describe("Presentation text file editing workspace", () => {
     const edit = row?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
     if (!edit) throw new Error(`Text file Edit action not found for ${name}`);
     return edit;
+  }
+
+  async function createLocalFile(name: string): Promise<void> {
+    await openPresentationFiles();
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]")?.click());
+    const input = host.querySelector<HTMLInputElement>("[data-presentation-file-name-input]");
+    if (!input) throw new Error("Local Presentation File form not found");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, name);
+    await act(async () => input.dispatchEvent(new Event("input", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
   }
 
   it("keeps draft editing local, protects dirty exit, and discards without history", async () => {
@@ -850,6 +861,41 @@ describe("Presentation text file editing workspace", () => {
     expect(nodeNames).not.toContain("JsonText");
     expect(nodeNames).not.toContain("PropertyName");
     expect(editorText()).toBe("before");
+  });
+
+  it("creates a clean local text file, opens it immediately, and allocates IDs independently", async () => {
+    await createLocalFile("  local-notes.txt  ");
+
+    expect(host.querySelector("[data-text-file-editor-region]")).not.toBeNull();
+    expect(editorText()).toBe("");
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+    const created = await saveCanonicalSnapshot();
+    expect(created.resources?.files?.at(-1)).toEqual({
+      id: "file-local",
+      name: "local-notes.txt",
+      kind: "text",
+      representation: "text",
+      contentType: "text/plain",
+      source: { type: "text", content: "" },
+    });
+
+    await createLocalFile("second.md");
+    expect(editorText()).toBe("");
+    const second = await saveCanonicalSnapshot();
+    expect(second.resources?.files?.at(-1)?.id).toBe("file-local-2");
+    expect(second.resources?.files?.at(-1)?.name).toBe("second.md");
+
+    await createLocalFile("data.csv");
+    await createLocalFile("config.json");
+    await createLocalFile("layout.xml");
+    await createLocalFile("ICON.SVG");
+    const allFiles = (await saveCanonicalSnapshot()).resources?.files ?? [];
+    expect(allFiles.slice(-4).map((file) => [file.name, file.kind, file.contentType])).toEqual([
+      ["data.csv", "structured-data", "text/csv"],
+      ["config.json", "structured-data", "application/json"],
+      ["layout.xml", "structured-data", "application/xml"],
+      ["ICON.SVG", "image", "image/svg+xml"],
+    ]);
   });
 
   it("switches clean text files without canonical writes or history", async () => {

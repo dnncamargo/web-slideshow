@@ -838,6 +838,13 @@
   align-items: flex-end;
 }
 
+.localFileAdd {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--ps-ui-space-8);
+}
+
 .localColorName {
   display: flex;
   min-width: 0;

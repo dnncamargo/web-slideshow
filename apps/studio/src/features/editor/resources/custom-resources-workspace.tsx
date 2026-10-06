@@ -64,6 +64,7 @@ interface CustomResourcesWorkspaceProps {
   onAddLibraryPalette: (palette: CustomLibraryPaletteDraft) => CustomLibraryPaletteAddOutcome;
   onAddLibraryFont: (font: CustomLibraryFontDraft) => CustomLibraryFontAddOutcome;
   onAddLibraryFile?: (record: CustomLibraryFileRecord) => Promise<CustomLibraryFileAddOutcome>;
+  onCreatePresentationTextFile?: (filename: string) => PresentationTextFileCreateOutcome;
   onApplyElementStyle: (item: CustomLibraryItemDraft) => CustomLibraryApplyOutcome;
   allowElementStyleApply?: boolean;
   onAddPresentationColor: (name: string, value: Color) => void;
@@ -140,6 +141,7 @@ type FileLoadState =
   | { kind: "error" };
 
 export type CustomLibraryFileAddOutcome = "added" | "unchanged" | "conflict" | "load-error";
+export type PresentationTextFileCreateOutcome = "created" | "empty" | "unsupported" | "dirty";
 
 const PREVIEW_COLOR_LIMIT = 6;
 
@@ -219,6 +221,7 @@ export function CustomResourcesWorkspace({
   onAddLibraryPalette,
   onAddLibraryFont,
   onAddLibraryFile = async () => "conflict",
+  onCreatePresentationTextFile = () => "empty",
   onApplyElementStyle,
   allowElementStyleApply = true,
   onAddPresentationColor,
@@ -274,6 +277,9 @@ export function CustomResourcesWorkspace({
   const [localColorAddOpen, setLocalColorAddOpen] = useState(false);
   const [colorName, setColorName] = useState("");
   const [colorValue, setColorValue] = useState<Color>("#ffffff");
+  const [localFileAddOpen, setLocalFileAddOpen] = useState(false);
+  const [localFileName, setLocalFileName] = useState("");
+  const [localFileFeedback, setLocalFileFeedback] = useState<Exclude<PresentationTextFileCreateOutcome, "created"> | null>(null);
   const requestRevisionRef = useRef(0);
   const fontRequestRevisionRef = useRef(0);
   const fileRequestRevisionRef = useRef(0);
@@ -361,6 +367,17 @@ export function CustomResourcesWorkspace({
     if (!name) return;
     onAddPresentationColor(name, colorValue);
     setColorName("");
+  }
+
+  function createIndividualFile(): void {
+    const outcome = onCreatePresentationTextFile(localFileName);
+    if (outcome === "created") {
+      setLocalFileName("");
+      setLocalFileFeedback(null);
+      setLocalFileAddOpen(false);
+      return;
+    }
+    setLocalFileFeedback(outcome);
   }
 
   return (
@@ -526,6 +543,38 @@ export function CustomResourcesWorkspace({
               {presentationFiles.map((file) => <LocalPresentationFileRow key={file.id} file={file} inUse={isPresentationFileInUse(file.id)} active={activePresentationTextFileId === file.id} textEditingDirty={textEditingDirty} onEdit={onEditPresentationFile} onRemove={onRemovePresentationFile} />)}
             </div>
             <span className={styles.colorCount}>{t(presentationFiles.length === 1 ? "customResources.fileCountOne" : "customResources.fileCountMany", { count: presentationFiles.length })}</span>
+            <button
+              type="button"
+              className={styles.resourceAction}
+              data-presentation-file-create-toggle
+              disabled={textEditingDirty}
+              onClick={() => {
+                setLocalFileFeedback(null);
+                setLocalFileAddOpen((open) => !open);
+              }}
+            >
+              {localFileAddOpen ? t("customResources.close") : t("customResources.addPresentationFile")}
+            </button>
+            {localFileAddOpen ? (
+              <div className={styles.localFileAdd} data-presentation-file-create-form>
+                <label className={styles.localColorName}>
+                  <span>{t("customResources.fileName")}</span>
+                  <input
+                    data-presentation-file-name-input
+                    aria-label={t("customResources.fileName")}
+                    value={localFileName}
+                    onChange={(event) => {
+                      setLocalFileName(event.target.value);
+                      setLocalFileFeedback(null);
+                    }}
+                  />
+                </label>
+                <span className={styles.status}>{t("customResources.supportedFileExtensions")}</span>
+                {localFileFeedback === "empty" ? <p className={styles.status} role="alert">{t("customResources.fileNameRequired")}</p> : null}
+                {localFileFeedback === "unsupported" ? <p className={styles.status} role="alert">{t("customResources.unsupportedFileExtension")}</p> : null}
+                <button type="button" className={styles.resourceAction} data-presentation-file-create disabled={textEditingDirty} onClick={createIndividualFile}>{t("customResources.createFile")}</button>
+              </div>
+            ) : null}
             </InspectorSection>
           </div>
         </section>

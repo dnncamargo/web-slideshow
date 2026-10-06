@@ -34,6 +34,7 @@ import {
 
 import {
   PresentationSchema,
+  PresentationFileResourceSchema,
   materializeSlide,
   addPresentationPaletteColor as addPaletteEntry,
   removePresentationPaletteColor as removePaletteEntry,
@@ -68,6 +69,7 @@ import {
   getCustomLibraryFileResourceId,
   removeCustomLibraryFileFromPresentation,
 } from "@/features/custom-library/custom-library-file-apply";
+import { classifySupportedFileName } from "@/features/custom-library/custom-library-file-classification";
 import {
   applyCustomLibraryItemToPresentation,
   type CustomLibraryElementOwner,
@@ -112,8 +114,13 @@ import {
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
-import { CustomResourcesWorkspace, type CustomLibraryFileAddOutcome } from "./resources/custom-resources-workspace";
+import {
+  CustomResourcesWorkspace,
+  type CustomLibraryFileAddOutcome,
+  type PresentationTextFileCreateOutcome,
+} from "./resources/custom-resources-workspace";
 import { PresentationTextFileEditor } from "./resources/presentation-text-file-editor";
+import { createUniqueId } from "./preset-structure";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -4632,6 +4639,72 @@ export function EditorWorkspace({
     return "added";
   }
 
+  function createPresentationTextFile(filename: string): PresentationTextFileCreateOutcome {
+    if (textEditingFileId !== null && textEditingDirty) return "dirty";
+
+    const trimmedFilename = filename.trim();
+    if (!trimmedFilename) return "empty";
+
+    const classification = classifySupportedFileName(trimmedFilename);
+    if (classification === null || classification.representation !== "text") return "unsupported";
+
+    const currentPresentation = presentationRef.current;
+    const currentFiles = currentPresentation.resources?.files ?? [];
+    const currentFonts = currentPresentation.resources?.fonts ?? [];
+    const usedResourceIds = new Set([
+      ...currentFiles.map((resource) => resource.id),
+      ...currentFonts.map((resource) => resource.id),
+    ]);
+    const fileResourceId = createUniqueId("file-local", usedResourceIds);
+    const parsedResource = PresentationFileResourceSchema.safeParse({
+      id: fileResourceId,
+      name: trimmedFilename,
+      kind: classification.kind,
+      representation: "text",
+      contentType: classification.contentType,
+      source: { type: "text", content: "" },
+    });
+    if (!parsedResource.success || parsedResource.data.representation !== "text") return "unsupported";
+
+    const candidatePresentation = {
+      ...currentPresentation,
+      resources: {
+        ...currentPresentation.resources,
+        files: [...currentFiles, parsedResource.data],
+      },
+    };
+    const parsedPresentation = PresentationSchema.safeParse(candidatePresentation);
+    if (!parsedPresentation.success) return "unsupported";
+
+    commitPresentationGlobalAction(
+      {
+        kind: "file.create",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.create" },
+      },
+      (current) => {
+        const files = current.resources?.files ?? [];
+        const fonts = current.resources?.fonts ?? [];
+        const currentUsedIds = new Set([
+          ...files.map((resource) => resource.id),
+          ...fonts.map((resource) => resource.id),
+        ]);
+        if (currentUsedIds.has(fileResourceId)) return current;
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            files: [...files, parsedResource.data],
+          },
+        };
+      },
+    );
+    setRightPanelMode("resources");
+    setTextEditingDirty(false);
+    setTextEditingFileId(fileResourceId);
+    return "created";
+  }
+
   function removePresentationFile(fileResourceId: string): void {
     if (!presentation.resources?.files?.some((file) => file.id === fileResourceId)) return;
     if (presentationUsesFileResource(presentation, fileResourceId)) return;
@@ -7268,6 +7341,7 @@ export function EditorWorkspace({
             onAddLibraryPalette={addCustomLibraryPalette}
             onAddLibraryFont={addCustomLibraryFont}
             onAddLibraryFile={addCustomLibraryFile}
+            onCreatePresentationTextFile={createPresentationTextFile}
             onApplyElementStyle={applyCustomLibraryItem}
             allowElementStyleApply={elementStyleApplyAllowed}
             onAddPresentationColor={addNamedPresentationPaletteColor}
