@@ -207,7 +207,11 @@ export function PresentationTextFileEditor({
         useTabs: mode === "tab",
         ...(formatterParser === "xml" ? { xmlWhitespaceSensitivity: "preserve" as const } : {}),
       });
-      if (view.state.doc.toString() !== source || result.formatted === source) return;
+      if (editorViewRef.current !== view || view.state.doc.toString() !== source) return;
+      if (result.formatted === source) {
+        view.focus();
+        return;
+      }
 
       const nextCursorOffset = Math.max(0, Math.min(result.cursorOffset, result.formatted.length));
       view.dispatch({

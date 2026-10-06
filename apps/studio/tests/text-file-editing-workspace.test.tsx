@@ -369,15 +369,21 @@ describe("Presentation text file editing workspace", () => {
     const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
     if (!format) throw new Error("Format Code action not found");
     await act(async () => format.click());
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
-    if (format.disabled) throw new Error("Format Code action did not finish");
+    await waitForFormatCompletion();
   }
 
   async function formatTextWithShortcut(): Promise<void> {
     await pressKey("f", { altKey: true, shiftKey: true });
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
-    const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
-    if (!format || format.disabled) throw new Error("Format Code shortcut did not finish");
+    await waitForFormatCompletion();
+  }
+
+  async function waitForFormatCompletion(): Promise<void> {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
+      const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
+      if (format && !format.disabled) return;
+    }
+    throw new Error("Format Code action did not finish");
   }
 
   async function exitTextEditing(): Promise<void> {
@@ -914,6 +920,28 @@ describe("Presentation text file editing workspace", () => {
     expect(editorText()).toBe(compact);
     await act(async () => redo(editorView()));
     expect(editorText()).toBe(formatted);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toHaveLength(0);
+  });
+
+  it("restores editor focus after a no-op format without creating a document mutation or History action", async () => {
+    await enterTextFileEditing("data.json");
+    const formatted = '{\n  "answer": 42\n}\n';
+    await act(async () => setText(formatted));
+    const view = editorView();
+    view.focus();
+    const beforeState = view.state;
+
+    await formatText();
+
+    expect(editorText()).toBe(formatted);
+    expect(editorView()).toBe(view);
+    expect(editorView().state).toBe(beforeState);
+    expect(editorView().hasFocus).toBe(true);
+    expect(saved).toHaveLength(0);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     await exitTextEditing();
