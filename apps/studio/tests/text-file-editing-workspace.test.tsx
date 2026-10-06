@@ -365,6 +365,21 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
   }
 
+  async function formatText(): Promise<void> {
+    const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
+    if (!format) throw new Error("Format Code action not found");
+    await act(async () => format.click());
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    if (format.disabled) throw new Error("Format Code action did not finish");
+  }
+
+  async function formatTextWithShortcut(): Promise<void> {
+    await pressKey("f", { altKey: true, shiftKey: true });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
+    if (!format || format.disabled) throw new Error("Format Code shortcut did not finish");
+  }
+
   async function exitTextEditing(): Promise<void> {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
   }
@@ -864,6 +879,101 @@ describe("Presentation text file editing workspace", () => {
     expect(nodeNames).toContain("Document");
     expect(nodeNames).toContain("Element");
     expect(nodeNames).toContain("TagName");
+  });
+
+  it("offers Format Code only for JSON, XML, and SVG text files", async () => {
+    await enterTextFileEditing("data.json");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextFileEditing("data.xml");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextFileEditing("icon.svg");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextEditing();
+    expect(host.querySelector("[data-text-file-action='format']")).toBeNull();
+  });
+
+  it("formats JSON locally with configured indentation and one-step editor undo/redo", async () => {
+    await enterTextFileEditing("data.json");
+    const compact = '{"longPropertyName":"long value that is deliberately long enough to exceed the default print width","anotherProperty":"another value that also exceeds the default print width"}';
+    await act(async () => setText(compact));
+    await setIndentationMode("4");
+    await formatText();
+
+    const formatted = editorText();
+    expect(formatted).toContain('\n    "longPropertyName": "long value that is deliberately long enough to exceed the default print width",');
+    expect(formatted).toContain('\n    "anotherProperty": "another value that also exceeds the default print width"');
+    expect(saved).toHaveLength(0);
+
+    await act(async () => undo(editorView()));
+    expect(editorText()).toBe(compact);
+    await act(async () => redo(editorView()));
+    expect(editorText()).toBe(formatted);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toHaveLength(0);
+  });
+
+  it("formats XML and SVG with whitespace-safe structured output and the keyboard shortcut", async () => {
+    await enterTextFileEditing("data.xml");
+    const xmlSource = "<root>Hello <b>world</b>!</root>";
+    await act(async () => setText(xmlSource));
+    await setIndentationMode("4");
+    await formatTextWithShortcut();
+    expect(editorText()).toBe(`${xmlSource}\n`);
+
+    await act(async () => setText("<root><item id=\"1\" /><item id=\"2\" /></root>"));
+    await formatText();
+    expect(editorText()).toBe('<root>\n    <item id="1" />\n    <item id="2" />\n</root>\n');
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+
+    await enterTextFileEditing("icon.svg");
+    await act(async () => setText("<svg><g><path d=\"M0 0\" /></g></svg>"));
+    await setIndentationMode("tab");
+    await formatText();
+    expect(editorText()).toBe('<svg>\n\t<g>\n\t\t<path d="M0 0" />\n\t</g>\n</svg>\n');
+  });
+
+  it.each([
+    ["data.json", '{"answer":'],
+    ["data.xml", "<root><child></root>"],
+    ["icon.svg", "<svg><g></svg>"],
+  ])("keeps invalid %s drafts unchanged and reports a formatting error", async (name, invalidSource) => {
+    await enterTextFileEditing(name);
+    await act(async () => setText(invalidSource));
+    await formatText();
+
+    expect(editorText()).toBe(invalidSource);
+    expect(host.querySelector("[data-text-file-format-error]")?.textContent).toContain("Could not format invalid code.");
+    expect(saved).toHaveLength(0);
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+  });
+
+  it("keeps formatting local until the explicit text Save creates one content History action", async () => {
+    await enterTextFileEditing("data.json");
+    await act(async () => setText('{"answer":42}'));
+    await formatText();
+    expect(saved).toHaveLength(0);
+
+    await saveText();
+    expect(editorText()).toContain('"answer": 42');
+    const canonical = await saveCanonicalSnapshot();
+    expect(canonical.resources?.files?.find((file) => file.id === "json-text-file")?.source).toEqual({
+      type: "text",
+      content: editorText(),
+    });
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File content"]);
   });
 
   it("uses a plain-text profile for non-JSON text files", async () => {
