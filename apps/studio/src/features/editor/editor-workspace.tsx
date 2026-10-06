@@ -1400,6 +1400,7 @@ export function EditorWorkspace({
     "editor" | "resources" | "notes"
   >("editor");
   const [textEditingFileId, setTextEditingFileId] = useState<string | null>(null);
+  const [textEditingDirty, setTextEditingDirty] = useState(false);
   const textEditingFile = textEditingFileId === null
     ? null
     : presentation.resources?.files?.find(
@@ -4650,12 +4651,14 @@ export function EditorWorkspace({
   }
 
   function editPresentationTextFile(fileResourceId: string): void {
-    if (textEditingFileId !== null) return;
+    if (fileResourceId === textEditingFileId) return;
+    if (textEditingFileId !== null && textEditingDirty) return;
     const file = presentationRef.current.resources?.files?.find(
       (candidate) => candidate.id === fileResourceId && candidate.representation === "text",
     );
     if (!file) return;
     setRightPanelMode("resources");
+    setTextEditingDirty(false);
     setTextEditingFileId(file.id);
   }
 
@@ -6798,7 +6801,11 @@ export function EditorWorkspace({
             key={textEditingFile.id}
             file={textEditingFile}
             onSave={(content) => updatePresentationTextFileContent(textEditingFile.id, content)}
-            onExit={() => setTextEditingFileId(null)}
+            onDirtyChange={setTextEditingDirty}
+            onExit={() => {
+              setTextEditingFileId(null);
+              setTextEditingDirty(false);
+            }}
           />
         ) : (
           <>
@@ -7270,6 +7277,7 @@ export function EditorWorkspace({
             onRemovePresentationFile={removePresentationFile}
             onEditPresentationFile={editPresentationTextFile}
             activePresentationTextFileId={textEditingFileId}
+            textEditingDirty={textEditingDirty}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             isPresentationFileInUse={(id) => presentationUsesFileResource(presentation, id)}
             presentationTextStyles={presentation.textStyles ?? []}

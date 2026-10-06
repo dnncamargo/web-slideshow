@@ -49,10 +49,12 @@ export function PresentationTextFileEditor({
   file,
   onSave,
   onExit,
+  onDirtyChange,
 }: {
   file: PresentationTextFileResource;
   onSave: (content: string) => void;
   onExit: () => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(file.source.content);
@@ -90,6 +92,10 @@ export function PresentationTextFileEditor({
     ],
   }), [editorExtensions]);
   const dirty = draft !== file.source.content;
+
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const parent = editorHostRef.current;
