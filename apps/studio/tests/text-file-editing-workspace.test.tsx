@@ -200,17 +200,23 @@ describe("Presentation text file editing workspace", () => {
     });
   }
 
-  async function pressTab(shiftKey = false): Promise<void> {
+  async function pressKey(key: string, options: KeyboardEventInit = {}): Promise<KeyboardEvent> {
     const target = textarea();
     target.focus();
-    await act(async () => {
-      target.dispatchEvent(new KeyboardEvent("keydown", {
-        key: "Tab",
-        shiftKey,
-        bubbles: true,
-        cancelable: true,
-      }));
+    const event = new KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+      ...options,
     });
+    await act(async () => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  }
+
+  async function pressTab(shiftKey = false): Promise<void> {
+    await pressKey("Tab", { shiftKey });
   }
 
   async function saveText(): Promise<void> {
@@ -351,6 +357,122 @@ describe("Presentation text file editing workspace", () => {
     await pressTab();
 
     expect(textarea().value).toBe("  before");
+    expect(saved).toHaveLength(0);
+  });
+
+  it("adds paired delimiters and wraps selected text in the local draft", async () => {
+    await enterTextEditing();
+
+    const cases = [
+      ["(", "()"],
+      ["[", "[]"],
+      ["{", "{}"],
+    ] as const;
+    for (const [opening, expected] of cases) {
+      await act(async () => setText(""));
+      setSelection(0);
+      await pressKey(opening);
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    const wrappingCases = [
+      ["(", "(selected)"],
+      ["[", "[selected]"],
+      ["{", "{selected}"],
+    ] as const;
+    for (const [opening, expected] of wrappingCases) {
+      await act(async () => setText("selected"));
+      setSelection(0, 8);
+      await pressKey(opening);
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(9);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "()", "[]", "{}", "(selected)", "[selected]", "{selected}",
+    ]);
+    expect(saved).toHaveLength(0);
+
+    await exitTextEditing();
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+    expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
+  });
+
+  it("skips existing closers without editing and leaves unmatched closers native", async () => {
+    await enterTextEditing();
+
+    const cases = [")", "]", "}"] as const;
+    for (const closer of cases) {
+      await act(async () => setText(`value${closer}`));
+      setSelection(5);
+      const event = await pressKey(closer);
+      expect(event.defaultPrevented).toBe(true);
+      expect(textarea().value).toBe(`value${closer}`);
+      expect(textarea().selectionStart).toBe(6);
+      expect(textarea().selectionEnd).toBe(6);
+    }
+
+    await act(async () => setText("value"));
+    setSelection(5);
+    const unmatched = await pressKey(")");
+    expect(unmatched.defaultPrevented).toBe(false);
+    expect(nativeExecCommand).not.toHaveBeenCalled();
+    expect(saved).toHaveLength(0);
+  });
+
+  it("pairs and skips quotes without lexical interpretation", async () => {
+    await enterTextEditing();
+
+    for (const quote of ["\"", "'", "`"] as const) {
+      await act(async () => setText(""));
+      setSelection(0);
+      await pressKey(quote);
+      expect(textarea().value).toBe(`${quote}${quote}`);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    await act(async () => setText("\"value\""));
+    setSelection(6);
+    const event = await pressKey("\"");
+    expect(event.defaultPrevented).toBe(true);
+    expect(textarea().value).toBe("\"value\"");
+    expect(textarea().selectionStart).toBe(7);
+    expect(textarea().selectionEnd).toBe(7);
+
+    for (const quote of ["\"", "'", "`"] as const) {
+      await act(async () => setText("value"));
+      setSelection(0, 5);
+      await pressKey(quote);
+      expect(textarea().value).toBe(`${quote}value${quote}`);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(6);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "\"\"", "''", "``", "\"value\"", "'value'", "`value`",
+    ]);
+    expect(saved).toHaveLength(0);
+  });
+
+  it("does not pair modified or composing keystrokes", async () => {
+    await enterTextEditing();
+    await act(async () => setText("value"));
+    setSelection(0);
+
+    const ctrlModified = await pressKey("(", { ctrlKey: true });
+    expect(ctrlModified.defaultPrevented).toBe(false);
+    const composing = await pressKey("[", { isComposing: true });
+    expect(composing.defaultPrevented).toBe(false);
+    expect(nativeExecCommand).not.toHaveBeenCalled();
     expect(saved).toHaveLength(0);
   });
 
