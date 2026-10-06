@@ -404,6 +404,31 @@ describe("Presentation text file editing workspace", () => {
     expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
   });
 
+  it("nests asymmetric opening delimiters instead of skipping their closers", async () => {
+    await enterTextEditing();
+
+    const cases = [
+      ["()", 1, "(())"],
+      ["[]", 1, "[[]]"],
+      ["{}", 1, "{{}}"],
+    ] as const;
+    for (const [initial, caret, expected] of cases) {
+      await act(async () => setText(initial));
+      setSelection(caret);
+      await pressKey(initial[caret - 1] ?? "(");
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(caret + 1);
+      expect(textarea().selectionEnd).toBe(caret + 1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "()",
+      "[]",
+      "{}",
+    ]);
+  });
+
   it("skips existing closers without editing and leaves unmatched closers native", async () => {
     await enterTextEditing();
 

@@ -98,7 +98,7 @@ export function PresentationTextFileEditor({
     const closer = pairedDelimiters[event.key as keyof typeof pairedDelimiters];
 
     if (closer) {
-      if (textarea.value[selectionStart] === closer && selectionStart === selectionEnd) {
+      if (event.key === closer && textarea.value[selectionStart] === closer && selectionStart === selectionEnd) {
         event.preventDefault();
         textarea.setSelectionRange(selectionStart + 1, selectionStart + 1);
         return;
