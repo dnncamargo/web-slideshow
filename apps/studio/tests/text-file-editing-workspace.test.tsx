@@ -923,6 +923,10 @@ describe("Presentation text file editing workspace", () => {
 
   it("formats XML and SVG with whitespace-safe structured output and the keyboard shortcut", async () => {
     await enterTextFileEditing("data.xml");
+    await act(async () => setText("<root><item id=\"1\" /></root>"));
+    await formatText();
+    expect(editorText()).toBe('<root>\n  <item id="1" />\n</root>\n');
+
     const xmlSource = "<root>Hello <b>world</b>!</root>";
     await act(async () => setText(xmlSource));
     await setIndentationMode("4");
