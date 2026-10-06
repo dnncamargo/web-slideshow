@@ -14,6 +14,29 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+class ResizeObserverMock {
+  static instances: ResizeObserverMock[] = [];
+  callback: ResizeObserverCallback;
+  element: Element | null = null;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    ResizeObserverMock.instances.push(this);
+  }
+
+  observe(element: Element): void {
+    this.element = element;
+  }
+
+  disconnect(): void {
+    this.element = null;
+  }
+
+  notify(): void {
+    if (this.element) this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
 const paletteRepository: CustomLibraryPaletteRepository = {
   savePalette: async () => "unused", updatePalette: async () => undefined,
   listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined,
@@ -104,8 +127,11 @@ describe("Presentation text file editing workspace", () => {
   let saved: Presentation[];
   let nativeExecCommand: ReturnType<typeof vi.fn>;
   let execCommandDescriptor: PropertyDescriptor | undefined;
+  const originalResizeObserver = globalThis.ResizeObserver;
 
   beforeEach(async () => {
+    ResizeObserverMock.instances = [];
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
     execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
     nativeExecCommand = vi.fn((command: string, showUI = false, value?: string) => {
       void showUI;
@@ -141,6 +167,7 @@ describe("Presentation text file editing workspace", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+    globalThis.ResizeObserver = originalResizeObserver;
     if (execCommandDescriptor) {
       Object.defineProperty(document, "execCommand", execCommandDescriptor);
     } else {
@@ -200,17 +227,23 @@ describe("Presentation text file editing workspace", () => {
     });
   }
 
-  async function pressTab(shiftKey = false): Promise<void> {
+  async function pressKey(key: string, options: KeyboardEventInit = {}): Promise<KeyboardEvent> {
     const target = textarea();
     target.focus();
-    await act(async () => {
-      target.dispatchEvent(new KeyboardEvent("keydown", {
-        key: "Tab",
-        shiftKey,
-        bubbles: true,
-        cancelable: true,
-      }));
+    const event = new KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+      ...options,
     });
+    await act(async () => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  }
+
+  async function pressTab(shiftKey = false): Promise<void> {
+    await pressKey("Tab", { shiftKey });
   }
 
   async function saveText(): Promise<void> {
@@ -255,6 +288,35 @@ describe("Presentation text file editing workspace", () => {
     await enterTextEditing();
     await saveText();
     expect(saved).toHaveLength(0);
+  });
+
+  it("rebinds canvas measurement after leaving text editing mode", async () => {
+    const initialViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const initialObserver = ResizeObserverMock.instances[0];
+    if (!initialViewport || !initialObserver) throw new Error("Initial canvas measurement was not installed");
+    expect(initialObserver.element).toBe(initialViewport);
+
+    Object.defineProperty(initialViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(initialViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => initialObserver.notify());
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+
+    await enterTextEditing();
+    expect(host.querySelector("[class*='canvasViewport']")).toBeNull();
+    expect(initialObserver.element).toBeNull();
+
+    await exitTextEditing();
+    const remountedViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const remountedObserver = ResizeObserverMock.instances[1];
+    if (!remountedViewport || !remountedObserver) throw new Error("Canvas measurement was not rebound");
+    expect(remountedViewport).not.toBe(initialViewport);
+    expect(remountedObserver.element).toBe(remountedViewport);
+
+    Object.defineProperty(remountedViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(remountedViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => remountedObserver.notify());
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.height).toBe("270px");
   });
 
   it("saves one canonical file-content history action and preserves identity through undo/redo", async () => {
@@ -351,6 +413,147 @@ describe("Presentation text file editing workspace", () => {
     await pressTab();
 
     expect(textarea().value).toBe("  before");
+    expect(saved).toHaveLength(0);
+  });
+
+  it("adds paired delimiters and wraps selected text in the local draft", async () => {
+    await enterTextEditing();
+
+    const cases = [
+      ["(", "()"],
+      ["[", "[]"],
+      ["{", "{}"],
+    ] as const;
+    for (const [opening, expected] of cases) {
+      await act(async () => setText(""));
+      setSelection(0);
+      await pressKey(opening);
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    const wrappingCases = [
+      ["(", "(selected)"],
+      ["[", "[selected]"],
+      ["{", "{selected}"],
+    ] as const;
+    for (const [opening, expected] of wrappingCases) {
+      await act(async () => setText("selected"));
+      setSelection(0, 8);
+      await pressKey(opening);
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(9);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "()", "[]", "{}", "(selected)", "[selected]", "{selected}",
+    ]);
+    expect(saved).toHaveLength(0);
+
+    await exitTextEditing();
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+    expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
+  });
+
+  it("nests asymmetric opening delimiters instead of skipping their closers", async () => {
+    await enterTextEditing();
+
+    const cases = [
+      ["()", 1, "(())"],
+      ["[]", 1, "[[]]"],
+      ["{}", 1, "{{}}"],
+    ] as const;
+    for (const [initial, caret, expected] of cases) {
+      await act(async () => setText(initial));
+      setSelection(caret);
+      await pressKey(initial[caret - 1] ?? "(");
+      expect(textarea().value).toBe(expected);
+      expect(textarea().selectionStart).toBe(caret + 1);
+      expect(textarea().selectionEnd).toBe(caret + 1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "()",
+      "[]",
+      "{}",
+    ]);
+  });
+
+  it("skips existing closers without editing and leaves unmatched closers native", async () => {
+    await enterTextEditing();
+
+    const cases = [")", "]", "}"] as const;
+    for (const closer of cases) {
+      await act(async () => setText(`value${closer}`));
+      setSelection(5);
+      const event = await pressKey(closer);
+      expect(event.defaultPrevented).toBe(true);
+      expect(textarea().value).toBe(`value${closer}`);
+      expect(textarea().selectionStart).toBe(6);
+      expect(textarea().selectionEnd).toBe(6);
+    }
+
+    await act(async () => setText("value"));
+    setSelection(5);
+    const unmatched = await pressKey(")");
+    expect(unmatched.defaultPrevented).toBe(false);
+    expect(nativeExecCommand).not.toHaveBeenCalled();
+    expect(saved).toHaveLength(0);
+  });
+
+  it("pairs and skips quotes without lexical interpretation", async () => {
+    await enterTextEditing();
+
+    for (const quote of ["\"", "'", "`"] as const) {
+      await act(async () => setText(""));
+      setSelection(0);
+      await pressKey(quote);
+      expect(textarea().value).toBe(`${quote}${quote}`);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(1);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    await act(async () => setText("\"value\""));
+    setSelection(6);
+    const event = await pressKey("\"");
+    expect(event.defaultPrevented).toBe(true);
+    expect(textarea().value).toBe("\"value\"");
+    expect(textarea().selectionStart).toBe(7);
+    expect(textarea().selectionEnd).toBe(7);
+
+    for (const quote of ["\"", "'", "`"] as const) {
+      await act(async () => setText("value"));
+      setSelection(0, 5);
+      await pressKey(quote);
+      expect(textarea().value).toBe(`${quote}value${quote}`);
+      expect(textarea().selectionStart).toBe(1);
+      expect(textarea().selectionEnd).toBe(6);
+      await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    }
+
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
+      "\"\"", "''", "``", "\"value\"", "'value'", "`value`",
+    ]);
+    expect(saved).toHaveLength(0);
+  });
+
+  it("does not pair modified or composing keystrokes", async () => {
+    await enterTextEditing();
+    await act(async () => setText("value"));
+    setSelection(0);
+
+    const ctrlModified = await pressKey("(", { ctrlKey: true });
+    expect(ctrlModified.defaultPrevented).toBe(false);
+    const composing = await pressKey("[", { isComposing: true });
+    expect(composing.defaultPrevented).toBe(false);
+    expect(nativeExecCommand).not.toHaveBeenCalled();
     expect(saved).toHaveLength(0);
   });
 

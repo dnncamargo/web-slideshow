@@ -10,6 +10,15 @@ import styles from "./presentation-text-file-editor.module.css";
 
 type IndentationMode = "2" | "4" | "tab";
 
+const pairedDelimiters = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+  '"': '"',
+  "'": "'",
+  "`": "`",
+} as const;
+
 function getIndentationUnit(mode: IndentationMode): string {
   if (mode === "tab") return "\t";
   return " ".repeat(Number(mode));
@@ -47,8 +56,6 @@ export function PresentationTextFileEditor({
   const dirty = draft !== file.source.content;
 
   function handleTab(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
-
     event.preventDefault();
 
     const textarea = event.currentTarget;
@@ -75,6 +82,48 @@ export function PresentationTextFileEditor({
     const nextSelectionEnd = Math.max(nextSelectionStart, selectionEnd - removeCount);
     textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
     if (!usedNativeEdit) setDraft(textarea.value);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    if (event.key === "Tab") {
+      handleTab(event);
+      return;
+    }
+
+    const textarea = event.currentTarget;
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const closer = pairedDelimiters[event.key as keyof typeof pairedDelimiters];
+
+    if (closer) {
+      if (event.key === closer && textarea.value[selectionStart] === closer && selectionStart === selectionEnd) {
+        event.preventDefault();
+        textarea.setSelectionRange(selectionStart + 1, selectionStart + 1);
+        return;
+      }
+
+      event.preventDefault();
+      const usedNativeEdit = replaceTextareaSelection(
+        textarea,
+        selectionStart,
+        selectionEnd,
+        `${event.key}${textarea.value.slice(selectionStart, selectionEnd)}${closer}`,
+      );
+      const nextSelectionStart = selectionStart + 1;
+      const nextSelectionEnd = selectionEnd + 1;
+      textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+      if (!usedNativeEdit) setDraft(textarea.value);
+      return;
+    }
+
+    if ((event.key === ")" || event.key === "]" || event.key === "}")
+      && textarea.value[selectionStart] === event.key
+      && selectionStart === selectionEnd) {
+      event.preventDefault();
+      textarea.setSelectionRange(selectionStart + 1, selectionStart + 1);
+    }
   }
 
   return (
@@ -152,7 +201,7 @@ export function PresentationTextFileEditor({
           aria-label={t("editor.textFileEditor")}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={handleTab}
+          onKeyDown={handleKeyDown}
           spellCheck={false}
         />
       </section>
