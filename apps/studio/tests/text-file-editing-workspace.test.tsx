@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
@@ -102,8 +102,25 @@ describe("Presentation text file editing workspace", () => {
   let host: HTMLDivElement;
   let root: Root;
   let saved: Presentation[];
+  let nativeExecCommand: ReturnType<typeof vi.fn>;
+  let execCommandDescriptor: PropertyDescriptor | undefined;
 
   beforeEach(async () => {
+    execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
+    nativeExecCommand = vi.fn((command: string, showUI = false, value?: string) => {
+      void showUI;
+      if (command !== "insertText") return false;
+      const target = document.activeElement;
+      if (!(target instanceof HTMLTextAreaElement)) return false;
+      target.setRangeText(value ?? "", target.selectionStart, target.selectionEnd, "end");
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    });
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: nativeExecCommand,
+    });
+
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -124,6 +141,11 @@ describe("Presentation text file editing workspace", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+    if (execCommandDescriptor) {
+      Object.defineProperty(document, "execCommand", execCommandDescriptor);
+    } else {
+      Reflect.deleteProperty(document, "execCommand");
+    }
   });
 
   async function openPresentationFiles(): Promise<void> {
@@ -319,6 +341,17 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => button(host, "Custom Resources").click());
     await act(async () => button(host, "History").click());
     expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
+    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual(["  ", "    ", "\t", "  ", ""]);
+  });
+
+  it("keeps the unavailable-command fallback local", async () => {
+    await enterTextEditing();
+    nativeExecCommand.mockImplementationOnce(() => false);
+    setSelection(0);
+    await pressTab();
+
+    expect(textarea().value).toBe("  before");
+    expect(saved).toHaveLength(0);
   });
 
   it("isolates one active File draft from every other File", async () => {

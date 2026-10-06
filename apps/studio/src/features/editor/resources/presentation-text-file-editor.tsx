@@ -15,6 +15,23 @@ function getIndentationUnit(mode: IndentationMode): string {
   return " ".repeat(Number(mode));
 }
 
+function replaceTextareaSelection(
+  textarea: HTMLTextAreaElement,
+  selectionStart: number,
+  selectionEnd: number,
+  replacement: string,
+): boolean {
+  textarea.focus();
+  textarea.setSelectionRange(selectionStart, selectionEnd);
+
+  if (typeof document.execCommand === "function" && document.execCommand("insertText", false, replacement)) {
+    return true;
+  }
+
+  textarea.setRangeText(replacement, selectionStart, selectionEnd, "end");
+  return false;
+}
+
 export function PresentationTextFileEditor({
   file,
   onSave,
@@ -40,8 +57,8 @@ export function PresentationTextFileEditor({
     const unit = getIndentationUnit(indentationMode);
 
     if (!event.shiftKey) {
-      textarea.setRangeText(unit, selectionStart, selectionEnd, "end");
-      setDraft(textarea.value);
+      const usedNativeEdit = replaceTextareaSelection(textarea, selectionStart, selectionEnd, unit);
+      if (!usedNativeEdit) setDraft(textarea.value);
       return;
     }
 
@@ -52,12 +69,12 @@ export function PresentationTextFileEditor({
 
     if (removeCount === 0) return;
 
-    textarea.setRangeText("", lineStart, lineStart + removeCount, "preserve");
-    setDraft(textarea.value);
+    const usedNativeEdit = replaceTextareaSelection(textarea, lineStart, lineStart + removeCount, "");
 
     const nextSelectionStart = Math.max(lineStart, selectionStart - removeCount);
     const nextSelectionEnd = Math.max(nextSelectionStart, selectionEnd - removeCount);
     textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+    if (!usedNativeEdit) setDraft(textarea.value);
   }
 
   return (
