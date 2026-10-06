@@ -14,6 +14,29 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+class ResizeObserverMock {
+  static instances: ResizeObserverMock[] = [];
+  callback: ResizeObserverCallback;
+  element: Element | null = null;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    ResizeObserverMock.instances.push(this);
+  }
+
+  observe(element: Element): void {
+    this.element = element;
+  }
+
+  disconnect(): void {
+    this.element = null;
+  }
+
+  notify(): void {
+    if (this.element) this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
 const paletteRepository: CustomLibraryPaletteRepository = {
   savePalette: async () => "unused", updatePalette: async () => undefined,
   listPalettes: async () => [], getPalette: async () => null, deletePalette: async () => undefined,
@@ -104,8 +127,11 @@ describe("Presentation text file editing workspace", () => {
   let saved: Presentation[];
   let nativeExecCommand: ReturnType<typeof vi.fn>;
   let execCommandDescriptor: PropertyDescriptor | undefined;
+  const originalResizeObserver = globalThis.ResizeObserver;
 
   beforeEach(async () => {
+    ResizeObserverMock.instances = [];
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
     execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
     nativeExecCommand = vi.fn((command: string, showUI = false, value?: string) => {
       void showUI;
@@ -141,6 +167,7 @@ describe("Presentation text file editing workspace", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+    globalThis.ResizeObserver = originalResizeObserver;
     if (execCommandDescriptor) {
       Object.defineProperty(document, "execCommand", execCommandDescriptor);
     } else {
@@ -261,6 +288,35 @@ describe("Presentation text file editing workspace", () => {
     await enterTextEditing();
     await saveText();
     expect(saved).toHaveLength(0);
+  });
+
+  it("rebinds canvas measurement after leaving text editing mode", async () => {
+    const initialViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const initialObserver = ResizeObserverMock.instances[0];
+    if (!initialViewport || !initialObserver) throw new Error("Initial canvas measurement was not installed");
+    expect(initialObserver.element).toBe(initialViewport);
+
+    Object.defineProperty(initialViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(initialViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => initialObserver.notify());
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+
+    await enterTextEditing();
+    expect(host.querySelector("[class*='canvasViewport']")).toBeNull();
+    expect(initialObserver.element).toBeNull();
+
+    await exitTextEditing();
+    const remountedViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const remountedObserver = ResizeObserverMock.instances[1];
+    if (!remountedViewport || !remountedObserver) throw new Error("Canvas measurement was not rebound");
+    expect(remountedViewport).not.toBe(initialViewport);
+    expect(remountedObserver.element).toBe(remountedViewport);
+
+    Object.defineProperty(remountedViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(remountedViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => remountedObserver.notify());
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.height).toBe("270px");
   });
 
   it("saves one canonical file-content history action and preserves identity through undo/redo", async () => {

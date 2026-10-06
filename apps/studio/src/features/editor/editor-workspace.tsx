@@ -2490,7 +2490,7 @@ export function EditorWorkspace({
     window.addEventListener("resize", measure);
 
     return () => window.removeEventListener("resize", measure);
-  }, [presentation.aspectRatio]);
+  }, [presentation.aspectRatio, textEditingFileId]);
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
