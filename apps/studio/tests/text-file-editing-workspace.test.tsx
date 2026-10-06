@@ -395,6 +395,24 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
   }
 
+  async function openHistory(): Promise<void> {
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+  }
+
+  function historyLabels(): string[] {
+    return Array.from(host.querySelectorAll<HTMLElement>("[class*='historyEntry']"))
+      .map((entry) => entry.textContent?.trim() ?? "");
+  }
+
+  async function presentationUndo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true })));
+  }
+
+  async function presentationRedo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
+  }
+
   it("keeps draft editing local, protects dirty exit, and discards without history", async () => {
     await enterTextEditing();
 
@@ -896,6 +914,63 @@ describe("Presentation text file editing workspace", () => {
       ["layout.xml", "structured-data", "application/xml"],
       ["ICON.SVG", "image", "image/svg+xml"],
     ]);
+  });
+
+  it("keeps local File creation and content in independent Presentation History actions", async () => {
+    await createLocalFile("history.txt");
+    const created = await saveCanonicalSnapshot();
+    const createdFile = created.resources?.files?.at(-1);
+    expect(createdFile?.id).toBe("file-local");
+    expect(createdFile?.source).toEqual({ type: "text", content: "" });
+
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File create"]);
+
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => fileEditButton("history.txt").click());
+    await act(async () => setText("hello"));
+    const beforeTextSave = await saveCanonicalSnapshot();
+    expect(beforeTextSave.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "" });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File create"]);
+
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => fileEditButton("history.txt").click());
+    await act(async () => setText("hello"));
+    await saveText();
+    expect(editorText()).toBe("hello");
+    const contentSaved = await saveCanonicalSnapshot();
+    expect(contentSaved.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "hello" });
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File content", "Change: File create"]);
+
+    await presentationUndo();
+    const undoneContent = await saveCanonicalSnapshot();
+    expect(undoneContent.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "" });
+
+    await presentationUndo();
+    const undoneCreate = await saveCanonicalSnapshot();
+    expect(undoneCreate.resources?.files?.some((file) => file.id === "file-local")).toBe(false);
+
+    await presentationRedo();
+    const redoneCreate = await saveCanonicalSnapshot();
+    expect(redoneCreate.resources?.files?.find((file) => file.id === "file-local")).toEqual(expect.objectContaining({
+      id: "file-local",
+      name: "history.txt",
+      source: { type: "text", content: "" },
+    }));
+
+    await presentationRedo();
+    const redoneContent = await saveCanonicalSnapshot();
+    expect(redoneContent.resources?.files?.find((file) => file.id === "file-local")).toEqual(expect.objectContaining({
+      id: "file-local",
+      name: "history.txt",
+      source: { type: "text", content: "hello" },
+    }));
   });
 
   it("switches clean text files without canonical writes or history", async () => {
