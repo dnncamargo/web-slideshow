@@ -177,6 +177,14 @@
 }
 
 .editorHost {
+  --text-editor-syntax-text: #e2e8f0;
+  --text-editor-syntax-property: #7dd3fc;
+  --text-editor-syntax-string: #a7f3d0;
+  --text-editor-syntax-number: #fbbf24;
+  --text-editor-syntax-keyword: #c4b5fd;
+  --text-editor-syntax-attribute: #67e8f9;
+  --text-editor-syntax-comment: #64748b;
+  --text-editor-syntax-invalid: #f59e0b;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -186,13 +194,13 @@
   border-radius: 0;
   outline: 0;
   background: var(--ps-ui-background-canvas);
-  color: #e2e8f0;
+  color: var(--text-editor-syntax-text);
 }
 
 .editorHost :global(.cm-editor) {
   height: 100%;
   background: var(--ps-ui-background-canvas);
-  color: #e2e8f0;
+  color: var(--text-editor-syntax-text);
 }
 
 .editorHost :global(.cm-scroller) {

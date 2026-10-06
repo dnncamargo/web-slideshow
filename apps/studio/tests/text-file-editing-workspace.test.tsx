@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { insertBracket } from "@codemirror/autocomplete";
-import { indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { indentWithTab, insertNewlineAndIndent, isolateHistory, redo, undo } from "@codemirror/commands";
 import { syntaxTree } from "@codemirror/language";
 import { Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -84,9 +84,41 @@ const jsonLibraryFile: CustomLibraryFileRecord = {
   },
 };
 
+const xmlLibraryFile: CustomLibraryFileRecord = {
+  id: "library-xml-record",
+  file: {
+    name: "data.xml",
+    kind: "structured-data",
+    representation: "text",
+    source: {
+      assetId: "xml-asset-id",
+      storagePath: "private/text/data.xml",
+      downloadUrl: "https://example.com/data.xml",
+      contentType: "application/xml",
+      sizeBytes: 28,
+    },
+  },
+};
+
+const svgLibraryFile: CustomLibraryFileRecord = {
+  id: "library-svg-record",
+  file: {
+    name: "icon.svg",
+    kind: "image",
+    representation: "text",
+    source: {
+      assetId: "svg-asset-id",
+      storagePath: "private/text/icon.svg",
+      downloadUrl: "https://example.com/icon.svg",
+      contentType: "image/svg+xml",
+      sizeBytes: 11,
+    },
+  },
+};
+
 const fileRepository: CustomLibraryFileRepository = {
   saveFile: async () => "unused", updateFile: async () => undefined,
-  listFiles: async () => [libraryFile, jsonLibraryFile], getFile: async () => null, deleteFile: async () => undefined,
+  listFiles: async () => [libraryFile, jsonLibraryFile, xmlLibraryFile, svgLibraryFile], getFile: async () => null, deleteFile: async () => undefined,
 };
 
 function presentation(content = "before"): Presentation {
@@ -137,6 +169,22 @@ function presentation(content = "before"): Presentation {
           representation: "text",
           contentType: "application/json",
           source: { type: "text", content: '{"answer": 42}' },
+        },
+        {
+          id: "xml-text-file",
+          name: "data.xml",
+          kind: "structured-data",
+          representation: "text",
+          contentType: "application/xml",
+          source: { type: "text", content: "<root><item id=\"1\" /></root>" },
+        },
+        {
+          id: "svg-text-file",
+          name: "icon.svg",
+          kind: "image",
+          representation: "text",
+          contentType: "image/svg+xml",
+          source: { type: "text", content: "<svg></svg>" },
         },
       ],
     },
@@ -248,6 +296,19 @@ describe("Presentation text file editing workspace", () => {
   function setText(value: string): void {
     const view = editorView();
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+  }
+
+  function insertText(value: string): boolean {
+    const view = editorView();
+    const { from, to } = view.state.selection.main;
+    const insert = () => view.state.update({
+      changes: { from, to, insert: value },
+      selection: { anchor: from + value.length },
+      userEvent: "input.type",
+    });
+    const handled = view.state.facet(EditorView.inputHandler).some((handler) => handler(view, from, to, value, insert));
+    if (!handled) view.dispatch(insert());
+    return handled;
   }
 
   function setSelection(start: number, end = start): void {
@@ -657,6 +718,108 @@ describe("Presentation text file editing workspace", () => {
     expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Modified");
     await saveText();
     expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+  });
+
+  it("activates native XML syntax, auto-closing, and non-blocking invalid editing", async () => {
+    await enterTextFileEditing("data.xml");
+
+    const nodeNames: string[] = [];
+    syntaxTree(editorView().state).iterate({
+      enter: (node) => {
+        nodeNames.push(node.name);
+      },
+    });
+    expect(nodeNames).toContain("Document");
+    expect(nodeNames).toContain("Element");
+    expect(nodeNames).toContain("OpenTag");
+    expect(nodeNames).toContain("AttributeName");
+
+    await act(async () => setText(""));
+    setSelection(0);
+    let handled = false;
+    await act(async () => {
+      insertText("<");
+      insertText("tag");
+      handled = insertText(">");
+    });
+    expect(handled).toBe(true);
+    expect(editorText()).toBe("<tag></tag>");
+    expect(selectionStart()).toBe(5);
+    expect(selectionEnd()).toBe(5);
+
+    await act(async () => setText(""));
+    setSelection(0);
+    await act(async () => {
+      insertText("<");
+      insertText("tag id=\"1\"");
+      handled = insertText(">");
+    });
+    expect(handled).toBe(true);
+    expect(editorText()).toBe("<tag id=\"1\"></tag>");
+    expect(selectionStart()).toBe(12);
+
+    await act(async () => setText(""));
+    setSelection(0);
+    await act(async () => {
+      insertText("<");
+      insertText("item ");
+      insertText("/");
+      handled = insertText(">");
+    });
+    expect(handled).toBe(false);
+    expect(editorText()).toBe("<item />");
+
+    await act(async () => setText("<root></root>"));
+    setSelection(6);
+    await act(async () => {
+      insertText("<");
+      insertText("/");
+      insertText("item");
+      insertText(">");
+    });
+    expect(editorText()).toBe("<root></item></root>");
+
+    await act(async () => setText("<root><item>"));
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Modified");
+    await saveText();
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+  });
+
+  it("uses native XML indentation for 2 spaces, 4 spaces, and tabs", async () => {
+    await enterTextFileEditing("data.xml");
+
+    await act(async () => setText("<root></root>"));
+    setSelection(6);
+    await act(async () => insertNewlineAndIndent(editorView()));
+    expect(editorText()).toBe("<root>\n  \n</root>");
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await setIndentationMode("4");
+    await act(async () => setText("<root></root>"));
+    setSelection(6);
+    await act(async () => insertNewlineAndIndent(editorView()));
+    expect(editorText()).toBe("<root>\n    \n</root>");
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await setIndentationMode("tab");
+    await act(async () => setText("<root></root>"));
+    setSelection(6);
+    await act(async () => insertNewlineAndIndent(editorView()));
+    expect(editorText()).toBe("<root>\n\t\n</root>");
+  });
+
+  it("uses the XML profile for SVG text files", async () => {
+    await enterTextFileEditing("icon.svg");
+
+    const nodeNames: string[] = [];
+    syntaxTree(editorView().state).iterate({
+      enter: (node) => {
+        nodeNames.push(node.name);
+      },
+    });
+    expect(nodeNames).toContain("Document");
+    expect(nodeNames).toContain("Element");
+    expect(nodeNames).toContain("TagName");
   });
 
   it("uses a plain-text profile for non-JSON text files", async () => {

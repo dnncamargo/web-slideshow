@@ -3,15 +3,17 @@
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
+import { xml } from "@codemirror/lang-xml";
 import {
   bracketMatching,
-  defaultHighlightStyle,
+  HighlightStyle,
   indentOnInput,
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { PresentationTextFileResource } from "@web-slideshow/document-schema";
@@ -27,8 +29,20 @@ function getIndentationUnit(mode: IndentationMode): string {
   return " ".repeat(Number(mode));
 }
 
+const editorSyntaxHighlightStyle = HighlightStyle.define([
+  { tag: [tags.tagName, tags.propertyName], color: "var(--text-editor-syntax-property)" },
+  { tag: tags.attributeName, color: "var(--text-editor-syntax-attribute)" },
+  { tag: [tags.string, tags.attributeValue], color: "var(--text-editor-syntax-string)" },
+  { tag: tags.number, color: "var(--text-editor-syntax-number)" },
+  { tag: [tags.bool, tags.null, tags.keyword, tags.atom], color: "var(--text-editor-syntax-keyword)" },
+  { tag: [tags.comment, tags.meta], color: "var(--text-editor-syntax-comment)" },
+  { tag: tags.invalid, color: "var(--text-editor-syntax-invalid)" },
+]);
+
 function getEditorLanguage(contentType: PresentationTextFileResource["contentType"]): Extension {
-  return contentType === "application/json" ? json() : [];
+  if (contentType === "application/json") return json();
+  if (contentType === "application/xml" || contentType === "image/svg+xml") return xml();
+  return [];
 }
 
 export function PresentationTextFileEditor({
@@ -50,7 +64,7 @@ export function PresentationTextFileEditor({
   const languageExtension = useMemo(() => getEditorLanguage(file.contentType), [file.contentType]);
   const editorExtensions = useMemo<Extension[]>(() => [
     languageExtension,
-    syntaxHighlighting(defaultHighlightStyle),
+    syntaxHighlighting(editorSyntaxHighlightStyle),
     bracketMatching(),
     EditorState.languageData.of(() => [{
       closeBrackets: { brackets: ["(", "[", "{", "'", "\"", "`"] },
