@@ -2,7 +2,12 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { insertBracket } from "@codemirror/autocomplete";
+import { indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { syntaxTree } from "@codemirror/language";
+import { Transaction } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
@@ -63,9 +68,25 @@ const libraryFile: CustomLibraryFileRecord = {
   },
 };
 
+const jsonLibraryFile: CustomLibraryFileRecord = {
+  id: "library-json-record",
+  file: {
+    name: "data.json",
+    kind: "structured-data",
+    representation: "text",
+    source: {
+      assetId: "json-asset-id",
+      storagePath: "private/text/data.json",
+      downloadUrl: "https://example.com/data.json",
+      contentType: "application/json",
+      sizeBytes: 13,
+    },
+  },
+};
+
 const fileRepository: CustomLibraryFileRepository = {
   saveFile: async () => "unused", updateFile: async () => undefined,
-  listFiles: async () => [libraryFile], getFile: async () => null, deleteFile: async () => undefined,
+  listFiles: async () => [libraryFile, jsonLibraryFile], getFile: async () => null, deleteFile: async () => undefined,
 };
 
 function presentation(content = "before"): Presentation {
@@ -109,6 +130,14 @@ function presentation(content = "before"): Presentation {
           contentType: "text/plain",
           source: { type: "text", content: "second canonical" },
         },
+        {
+          id: "json-text-file",
+          name: "data.json",
+          kind: "structured-data",
+          representation: "text",
+          contentType: "application/json",
+          source: { type: "text", content: '{"answer": 42}' },
+        },
       ],
     },
   });
@@ -125,28 +154,16 @@ describe("Presentation text file editing workspace", () => {
   let host: HTMLDivElement;
   let root: Root;
   let saved: Presentation[];
-  let nativeExecCommand: ReturnType<typeof vi.fn>;
-  let execCommandDescriptor: PropertyDescriptor | undefined;
   const originalResizeObserver = globalThis.ResizeObserver;
+  const originalRangeGetClientRects = (Range.prototype as Range & { getClientRects?: () => DOMRectList }).getClientRects;
 
   beforeEach(async () => {
     ResizeObserverMock.instances = [];
     globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
-    execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
-    nativeExecCommand = vi.fn((command: string, showUI = false, value?: string) => {
-      void showUI;
-      if (command !== "insertText") return false;
-      const target = document.activeElement;
-      if (!(target instanceof HTMLTextAreaElement)) return false;
-      target.setRangeText(value ?? "", target.selectionStart, target.selectionEnd, "end");
-      target.dispatchEvent(new Event("input", { bubbles: true }));
-      return true;
-    });
-    Object.defineProperty(document, "execCommand", {
+    Object.defineProperty(Range.prototype, "getClientRects", {
       configurable: true,
-      value: nativeExecCommand,
+      value: () => [] as unknown as DOMRectList,
     });
-
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -168,10 +185,13 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
     globalThis.ResizeObserver = originalResizeObserver;
-    if (execCommandDescriptor) {
-      Object.defineProperty(document, "execCommand", execCommandDescriptor);
+    if (originalRangeGetClientRects) {
+      Object.defineProperty(Range.prototype, "getClientRects", {
+        configurable: true,
+        value: originalRangeGetClientRects,
+      });
     } else {
-      Reflect.deleteProperty(document, "execCommand");
+      Reflect.deleteProperty(Range.prototype, "getClientRects");
     }
   });
 
@@ -199,22 +219,41 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => edit.click());
   }
 
-  function textarea(): HTMLTextAreaElement {
-    const result = host.querySelector<HTMLTextAreaElement>("[data-text-file-editor]");
+  function editorHost(): HTMLDivElement {
+    const result = host.querySelector<HTMLDivElement>("[data-text-file-editor]");
     if (!result) throw new Error("Text editor not found");
     return result;
   }
 
+  function editorView(): EditorView {
+    const editorDom = editorHost().querySelector<HTMLElement>(".cm-editor");
+    if (!editorDom) throw new Error("CodeMirror DOM not found");
+    const result = EditorView.findFromDOM(editorDom);
+    if (!result) throw new Error("CodeMirror view not found");
+    return result;
+  }
+
+  function editorText(): string {
+    return editorView().state.doc.toString();
+  }
+
+  function selectionStart(): number {
+    return editorView().state.selection.main.from;
+  }
+
+  function selectionEnd(): number {
+    return editorView().state.selection.main.to;
+  }
+
   function setText(value: string): void {
-    const target = textarea();
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-    setter?.call(target, value);
-    target.dispatchEvent(new Event("input", { bubbles: true }));
+    const view = editorView();
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
   }
 
   function setSelection(start: number, end = start): void {
-    textarea().focus();
-    textarea().setSelectionRange(start, end);
+    const view = editorView();
+    view.focus();
+    view.dispatch({ selection: { anchor: start, head: end } });
   }
 
   async function setIndentationMode(value: "2" | "4" | "tab"): Promise<void> {
@@ -228,14 +267,26 @@ describe("Presentation text file editing workspace", () => {
   }
 
   async function pressKey(key: string, options: KeyboardEventInit = {}): Promise<KeyboardEvent> {
-    const target = textarea();
-    target.focus();
+    const view = editorView();
+    view.focus();
     const event = new KeyboardEvent("keydown", {
       key,
       bubbles: true,
       cancelable: true,
       ...options,
     });
+    const isModified = event.altKey || event.ctrlKey || event.metaKey || event.isComposing;
+    const isBracket = ["(", "[", "{", "'", "\"", "`", ")", "]", "}"].includes(key);
+    if (!isModified && isBracket) {
+      const transaction = insertBracket(view.state, key);
+      if (transaction) {
+        event.preventDefault();
+        await act(async () => view.dispatch(transaction));
+      }
+      return event;
+    }
+
+    const target = view.contentDOM;
     await act(async () => {
       target.dispatchEvent(event);
     });
@@ -243,7 +294,10 @@ describe("Presentation text file editing workspace", () => {
   }
 
   async function pressTab(shiftKey = false): Promise<void> {
-    await pressKey("Tab", { shiftKey });
+    const view = editorView();
+    view.focus();
+    const command = shiftKey ? indentWithTab.shift : indentWithTab.run;
+    await act(async () => command?.(view));
   }
 
   async function saveText(): Promise<void> {
@@ -268,17 +322,21 @@ describe("Presentation text file editing workspace", () => {
     expect(host.querySelector("[data-text-file-editor-region]")).not.toBeNull();
     expect(host.querySelector("[data-authoring-target]")).toBeNull();
     expect(host.querySelector("[data-presentation-files]")).not.toBeNull();
-    expect(textarea().value).toBe("before");
+    expect(editorText()).toBe("before");
 
     await act(async () => setText("locally changed"));
-    expect(textarea().value).toBe("locally changed");
+    expect(editorText()).toBe("locally changed");
     expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Modified");
     expect(saved).toHaveLength(0);
 
     expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(true);
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
-    expect(textarea().value).toBe("before");
+    expect(editorText()).toBe("before");
     expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+    expect(saved).toHaveLength(0);
+
+    await act(async () => undo(editorView()));
+    expect(editorText()).toBe("before");
     expect(saved).toHaveLength(0);
 
     await exitTextEditing();
@@ -307,7 +365,7 @@ describe("Presentation text file editing workspace", () => {
 
     await exitTextEditing();
     const remountedViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
-    const remountedObserver = ResizeObserverMock.instances[1];
+    const remountedObserver = ResizeObserverMock.instances.find((observer) => observer.element === remountedViewport);
     if (!remountedViewport || !remountedObserver) throw new Error("Canvas measurement was not rebound");
     expect(remountedViewport).not.toBe(initialViewport);
     expect(remountedObserver.element).toBe(remountedViewport);
@@ -317,6 +375,18 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => remountedObserver.notify());
     expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
     expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.height).toBe("270px");
+  });
+
+  it("destroys and recreates the transient editor across exit and re-entry", async () => {
+    await enterTextEditing();
+    const firstView = editorView();
+
+    await exitTextEditing();
+    expect(firstView.dom.isConnected).toBe(false);
+
+    await enterTextEditing();
+    expect(editorView()).not.toBe(firstView);
+    expect(editorText()).toBe("before");
   });
 
   it("saves one canonical file-content history action and preserves identity through undo/redo", async () => {
@@ -361,41 +431,34 @@ describe("Presentation text file editing workspace", () => {
 
     setSelection(0);
     await pressTab();
-    expect(textarea().value).toBe("  before");
+    expect(editorText()).toBe("  before");
     expect(saved).toHaveLength(0);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     await setIndentationMode("4");
     setSelection(0);
     await pressTab();
-    expect(textarea().value).toBe("    before");
+    expect(editorText()).toBe("    before");
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     await setIndentationMode("tab");
     setSelection(0);
     await pressTab();
-    expect(textarea().value).toBe("\tbefore");
+    expect(editorText()).toBe("\tbefore");
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     await setIndentationMode("2");
-    await act(async () => setText("before"));
-    setSelection(0, 3);
-    await pressTab();
-    expect(textarea().value).toBe("  ore");
-    expect(textarea().selectionStart).toBe(2);
-    expect(textarea().selectionEnd).toBe(2);
-
     await act(async () => setText("    before"));
     setSelection(4);
     await pressTab(true);
-    expect(textarea().value).toBe("  before");
-    expect(textarea().selectionStart).toBe(2);
-    expect(textarea().selectionEnd).toBe(2);
+    expect(editorText()).toBe("  before");
+    expect(selectionStart()).toBe(2);
+    expect(selectionEnd()).toBe(2);
 
     await act(async () => setText("before"));
     setSelection(0);
     await pressTab(true);
-    expect(textarea().value).toBe("before");
+    expect(editorText()).toBe("before");
     expect(saved).toHaveLength(0);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
@@ -403,16 +466,39 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => button(host, "Custom Resources").click());
     await act(async () => button(host, "History").click());
     expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
-    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual(["  ", "    ", "\t", "  ", ""]);
   });
 
-  it("keeps the unavailable-command fallback local", async () => {
+  it("keeps CodeMirror edits local without canonical writes", async () => {
     await enterTextEditing();
-    nativeExecCommand.mockImplementationOnce(() => false);
     setSelection(0);
     await pressTab();
 
-    expect(textarea().value).toBe("  before");
+    expect(editorText()).toBe("  before");
+    expect(saved).toHaveLength(0);
+  });
+
+  it("keeps CodeMirror undo and redo local to the transient draft", async () => {
+    await enterTextEditing();
+    const view = editorView();
+    await act(async () => view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: "one" },
+      annotations: [
+        Transaction.userEvent.of("input.type"),
+        isolateHistory.of("full"),
+      ],
+    }));
+    await act(async () => view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: "two" },
+      annotations: [
+        Transaction.userEvent.of("input.type"),
+        isolateHistory.of("full"),
+      ],
+    }));
+
+    await act(async () => undo(view));
+    expect(editorText()).toBe("one");
+    await act(async () => redo(view));
+    expect(editorText()).toBe("two");
     expect(saved).toHaveLength(0);
   });
 
@@ -428,9 +514,9 @@ describe("Presentation text file editing workspace", () => {
       await act(async () => setText(""));
       setSelection(0);
       await pressKey(opening);
-      expect(textarea().value).toBe(expected);
-      expect(textarea().selectionStart).toBe(1);
-      expect(textarea().selectionEnd).toBe(1);
+      expect(editorText()).toBe(expected);
+      expect(selectionStart()).toBe(1);
+      expect(selectionEnd()).toBe(1);
       await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     }
 
@@ -443,15 +529,12 @@ describe("Presentation text file editing workspace", () => {
       await act(async () => setText("selected"));
       setSelection(0, 8);
       await pressKey(opening);
-      expect(textarea().value).toBe(expected);
-      expect(textarea().selectionStart).toBe(1);
-      expect(textarea().selectionEnd).toBe(9);
+      expect(editorText()).toBe(expected);
+      expect(selectionStart()).toBe(1);
+      expect(selectionEnd()).toBe(9);
       await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     }
 
-    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
-      "()", "[]", "{}", "(selected)", "[selected]", "{selected}",
-    ]);
     expect(saved).toHaveLength(0);
 
     await exitTextEditing();
@@ -472,75 +555,76 @@ describe("Presentation text file editing workspace", () => {
       await act(async () => setText(initial));
       setSelection(caret);
       await pressKey(initial[caret - 1] ?? "(");
-      expect(textarea().value).toBe(expected);
-      expect(textarea().selectionStart).toBe(caret + 1);
-      expect(textarea().selectionEnd).toBe(caret + 1);
+      expect(editorText()).toBe(expected);
+      expect(selectionStart()).toBe(caret + 1);
+      expect(selectionEnd()).toBe(caret + 1);
       await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     }
 
-    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
-      "()",
-      "[]",
-      "{}",
-    ]);
   });
 
   it("skips existing closers without editing and leaves unmatched closers native", async () => {
     await enterTextEditing();
 
-    const cases = [")", "]", "}"] as const;
-    for (const closer of cases) {
-      await act(async () => setText(`value${closer}`));
-      setSelection(5);
+    const cases = [
+      ["(", ")"],
+      ["[", "]"],
+      ["{", "}"],
+    ] as const;
+    for (const [opening, closer] of cases) {
+      await act(async () => setText(""));
+      setSelection(0);
+      await pressKey(opening);
+      setSelection(1);
       const event = await pressKey(closer);
       expect(event.defaultPrevented).toBe(true);
-      expect(textarea().value).toBe(`value${closer}`);
-      expect(textarea().selectionStart).toBe(6);
-      expect(textarea().selectionEnd).toBe(6);
+      expect(editorText()).toBe(`${opening}${closer}`);
+      expect(selectionStart()).toBe(2);
+      expect(selectionEnd()).toBe(2);
     }
 
     await act(async () => setText("value"));
     setSelection(5);
     const unmatched = await pressKey(")");
     expect(unmatched.defaultPrevented).toBe(false);
-    expect(nativeExecCommand).not.toHaveBeenCalled();
+    expect(editorText()).toBe("value");
     expect(saved).toHaveLength(0);
   });
 
-  it("pairs and skips quotes without lexical interpretation", async () => {
+  it("pairs and wraps quotes without lexical interpretation", async () => {
     await enterTextEditing();
 
     for (const quote of ["\"", "'", "`"] as const) {
       await act(async () => setText(""));
       setSelection(0);
       await pressKey(quote);
-      expect(textarea().value).toBe(`${quote}${quote}`);
-      expect(textarea().selectionStart).toBe(1);
-      expect(textarea().selectionEnd).toBe(1);
+      expect(editorText()).toBe(`${quote}${quote}`);
+      expect(selectionStart()).toBe(1);
+      expect(selectionEnd()).toBe(1);
       await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     }
 
-    await act(async () => setText("\"value\""));
+    await act(async () => setText(""));
+    setSelection(0);
+    await pressKey("\"");
+    await act(async () => editorView().dispatch({ changes: { from: 1, to: 1, insert: "value" } }));
     setSelection(6);
-    const event = await pressKey("\"");
-    expect(event.defaultPrevented).toBe(true);
-    expect(textarea().value).toBe("\"value\"");
-    expect(textarea().selectionStart).toBe(7);
-    expect(textarea().selectionEnd).toBe(7);
+    const skipQuote = await pressKey("\"");
+    expect(skipQuote.defaultPrevented).toBe(true);
+    expect(editorText()).toBe("\"value\"");
+    expect(selectionStart()).toBe(7);
+    expect(selectionEnd()).toBe(7);
 
     for (const quote of ["\"", "'", "`"] as const) {
       await act(async () => setText("value"));
       setSelection(0, 5);
       await pressKey(quote);
-      expect(textarea().value).toBe(`${quote}value${quote}`);
-      expect(textarea().selectionStart).toBe(1);
-      expect(textarea().selectionEnd).toBe(6);
+      expect(editorText()).toBe(`${quote}value${quote}`);
+      expect(selectionStart()).toBe(1);
+      expect(selectionEnd()).toBe(6);
       await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     }
 
-    expect(nativeExecCommand.mock.calls.map((call) => call[2])).toEqual([
-      "\"\"", "''", "``", "\"value\"", "'value'", "`value`",
-    ]);
     expect(saved).toHaveLength(0);
   });
 
@@ -553,8 +637,41 @@ describe("Presentation text file editing workspace", () => {
     expect(ctrlModified.defaultPrevented).toBe(false);
     const composing = await pressKey("[", { isComposing: true });
     expect(composing.defaultPrevented).toBe(false);
-    expect(nativeExecCommand).not.toHaveBeenCalled();
     expect(saved).toHaveLength(0);
+  });
+
+  it("activates JSON syntax interpretation without blocking invalid drafts", async () => {
+    await enterTextFileEditing("data.json");
+
+    const nodeNames: string[] = [];
+    syntaxTree(editorView().state).iterate({
+      enter: (node) => {
+        nodeNames.push(node.name);
+      },
+    });
+    expect(nodeNames).toContain("JsonText");
+    expect(nodeNames).toContain("Object");
+    expect(nodeNames).toContain("PropertyName");
+
+    await act(async () => setText('{"answer": }'));
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Modified");
+    await saveText();
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+  });
+
+  it("uses a plain-text profile for non-JSON text files", async () => {
+    await enterTextEditing();
+
+    const nodeNames: string[] = [];
+    syntaxTree(editorView().state).iterate({
+      enter: (node) => {
+        nodeNames.push(node.name);
+      },
+    });
+
+    expect(nodeNames).not.toContain("JsonText");
+    expect(nodeNames).not.toContain("PropertyName");
+    expect(editorText()).toBe("before");
   });
 
   it("isolates one active File draft from every other File", async () => {
@@ -566,7 +683,7 @@ describe("Presentation text file editing workspace", () => {
     const secondEdit = secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
     expect(secondEdit?.disabled).toBe(true);
     await act(async () => secondEdit?.click());
-    expect(textarea().value).toBe("A draft");
+    expect(editorText()).toBe("A draft");
     expect(saved).toHaveLength(0);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
@@ -574,7 +691,7 @@ describe("Presentation text file editing workspace", () => {
     expect(secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']")?.disabled).toBe(false);
 
     await enterTextFileEditing("other.txt");
-    expect(textarea().value).toBe("second canonical");
+    expect(editorText()).toBe("second canonical");
     await act(async () => setText("B changed"));
     await saveText();
 

@@ -12,6 +12,12 @@
     "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
     "@vercel/blob": "^2.8.0",
     "@web-slideshow/document-schema": "workspace:*",
     "@web-slideshow/firebase": "workspace:*",
