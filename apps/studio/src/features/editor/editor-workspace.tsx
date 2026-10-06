@@ -113,6 +113,7 @@ import type { PresentationNotesRepository } from "@/features/persistence/present
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
 import { CustomResourcesWorkspace, type CustomLibraryFileAddOutcome } from "./resources/custom-resources-workspace";
+import { PresentationTextFileEditor } from "./resources/presentation-text-file-editor";
 import {
   resolveCanvasEmbedPointerTarget,
   resolveCanvasPointerHit,
@@ -381,6 +382,7 @@ import type {
   ContainerElement,
   GalleryElement,
   PresentationElement,
+  PresentationTextFileResource,
   Presentation,
   ShapeElement,
   Slide,
@@ -1397,6 +1399,13 @@ export function EditorWorkspace({
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
   >("editor");
+  const [textEditingFileId, setTextEditingFileId] = useState<string | null>(null);
+  const textEditingFile = textEditingFileId === null
+    ? null
+    : presentation.resources?.files?.find(
+      (file): file is PresentationTextFileResource => file.id === textEditingFileId && file.representation === "text",
+    ) ?? null;
+
   const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
   const resourcePresentationId = useRef(presentation.id);
   useEffect(() => {
@@ -4640,6 +4649,48 @@ export function EditorWorkspace({
     );
   }
 
+  function editPresentationTextFile(fileResourceId: string): void {
+    if (textEditingFileId !== null) return;
+    const file = presentationRef.current.resources?.files?.find(
+      (candidate) => candidate.id === fileResourceId && candidate.representation === "text",
+    );
+    if (!file) return;
+    setRightPanelMode("resources");
+    setTextEditingFileId(file.id);
+  }
+
+  function updatePresentationTextFileContent(fileResourceId: string, content: string): void {
+    commitPresentationGlobalAction(
+      {
+        kind: "file.content",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "file.content" },
+      },
+      (current) => {
+        const files = current.resources?.files;
+        const fileIndex = files?.findIndex((file) => file.id === fileResourceId) ?? -1;
+        const currentFile = fileIndex >= 0 ? files?.[fileIndex] : undefined;
+        if (!files || !currentFile || currentFile.representation !== "text") return current;
+        if (currentFile.source.content === content) return current;
+
+        const nextFile: PresentationTextFileResource = {
+          ...currentFile,
+          source: { ...currentFile.source, content },
+        };
+
+        return {
+          ...current,
+          resources: {
+            ...current.resources,
+            files: files.map((file, index) => index === fileIndex
+              ? nextFile
+              : file),
+          },
+        };
+      },
+    );
+  }
+
   function updateFundamentalTextStyle(id: "title" | "subtitle" | "body" | "caption", patch: { style?: TextStyleVisualProperties; typography?: TextStyleTypographyProperties; layout?: TextStyleLayoutProperties }): void {
     applyTextStyleDefinitionUpdate(
       { kind: "textStyle.definition", labelKey: "history.element.setting", labelParams: { setting: "textStyle.definition" } },
@@ -6742,6 +6793,15 @@ export function EditorWorkspace({
           ===================================================== */}
 
       <div className={styles.workspace}>
+        {textEditingFile ? (
+          <PresentationTextFileEditor
+            key={textEditingFile.id}
+            file={textEditingFile}
+            onSave={(content) => updatePresentationTextFileContent(textEditingFile.id, content)}
+            onExit={() => setTextEditingFileId(null)}
+          />
+        ) : (
+          <>
         {/* ===================================================
             BEGIN: SLIDE SIDEBAR
             =================================================== */}
@@ -7175,6 +7235,8 @@ export function EditorWorkspace({
         {/* ===================================================
             END: CANVAS
             =================================================== */}
+          </>
+        )}
 
         {/* ===================================================
             BEGIN: INSPECTOR
@@ -7206,6 +7268,8 @@ export function EditorWorkspace({
             onRemovePresentationColor={removePresentationPaletteColor}
             onRemovePresentationFont={removePresentationFont}
             onRemovePresentationFile={removePresentationFile}
+            onEditPresentationFile={editPresentationTextFile}
+            activePresentationTextFileId={textEditingFileId}
             isPresentationFontInUse={(family) => presentationUsesFontFamily(presentation, family)}
             isPresentationFileInUse={(id) => presentationUsesFileResource(presentation, id)}
             presentationTextStyles={presentation.textStyles ?? []}
