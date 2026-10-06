@@ -376,6 +376,14 @@ describe("Presentation text file editing workspace", () => {
     return snapshot;
   }
 
+  function fileEditButton(name: string): HTMLButtonElement {
+    const row = Array.from(host.querySelectorAll<HTMLElement>("[data-presentation-file-row]"))
+      .find((candidate) => candidate.querySelector("strong")?.textContent === name);
+    const edit = row?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
+    if (!edit) throw new Error(`Text file Edit action not found for ${name}`);
+    return edit;
+  }
+
   it("keeps draft editing local, protects dirty exit, and discards without history", async () => {
     await enterTextEditing();
 
@@ -455,6 +463,13 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => setText("after"));
     await saveText();
     expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+    expect(fileEditButton("other.txt").disabled).toBe(false);
+
+    await act(async () => fileEditButton("other.txt").click());
+    expect(editorText()).toBe("second canonical");
+    expect(fileEditButton("notes.txt").disabled).toBe(false);
+    await act(async () => fileEditButton("notes.txt").click());
+    expect(editorText()).toBe("after");
 
     const changed = await saveCanonicalSnapshot();
     const changedFile = changed.resources?.files?.find((file) => file.id === "file-library-text-record");
@@ -837,23 +852,47 @@ describe("Presentation text file editing workspace", () => {
     expect(editorText()).toBe("before");
   });
 
+  it("switches clean text files without canonical writes or history", async () => {
+    await enterTextEditing();
+    const firstView = editorView();
+
+    expect(fileEditButton("notes.txt").disabled).toBe(true);
+    expect(fileEditButton("other.txt").disabled).toBe(false);
+
+    await act(async () => fileEditButton("other.txt").click());
+
+    expect(firstView.dom.isConnected).toBe(false);
+    expect(editorView()).not.toBe(firstView);
+    expect(editorText()).toBe("second canonical");
+    expect(saved).toHaveLength(0);
+    expect(fileEditButton("notes.txt").disabled).toBe(false);
+
+    await act(async () => fileEditButton("notes.txt").click());
+    expect(editorText()).toBe("before");
+    expect(saved).toHaveLength(0);
+
+    await exitTextEditing();
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+    expect(host.querySelectorAll("[class*='historyEntry']")).toHaveLength(0);
+  });
+
   it("isolates one active File draft from every other File", async () => {
     await enterTextEditing();
     await act(async () => setText("A draft"));
 
-    const secondFileRow = Array.from(host.querySelectorAll<HTMLElement>("[data-presentation-file-row]"))
-      .find((candidate) => candidate.querySelector("strong")?.textContent === "other.txt");
-    const secondEdit = secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
-    expect(secondEdit?.disabled).toBe(true);
-    await act(async () => secondEdit?.click());
+    const firstView = editorView();
+    const secondEdit = fileEditButton("other.txt");
+    expect(secondEdit.disabled).toBe(true);
+    await act(async () => secondEdit.click());
+    expect(editorView()).toBe(firstView);
     expect(editorText()).toBe("A draft");
     expect(saved).toHaveLength(0);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
-    await exitTextEditing();
-    expect(secondFileRow?.querySelector<HTMLButtonElement>("[data-resource-action='edit']")?.disabled).toBe(false);
+    expect(secondEdit.disabled).toBe(false);
 
-    await enterTextFileEditing("other.txt");
+    await act(async () => secondEdit.click());
     expect(editorText()).toBe("second canonical");
     await act(async () => setText("B changed"));
     await saveText();
