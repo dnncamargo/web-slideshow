@@ -131,15 +131,25 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
 
     const panel = searchPanel();
     const searchInput = panel.querySelector<HTMLInputElement>("input[name='search']");
+    const findRow = panel.querySelector<HTMLElement>(".cm-structuredSearchFindRow");
     const replaceRow = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow");
     const replaceField = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow .cm-structuredSearchField");
     const disclosure = panel.querySelector<HTMLButtonElement>(".cm-structuredSearchDisclosure");
-    if (!searchInput || !replaceRow || !replaceField || !disclosure) throw new Error("custom search controls were not rendered");
+    const previousButton = panel.querySelector<HTMLButtonElement>("button[name='prev']");
+    const nextButton = panel.querySelector<HTMLButtonElement>("button[name='next']");
+    const replaceButton = panel.querySelector<HTMLButtonElement>("button[name='replace']");
+    const replaceAllButton = panel.querySelector<HTMLButtonElement>("button[name='replaceAll']");
+    if (!searchInput || !findRow || !replaceRow || !replaceField || !disclosure || !previousButton || !nextButton || !replaceButton || !replaceAllButton) {
+      throw new Error("custom search controls were not rendered");
+    }
 
     expect(searchInput.getAttribute("main-field")).toBe("true");
     expect(panel.querySelector("button[name='close']")).toBeNull();
-    expect(panel.querySelectorAll(".cm-structuredSearchActionColumn > button")).toHaveLength(4);
     expect(panel.querySelector(".cm-structuredSearchReplaceRow .cm-structuredSearchToggle")).toBeNull();
+    expect(findRow.contains(previousButton)).toBe(true);
+    expect(findRow.contains(nextButton)).toBe(true);
+    expect(replaceRow.contains(replaceButton)).toBe(true);
+    expect(replaceRow.contains(replaceAllButton)).toBe(true);
     expect(replaceRow.hidden).toBe(false);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(searchToggle("Aa").getAttribute("aria-pressed")).toBe("false");
@@ -148,6 +158,8 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
 
     await act(async () => disclosure.click());
     expect(replaceRow.hidden).toBe(true);
+    expect(replaceRow.contains(replaceButton)).toBe(true);
+    expect(replaceRow.contains(replaceAllButton)).toBe(true);
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     await act(async () => disclosure.click());
     expect(replaceRow.hidden).toBe(false);

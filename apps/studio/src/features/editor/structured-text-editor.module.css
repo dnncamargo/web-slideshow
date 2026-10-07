@@ -202,8 +202,8 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   width: min(440px, calc(100% - 16px));
   max-width: calc(100% - 16px);
@@ -220,22 +220,9 @@
   pointer-events: auto;
 }
 
-.editorHost :global(.cm-structuredSearchLeftColumn) {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.editorHost :global(.cm-structuredSearchActionColumn) {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .editorHost :global(.cm-structuredSearchRow) {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   min-width: 0;
   align-items: center;
   gap: 5px;

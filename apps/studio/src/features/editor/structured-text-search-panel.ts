@@ -214,16 +214,9 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   );
   replaceAllButton.name = "replaceAll";
 
-  const leftColumn = document.createElement("div");
-  leftColumn.className = "cm-structuredSearchLeftColumn";
-  findRow.append(disclosure, field);
-  replaceRow.append(replaceSpacer, replaceField);
-  leftColumn.append(findRow, replaceRow);
-
-  const actionColumn = document.createElement("div");
-  actionColumn.className = "cm-structuredSearchActionColumn";
-  actionColumn.append(previousButton, nextButton, replaceNextButton, replaceAllButton);
-  panel.append(leftColumn, actionColumn);
+  findRow.append(disclosure, field, previousButton, nextButton);
+  replaceRow.append(replaceSpacer, replaceField, replaceNextButton, replaceAllButton);
+  panel.append(findRow, replaceRow);
 
   const sync = (): void => {
     const query = getSearchQuery(view.state);
