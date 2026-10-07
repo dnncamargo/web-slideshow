@@ -145,7 +145,7 @@ export const TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2 = [
   "textStroke",
 ] as const satisfies readonly (keyof ElementTypography)[];
 
-export const TEXT_STYLE_VISUAL_PROPERTY_NAMES = ["color"] as const;
+export const TEXT_STYLE_VISUAL_PROPERTY_NAMES = ["color", "gradient"] as const satisfies readonly (keyof TextVisualStyle)[];
 
 export const TEXT_STYLE_LAYOUT_PROPERTY_NAMES = [
   "margin",
@@ -164,9 +164,11 @@ export function stripLocalTextStyleProperties(
   const ownedTypography = owner === undefined
     ? TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2
     : TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2.filter((property) => owner.typography?.[property] !== undefined);
-  const ownedVisual = owner === undefined
-    ? TEXT_STYLE_VISUAL_PROPERTY_NAMES
-    : TEXT_STYLE_VISUAL_PROPERTY_NAMES.filter((property) => owner.style?.[property] !== undefined);
+  const ownsTextFill = owner === undefined
+    ? true
+    : owner.style?.color !== undefined || owner.style?.gradient !== undefined;
+  const ownedVisual: readonly (typeof TEXT_STYLE_VISUAL_PROPERTY_NAMES)[number][] =
+    ownsTextFill ? TEXT_STYLE_VISUAL_PROPERTY_NAMES : [];
   const ownedLayout = owner === undefined
     ? TEXT_STYLE_LAYOUT_PROPERTY_NAMES
     : TEXT_STYLE_LAYOUT_PROPERTY_NAMES.filter((property) => owner.layout?.[property] !== undefined);

@@ -1,6 +1,8 @@
 import type {
-  ElementEffect,
   ElementTypography,
+  Glow,
+  Length,
+  Shadow,
   TextElement,
   TextStyleLayoutProperties,
   TextVisualStyle,
@@ -8,7 +10,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
-import { renderBorder, renderGradient, renderShadow } from "./render-visual";
+import { renderBorder, renderGradient } from "./render-visual";
 import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";
 
@@ -124,7 +126,28 @@ function renderTypography(typography: ElementTypography | undefined): string[] {
   return output;
 }
 
-function renderEffect(effect: ElementEffect | undefined): string[] {
+function renderTextShadow(shadow: Shadow): string {
+  return [
+    renderLength(shadow.x),
+    renderLength(shadow.y),
+    renderLength(shadow.blur),
+    renderColorValue(shadow.color),
+  ].join(" ");
+}
+
+function isKnownPositiveLength(value: Length): boolean {
+  if (typeof value === "number") return value > 0;
+  const normalized = value.trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:px)?$/i.test(normalized)) return true;
+  return Number.parseFloat(normalized) > 0;
+}
+
+export function renderTextGlowFilter(glow: Glow | undefined): string | undefined {
+  if (glow === undefined || !isKnownPositiveLength(glow.blur)) return undefined;
+  return `drop-shadow(0 0 ${renderLength(glow.blur)} ${renderColorValue(glow.color)})`;
+}
+
+function renderEffect(effect: TextElement["effect"]): string[] {
   const output: string[] = [];
 
   if (!effect) {
@@ -134,7 +157,7 @@ function renderEffect(effect: ElementEffect | undefined): string[] {
   addStyle(output, "opacity", effect.opacity);
 
   if (effect.shadow) {
-    output.push(`box-shadow:${renderShadow(effect.shadow)}`);
+    output.push(`text-shadow:${renderTextShadow(effect.shadow)}`);
   }
 
   return output;

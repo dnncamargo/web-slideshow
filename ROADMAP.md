@@ -764,11 +764,11 @@ The shared editor now includes syntax profiles, pairing/indentation helpers, loc
 
 ## Current next area
 
-### 1. Text effects — gradient fill / shadow / glow ← NEXT
+### 1. Text effects — gradient fill / shadow / glow ✅
 
-Audit the current Text typography/visual/effect schema, renderer and Inspector before changing the document contract. Determine whether gradient text fill can reuse existing Gradient/ColorValue primitives and whether shadow/glow can reuse or extend existing effect primitives without creating a second text-only effect system. Include Text Style ownership/precedence, inherited/linked Color interactions, Palette compatibility, shared renderer parity, publication/runtime behavior and Firefox 116 compatibility. Freeze canonical changes only after evidence.
+Completed with the canonical Text contract: Fill persists as mutually exclusive Color or Gradient using existing Gradient/ColorValue primitives; Gradient is one composition across Text content; Shadow remains glyph-based; Glow is Text-local and rendered as an external glyph halo; palette references, publication and the shared renderer preserve the same meaning across Studio and Player. Accepted behavior includes Gradient, Shadow and Glow independently and in combination, with `schemaVersion` remaining literally `1`.
 
-### 2. Pointed Notes — numbered Canvas markers + Control reading ← AFTER TEXT EFFECTS
+### 2. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
 
 Extend the existing Notes capability so Editor authors can associate numbered references `[1]`, `[2]`, `[3]`… with note text and visually position the corresponding markers on the relevant slide. Editor must support authoring/editing the pointed notes and marker positions; Control must be able to read the resulting notes and their numbered references.
 
@@ -846,12 +846,10 @@ P12   UX / Properties refinement                            ✅
        Structured source editor + Shape path/SVG authoring    ✅
 
 NEXT:
-  1. Text effects — gradient fill / shadow / glow ← NEXT
-  2. Pointed Notes — numbered Canvas markers + Control reading
+  1. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
 
 IMMEDIATE QUEUE:
-  1. Text effects — gradient fill / shadow / glow ← NEXT
-  2. Pointed Notes — numbered Canvas markers + Control reading
+  1. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -867,4 +865,4 @@ FUTURE / DEFERRED:
   Custom Library portability
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — gradient fill / shadow / glow audit before changing production code. Pointed Notes follows only after that checkpoint is closed.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and audit the current private Notes storage first. Pointed Notes remain outside canonical Presentation unless evidence requires otherwise; markers are authoring/presenter metadata by default, Editor authors marker position/text, Control reads them, and no second Notes system or persisted marker schema should be preselected before the audit.

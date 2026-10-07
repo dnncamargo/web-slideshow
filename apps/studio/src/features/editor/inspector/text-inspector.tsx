@@ -1,7 +1,7 @@
 import {
   type ContainerElement,
   type PresentationElement,
-  type ElementEffect,
+  type TextEffect,
   type ElementTypography,
   type TextVisualStyle,
   FundamentalTextStyleIdSchema,
@@ -105,7 +105,7 @@ export function TextInspector({
     onUpdate((current) => current.type === "text" ? { ...current, typography: update(current.typography) } : current);
   };
 
-  const updateEffect = (update: (value: ElementEffect | undefined) => ElementEffect) => {
+  const updateEffect = (update: (value: TextEffect | undefined) => TextEffect) => {
     onUpdate((current) => current.type === "text" ? { ...current, effect: update(current.effect) } : current);
   };
 
@@ -141,7 +141,7 @@ export function TextInspector({
 
   const textStyleSourceFor = (property: TextStyleInspectorProperty) =>
     getTextStylePropertyInfo(presentation, element, property);
-  const textColorSource = textStyleSourceFor("color");
+  const textFillSource = textStyleSourceFor("fill");
   const textRole = resolvedTextStyle?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
   const themeTextColor = textRole === "subtitle"
     ? THEME_COLORS.textSecondary
@@ -154,17 +154,13 @@ export function TextInspector({
       ? ancestorContainers
       : parent ? [parent] : [],
   );
-  const textHasStrongerColor = element.style?.color !== undefined
-    || textColorSource?.source === "linked";
-  const effectiveTextColorSource: InheritedColorSource | undefined = textHasStrongerColor
-    ? undefined
-    : inheritedContainerColor === undefined
-      ? "theme"
-      : "container";
   const fallbackTextColorSource: InheritedColorSource = inheritedContainerColor === undefined ? "theme" : "container";
   const effectiveTextColor = resolvedTextStyle?.style?.color
     ?? inheritedContainerColor
     ?? themeTextColor;
+  const effectiveTextFill = resolvedTextStyle?.style?.gradient !== undefined
+    ? { gradient: resolvedTextStyle.style.gradient }
+    : { color: effectiveTextColor };
   const typographyProperties: readonly CoreTypographyProperty[] = [
     "fontFamily", "fontSize", "fontWeight", "fontStyle", "textAlign", "lineHeight",
     "letterSpacing", "textTransform", "whiteSpace", "textWrapStyle", "overflowWrap",
@@ -298,11 +294,11 @@ export function TextInspector({
         onUpdateStyle={updateStyle}
         onUpdateEffect={updateEffect}
         controlPrefix="text"
-        effectiveTextColor={effectiveTextColor}
-        effectiveTextColorSource={effectiveTextColorSource}
         fallbackTextColorSource={fallbackTextColorSource}
-        textColorSource={textColorSource}
-        onResetTextColor={() => resetTextStyleProperty("color")}
+        effectiveTextColor={effectiveTextColor}
+        textFillSource={textFillSource}
+        onResetTextFill={() => resetTextStyleProperty("fill")}
+        effectiveTextFill={effectiveTextFill}
       />
 
       <CanonicalTextEffectsSection

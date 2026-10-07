@@ -79,7 +79,11 @@ export function createTextStyleFromText(
         : [];
     }),
   );
-  const style = resolved.style?.color === undefined ? undefined : { color: resolved.style.color };
+  const style = resolved.style?.gradient !== undefined
+    ? { gradient: resolved.style.gradient }
+    : resolved.style?.color === undefined
+      ? undefined
+      : { color: resolved.style.color };
   const layout = Object.fromEntries(
     Object.entries(resolved.layout).filter(([, value]) => value !== undefined),
   ) as TextStyleLayoutProperties;
@@ -151,7 +155,11 @@ export function detachTextStyle(
   const local = stripLocalTextStyleProperties(text.typography, text.style, text.layout);
   const materializedStyle = {
     ...(local.style ?? {}),
-    ...(resolved.style?.color === undefined ? {} : { color: resolved.style.color }),
+    ...(resolved.style?.gradient !== undefined
+      ? { gradient: resolved.style.gradient }
+      : resolved.style?.color === undefined
+        ? {}
+        : { color: resolved.style.color }),
   };
   const materializedLayout = {
     ...(local.layout ?? {}),

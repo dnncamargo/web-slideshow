@@ -241,12 +241,31 @@ function areTextStyleColorValuesEqual(left: unknown, right: unknown): boolean {
     && leftColor.colorId === rightColor.colorId;
 }
 
+function areTextStyleStructuredValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (left === undefined || right === undefined || left === null || right === null) return false;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((value, index) => areTextStyleStructuredValuesEqual(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => key in rightRecord && areTextStyleStructuredValuesEqual(leftRecord[key], rightRecord[key]));
+}
+
 export function areTextStyleOwnedPropertyValuesEqual(
   property: TextStyleOwnedProperty,
   left: unknown,
   right: unknown,
 ): boolean {
-  if (property.scope === "style" || property.property === "textDecorationColor") {
+  if (property.scope === "style") {
+    return areTextStyleStructuredValuesEqual(left, right);
+  }
+  if (property.property === "textDecorationColor") {
     return areTextStyleColorValuesEqual(left, right);
   }
   if (property.property === "textStroke") {

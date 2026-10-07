@@ -51,6 +51,107 @@ function presentation() {
   });
 }
 
+function textEffectsPresentation(): Presentation {
+  const gradient = {
+    type: "linear" as const,
+    angle: 90,
+    stops: [
+      { color: { kind: "palette" as const, colorId: "accent" }, position: 0 },
+      { color: "#ffffff", position: 100 },
+    ],
+  };
+
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "pres-text-effects",
+    title: "Text Effects",
+    palette: {
+      colors: [
+        { id: "accent", name: "Accent", value: "#7c3aed" },
+        { id: "shadow", name: "Shadow", value: "#111827" },
+        { id: "glow", name: "Glow", value: "#22d3ee" },
+      ],
+    },
+    textStyles: [{ id: "body", style: { gradient } }],
+    slides: [{
+      id: "slide-text-effects",
+      elements: [
+        {
+          id: "local-gradient",
+          type: "text",
+          variant: "body",
+          content: "Local Gradient",
+          style: { gradient },
+        },
+        {
+          id: "text-style-gradient",
+          type: "text",
+          variant: "body",
+          content: "Text Style Gradient",
+        },
+        {
+          id: "legacy-shadow",
+          type: "text",
+          variant: "body",
+          content: "Legacy Shadow",
+          effect: {
+            shadow: {
+              x: 1,
+              y: 2,
+              blur: 3,
+              spread: 4,
+              inset: true,
+              color: { kind: "palette", colorId: "shadow" },
+            },
+          },
+        },
+        {
+          id: "glow",
+          type: "text",
+          variant: "body",
+          content: "Glow",
+          effect: {
+            glow: { color: { kind: "palette", colorId: "glow" }, blur: 8 },
+          },
+        },
+        {
+          id: "shadow-glow",
+          type: "text",
+          variant: "body",
+          content: "Shadow and Glow",
+          effect: {
+            shadow: { x: 0, y: 2, blur: 4, color: { kind: "palette", colorId: "shadow" } },
+            glow: { color: { kind: "palette", colorId: "glow" }, blur: 6 },
+          },
+        },
+        {
+          id: "gradient-glow",
+          type: "text",
+          variant: "body",
+          content: "Gradient and Glow",
+          style: { gradient },
+          effect: {
+            glow: { color: { kind: "palette", colorId: "glow" }, blur: 10 },
+          },
+        },
+        {
+          id: "rich-text-mark",
+          type: "text",
+          variant: "body",
+          style: { gradient },
+          content: {
+            type: "rich-text",
+            runs: [
+              { text: "Gradient " },
+              { text: "solid", marks: { color: { kind: "palette", colorId: "accent" } } },
+            ],
+          },
+        },
+      ],
+    }],
+  });
+}
+
 function completeDeepPresentation() {
   return PresentationSchema.parse({
     schemaVersion: 1,
@@ -248,6 +349,28 @@ describe("Firestore Presentation codec", () => {
     expect(record).toEqual({ presentationJson: expect.any(String) });
     expect(decodePresentationFromFirestore(record)).toEqual(source);
     expect(JSON.parse(record.presentationJson)).toHaveProperty("schemaVersion", 1);
+  });
+
+  it("round-trips canonical Text Effects and Palette references through the codec", () => {
+    const source = textEffectsPresentation();
+    const record = encodePresentationForFirestore(source);
+    const encoded = JSON.parse(record.presentationJson) as {
+      schemaVersion: number;
+      textStyles?: Array<{
+        style?: {
+          gradient?: {
+            stops: Array<{ color: unknown }>;
+          };
+        };
+      }>;
+    };
+
+    expect(decodePresentationFromFirestore(record)).toEqual(source);
+    expect(encoded.schemaVersion).toBe(1);
+    expect(encoded.textStyles?.[0]?.style?.gradient?.stops[0]?.color).toEqual({
+      kind: "palette",
+      colorId: "accent",
+    });
   });
 
   it("rejects malformed, missing, empty, legacy, and schema-invalid records", () => {

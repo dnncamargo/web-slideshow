@@ -1,5 +1,6 @@
 import type {
   ElementEffect,
+  TextEffect,
   ElementTypography,
   ElementVisualStyle,
   ResizablePositionedLayout,
@@ -85,6 +86,10 @@ export type UpdateElementVisualStyle = (
 
 export type UpdateElementEffect = (
   update: (effect: ElementEffect | undefined) => ElementEffect,
+) => void;
+
+export type UpdateTextEffect = (
+  update: (effect: TextEffect | undefined) => TextEffect,
 ) => void;
 
 export type UpdateSurfaceStyle = (

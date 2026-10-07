@@ -124,6 +124,63 @@ describe("Text Inspector typography style attachment", () => {
     expect(host.querySelector("#text-color-value")?.closest("label")?.querySelector("button")).toBeNull();
   });
 
+  it("shows an inherited Gradient Fill without materializing it on mount", async () => {
+    const gradient = { type: "linear" as const, angle: 90, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] };
+    const source = presentation([{ id: "body", style: { gradient } }]);
+    await mount(text(), source);
+
+    expect(host.querySelector<HTMLSelectElement>("#text-fill-mode")?.value).toBe("gradient");
+    expect(host.querySelector<HTMLSelectElement>("#text-fill-gradient-type")?.value).toBe("linear");
+    expect(host.querySelector<HTMLInputElement>("#text-fill-gradient-angle")?.value).toBe("90");
+    expect(current.style).toBeUndefined();
+    expect(updates).toHaveLength(0);
+  });
+
+  it("materializes an inherited Gradient only on its first edit and keeps the linked style unchanged", async () => {
+    const gradient = { type: "linear" as const, angle: 90, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] };
+    const source = presentation([{ id: "body", style: { gradient } }]);
+    await mount(text(), source);
+    const angle = host.querySelector<HTMLInputElement>("#text-fill-gradient-angle");
+    if (!angle) throw new Error("gradient angle control was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("input value setter was not available");
+    await act(async () => {
+      setter.call(angle, "120");
+      angle.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(current.style?.gradient).toMatchObject({ type: "linear", angle: 120 });
+    expect(current.style?.color).toBeUndefined();
+    expect(source.textStyles?.[0]).toMatchObject({ style: { gradient } });
+  });
+
+  it("switches the logical Fill atomically and uses the effective solid fallback", async () => {
+    const source = presentation([{ id: "body", style: { gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } } }]);
+    await mount(text(), source, { id: "parent", type: "container", hidden: false, style: { color: "#ff00ff" }, children: [] });
+    const mode = host.querySelector<HTMLSelectElement>("#text-fill-mode");
+    if (!mode) throw new Error("Fill mode control was not rendered");
+    await act(async () => {
+      mode.value = "color";
+      mode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(current.style).toEqual({ color: "#ff00ff" });
+    expect(current.style?.gradient).toBeUndefined();
+    expect(host.querySelector<HTMLSelectElement>("#text-fill-mode")?.value).toBe("color");
+  });
+
+  it("treats legacy Text shadow fields as enabled Outer shadow and exposes independent Glow", async () => {
+    await mount(text({ effect: { shadow: { x: 1, y: 2, blur: 3, spread: 4, inset: true, color: "#111111" }, glow: { blur: 8, color: "#22d3ee" } } }));
+
+    expect(host.querySelector<HTMLSelectElement>("#text-shadow-mode")?.value).toBe("outer");
+    expect(Array.from(host.querySelectorAll<HTMLSelectElement>("#text-shadow-mode option")).map((option) => option.value)).toEqual(["none", "outer"]);
+    expect(host.querySelector("#text-shadow-spread")).toBeNull();
+    expect(host.querySelector<HTMLSelectElement>("#text-glow-mode")?.value).toBe("glow");
+    expect(host.querySelector<HTMLInputElement>("#text-glow-blur")?.value).toBe("8");
+    expect(host.querySelector<HTMLInputElement>("#text-glow-color-value")?.value).toBe("#22d3ee");
+    expect(current.effect?.shadow).toMatchObject({ spread: 4, inset: true });
+  });
+
   it("labels a local Text color reset as returning to Container inheritance", async () => {
     await mount(text({ styleDetached: true, style: { color: "#0000ff" } }), presentation(), {
       id: "parent",

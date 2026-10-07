@@ -2,7 +2,7 @@
 
 import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationFileResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
-import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
+import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, THEME_COLORS, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@web-slideshow/ui";
 
@@ -36,7 +36,7 @@ import { readAbsoluteNumber } from "../inspector/inspector-helpers";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { ColorControl } from "../inspector/sections/color-control";
 import { ElementBorderControl } from "../inspector/sections/element-border-control";
-import { ElementGradientControl } from "../inspector/sections/element-gradient-control";
+import { createDefaultGradient, ElementGradientControl } from "../inspector/sections/element-gradient-control";
 import { ContainerBackgroundPatternControl } from "../inspector/sections/container-background-pattern-control";
 import { ContainerEffectsSection } from "../inspector/sections/container-effects-section";
 import { PresentationColorPaletteProvider } from "../inspector/sections/presentation-color-palette";
@@ -1353,7 +1353,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
   const { t } = useStudioI18n();
   const runDirectDefinition = runDefinitionDiscrete ?? ((callback: () => void) => callback());
   const [pendingFontFamily, setPendingFontFamily] = useState(false);
-  const [pendingColor, setPendingColor] = useState(false);
+  const [pendingFill, setPendingFill] = useState<"color" | "gradient" | undefined>();
   const [pendingDecorationColor, setPendingDecorationColor] = useState(false);
   const [pendingStroke, setPendingStroke] = useState<{ width: number } | undefined>();
   const fundamental = FUNDAMENTAL_TEXT_STYLE_IDS.some((fundamentalId) => fundamentalId === id);
@@ -1367,7 +1367,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
   const editorId = `text-style-${id}-editor`;
   const visibleProperties = TEXT_STYLE_DISPLAY_ORDER.filter((item) => {
     if (item.kind === "typography") return typography?.[item.property] !== undefined || (item.property === "fontFamily" && pendingFontFamily);
-    if (item.property === "color") return visual?.color !== undefined || pendingColor;
+    if (item.property === "fill") return visual?.color !== undefined || visual?.gradient !== undefined || pendingFill !== undefined;
     if (item.property === "textDecorationColor") return typography?.textDecorationColor !== undefined || pendingDecorationColor;
     if (item.kind === "appearance") return typography?.textStroke !== undefined || pendingStroke !== undefined;
     return layout?.[item.property] !== undefined;
@@ -1381,7 +1381,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
     {
       id: "appearance",
       label: "inspector.appearance" as const,
-      items: visibleProperties.filter((item) => item.property === "color" || item.property === "textStroke"),
+      items: visibleProperties.filter((item) => item.property === "fill" || item.property === "textStroke"),
     },
     {
       id: "spacing",
@@ -1392,7 +1392,7 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
   const authoredTypographyProperties = visibleProperties.filter((item) => item.kind === "typography" && typography?.[item.property] !== undefined).map((item) => item.property);
   const availableProperties = TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES.filter((property) => !authoredTypographyProperties.includes(property) && !(property === "fontFamily" && pendingFontFamily));
   const availableAppearance = [
-    ...(visual?.color === undefined && !pendingColor ? ["color" as const] : []),
+    ...(visual?.color === undefined && visual?.gradient === undefined && pendingFill === undefined ? ["fill" as const] : []),
     ...(typography?.textDecorationColor === undefined && !pendingDecorationColor ? ["textDecorationColor" as const] : []),
     ...(typography?.textStroke === undefined && pendingStroke === undefined ? ["textStroke" as const] : []),
   ];
@@ -1421,20 +1421,33 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
   const updateLayout = (update: (current: TextStyleLayoutProperties | undefined) => TextStyleLayoutProperties): void => {
     onUpdate?.({ layout: normalizeTextStyleLayoutProperties(update(layout)) });
   };
-  const removeAppearance = (property: "color" | "textDecorationColor" | "textStroke"): void => {
-    if (property === "color") { if (pendingColor && visual?.color === undefined) setPendingColor(false); else runDirectDefinition(() => updateStyle((current) => ({ ...(current ?? {}), color: undefined }))); }
+  const removeAppearance = (property: "fill" | "textDecorationColor" | "textStroke"): void => {
+    if (property === "fill") { if (pendingFill !== undefined && visual?.color === undefined && visual?.gradient === undefined) setPendingFill(undefined); else runDirectDefinition(() => updateStyle((current) => ({ ...(current ?? {}), color: undefined, gradient: undefined }))); }
     else if (property === "textDecorationColor") { if (pendingDecorationColor && typography?.textDecorationColor === undefined) setPendingDecorationColor(false); else runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: undefined }))); }
     else if (pendingStroke && typography?.textStroke === undefined) setPendingStroke(undefined);
     else runDirectDefinition(() => updateTypography((current) => ({ ...(current ?? {}), textStroke: undefined })));
   };
   const addAppearance = (property: (typeof availableAppearance)[number]): void => {
-    if (property === "color") setPendingColor(true);
+    if (property === "fill") setPendingFill("color");
     else if (property === "textDecorationColor") setPendingDecorationColor(true);
     else setPendingStroke({ width: 1 });
   };
-  const commitColor = (property: "color" | "textDecorationColor", color: ColorValue): void => {
-    if (property === "color") { setPendingColor(false); updateStyle((current) => ({ ...(current ?? {}), color })); }
+  const commitColor = (property: "fill" | "textDecorationColor", color: ColorValue): void => {
+    if (property === "fill") { setPendingFill(undefined); updateStyle((current) => ({ ...(current ?? {}), color, gradient: undefined })); }
     else { setPendingDecorationColor(false); updateTypography((current) => ({ ...(current ?? {}), textDecorationColor: color })); }
+  };
+  const fillMode = visual?.gradient !== undefined || pendingFill === "gradient" ? "gradient" : "color";
+  const displayedGradient = visual?.gradient ?? (pendingFill === "gradient" ? createDefaultGradient("linear") : undefined);
+  const changeFillMode = (mode: "color" | "gradient"): void => {
+    if (mode === fillMode) return;
+    setPendingFill(undefined);
+    runDirectDefinition(() => updateStyle((current) => mode === "gradient"
+      ? { ...(current ?? {}), color: undefined, gradient: createDefaultGradient("linear") }
+      : { ...(current ?? {}), color: THEME_COLORS.textPrimary, gradient: undefined }));
+  };
+  const commitGradient = (gradient: NonNullable<TextStyleVisualProperties["gradient"]>): void => {
+    setPendingFill(undefined);
+    updateStyle((current) => ({ ...(current ?? {}), color: undefined, gradient }));
   };
   const commitStrokeColor = (color: ColorValue): void => {
     const current = typography?.textStroke;
@@ -1490,7 +1503,18 @@ function TextStyleRow({ id, label, status, locations, onSelectElement, onRequest
             </div>
             <div className={styles.resourcePropertyControl} data-text-style-property-control>
               {item.kind === "typography" ? <ElementTypographyFields typography={typography} effectiveDefaults={TEXT_VARIANT_TYPOGRAPHY_DEFAULTS[role]} fontResources={fonts} visibleProperties={[item.property]} controlPrefix={`text-style-${id}`} onUpdateTypography={(update) => { const next = normalizeTextStyleTypographyProperties(update(typography)); if (item.property === "fontFamily" && next.fontFamily !== undefined) setPendingFontFamily(false); updateTypography(() => next); }} /> : null}
-              {item.property === "color" ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("color", color)} /> : null}
+              {item.property === "fill" ? <>
+                <label className={styles.field}>
+                  <span>{t("inspector.fill")}</span>
+                  <select id={`text-style-${id}-fill-mode`} value={fillMode} onChange={(event) => { if (event.target.value === "color" || event.target.value === "gradient") changeFillMode(event.target.value); }}>
+                    <option value="color">{t("inspector.color")}</option>
+                    <option value="gradient">{t("inspector.gradient")}</option>
+                  </select>
+                </label>
+                {fillMode === "color"
+                  ? <ColorControl id={`text-style-${id}-color`} name={t("inspector.color")} value={visual?.color} onChange={(color) => commitColor("fill", color)} />
+                  : <ElementGradientControl gradient={displayedGradient} authoredGradient={{ value: visual?.gradient }} controlPrefix={`text-style-${id}-fill`} allowNone={false} onChange={(gradient) => { if (gradient !== undefined) commitGradient(gradient); }} />}
+              </> : null}
               {item.property === "textDecorationColor" ? <ColorControl id={`text-style-${id}-decoration-color`} name={t("inspector.topics.decorationColor")} value={typography?.textDecorationColor} onChange={(color) => commitColor("textDecorationColor", color)} /> : null}
               {item.property === "textStroke" ? <TextStyleStrokeFields id={id} stroke={typography?.textStroke} pendingWidth={pendingStroke?.width} onWidthChange={(width) => { if (typography?.textStroke) updateTypography((current) => ({ ...(current ?? {}), textStroke: { width, color: current?.textStroke?.color ?? typography.textStroke!.color } })); else setPendingStroke({ width }); }} onColorChange={commitStrokeColor} /> : null}
               {item.kind === "layout" ? <LinkedStyleLengthField historyScope="textStyle" id={`text-style-${id}-${item.property}`} label={t(layoutLabelKey[item.property])} value={layout?.[item.property]} onChange={(value) => updateLayout((current) => ({ ...(current ?? {}), [item.property]: value }))} /> : null}
@@ -1522,7 +1546,7 @@ const propertyLabelKey: Record<CoreTypographyProperty, Parameters<ReturnType<typ
 };
 
 const appearanceLabelKey = {
-  color: "inspector.topics.textColor",
+  fill: "inspector.fill",
   textDecorationColor: "inspector.topics.decorationColor",
   textStroke: "inspector.textStroke",
 } as const;
@@ -1549,7 +1573,7 @@ const TEXT_STYLE_DISPLAY_ORDER = [
   { kind: "typography" as const, property: "overflowWrap" as const },
   { kind: "typography" as const, property: "textDecorationLine" as const },
   { kind: "appearance" as const, property: "textDecorationColor" as const },
-  { kind: "appearance" as const, property: "color" as const },
+  { kind: "appearance" as const, property: "fill" as const },
   { kind: "appearance" as const, property: "textStroke" as const },
   { kind: "layout" as const, property: "margin" as const },
   { kind: "layout" as const, property: "marginTop" as const },

@@ -1,20 +1,22 @@
-import type { ElementEffect, ElementTypography, TextStroke } from "@web-slideshow/document-schema";
+import type { ElementTypography, Glow, TextEffect, TextStroke } from "@web-slideshow/document-schema";
+
+import { THEME_COLORS } from "@web-slideshow/theme/element-style-defaults";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { useAuthoringHistory } from "../../authoring-history-context";
 import styles from "../../editor-workspace.module.css";
 import { getControlName, parseOptionalNumber, readAbsoluteNumber } from "../inspector-helpers";
-import type { UpdateElementEffect, UpdateElementTypography } from "../inspector-types";
+import type { UpdateTextEffect, UpdateElementTypography } from "../inspector-types";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
 import type { TextStylePropertyInfo } from "../text-style-property";
 import { TextStylePropertyMeta } from "./text-style-property-meta";
 
 interface CanonicalTextEffectsSectionProps {
-  effect: ElementEffect | undefined;
+  effect: TextEffect | undefined;
   typography: ElementTypography | undefined;
   textColor: string | undefined;
-  onUpdateEffect: UpdateElementEffect;
+  onUpdateEffect: UpdateTextEffect;
   onUpdateTypography: UpdateElementTypography;
   controlPrefix: string;
   textStrokeDisabled?: boolean;
@@ -26,15 +28,22 @@ interface CanonicalTextEffectsSectionProps {
   onResetTextDecorationColor?: () => void;
 }
 
-type ShadowMode = "none" | "outer" | "inset";
+type ShadowMode = "none" | "outer";
 
-const defaultShadow = (mode: Exclude<ShadowMode, "none">) => ({
+const defaultShadow = (): NonNullable<TextEffect["shadow"]> => ({
   x: 0,
   y: 4,
   blur: 12,
   color: "#000000",
-  ...(mode === "inset" ? { inset: true } : {}),
 });
+
+const defaultGlow = (): Glow => ({ blur: 12, color: THEME_COLORS.accent });
+
+function isDormantGlow(glow: Glow | undefined): boolean {
+  if (glow === undefined) return false;
+  const blur = readAbsoluteNumber(glow.blur);
+  return typeof blur === "number" && blur <= 0;
+}
 
 const defaultTextStroke = (color: string | undefined): TextStroke => ({
   width: 1,
@@ -59,16 +68,18 @@ export function CanonicalTextEffectsSection({
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
-  const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : effect.shadow.inset ? "inset" : "outer";
+  const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : "outer";
+  const glow = isDormantGlow(effect?.glow) ? undefined : effect?.glow;
+  const glowMode = glow === undefined ? "none" : "glow";
   const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
   const strokeMode = effectiveTextStroke === undefined || readAbsoluteNumber(effectiveTextStroke.width) === 0 ? "none" : "stroke";
   const shadow = effect?.shadow;
 
-  function runDiscrete(callback: () => void): void {
+  function runDiscrete(setting: string, callback: () => void): void {
     const meta = {
       kind: "element.setting",
       labelKey: "history.element.setting",
-      labelParams: { setting: "shadow.mode" },
+      labelParams: { setting },
     };
 
     if (authoringHistory) {
@@ -93,10 +104,17 @@ export function CanonicalTextEffectsSection({
     }
   }
 
-  function updateShadow(update: (shadow: NonNullable<ElementEffect["shadow"]>) => NonNullable<ElementEffect["shadow"]>) {
+  function updateShadow(update: (shadow: NonNullable<TextEffect["shadow"]>) => NonNullable<TextEffect["shadow"]>) {
     onUpdateEffect((current) => ({
       ...current,
-      shadow: update(current?.shadow ?? defaultShadow("outer")),
+      shadow: update(current?.shadow ?? defaultShadow()),
+    }));
+  }
+
+  function updateGlow(update: (glow: NonNullable<TextEffect["glow"]>) => NonNullable<TextEffect["glow"]>) {
+    onUpdateEffect((current) => ({
+      ...current,
+      glow: update(current?.glow ?? defaultGlow()),
     }));
   }
 
@@ -243,21 +261,20 @@ export function CanonicalTextEffectsSection({
           value={shadowMode}
           onChange={(event) => {
             const mode = event.target.value;
-            if (mode !== "none" && mode !== "outer" && mode !== "inset") return;
+            if (mode !== "none" && mode !== "outer") return;
             if (mode === shadowMode) return;
-            runDiscrete(() => onUpdateEffect((current) => ({
+            runDiscrete("shadow.mode", () => onUpdateEffect((current) => ({
               ...current,
               shadow: mode === "none"
                 ? undefined
                 : current?.shadow === undefined
-                  ? defaultShadow(mode)
-                  : { ...current.shadow, inset: mode === "inset" ? true : undefined },
+                  ? defaultShadow()
+                  : current.shadow,
             })));
           }}
         >
           <option value="none">{t("inspector.shadow.none")}</option>
           <option value="outer">{t("inspector.shadow.outer")}</option>
-          <option value="inset">{t("inspector.shadow.inset")}</option>
         </select>
       </label>
       {shadow && (
@@ -280,29 +297,17 @@ export function CanonicalTextEffectsSection({
               </label>
             ))}
           </div>
-          <div className={styles.fieldGrid}>
-            <label className={styles.field}>
-              <span>{t("inspector.shadowBlur")}</span>
-              <input
-                type="number"
-                min="0"
-                value={readAbsoluteNumber(shadow.blur)}
-                onFocus={() => beginNumberEditing("shadow-blur")}
-                onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-blur`)}
-                onChange={(event) => updateNumber("shadow-blur", shadow.blur, parseOptionalNumber(event.target.value) ?? 0, () => updateShadow((current) => ({ ...current, blur: parseOptionalNumber(event.target.value) ?? 0 })))}
-              />
-            </label>
-            <label className={styles.field}>
-              <span>{t("inspector.shadowSpread")}</span>
-              <input
-                type="number"
-                value={readAbsoluteNumber(shadow.spread)}
-                onFocus={() => beginNumberEditing("shadow-spread")}
-                onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-spread`)}
-                onChange={(event) => updateNumber("shadow-spread", shadow.spread, parseOptionalNumber(event.target.value), () => updateShadow((current) => ({ ...current, spread: parseOptionalNumber(event.target.value) })))}
-              />
-            </label>
-          </div>
+          <label className={styles.field}>
+            <span>{t("inspector.shadowBlur")}</span>
+            <input
+              type="number"
+              min="0"
+              value={readAbsoluteNumber(shadow.blur)}
+              onFocus={() => beginNumberEditing("shadow-blur")}
+              onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-shadow-blur`)}
+              onChange={(event) => updateNumber("shadow-blur", shadow.blur, parseOptionalNumber(event.target.value) ?? 0, () => updateShadow((current) => ({ ...current, blur: parseOptionalNumber(event.target.value) ?? 0 })))}
+            />
+          </label>
           <label className={styles.field}>
             <span>{t("inspector.shadowColor")}</span>
             <ColorControl
@@ -310,6 +315,54 @@ export function CanonicalTextEffectsSection({
               name={getControlName(controlPrefix, "ShadowColor")}
               value={shadow.color}
               onChange={(color) => updateShadow((shadow) => ({ ...shadow, color }))}
+            />
+          </label>
+        </>
+      )}
+      <label className={styles.field}>
+        <span>{t("inspector.glow")}</span>
+        <select
+          id={`${controlPrefix}-glow-mode`}
+          name={getControlName(controlPrefix, "GlowMode")}
+          value={glowMode}
+          onChange={(event) => {
+            const mode = event.target.value === "glow" ? "glow" : "none";
+            if (mode === glowMode) return;
+            runDiscrete("glow.mode", () => onUpdateEffect((current) => ({
+              ...current,
+              glow: mode === "none" ? undefined : current?.glow !== undefined && !isDormantGlow(current.glow) ? current.glow : defaultGlow(),
+            })));
+          }}
+        >
+          <option value="none">{t("inspector.glow.none")}</option>
+          <option value="glow">{t("inspector.glow.glow")}</option>
+        </select>
+      </label>
+      {glow && (
+        <>
+          <label className={styles.field}>
+            <span>{t("inspector.shadowBlur")}</span>
+            <input
+              id={`${controlPrefix}-glow-blur`}
+              name={getControlName(controlPrefix, "GlowBlur")}
+              type="number"
+              min="1"
+              value={readAbsoluteNumber(glow.blur)}
+              onFocus={() => beginNumberEditing("glow-blur")}
+              onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-glow-blur`)}
+              onChange={(event) => {
+                const blur = Math.max(1, parseOptionalNumber(event.target.value) ?? 1);
+                updateNumber("glow-blur", glow.blur, blur, () => updateGlow((current) => ({ ...current, blur })));
+              }}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{t("inspector.shadowColor")}</span>
+            <ColorControl
+              id={`${controlPrefix}-glow-color`}
+              name={getControlName(controlPrefix, "GlowColor")}
+              value={glow.color}
+              onChange={(color) => updateGlow((current) => ({ ...current, color }))}
             />
           </label>
         </>

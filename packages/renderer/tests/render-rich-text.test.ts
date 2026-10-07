@@ -133,6 +133,46 @@ describe("renderElement rich text", () => {
     expect(html).toContain('<span style="color:#7c3aed">color</span>');
   });
 
+  it("keeps one Gradient owner around all rich runs and overrides text fill for marked colors", () => {
+    const html = renderElement(textElement({
+      style: {
+        gradient: {
+          type: "linear",
+          stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }],
+        },
+      },
+      content: {
+        type: "rich-text",
+        runs: [
+          { text: "bold", marks: { bold: true } },
+          { text: " italic", marks: { italic: true } },
+          { text: " code", marks: { code: true } },
+          { text: " solid", marks: { color: "#ff0000" } },
+        ],
+      },
+    }));
+
+    expect(html.match(/presentation-text-gradient-content/g)).toHaveLength(1);
+    expect(html).toContain("<strong>bold</strong>");
+    expect(html).toContain("<em> italic</em>");
+    expect(html).toContain("<code> code</code>");
+    expect(html).toContain('<span style="color:#ff0000;-webkit-text-fill-color:#ff0000"> solid</span>');
+  });
+
+  it("keeps a Gradient Text link inside one composition with authored inheritance", () => {
+    const html = renderElement(textElement({
+      style: { gradient: { type: "linear", stops: [{ color: "#000", position: 0 }, { color: "#fff", position: 100 }] } },
+      content: "Linked gradient",
+      link: { kind: "url", href: "https://example.com", target: "_blank" },
+    }));
+
+    expect(html.match(/presentation-text-gradient-content/g)).toHaveLength(1);
+    expect(html).toContain('<a href="https://example.com"');
+    expect(html).toContain('style="color:inherit;text-decoration:inherit"');
+    expect(html).toContain('target="_blank"');
+    expect(html).not.toContain('style="color:#');
+  });
+
   it("uses deterministic nesting for combined marks", () => {
     const html = renderElement(
       textElement({

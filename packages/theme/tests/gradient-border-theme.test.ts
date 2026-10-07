@@ -13,6 +13,15 @@ function cssBlock(selector: string): string {
 }
 
 describe("gradient border theme ownership", () => {
+  it("enables glyph Gradient painting only behind CSS feature support", () => {
+    expect(baseCss).toContain("@supports (background-clip: text) or (-webkit-background-clip: text)");
+    expect(baseCss).toContain(".presentation-text-gradient-content");
+    expect(baseCss).toContain("background-image: var(--presentation-text-gradient)");
+    expect(baseCss).toContain("background-clip: text");
+    expect(baseCss).toContain("-webkit-background-clip: text");
+    expect(baseCss).toContain("-webkit-text-fill-color: transparent");
+  });
+
   it("keeps painting in the shared primitive and sizing in the Table class", () => {
     const sharedRing = cssBlock(".presentation-gradient-border::before");
     const tableFrame = cssBlock(".presentation-table-frame-gradient-border");

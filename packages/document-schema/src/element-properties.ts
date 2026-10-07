@@ -28,6 +28,7 @@ import {
   BackgroundPatternSchema,
   BorderSchema,
   GradientSchema,
+  GlowSchema,
   ShadowSchema,
   TextStrokeSchema,
 } from "./visual";
@@ -291,13 +292,25 @@ export const TextVisualBackgroundSchema = z.object({
 
 export type TextVisualBackground = z.infer<typeof TextVisualBackgroundSchema>;
 
-export const TextVisualStyleSchema = z.object({
-  color: ColorValueSchema.optional(),
-  background: TextVisualBackgroundSchema.optional(),
-  border: BorderSchema.optional(),
-  borderRadius: LengthSchema.optional(),
-  className: z.string().optional(),
-}).strict();
+export const TextVisualStyleSchema = z
+  .object({
+    color: ColorValueSchema.optional(),
+    gradient: GradientSchema.optional(),
+    background: TextVisualBackgroundSchema.optional(),
+    border: BorderSchema.optional(),
+    borderRadius: LengthSchema.optional(),
+    className: z.string().optional(),
+  })
+  .strict()
+  .superRefine((style, context) => {
+    if (style.color !== undefined && style.gradient !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["gradient"],
+        message: "Text style cannot define both color and gradient.",
+      });
+    }
+  });
 
 export type TextVisualStyle = z.infer<typeof TextVisualStyleSchema>;
 
@@ -336,9 +349,21 @@ export type TextStyleTypographyProperties = z.infer<
   typeof TextStyleTypographyPropertiesSchema
 >;
 
-export const TextStyleVisualPropertiesSchema = z.object({
-  color: ColorValueSchema.optional(),
-}).strict();
+export const TextStyleVisualPropertiesSchema = z
+  .object({
+    color: ColorValueSchema.optional(),
+    gradient: GradientSchema.optional(),
+  })
+  .strict()
+  .superRefine((style, context) => {
+    if (style.color !== undefined && style.gradient !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["gradient"],
+        message: "Text Style cannot define both color and gradient.",
+      });
+    }
+  });
 
 export type TextStyleVisualProperties = z.infer<
   typeof TextStyleVisualPropertiesSchema
@@ -430,6 +455,12 @@ export const ElementEffectSchema = z
   .strict();
 
 export type ElementEffect = z.infer<typeof ElementEffectSchema>;
+
+export const TextEffectSchema = ElementEffectSchema.extend({
+  glow: GlowSchema.optional(),
+}).strict();
+
+export type TextEffect = z.infer<typeof TextEffectSchema>;
 
 export const ContainerChildrenFitSchema = z
   .object({

@@ -344,6 +344,29 @@ describe("presentation typography style authoring", () => {
     expect(removedPresentation.slides[0]!.elements[0]).toMatchObject({ typography: { fontWeight: 700 }, layout: { marginTop: 20, marginLeft: 4 } });
   });
 
+  it("compares and propagates gradient fills as one visual ownership slot", () => {
+    const gradient = {
+      type: "linear" as const,
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    };
+    const before = { id: "body" as const, style: { gradient } };
+    const same = structuredClone(before);
+    expect(areTextStyleDefinitionsEqualForAuthoring(before, same)).toBe(true);
+
+    const after = { id: "body" as const, style: { color: "#ff0000" } };
+    const presentation = PresentationSchema.parse({
+      ...base(),
+      textStyles: [after],
+      slides: [{ id: "s", title: "", elements: [{ id: "text", type: "text", hidden: false, variant: "body", content: "Text", style: { gradient } }] }],
+    });
+    const propagated = propagateTextStyleDefinitionChanges(presentation, "body", before, after);
+    expect(propagated.slides[0]!.elements[0]).not.toHaveProperty("style.color");
+    expect(propagated.slides[0]!.elements[0]).not.toHaveProperty("style.gradient");
+  });
+
   it("propagates custom property removal but not rename or role changes", () => {
     const withStyle = PresentationSchema.parse({
       ...addCustomTextStyle(base(), "Quote", "body"),

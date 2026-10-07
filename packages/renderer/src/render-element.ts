@@ -25,10 +25,10 @@ import { FundamentalTextStyleIdSchema } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
-import { renderCanonicalTextStyle } from "./render-canonical-text";
+import { renderCanonicalTextStyle, renderTextGlowFilter } from "./render-canonical-text";
 import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
-import { renderGradientBorder } from "./render-visual";
+import { renderGradient, renderGradientBorder } from "./render-visual";
 import {
   renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
@@ -37,6 +37,8 @@ import {
 } from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
+const TEXT_CONTENT_CLASS = "presentation-text-content";
+const TEXT_GRADIENT_CONTENT_CLASS = "presentation-text-gradient-content";
 
 function hasGradientBorder(element: ImageElement): boolean {
   return element.style?.border?.gradient !== undefined;
@@ -105,13 +107,13 @@ function buildAttributes(
   let baseStyle = "";
   if (element.type === "text") {
     const resolved = context ? resolveTextStyle(context.presentation, element) : undefined;
+    const effectiveStyle = context
+      ? { ...element.style, ...resolved?.style }
+      : element.style;
     baseStyle = renderCanonicalTextStyle(
       element,
       resolved?.typography ?? element.typography,
-      {
-        ...element.style,
-        ...(resolved?.style.color === undefined ? {} : { color: resolved.style.color }),
-      },
+      effectiveStyle,
       options.includeTextBorder === false ? { includeBorder: false } : {},
       resolved?.layout,
     );
@@ -138,19 +140,43 @@ function buildAttributes(
   );
 }
 
+function renderTextContentSurface(
+  content: string,
+  gradient: NonNullable<TextElement["style"]>["gradient"],
+  glowFilter: string | undefined,
+): string {
+  const classes = [TEXT_CONTENT_CLASS];
+  const styles: string[] = [];
+  if (gradient !== undefined) {
+    classes.push(TEXT_GRADIENT_CONTENT_CLASS);
+    styles.push(`--presentation-text-gradient:${renderGradient(gradient)}`);
+  }
+  if (glowFilter !== undefined) styles.push(`filter:${glowFilter}`);
+  const styleAttribute = styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
+  return `<span class="${classes.join(" ")}"${styleAttribute}>${content}</span>`;
+}
+
 function renderText(element: TextElement, context?: RenderContext): string {
   if (element.hidden) {
     return "";
   }
 
-  const renderedContent =
-    typeof element.content === "string"
-      ? renderTextContent(element.content)
-      : renderRichText(element.content);
-  const content = renderLinkContent(renderedContent, element.link);
   const resolved = context
     ? resolveTextStyle(context.presentation, element)
     : undefined;
+  const effectiveStyle = context
+    ? { ...element.style, ...resolved?.style }
+    : element.style;
+  const gradient = effectiveStyle?.gradient;
+  const renderedContent =
+    typeof element.content === "string"
+      ? renderTextContent(element.content, gradient === undefined ? {} : { gradientFill: true })
+      : renderRichText(element.content, gradient === undefined ? {} : { gradientFill: true });
+  const linkedContent = renderLinkContent(renderedContent, element.link);
+  const glowFilter = renderTextGlowFilter(element.effect?.glow);
+  const content = gradient !== undefined || glowFilter !== undefined
+    ? renderTextContentSurface(linkedContent, gradient, glowFilter)
+    : linkedContent;
   const role = resolved?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
   const gradientBorder = element.style?.border?.gradient;
   const migratesGradientBorder = gradientBorder !== undefined &&
