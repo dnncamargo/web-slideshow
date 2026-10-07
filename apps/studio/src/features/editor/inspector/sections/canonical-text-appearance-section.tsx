@@ -66,10 +66,23 @@ export function CanonicalTextAppearanceSection({
   const opacityHistoryKey = `number:${controlPrefix}-opacity`;
   const fillMode = style?.gradient !== undefined || effectiveTextFill?.gradient !== undefined ? "gradient" : "color";
   const localFill = style?.color !== undefined || style?.gradient !== undefined;
+  const resetDetachedFill = () => onUpdateStyle((current) => clearTextFill(current));
   const detachedFillReset = localFill && textFillSource === undefined ? {
     label: fallbackTextColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"),
-    onClick: () => onUpdateStyle((current) => clearTextFill(current)),
+    onClick: resetDetachedFill,
   } : undefined;
+  const resetGradientFill = () => {
+    if (detachedFillReset === undefined) return;
+    if (authoringHistory) {
+      authoringHistory.discrete({
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "text.fill.reset" },
+      }, detachedFillReset.onClick);
+    } else {
+      detachedFillReset.onClick();
+    }
+  };
   const updateOpacity = (opacity: number | undefined) => {
     if (opacity === effect?.opacity) return;
     const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
@@ -150,7 +163,7 @@ export function CanonicalTextAppearanceSection({
                 if (gradient !== undefined) onUpdateStyle((current) => ({ ...clearTextFill(current), gradient }));
               }}
             />
-            {detachedFillReset ? <button type="button" className={styles.colorPaletteDisclosure} onClick={detachedFillReset.onClick}>{detachedFillReset.label}</button> : null}
+            {detachedFillReset ? <button type="button" className={styles.colorPaletteDisclosure} onClick={resetGradientFill}>{detachedFillReset.label}</button> : null}
           </>
         )}
       </div>

@@ -166,4 +166,52 @@ describe("CP3 Text Fill, Shadow, Glow history", () => {
     expect(input("text-fill-gradient-stop-0-position").value).toBe("0");
     expect(select("text-fill-mode").value).toBe("gradient");
   });
+
+  it("records a detached Gradient reset once and restores the exact local Fill", async () => {
+    const gradient = { type: "linear" as const, angle: 90, stops: [{ color: "#000000", position: 0 }, { color: "#ffffff", position: 100 }] };
+    await mount(PresentationSchema.parse({
+      schemaVersion: 1,
+      id: "cp3-text-effects-history",
+      title: "CP3 Text Effects History",
+      slides: [{
+        id: "slide-1",
+        title: "Slide 1",
+        elements: [{
+          id: "cp3-parent",
+          type: "container",
+          hidden: false,
+          style: { color: "#ff00ff" },
+          children: [{ id: "cp3-text", type: "text", hidden: false, variant: "body", styleDetached: true, style: { gradient }, content: "Text" }],
+        }],
+      }],
+    }));
+
+    expect(select("text-fill-mode").value).toBe("gradient");
+    expect(input("text-fill-gradient-angle").value).toBe("90");
+    const mountUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(mountUndo));
+    expect(mountUndo.defaultPrevented).toBe(false);
+    expect(select("text-fill-mode").value).toBe("gradient");
+
+    const reset = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Use inherited color");
+    if (!reset) throw new Error("missing detached Gradient reset");
+    await act(async () => reset.click());
+    expect(select("text-fill-mode").value).toBe("color");
+    expect(input("text-color").value).toBe("#ff00ff");
+    expect(host.querySelector("#text-fill-gradient-angle")).toBeNull();
+    expect(Array.from(host.querySelectorAll<HTMLButtonElement>("button")).some((button) => button.textContent?.trim() === "Use inherited color")).toBe(false);
+
+    const undo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(undo));
+    expect(undo.defaultPrevented).toBe(true);
+    expect(select("text-fill-mode").value).toBe("gradient");
+    expect(input("text-fill-gradient-angle").value).toBe("90");
+
+    const redo = key("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => window.dispatchEvent(redo));
+    expect(redo.defaultPrevented).toBe(true);
+    expect(select("text-fill-mode").value).toBe("color");
+    expect(input("text-color").value).toBe("#ff00ff");
+    expect(host.querySelector("#text-fill-gradient-angle")).toBeNull();
+  });
 });
