@@ -173,6 +173,10 @@ Inspector edits are local to the selected Text and keep its relationship attache
 
 A detached Text materializes its effective typography locally and no longer counts as linked usage even when it retains a fundamental `variant` role.
 
+## Text effects
+
+Text Fill is one logical property and persists as either `style.color` or `style.gradient`. A Gradient is composed once across the Text content; rich-text `marks.color` remains an explicit solid override. Shadow is glyph-based. Glow is a Text-local external glyph halo, so Shadow and Glow can coexist while neither effect is owned by Text Style. Text Style owns the logical Fill, and the shared renderer keeps Studio and Player output in parity through publication. The canonical `schemaVersion` remains literally `1`.
+
 Linked Style property precedence:
 
 ```text
@@ -622,7 +626,8 @@ Root Definitions / structural normalization              ✅
 Table Size                                               ✅
 Divider gradient                                         ✅
 Linked Styles target expansion                           ✅
-NEXT: Text effects — shadow / glow
+Text Effects ✅
+NEXT: Pointed Notes — numbered Canvas markers + Control reading
 ```
 
 Immediate execution order:
@@ -630,8 +635,9 @@ Immediate execution order:
 1. Table Size ✅
 2. Divider gradient ✅
 3. Linked Styles target expansion ✅
-4. Text effects: shadow / glow ← NEXT
+4. Text effects: gradient fill / shadow / glow ✅
+5. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
 
-The next implementation chat starts with the Text effects — shadow / glow audit, covering the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions.
+Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements. The explicit Text shadow/glow work is now in the immediate queue rather than this generic backlog.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
