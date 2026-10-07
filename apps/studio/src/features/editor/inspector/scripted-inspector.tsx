@@ -17,6 +17,8 @@ import { InspectorSection } from "./inspector-section";
 import { useAuthoringHistory } from "../authoring-history-context";
 
 import type {
+  ScriptedSourceEditRequest,
+  ScriptedSourceKind,
   TypedInspectorProps,
   UpdateSurfaceStyle,
 } from "./inspector-types";
@@ -154,6 +156,12 @@ function nextPortId(ports: ScriptedPortDraft[]): string {
   while (ids.has(`port-${suffix}`)) suffix += 1;
   return `port-${suffix}`;
 }
+
+function sourcePreview(source: string): string {
+  const compact = source.replace(/\s+/g, " ").trim();
+  if (compact.length === 0) return "—";
+  return compact.length > 72 ? `${compact.slice(0, 69)}…` : compact;
+}
 // BEGIN: SCRIPTED INSPECTOR
 //
 // Scripted is authored HTML/CSS/JavaScript executed by the shared
@@ -173,8 +181,16 @@ export function ScriptedInspector({
   element,
   onUpdate,
   presentationFiles = [],
+  onEditSource,
+  activeSource = null,
+  largeSourceEditorActive = false,
+  largeSourceEditorDirty = false,
 }: TypedInspectorProps<ScriptedElement> & {
   presentationFiles?: readonly PresentationFileResource[];
+  onEditSource?: (request: ScriptedSourceEditRequest) => void;
+  activeSource?: ScriptedSourceKind | null;
+  largeSourceEditorActive?: boolean;
+  largeSourceEditorDirty?: boolean;
 }) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -281,6 +297,8 @@ export function ScriptedInspector({
   };
 
   function applyDrafts(): void {
+    if (largeSourceEditorDirty) return;
+
     // Canonical title must stay non-empty. The user keeps their draft
     // visible so they can correct it; nothing is written to the
     // document and no default replaces the authored value.
@@ -372,6 +390,8 @@ export function ScriptedInspector({
   }
 
   function resetDrafts(): void {
+    if (largeSourceEditorActive) return;
+
     // Reset only local drafts to the canonical values. This performs
     // ZERO canonical writes and ZERO execution.
     setTitleDraft(element.title);
@@ -422,6 +442,25 @@ export function ScriptedInspector({
     });
   }
 
+  function editSource(source: ScriptedSourceKind, baseline: string): void {
+    onEditSource?.({
+      elementId: element.id,
+      source,
+      baseline,
+      onSaveDraft: source === "html"
+        ? setHtmlDraft
+        : source === "css"
+          ? setCssDraft
+          : setScriptDraft,
+    });
+  }
+
+  const sourceRows: readonly { kind: ScriptedSourceKind; label: string; value: string }[] = [
+    { kind: "html", label: t("scripted.html"), value: htmlDraft },
+    { kind: "css", label: t("scripted.css"), value: cssDraft },
+    { kind: "script", label: t("scripted.javascript"), value: scriptDraft },
+  ];
+
   return (
     <>
       <div className={styles.inspectorDivider} />
@@ -449,53 +488,30 @@ export function ScriptedInspector({
           )}
         </label>
 
-        <label className={styles.field}>
-          <span>{t("scripted.html")}</span>
-
-          <textarea
-            id="scripted-html"
-            name="scriptedHtml"
-            className={`${styles.textArea} ${styles.codeTextArea}`}
-            rows={6}
-            spellCheck={false}
-            value={htmlDraft}
-            onChange={(event) => {
-              setHtmlDraft(event.target.value);
-            }}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>{t("scripted.css")}</span>
-
-          <textarea
-            id="scripted-css"
-            name="scriptedCss"
-            className={`${styles.textArea} ${styles.codeTextArea}`}
-            rows={6}
-            spellCheck={false}
-            value={cssDraft}
-            onChange={(event) => {
-              setCssDraft(event.target.value);
-            }}
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span>{t("scripted.javascript")}</span>
-
-          <textarea
-            id="scripted-script"
-            name="scriptedScript"
-            className={`${styles.textArea} ${styles.codeTextArea}`}
-            rows={8}
-            spellCheck={false}
-            value={scriptDraft}
-            onChange={(event) => {
-              setScriptDraft(event.target.value);
-            }}
-          />
-        </label>
+        <div className={styles.scriptedSourceList}>
+          {sourceRows.map((row) => {
+            const editDisabled = largeSourceEditorActive && (
+              largeSourceEditorDirty || activeSource === row.kind
+            );
+            return (
+              <div key={row.kind} className={styles.scriptedSourceRow} data-scripted-source={row.kind}>
+                <div className={styles.scriptedSourceDetails}>
+                  <span className={styles.fieldLabel}>{row.label}</span>
+                  <code className={styles.scriptedSourcePreview} title={row.value}>{sourcePreview(row.value)}</code>
+                </div>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  data-scripted-source-edit={row.kind}
+                  disabled={editDisabled}
+                  onClick={() => editSource(row.kind, row.value)}
+                >
+                  {t("scripted.editSource")}
+                </button>
+              </div>
+            );
+          })}
+        </div>
 
         <small className={styles.fieldHint}>
           <span>{t("scripted.sandboxHelp")}</span>
@@ -553,7 +569,7 @@ export function ScriptedInspector({
 
             className={styles.secondaryButton}
 
-            disabled={!dirty}
+            disabled={!dirty || largeSourceEditorDirty}
 
             onClick={applyDrafts}
           >
@@ -566,7 +582,7 @@ export function ScriptedInspector({
 
             className={styles.secondaryButton}
 
-            disabled={!dirty}
+            disabled={!dirty || largeSourceEditorActive}
 
             onClick={resetDrafts}
           >

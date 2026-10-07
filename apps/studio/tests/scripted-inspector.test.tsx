@@ -9,6 +9,7 @@ import type { PresentationElement, PresentationFileResource, ScriptedElement, Sl
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { ScriptedInspector } from "../src/features/editor/inspector/scripted-inspector";
 import type {
+  ScriptedSourceEditRequest,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "../src/features/editor/inspector/inspector-types";
@@ -70,12 +71,16 @@ describe("ScriptedInspector", () => {
   let root: Root;
   let elementState: ScriptedElement;
   let updates: ScriptedElement[];
+  let latestSourceRequest: ScriptedSourceEditRequest | null;
 
   function renderInspector() {
     root.render(
       <StudioI18nProvider>
         <ScriptedInspector
           element={elementState}
+          onEditSource={(request) => {
+            latestSourceRequest = request;
+          }}
           onUpdate={(update) => {
             const next = update(elementState);
             if (next.type !== "scripted") {
@@ -93,6 +98,7 @@ describe("ScriptedInspector", () => {
   function mount(initial: ScriptedElement) {
     elementState = initial;
     updates = [];
+    latestSourceRequest = null;
     renderInspector();
   }
 
@@ -118,34 +124,29 @@ describe("ScriptedInspector", () => {
     return input;
   }
 
-  function htmlTextarea(): HTMLTextAreaElement {
-    const textarea = container.querySelector<HTMLTextAreaElement>(
-      "#scripted-html",
-    );
-    if (!textarea) {
-      throw new Error("scripted-html textarea not found");
-    }
-    return textarea;
+  type DraftControl = { source: "html" | "css" | "script"; value: string };
+
+  function sourceRequest(source: DraftControl["source"]): ScriptedSourceEditRequest {
+    const button = container.querySelector<HTMLButtonElement>(`[data-scripted-source-edit="${source}"]`);
+    if (!button) throw new Error(`Scripted ${source} Edit button not found`);
+    button.click();
+    if (!latestSourceRequest) throw new Error(`Scripted ${source} request not captured`);
+    return latestSourceRequest;
   }
 
-  function cssTextarea(): HTMLTextAreaElement {
-    const textarea = container.querySelector<HTMLTextAreaElement>(
-      "#scripted-css",
-    );
-    if (!textarea) {
-      throw new Error("scripted-css textarea not found");
-    }
-    return textarea;
+  function htmlTextarea(): DraftControl {
+    const request = sourceRequest("html");
+    return { source: "html", value: request.baseline };
   }
 
-  function scriptTextarea(): HTMLTextAreaElement {
-    const textarea = container.querySelector<HTMLTextAreaElement>(
-      "#scripted-script",
-    );
-    if (!textarea) {
-      throw new Error("scripted-script textarea not found");
-    }
-    return textarea;
+  function cssTextarea(): DraftControl {
+    const request = sourceRequest("css");
+    return { source: "css", value: request.baseline };
+  }
+
+  function scriptTextarea(): DraftControl {
+    const request = sourceRequest("script");
+    return { source: "script", value: request.baseline };
   }
 
   function applyButton(): HTMLButtonElement {
@@ -169,18 +170,8 @@ describe("ScriptedInspector", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  function changeTextarea(
-    textarea: HTMLTextAreaElement,
-    value: string,
-  ): void {
-    const nativeTextareaValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLTextAreaElement.prototype,
-      "value",
-    )?.set;
-
-    nativeTextareaValueSetter?.call(textarea, value);
-
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  function changeTextarea(textarea: DraftControl, value: string): void {
+    sourceRequest(textarea.source).onSaveDraft(value);
   }
 
   it("renders the ScriptedInspector with all source fields", async () => {
@@ -189,9 +180,9 @@ describe("ScriptedInspector", () => {
     });
 
     expect(titleInput()).not.toBeNull();
-    expect(htmlTextarea()).not.toBeNull();
-    expect(cssTextarea()).not.toBeNull();
-    expect(scriptTextarea()).not.toBeNull();
+    expect(container.querySelector('[data-scripted-source-edit="html"]')).not.toBeNull();
+    expect(container.querySelector('[data-scripted-source-edit="css"]')).not.toBeNull();
+    expect(container.querySelector('[data-scripted-source-edit="script"]')).not.toBeNull();
   });
 
   it("initializes the title draft from the canonical title", async () => {
@@ -771,9 +762,10 @@ describe("ScriptedInspector port drafts", () => {
   let elementState: ScriptedElement;
   let updates: ScriptedElement[];
   let presentationFiles: readonly PresentationFileResource[] = [];
+  let latestSourceRequest: ScriptedSourceEditRequest | null = null;
 
   function renderInspector(): void {
-    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} presentationFiles={presentationFiles} onUpdate={(update) => {
+    root.render(<StudioI18nProvider><ScriptedInspector element={elementState} presentationFiles={presentationFiles} onEditSource={(request) => { latestSourceRequest = request; }} onUpdate={(update) => {
       const next = update(elementState);
       if (next.type === "scripted") {
         elementState = next;
@@ -786,6 +778,7 @@ describe("ScriptedInspector port drafts", () => {
   function mount(initial: ScriptedElement, files: readonly PresentationFileResource[] = []): void {
     elementState = initial;
     updates = [];
+    latestSourceRequest = null;
     presentationFiles = files;
     renderInspector();
   }
@@ -807,6 +800,21 @@ describe("ScriptedInspector port drafts", () => {
     Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(control, value);
     control.dispatchEvent(new Event("change", { bubbles: true }));
     control.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function sourceValue(source: "html" | "css" | "script"): string {
+    const control = container.querySelector<HTMLButtonElement>(`[data-scripted-source-edit="${source}"]`);
+    if (!control) throw new Error(`Missing source control: ${source}`);
+    control.click();
+    if (!latestSourceRequest) throw new Error(`Missing source request: ${source}`);
+    return latestSourceRequest.baseline;
+  }
+
+  function saveSource(source: "html" | "css" | "script", value: string): void {
+    const control = container.querySelector<HTMLButtonElement>(`[data-scripted-source-edit="${source}"]`);
+    if (!control) throw new Error(`Missing source control: ${source}`);
+    control.click();
+    latestSourceRequest?.onSaveDraft(value);
   }
 
   beforeEach(() => {
@@ -847,7 +855,7 @@ describe("ScriptedInspector port drafts", () => {
     await act(async () => change('[data-presentation-scripted-port-type]', "number"));
     expect(container.querySelector("[data-presentation-scripted-port-min]")).not.toBeNull();
     await act(async () => change('[data-presentation-scripted-port-direction]', "output"));
-    await act(async () => change("#scripted-html", "<p>source</p>"));
+    await act(async () => saveSource("html", "<p>source</p>"));
     await act(async () => click("#scripted-apply-run"));
     expect(updates).toHaveLength(1);
     expect(elementState.html).toBe("<p>source</p>");
@@ -956,11 +964,11 @@ describe("ScriptedInspector port drafts", () => {
 
   it("reset and canonical rehydration restore source and ports without rewriting JavaScript", async () => {
     await act(async () => mount(scripted({ html: "<p>one</p>", script: "window.__sentinel = 1", ports: [{ id: "one", label: "One", kind: "action" }] })));
-    await act(async () => change("#scripted-html", "<p>draft</p>"));
+    await act(async () => saveSource("html", "<p>draft</p>"));
     await act(async () => change('[data-presentation-scripted-port-id]', "draft-id"));
-    expect(container.querySelector<HTMLTextAreaElement>("#scripted-script")?.value).toBe("window.__sentinel = 1");
+    expect(sourceValue("script")).toBe("window.__sentinel = 1");
     await act(async () => click("#scripted-reset"));
-    expect(container.querySelector<HTMLTextAreaElement>("#scripted-html")?.value).toBe("<p>one</p>");
+    expect(sourceValue("html")).toBe("<p>one</p>");
     expect(container.querySelector<HTMLInputElement>("[data-presentation-scripted-port-id]")?.value).toBe("one");
     expect(updates).toHaveLength(0);
     await act(async () => {
@@ -1016,8 +1024,8 @@ describe("ElementInspector dispatcher for Scripted", () => {
       );
     });
 
-    const html = container.querySelector<HTMLTextAreaElement>(
-      "#scripted-html",
+    const html = container.querySelector<HTMLButtonElement>(
+      '[data-scripted-source-edit="html"]',
     );
     const apply = container.querySelector<HTMLButtonElement>(
       "#scripted-apply-run",
@@ -1025,7 +1033,6 @@ describe("ElementInspector dispatcher for Scripted", () => {
 
     expect(html).not.toBeNull();
     expect(apply).not.toBeNull();
-    expect(html?.value).toBe("<h1>Hello</h1>");
   });
 
   it("does not show the unsupported-element hint for Scripted", async () => {

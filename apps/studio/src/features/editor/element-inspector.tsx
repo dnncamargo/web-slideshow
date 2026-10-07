@@ -29,6 +29,8 @@ import type {
   PlotPreviewControls,
   ShapePreviewControls,
   ShapeSvgImportCompositionHandler,
+  ScriptedSourceEditRequest,
+  ScriptedSourceKind,
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
@@ -117,6 +119,14 @@ interface ElementInspectorProps {
     onChange: (allowed: boolean) => void;
     feedback?: string | null;
   };
+
+  onEditScriptedSource?: (request: ScriptedSourceEditRequest) => void;
+
+  activeScriptedSource?: ScriptedSourceKind | null;
+
+  scriptedSourceEditorActive?: boolean;
+
+  scriptedSourceEditorDirty?: boolean;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -163,6 +173,10 @@ function ElementTypeInspector({
   galleryItemIndex,
   onGalleryItemIndexChange,
   rootLocalContentReceiver,
+  onEditScriptedSource,
+  activeScriptedSource,
+  scriptedSourceEditorActive,
+  scriptedSourceEditorDirty,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -260,6 +274,10 @@ function ElementTypeInspector({
           element={element}
           onUpdate={onUpdate}
           presentationFiles={presentation?.resources?.files ?? []}
+          onEditSource={onEditScriptedSource}
+          activeSource={activeScriptedSource}
+          largeSourceEditorActive={scriptedSourceEditorActive}
+          largeSourceEditorDirty={scriptedSourceEditorDirty}
         />
       );
 
@@ -346,6 +364,10 @@ export function ElementInspector({
   onGalleryItemIndexChange,
   onCreateQrFromLink,
   rootLocalContentReceiver,
+  onEditScriptedSource,
+  activeScriptedSource,
+  scriptedSourceEditorActive,
+  scriptedSourceEditorDirty,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
   const targetInspection = (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
@@ -436,6 +458,10 @@ export function ElementInspector({
         galleryItemIndex={galleryItemIndex}
         onGalleryItemIndexChange={onGalleryItemIndexChange}
         rootLocalContentReceiver={rootLocalContentReceiver}
+        onEditScriptedSource={onEditScriptedSource}
+        activeScriptedSource={activeScriptedSource}
+        scriptedSourceEditorActive={scriptedSourceEditorActive}
+        scriptedSourceEditorDirty={scriptedSourceEditorDirty}
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (
