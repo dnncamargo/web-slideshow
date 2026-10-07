@@ -155,6 +155,18 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
     return control;
   }
 
+  function panelButton(label: string): HTMLButtonElement {
+    const control = Array.from(host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.textContent?.trim() === label);
+    if (!control) throw new Error(`Panel button ${label} was not rendered`);
+    return control;
+  }
+
+  function buttonWithLabel(label: string): HTMLButtonElement | undefined {
+    return Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === label);
+  }
+
   function editorView(): EditorView {
     const editor = host.querySelector<HTMLElement>("[data-structured-text-editor] .cm-editor");
     if (!editor) throw new Error("Scripted source editor was not rendered");
@@ -200,6 +212,37 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
     await act(async () => click(host, "[data-text-file-action='discard']"));
     await act(async () => click(host, "[data-text-file-action='exit']"));
     return formatted;
+  }
+
+  async function formatScriptedSourceWithShortcut(source: "html" | "css" | "script", value: string): Promise<string> {
+    await act(async () => sourceButton(source).click());
+    await act(async () => {
+      const view = editorView();
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+    });
+
+    const view = editorView();
+    view.focus();
+    const event = key("f", { altKey: true, shiftKey: true });
+    await act(async () => view.contentDOM.dispatchEvent(event));
+
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
+      if (editorView().state.doc.toString() !== value) break;
+    }
+
+    const formatted = editorView().state.doc.toString();
+    await act(async () => click(host, "[data-text-file-action='discard']"));
+    await act(async () => click(host, "[data-text-file-action='exit']"));
+    return formatted;
+  }
+
+  async function waitForFormatError(): Promise<void> {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      if (host.querySelector("[data-text-file-format-error]")) return;
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
+    }
+    throw new Error("Format Code error did not render");
   }
 
   function select(id: string): HTMLSelectElement {
@@ -342,7 +385,11 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
     expect(host.querySelector<HTMLButtonElement>("#scripted-reset")?.disabled).toBe(true);
     expect(sourceButton("css").disabled).toBe(true);
     expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(true);
+    expect(buttonWithLabel("Custom Resources")).toBeUndefined();
+    expect(buttonWithLabel("Notes")).toBeUndefined();
     expect(host.querySelector("[data-scripted-source='html']")).not.toBeNull();
+    expect(host.querySelector("[data-presentation-files]")).toBeNull();
+    expect(host.querySelector("textarea[placeholder='Write private notes for this slide…']")).toBeNull();
 
     await act(async () => click(host, "[data-text-file-action='discard']"));
     expect(sourceButton("css").disabled).toBe(false);
@@ -356,6 +403,48 @@ describe("CP4C4 Scripted Apply / Run aggregate history", () => {
     expect(host.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(false);
     expect(await readScriptedSource("html")).toBe("<p>saved locally</p>");
     expect(await readScriptedSource("css")).toBe(INITIAL_SCRIPTED.css);
+    expect(buttonWithLabel("Custom Resources")?.disabled).toBe(false);
+    expect(buttonWithLabel("Notes")?.disabled).toBe(false);
+  });
+
+  it("formats focused Scripted HTML with Alt+Shift+F without updating the document or history", async () => {
+    await mountWorkspace();
+    await selectScripted();
+
+    const source = "<div><span>Shortcut</span></div>";
+    const formatted = await formatScriptedSourceWithShortcut("html", source);
+
+    expect(formatted).toBe("<div><span>Shortcut</span></div>\n");
+    expect(await readScriptedSource("html")).toBe(INITIAL_SCRIPTED.html);
+    await act(async () => panelButton("History").click());
+    expect(host.textContent).toContain("History is not populated yet.");
+  });
+
+  it("keeps malformed Scripted JavaScript unchanged and creates no history action", async () => {
+    await mountWorkspace();
+    await selectScripted();
+    await act(async () => sourceButton("script").click());
+
+    const malformed = "const value = {";
+    await act(async () => {
+      const view = editorView();
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: malformed } });
+    });
+
+    expect(host.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(true);
+    await act(async () => click(host, "[data-text-file-action='format']"));
+    await waitForFormatError();
+
+    expect(editorView().state.doc.toString()).toBe(malformed);
+    expect(host.querySelector<HTMLButtonElement>("#scripted-apply-run")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(true);
+
+    await act(async () => click(host, "[data-text-file-action='discard']"));
+    await act(async () => click(host, "[data-text-file-action='exit']"));
+    expect(await readScriptedSource("script")).toBe(INITIAL_SCRIPTED.script);
+    await act(async () => panelButton("History").click());
+    expect(host.textContent).toContain("History is not populated yet.");
   });
 
   it("uses native HTML, CSS, and JavaScript profiles with non-destructive formatting", async () => {
