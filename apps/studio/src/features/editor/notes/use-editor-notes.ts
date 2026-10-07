@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
+import type { SlideNotes } from "../../persistence/presentation-notes";
 
 import {
   createInitialEditorNotesState,
@@ -10,6 +11,10 @@ import {
   getNoteForSlide,
   type EditorNotesStatus,
 } from "../editor-notes-state";
+import {
+  getSlideNotes,
+  updateSlideNoteText,
+} from "../../persistence/presentation-notes";
 import {
   createNotesAutosave,
   type NotesAutosaveController,
@@ -64,8 +69,12 @@ export function useEditorNotes({
   const autosaveRef = useRef<NotesAutosaveController | null>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const persistNote = useCallback(
-    (targetPresentationId: string, slideId: string, note: string) => {
+  const persistSlideNotes = useCallback(
+    (
+      targetPresentationId: string,
+      slideId: string,
+      slideNotes: SlideNotes,
+    ) => {
       const repository = notesRepositoryRef.current;
 
       if (!repository) {
@@ -77,18 +86,22 @@ export function useEditorNotes({
           dispatch({
             type: "note-save-start",
             slideId,
-            note,
+            slideNotes,
           });
         }
 
         try {
-          await repository.setSlideNote(targetPresentationId, slideId, note);
+          await repository.setSlideNotes(
+            targetPresentationId,
+            slideId,
+            slideNotes,
+          );
 
           if (mountedRef.current) {
             dispatch({
               type: "note-save-success",
               slideId,
-              note,
+              slideNotes,
             });
           }
         } catch (error) {
@@ -98,7 +111,7 @@ export function useEditorNotes({
             dispatch({
               type: "note-save-error",
               slideId,
-              note,
+              slideNotes,
             });
           }
         }
@@ -119,7 +132,7 @@ export function useEditorNotes({
       delayMs: autosaveDelayMs,
       onSave: (save) => {
         setHasPending(autosave.hasPending());
-        persistNote(save.presentationId, save.slideId, save.note);
+        persistSlideNotes(save.presentationId, save.slideId, save.slideNotes);
       },
     });
     autosaveRef.current = autosave;
@@ -131,7 +144,7 @@ export function useEditorNotes({
       autosave.dispose();
       autosaveRef.current = null;
     };
-  }, [persistNote, autosaveDelayMs]);
+  }, [persistSlideNotes, autosaveDelayMs]);
 
   useEffect(() => {
     presentationIdRef.current = presentationId;
@@ -195,8 +208,18 @@ export function useEditorNotes({
       return;
     }
 
+    const nextNotes = updateSlideNoteText(
+      state.notes,
+      selectedSlideId,
+      value,
+    );
+
     dispatch({ type: "note-edit", slideId: selectedSlideId, note: value });
-    autosaveRef.current?.schedule(presentationId, selectedSlideId, value);
+    autosaveRef.current?.schedule(
+      presentationId,
+      selectedSlideId,
+      getSlideNotes(nextNotes, selectedSlideId),
+    );
     setHasPending(autosaveRef.current?.hasPending() ?? false);
   }
 

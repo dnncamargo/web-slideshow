@@ -20,6 +20,7 @@ import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
+import { getNoteForSlide } from "@/features/persistence/presentation-notes";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
@@ -516,7 +517,7 @@ export function PresenterView({
 
   const currentSlideNote =
     currentSlide !== null && notesState.kind === "ready"
-      ? (notesState.notes.bySlideId[currentSlide.id] ?? "")
+      ? getNoteForSlide(notesState.notes, currentSlide.id)
       : "";
 
   const fontResourcesCss = useMemo(

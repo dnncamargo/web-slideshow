@@ -5,11 +5,12 @@ import { requireAuthenticatedFirebaseUser } from "./authenticated-user";
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 import { FirestoreOperationError } from "./persistence-errors";
 import {
-  applySlideNote,
+  applySlideNotes,
   createEmptyNotes,
   makeFirestoreSafeNotes,
   normalizePersistedNotes,
   type PresentationNotes,
+  type SlideNotes,
 } from "./presentation-notes";
 import type { PresentationNotesRepository } from "./presentation-notes-repository";
 
@@ -66,10 +67,10 @@ export class FirestorePresentationNotesRepository
     }
   }
 
-  async setSlideNote(
+  async setSlideNotes(
     presentationId: string,
     slideId: string,
-    note: string,
+    slideNotes: SlideNotes,
   ): Promise<void> {
     const user = this.requireAuthenticatedUser();
     const firestore = getFirebaseFirestore();
@@ -81,7 +82,7 @@ export class FirestorePresentationNotesRepository
         const current = snapshot.exists()
           ? normalizePersistedNotes(snapshot.data())
           : createEmptyNotes();
-        const next = applySlideNote(current, slideId, note);
+        const next = applySlideNotes(current, slideId, slideNotes);
 
         transaction.set(notesRef, makeFirestoreSafeNotes(next));
       });
