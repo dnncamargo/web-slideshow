@@ -12,6 +12,7 @@ import {
   TextStylesSchema,
   resolveTextStyle,
   TextElementSchema,
+  TextVisualStyleSchema,
 } from "../src";
 
 import { defaultsInput } from "./fixtures/schema-fixtures";
@@ -81,6 +82,41 @@ describe("Text Styles canonical definitions", () => {
     expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: {} }).success).toBe(false);
     expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", typography: {} }).success).toBe(false);
     expect(CustomTextStyleSchema.safeParse({ id: "quote", name: "Quote", role: "body", style: { background: {} } }).success).toBe(false);
+  });
+
+  it("accepts one canonical text fill mode and palette gradient references", () => {
+    const gradient = {
+      type: "linear",
+      angle: 90,
+      stops: [
+        { color: { kind: "palette", colorId: "primary" }, position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    } as const;
+    const parsed = PresentationSchema.parse({
+      ...presentation(text({ style: { gradient } }), [{ id: "body", style: { gradient } }]),
+      palette: { colors: [{ id: "primary", name: "Primary", value: "#ff0000" }] },
+    });
+
+    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.slides[0]?.elements[0]).toMatchObject({ style: { gradient } });
+    expect(TextVisualStyleSchema.safeParse({ gradient }).success).toBe(true);
+    expect(TextStyleVisualPropertiesSchema.safeParse({ gradient }).success).toBe(true);
+  });
+
+  it("rejects mixed local and Text Style fill modes", () => {
+    const gradient = {
+      type: "linear",
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    } as const;
+
+    expect(TextVisualStyleSchema.safeParse({ color: "#ff0000", gradient }).success).toBe(false);
+    expect(TextStyleVisualPropertiesSchema.safeParse({ color: "#ff0000", gradient }).success).toBe(false);
+    expect(TextElementSchema.safeParse(text({ style: { color: "#ff0000", gradient } })).success).toBe(false);
+    expect(FundamentalTextStyleOverrideSchema.safeParse({ id: "body", style: { color: "#ff0000", gradient } }).success).toBe(false);
   });
 
   it("rejects every persisted fundamental empty-bag combination", () => {
@@ -271,6 +307,37 @@ describe("Text Styles canonical definitions", () => {
     expect(resolved.typography.textDecorationColor).toEqual({ kind: "palette", colorId: "primary" });
     expect(resolved.typography.textStroke?.color).toEqual({ kind: "palette", colorId: "primary" });
     expect(linked.slides[0]!.elements[0]).toEqual(before);
+  });
+
+  it("resolves the Text fill atomically with local ownership first", () => {
+    const gradient = {
+      type: "linear",
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    } as const;
+    const localColor = PresentationSchema.parse(presentation(
+      text({ variant: "body", style: { color: "#00ff00" } }),
+      [{ id: "body", style: { gradient } }],
+    ));
+    const localGradient = PresentationSchema.parse(presentation(
+      text({ variant: "body", style: { gradient } }),
+      [{ id: "body", style: { color: "#00ff00" } }],
+    ));
+    const linkedColor = PresentationSchema.parse(presentation(
+      text({ variant: "body" }),
+      [{ id: "body", style: { color: "#00ff00" } }],
+    ));
+    const linkedGradient = PresentationSchema.parse(presentation(
+      text({ variant: "body" }),
+      [{ id: "body", style: { gradient } }],
+    ));
+
+    expect(resolveTextStyle(localColor, localColor.slides[0]!.elements[0] as Extract<typeof localColor.slides[0]['elements'][number], { type: 'text' }>).style).toEqual({ color: "#00ff00" });
+    expect(resolveTextStyle(localGradient, localGradient.slides[0]!.elements[0] as Extract<typeof localGradient.slides[0]['elements'][number], { type: 'text' }>).style).toEqual({ gradient });
+    expect(resolveTextStyle(linkedColor, linkedColor.slides[0]!.elements[0] as Extract<typeof linkedColor.slides[0]['elements'][number], { type: 'text' }>).style).toEqual({ color: "#00ff00" });
+    expect(resolveTextStyle(linkedGradient, linkedGradient.slides[0]!.elements[0] as Extract<typeof linkedGradient.slides[0]['elements'][number], { type: 'text' }>).style).toEqual({ gradient });
   });
 
   it("keeps local properties when the linked Style omits them", () => {

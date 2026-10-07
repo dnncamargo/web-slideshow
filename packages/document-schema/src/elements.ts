@@ -13,6 +13,7 @@ import {
 import {
   ContainerLayoutSchema,
   ElementEffectSchema,
+  TextEffectSchema,
   ElementTypographySchema,
   CodeTypographySchema,
   TerminalTypographySchema,
@@ -108,7 +109,7 @@ export const TextElementSchema =
 
     typography: ElementTypographySchema.optional(),
 
-    effect: ElementEffectSchema.optional(),
+    effect: TextEffectSchema.optional(),
 
     link: ElementLinkSchema.optional(),
   }).strict();

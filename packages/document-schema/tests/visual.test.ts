@@ -7,6 +7,7 @@ import {
 import {
   BorderSchema,
   GradientSchema,
+  GlowSchema,
   ShadowSchema,
 } from "../src/visual";
 
@@ -161,5 +162,13 @@ describe("ShadowSchema", () => {
           "rgba(0,0,0,0.4)",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("GlowSchema", () => {
+  it("accepts only the canonical text glow fields", () => {
+    expect(GlowSchema.safeParse({ color: "#7c3aed", blur: 8 }).success).toBe(true);
+    expect(GlowSchema.safeParse({ color: "#7c3aed", blur: 8, x: 1 }).success).toBe(false);
+    expect(GlowSchema.safeParse({ color: "#7c3aed", blur: 8, spread: 2 }).success).toBe(false);
   });
 });

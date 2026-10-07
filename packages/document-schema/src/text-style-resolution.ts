@@ -47,6 +47,17 @@ function selectProperties<T extends object, K extends keyof T>(
   return selected;
 }
 
+function resolveTextFill(
+  local: TextStyleVisualProperties | undefined,
+  linked: TextStyleVisualProperties | undefined,
+): TextStyleVisualProperties {
+  if (local?.color !== undefined) return { color: local.color };
+  if (local?.gradient !== undefined) return { gradient: local.gradient };
+  if (linked?.color !== undefined) return { color: linked.color };
+  if (linked?.gradient !== undefined) return { gradient: linked.gradient };
+  return {};
+}
+
 export function resolveTextStyle(
   presentation: Presentation,
   text: TextElement,
@@ -59,10 +70,9 @@ export function resolveTextStyle(
     const inherited = text.styleDetached ? undefined : style;
     return {
       role: fundamentalVariant.data,
-      style: resolveOwnedProperties(
+      style: resolveTextFill(
         selectProperties(text.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
         selectProperties(inherited?.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
-        TEXT_STYLE_VISUAL_PROPERTY_NAMES,
       ),
       typography: resolveOwnedProperties(text.typography, inherited?.typography, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2),
       layout: resolveOwnedProperties(
@@ -79,10 +89,9 @@ export function resolveTextStyle(
 
   return {
     role: style.role,
-    style: resolveOwnedProperties(
+    style: resolveTextFill(
       selectProperties(text.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
       selectProperties(style.style, TEXT_STYLE_VISUAL_PROPERTY_NAMES),
-      TEXT_STYLE_VISUAL_PROPERTY_NAMES,
     ),
     typography: resolveOwnedProperties(text.typography, style.typography, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2),
     layout: resolveOwnedProperties(

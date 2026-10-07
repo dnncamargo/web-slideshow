@@ -12,6 +12,7 @@ import {
   detachTextStyle,
   resolveEffectiveTextStyleForAuthoring,
 } from "../src/features/editor/text-typography-authoring";
+import { clearLocalTextStyleProperty, getTextStylePropertyInfo } from "../src/features/editor/inspector/text-style-property";
 
 function presentation(textStyles?: unknown[], palette?: unknown) {
   return PresentationSchema.parse({
@@ -34,6 +35,65 @@ function text(overrides: Record<string, unknown> = {}) {
 }
 
 describe("effective text typography for authoring", () => {
+  it("resolves and switches Text fills as one owned slot", () => {
+    const gradient = {
+      type: "linear" as const,
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    };
+    const source = presentation([
+      { id: "source", name: "Source", role: "body", style: { gradient } },
+      { id: "destination", name: "Destination", role: "body", style: { color: "#0000ff" } },
+    ]);
+    const localColor = text({ variant: "source", style: { color: "#00ff00" } });
+    const localGradient = text({ variant: "destination", style: { gradient } });
+
+    expect(attachTextStyle(source, localColor, "destination")).not.toHaveProperty("style.color");
+    expect(attachTextStyle(source, localColor, "destination")).not.toHaveProperty("style.gradient");
+    expect(attachTextStyle(source, localGradient, "source")).not.toHaveProperty("style.gradient");
+
+    const detached = detachTextStyle(source, text({ variant: "source" }));
+    expect(detached.style).toEqual({ gradient });
+    expect(detached.style).not.toHaveProperty("color");
+  });
+
+  it("creates and resets exactly one Text fill mode", () => {
+    const gradient = {
+      type: "linear" as const,
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    };
+    const original = text({ variant: "body", style: { gradient, className: "keep" } });
+    const created = createTextStyleFromText(presentation(), original, "Gradient");
+
+    expect(created?.presentation.textStyles).toContainEqual({ id: "gradient", name: "Gradient", role: "body", style: { gradient } });
+    expect(created?.text.style).toEqual({ className: "keep" });
+
+    const reset = clearLocalTextStyleProperty(original, "gradient");
+    expect(reset.style).toEqual({ className: "keep" });
+    expect(reset.style).not.toHaveProperty("color");
+    expect(reset.style).not.toHaveProperty("gradient");
+  });
+
+  it("reports atomic fill ownership in Text Style source metadata", () => {
+    const gradient = {
+      type: "linear" as const,
+      stops: [
+        { color: "#000000", position: 0 },
+        { color: "#ffffff", position: 100 },
+      ],
+    };
+    const source = presentation([{ id: "body", style: { gradient } }]);
+    const local = text({ variant: "body", style: { color: "#00ff00" } });
+
+    expect(getTextStylePropertyInfo(source, local, "color")?.source).toBe("local");
+    expect(getTextStylePropertyInfo(source, local, "gradient")?.source).toBe("local");
+  });
+
   it("leaves source-only properties absent when switching styles", () => {
     const source = presentation([
       { id: "source", name: "Source", role: "body", typography: { fontSize: 20, fontStyle: "italic", fontWeight: 500, textAlign: "center" }, style: { color: "#00ff00" }, layout: { marginTop: 10, marginBottom: 12 } },

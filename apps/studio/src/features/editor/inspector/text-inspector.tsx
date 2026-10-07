@@ -155,6 +155,7 @@ export function TextInspector({
       : parent ? [parent] : [],
   );
   const textHasStrongerColor = element.style?.color !== undefined
+    || element.style?.gradient !== undefined
     || textColorSource?.source === "linked";
   const effectiveTextColorSource: InheritedColorSource | undefined = textHasStrongerColor
     ? undefined

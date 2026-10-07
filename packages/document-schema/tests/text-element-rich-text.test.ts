@@ -1,8 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import { PresentationElementSchema, TextElementSchema } from "../src";
+import { ElementEffectSchema, PresentationElementSchema, TextElementSchema } from "../src";
 
 describe("TextElementSchema rich text", () => {
+  it("accepts legacy Text shadows and the Text-specific glow extension", () => {
+    expect(TextElementSchema.safeParse({
+      type: "text",
+      id: "text-1",
+      hidden: false,
+      variant: "body",
+      content: "effects",
+      effect: {
+        shadow: { x: 0, y: 4, blur: 8, spread: 2, inset: true, color: "#000000" },
+        glow: { color: "#7c3aed", blur: 6 },
+      },
+    }).success).toBe(true);
+    expect(TextElementSchema.safeParse({
+      type: "text",
+      id: "text-1",
+      hidden: false,
+      variant: "body",
+      content: "effects",
+      effect: { glow: { color: "#7c3aed", blur: 6, strength: 2 } },
+    }).success).toBe(false);
+    expect(ElementEffectSchema.safeParse({ glow: { color: "#7c3aed", blur: 6 } }).success).toBe(false);
+  });
+
   it("parses legacy plain text content as a string", () => {
     const result = TextElementSchema.safeParse({
       type: "text",
