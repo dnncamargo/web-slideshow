@@ -23,6 +23,10 @@ export interface ParsedSvgPathAuthoringSource {
   layers?: SvgImportLayer[];
 }
 
+export function classifySvgPathAuthoringSource(source: string): "path" | "svg" {
+  return source.trimStart().startsWith("<") ? "svg" : "path";
+}
+
 export interface SvgImportLayer {
   geometry: {
     mode: "path";

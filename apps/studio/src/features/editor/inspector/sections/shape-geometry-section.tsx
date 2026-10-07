@@ -20,10 +20,14 @@ import {
   type ShapePreset,
 } from "../../shape-geometry-authoring";
 import {
+  classifySvgPathAuthoringSource,
   parseSvgPathAuthoringSource,
   serializeSvgPathData,
 } from "../../svg-path-authoring";
-import type { ShapeSvgImportCompositionHandler } from "../inspector-types";
+import type {
+  ShapePathSourceEditRequest,
+  ShapeSvgImportCompositionHandler,
+} from "../inspector-types";
 
 const numberChangeHistoryMeta = {
   kind: "number.change",
@@ -126,10 +130,18 @@ interface ShapeGeometrySectionProps {
   element: ShapeElement;
   onUpdate: (update: (element: ShapeElement) => ShapeElement) => void;
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+  onEditPathSource?: (request: ShapePathSourceEditRequest) => void;
+  largeSourceEditorActive?: boolean;
   presentationFiles?: readonly PresentationFileResource[];
 }
 
-export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition, presentationFiles = [] }: ShapeGeometrySectionProps) {
+function sourcePreview(source: string): string {
+  const compact = source.replace(/\s+/g, " ").trim();
+  if (compact.length === 0) return "—";
+  return compact.length > 96 ? `${compact.slice(0, 93)}…` : compact;
+}
+
+export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition, onEditPathSource, largeSourceEditorActive = false, presentationFiles = [] }: ShapeGeometrySectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const preset = getShapeGeometryPreset(element.geometry);
@@ -309,6 +321,18 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
     setPathMessage(null);
   }
 
+  function editPathSource(): void {
+    onEditPathSource?.({
+      elementId: element.id,
+      kind: classifySvgPathAuthoringSource(drafts.pathSource),
+      baseline: drafts.pathSource,
+      onSaveDraft: (content) => {
+        setDraftState((current) => ({ ...current, identity, pathSource: content }));
+        setPathMessage(null);
+      },
+    });
+  }
+
   function updateTriangle(value: string): void {
     const parsed = parseFiniteNumber(value);
     if (parsed === undefined || parsed < 0 || parsed > 100) {
@@ -382,7 +406,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
               replaceGeometry(nextPreset as Exclude<ShapePreset, "custom" | "qr-code">);
             }
           }}
-          disabled={preset === "qr-code"}
+          disabled={preset === "qr-code" || largeSourceEditorActive}
         >
           {preset === "qr-code" && <option value="qr-code">{t("inspector.shape.qrCode")}</option>}
           {SHAPE_AUTHORING_PRESETS.map((option) => (
@@ -400,6 +424,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
             name="shapeSvgFile"
             value={selectedSvgFileId}
             onChange={(event) => setSelectedSvgFileId(event.target.value)}
+            disabled={largeSourceEditorActive}
           >
             <option value="">{t("inspector.shape.selectSvgFile")}</option>
             {svgFiles.map((file) => <option key={file.id} value={file.id}>{file.name}</option>)}
@@ -408,7 +433,7 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
             id="shape-svg-file-import"
             type="button"
             className={styles.secondaryButton}
-            disabled={selectedSvgFileId === ""}
+            disabled={selectedSvgFileId === "" || largeSourceEditorActive}
             onClick={() => importSelectedSvgFile()}
           >
             {t("inspector.shape.importSvgFile")}
@@ -418,22 +443,24 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
 
       {effectivePreset === "custom" && (
         <>
-          <label className={styles.field}>
+          <div className={styles.field} data-shape-path-source>
             <span>{t("inspector.shape.pathSource")}</span>
-            <textarea
-              id="shape-path-source"
-              name="shapePathSource"
-              className={styles.textArea}
-              rows={5}
-              spellCheck={false}
-              value={drafts.pathSource}
-              onChange={(event) => {
-                setDraft("pathSource", event.target.value);
-                setPathMessage(null);
-              }}
-            />
+            <div className={styles.scriptedSourceRow}>
+              <div className={styles.scriptedSourceDetails}>
+                <code className={styles.scriptedSourcePreview} title={drafts.pathSource}>{sourcePreview(drafts.pathSource)}</code>
+              </div>
+              <button
+                id="shape-path-source-edit"
+                type="button"
+                className={styles.secondaryButton}
+                disabled={largeSourceEditorActive}
+                onClick={editPathSource}
+              >
+                {t("inspector.shape.editPathSource")}
+              </button>
+            </div>
             <small className={styles.fieldHint}>{t("inspector.shape.pathSourceHint")}</small>
-          </label>
+          </div>
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
               <span>{t("inspector.shape.viewBoxX")}</span>
@@ -461,8 +488,8 @@ export function ShapeGeometrySection({ element, onUpdate, onImportSvgComposition
           </label>
           {pathMessage !== null ? <small className={styles.fieldHint}>{pathMessage}</small> : null}
           <div className={styles.elementCrudActions}>
-            <button id="shape-path-apply" type="button" className={styles.secondaryButton} onClick={() => applyPathDraft()}>{t("inspector.shape.applyPath")}</button>
-            <button id="shape-path-reset" type="button" className={styles.secondaryButton} onClick={resetPathDraft}>{t("inspector.shape.resetPath")}</button>
+            <button id="shape-path-apply" type="button" className={styles.secondaryButton} disabled={largeSourceEditorActive} onClick={() => applyPathDraft()}>{t("inspector.shape.applyPath")}</button>
+            <button id="shape-path-reset" type="button" className={styles.secondaryButton} disabled={largeSourceEditorActive} onClick={resetPathDraft}>{t("inspector.shape.resetPath")}</button>
           </div>
         </>
       )}

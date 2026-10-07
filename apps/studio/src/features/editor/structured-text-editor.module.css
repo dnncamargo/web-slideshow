@@ -155,7 +155,24 @@
 }
 
 .editorHost :global(.cm-gutters) {
-  display: none;
+  border-right: 1px solid #232a36;
+  background: #0d121a;
+  color: #64748b;
+}
+
+.editorHost :global(.cm-lineNumbers .cm-gutterElement) {
+  min-width: 3ch;
+  padding: 0 10px 0 8px;
+  text-align: right;
+}
+
+.editorHost :global(.cm-activeLine) {
+  background: color-mix(in srgb, var(--ps-ui-semantic-accent) 7%, transparent);
+}
+
+.editorHost :global(.cm-activeLineGutter) {
+  background: color-mix(in srgb, var(--ps-ui-semantic-accent) 14%, transparent);
+  color: #cbd5e1;
 }
 
 .editorHost :global(.cm-cursor) {
@@ -170,4 +187,153 @@
 .editorHost :global(.cm-editor.cm-focused) {
   box-shadow: inset 0 0 0 2px var(--ps-ui-semantic-focus);
   outline: 0;
+}
+
+.editorHost :global(.cm-panels.cm-panels-top) {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+.editorHost :global(.cm-structuredSearch) {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto 26px 26px;
+  box-sizing: border-box;
+  width: min(440px, calc(100% - 16px));
+  max-width: calc(100% - 16px);
+  min-width: 0;
+  row-gap: 6px;
+  column-gap: 5px;
+  padding: 8px;
+  border: 1px solid #303847;
+  border-radius: 7px;
+  background: #151b25;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 35%);
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: auto;
+}
+
+.editorHost :global(.cm-structuredSearchRow) {
+  display: contents;
+}
+
+.editorHost :global(.cm-structuredSearchReplaceRow[hidden]) {
+  display: none;
+}
+
+.editorHost :global(.cm-structuredSearchDisclosure),
+.editorHost :global(.cm-structuredSearchAction),
+.editorHost :global(.cm-structuredSearchToggle) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #cbd5e1;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.editorHost :global(.cm-structuredSearchDisclosure) {
+  width: 26px;
+  padding: 0;
+  color: #94a3b8;
+}
+
+.editorHost :global(.cm-structuredSearchAction) {
+  width: 26px;
+  min-width: 26px;
+  padding-inline: 0;
+}
+
+.editorHost :global(.cm-structuredSearchAction:hover),
+.editorHost :global(.cm-structuredSearchDisclosure:hover),
+.editorHost :global(.cm-structuredSearchToggle:hover) {
+  border-color: #3e5369;
+  background: #202b39;
+  color: #ecfeff;
+}
+
+.editorHost :global(.cm-structuredSearchToggle[aria-pressed="true"]) {
+  border-color: #2c7180;
+  background: color-mix(in srgb, var(--ps-ui-semantic-accent) 16%, #151b25);
+  color: #cffafe;
+}
+
+.editorHost :global(.cm-structuredSearchField) {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #080b10;
+}
+
+.editorHost :global(.cm-structuredSearchFindField) {
+  padding-right: 0;
+}
+
+.editorHost :global(.cm-structuredSearchInput) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  min-height: 26px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  line-height: 1.2;
+}
+
+.editorHost :global(.cm-structuredSearchInput:focus-visible) {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: -1px;
+}
+
+.editorHost :global(.cm-structuredSearchToggle) {
+  min-width: 25px;
+  min-height: 24px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.editorHost :global(.cm-structuredSearchStatus) {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.editorHost :global(.cm-structuredSearchSpacer) {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+}
+
+.editorHost :global(.cm-structuredSearch button:focus-visible) {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
 }

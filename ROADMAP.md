@@ -756,11 +756,23 @@ Completed the vertical stacking of Scripted Control port controls without changi
 
 Completed normalization of new duplicate IDs from a stable pre-copy family root, including malformed historical trailing copy suffixes, without migration, canonical schema changes, or unrelated authoring behavior.
 
+### 4. Structured source editor and Shape source authoring ✅
+
+Completed the shared CodeMirror authoring surface for Presentation text Files, Scripted HTML/CSS/JavaScript and Shape Custom path/SVG without introducing a shared persistence model. Presentation Files retain their `file.source.content` Save boundary; Scripted retains local drafts plus canonical **Apply / Run**; Shape retains the existing `pathSource` draft plus canonical Shape **Apply**. Raw Shape path data remains plain text, bounded SVG uses XML editing/formatting, compound and unsafe SVG behavior stays on the existing importer/parser path, and Shape does not persist original SVG source.
+
+The shared editor now includes syntax profiles, pairing/indentation helpers, local Undo/Redo, supported Format Code, line numbers, active-line/gutter highlighting, selection-match highlighting and a compact floating Find/Replace surface backed by the official `@codemirror/search` state and commands. Search/Replace edits remain transient until the owning consumer's existing Save/Apply boundary. No additional consumers, Blocks live-preview editor, generic source/preview mode, tabs, LSP or persisted source abstraction remain in this workstream.
+
 ## Current next area
 
-### 1. Text effects — shadow / glow ← NEXT
+### 1. Text effects — gradient fill / shadow / glow ← NEXT
 
-Audit the current Text effect schema and renderer, existing shadow support, Text Style ownership compatibility, Linked/inherited Color interactions, Palette compatibility, Firefox 116 CSS compatibility and Inspector conventions. Do not freeze a new canonical schema before evidence; avoid creating a duplicate effect system.
+Audit the current Text typography/visual/effect schema, renderer and Inspector before changing the document contract. Determine whether gradient text fill can reuse existing Gradient/ColorValue primitives and whether shadow/glow can reuse or extend existing effect primitives without creating a second text-only effect system. Include Text Style ownership/precedence, inherited/linked Color interactions, Palette compatibility, shared renderer parity, publication/runtime behavior and Firefox 116 compatibility. Freeze canonical changes only after evidence.
+
+### 2. Pointed Notes — numbered Canvas markers + Control reading ← AFTER TEXT EFFECTS
+
+Extend the existing Notes capability so Editor authors can associate numbered references `[1]`, `[2]`, `[3]`… with note text and visually position the corresponding markers on the relevant slide. Editor must support authoring/editing the pointed notes and marker positions; Control must be able to read the resulting notes and their numbered references.
+
+Begin with an audit of the current private Notes storage, Editor ownership, slide association, Control read path and Canvas overlay architecture. Preserve the current rule that Notes stay outside the canonical Presentation unless concrete evidence requires a different boundary. The markers are authoring/presenter metadata, not Player content by default. Do not introduce a second notes system or preselect a persisted marker schema before the audit.
 
 ---
 
@@ -784,7 +796,6 @@ Deferred candidates include:
 - direct This Presentation FontResource authoring;
 - Topics → Text Style consumption;
 - Custom Library portability refinements;
-- remaining WYSIWYG/Text improvements (the explicit Text shadow/glow work is tracked in the immediate queue).
 
 Backlog items are not active checkpoints until evidence and an explicit product decision promote them.
 
@@ -832,12 +843,15 @@ P12   UX / Properties refinement                            ✅
        Managed binary storage on Vercel Blob (#215)           ✅
        Scripted FontResource parity (#216)                    ✅
        Library-thumbnail FontResource rendering              ✅
+       Structured source editor + Shape path/SVG authoring    ✅
 
 NEXT:
-  1. Text effects — shadow / glow ← NEXT
+  1. Text effects — gradient fill / shadow / glow ← NEXT
+  2. Pointed Notes — numbered Canvas markers + Control reading
 
 IMMEDIATE QUEUE:
-  1. Text effects — shadow / glow ← NEXT
+  1. Text effects — gradient fill / shadow / glow ← NEXT
+  2. Pointed Notes — numbered Canvas markers + Control reading
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -851,7 +865,6 @@ FUTURE / DEFERRED:
   direct This Presentation FontResource authoring
   Topics → Text Style consumption
   Custom Library portability
-  remaining WYSIWYG/Text improvements
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — shadow / glow audit before changing production code.
+The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and begin with the Text effects — gradient fill / shadow / glow audit before changing production code. Pointed Notes follows only after that checkpoint is closed.

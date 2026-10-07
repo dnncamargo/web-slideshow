@@ -143,6 +143,20 @@ The product should be driven primarily by semantic resource kind. File extension
 
 This taxonomy is a product/architecture direction only. It does not introduce a new persisted schema, freeze implementation field names, or change `schemaVersion`, which remains literally `1`.
 
+## Structured source editing
+
+Studio has one shared CodeMirror-based editing surface for textual authoring, while each consumer retains its own persistence boundary.
+
+Current consumers are:
+
+- Presentation text Files: `.txt`, `.md`, `.csv`, `.json`, `.xml` and textual `.svg`; Save commits `file.source.content`.
+- Scripted: HTML, CSS and JavaScript use local Inspector drafts; editor Save updates only the corresponding draft and **Apply / Run** remains the canonical aggregate commit.
+- Shape Custom path/SVG: editor Save updates only the existing `pathSource` draft; raw path data uses the plain-text profile, bounded SVG uses the XML profile, and the existing Shape **Apply** path remains the only canonical materialization boundary. Shape does not persist the original SVG source.
+
+The shared surface provides syntax-aware CodeMirror profiles where applicable, pairing/indentation helpers, local Undo/Redo, Format Code for supported structured/code profiles, line numbers, active-line highlighting, selection-match highlighting and compact Find/Replace backed by `@codemirror/search`. Search and Replace mutate only the transient editor draft until the owning consumer's existing Save/Apply boundary is invoked.
+
+This is intentionally a shared authoring surface, not a generic persisted source-document abstraction. No additional editor consumers are planned by this workstream.
+
 Editor History is a current authoring capability. It provides session-only Undo/Redo over canonical Presentation snapshots; History is not persisted into the document or carried into a new Editor session.
 
 Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.

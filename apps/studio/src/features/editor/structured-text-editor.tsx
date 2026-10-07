@@ -8,6 +8,13 @@ import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
 import {
+  closeSearchPanel,
+  highlightSelectionMatches,
+  openSearchPanel,
+  search,
+  searchKeymap,
+} from "@codemirror/search";
+import {
   bracketMatching,
   HighlightStyle,
   indentOnInput,
@@ -15,7 +22,13 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import {
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Plugin } from "prettier";
@@ -23,6 +36,7 @@ import type { Plugin } from "prettier";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./structured-text-editor.module.css";
+import { createStructuredTextSearchPanel } from "./structured-text-search-panel";
 
 export type StructuredTextEditorProfile = "plain" | "json" | "xml" | "html" | "css" | "javascript";
 
@@ -153,10 +167,19 @@ export function StructuredTextEditor({
     closeBrackets(),
     indentOnInput(),
     history(),
+    lineNumbers(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    search({
+      top: true,
+      createPanel: (view) => createStructuredTextSearchPanel(view, t),
+    }),
+    highlightSelectionMatches(),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,
       ...historyKeymap,
+      ...searchKeymap,
       indentWithTab,
       ...formatKeymap,
     ]),
@@ -166,7 +189,7 @@ export function StructuredTextEditor({
         setFormatError(false);
       }
     }),
-  ], [formatKeymap, languageExtension]);
+  ], [formatKeymap, languageExtension, t]);
   const createEditorState = useCallback((content: string, mode: IndentationMode): EditorState => EditorState.create({
     doc: content,
     extensions: [
@@ -307,6 +330,24 @@ export function StructuredTextEditor({
               {formatting ? t("editor.textFileFormatting") : t("editor.textFileFormatCode")}
             </button>
           ) : null}
+          <button
+            type="button"
+            className={styles.toolbarAction}
+            data-text-file-action="search"
+            aria-label={t("editor.textFileSearchShortcut")}
+            title={t("editor.textFileSearchShortcut")}
+            onClick={() => {
+              const view = editorViewRef.current;
+              if (!view) return;
+              if (view.dom.querySelector(".cm-structuredSearch")) {
+                closeSearchPanel(view);
+              } else {
+                openSearchPanel(view);
+              }
+            }}
+          >
+            {t("editor.textFileSearch")}
+          </button>
           <button
             type="button"
             className={styles.toolbarAction}

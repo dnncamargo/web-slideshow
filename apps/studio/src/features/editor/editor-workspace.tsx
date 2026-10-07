@@ -320,6 +320,8 @@ import {
 import type {
   PlotPreviewControls,
   ShapePreviewControls,
+  ShapePathSourceEditRequest,
+  ShapePathSourceKind,
   ShapeSvgImportComposition,
   ShapeSvgImportCompositionHandler,
   ScriptedSourceEditRequest,
@@ -461,6 +463,10 @@ function scriptedSourceProfile(source: ScriptedSourceKind): StructuredTextEditor
   if (source === "html") return "html";
   if (source === "css") return "css";
   return "javascript";
+}
+
+function shapePathSourceProfile(source: ShapePathSourceKind): StructuredTextEditorProfile {
+  return source === "svg" ? "xml" : "plain";
 }
 
 interface GalleryItemSelection {
@@ -1422,12 +1428,16 @@ export function EditorWorkspace({
   const [textEditingDirty, setTextEditingDirty] = useState(false);
   const [scriptedSourceSession, setScriptedSourceSession] = useState<ScriptedSourceEditRequest | null>(null);
   const [scriptedSourceEditorDirty, setScriptedSourceEditorDirty] = useState(false);
+  const [shapePathSourceSession, setShapePathSourceSession] = useState<ShapePathSourceEditRequest | null>(null);
+  const [shapePathSourceEditorDirty, setShapePathSourceEditorDirty] = useState(false);
   const textEditingFile = textEditingFileId === null
     ? null
     : presentation.resources?.files?.find(
       (file): file is PresentationTextFileResource => file.id === textEditingFileId && file.representation === "text",
     ) ?? null;
   const scriptedSourceEditorActive = scriptedSourceSession !== null;
+  const shapePathSourceEditorActive = shapePathSourceSession !== null;
+  const largeSourceEditorActive = scriptedSourceEditorActive || shapePathSourceEditorActive;
 
   const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
   const resourcePresentationId = useRef(presentation.id);
@@ -1858,7 +1868,15 @@ export function EditorWorkspace({
       setScriptedSourceSession(null);
       setScriptedSourceEditorDirty(false);
     }
-  }, [scriptedSourceSession, selectedDocumentElement]);
+    if (
+      shapePathSourceSession !== null
+      && (selectedDocumentElement?.type !== "shape"
+        || selectedDocumentElement.id !== shapePathSourceSession.elementId)
+    ) {
+      setShapePathSourceSession(null);
+      setShapePathSourceEditorDirty(false);
+    }
+  }, [scriptedSourceSession, selectedDocumentElement, shapePathSourceSession]);
   /* eslint-enable react-hooks/set-state-in-effect */
   const selectedElementOwner = selectedDocumentElement && materializedOwnership
     ? materializedOwnership.get(selectedDocumentElement.id)
@@ -4772,6 +4790,13 @@ export function EditorWorkspace({
     setScriptedSourceSession(request);
   }
 
+  function editShapePathSource(request: ShapePathSourceEditRequest): void {
+    if (selectedDocumentElement?.type !== "shape" || selectedDocumentElement.id !== request.elementId) return;
+    setRightPanelMode("editor");
+    setShapePathSourceEditorDirty(false);
+    setShapePathSourceSession(request);
+  }
+
   function saveScriptedSourceDraft(content: string): void {
     const session = scriptedSourceSession;
     if (session === null) return;
@@ -4784,6 +4809,20 @@ export function EditorWorkspace({
     if (scriptedSourceEditorDirty) return;
     setScriptedSourceSession(null);
     setScriptedSourceEditorDirty(false);
+  }
+
+  function saveShapePathSourceDraft(content: string): void {
+    const session = shapePathSourceSession;
+    if (session === null) return;
+    session.onSaveDraft(content);
+    setShapePathSourceSession({ ...session, baseline: content });
+    setShapePathSourceEditorDirty(false);
+  }
+
+  function exitShapePathSourceEditor(): void {
+    if (shapePathSourceEditorDirty) return;
+    setShapePathSourceSession(null);
+    setShapePathSourceEditorDirty(false);
   }
 
   function updatePresentationTextFileContent(fileResourceId: string, content: string): void {
@@ -6931,6 +6970,43 @@ export function EditorWorkspace({
               setTextEditingDirty(false);
             }}
           />
+        ) : shapePathSourceSession ? (
+          <>
+            <aside className={styles.scriptedSourceContext} data-shape-source-context>
+              <div className={styles.scriptedSourceContextHeader}>{t("editor.shapeSourceEditing")}</div>
+              <div className={styles.scriptedSourceContextContent}>
+                <h2 className={styles.scriptedSourceContextTitle}>{t("element.shape")}</h2>
+                <dl className={styles.scriptedSourceContextMetadata}>
+                  <div className={styles.scriptedSourceContextMetadataRow}>
+                    <dt className={styles.scriptedSourceContextLabel}>{t("inspector.id")}</dt>
+                    <dd className={styles.scriptedSourceContextValue}>{shapePathSourceSession.elementId}</dd>
+                  </div>
+                  <div className={styles.scriptedSourceContextMetadataRow}>
+                    <dt className={styles.scriptedSourceContextLabel}>{t("editor.shapeSourceKind")}</dt>
+                    <dd className={styles.scriptedSourceContextValue}>
+                      {t(shapePathSourceSession.kind === "svg" ? "editor.shapeSourceSvg" : "editor.shapeSourcePath")}
+                    </dd>
+                  </div>
+                </dl>
+                <p
+                  className={`${styles.scriptedSourceContextStatus} ${shapePathSourceEditorDirty ? styles.scriptedSourceContextStatusModified : ""}`}
+                  data-shape-source-status
+                >
+                  {shapePathSourceEditorDirty ? t("editor.textFileModified") : t("editor.textFileClean")}
+                </p>
+              </div>
+            </aside>
+            <StructuredTextEditor
+              key={`${shapePathSourceSession.elementId}:${shapePathSourceSession.kind}`}
+              title={t("element.shape")}
+              baseline={shapePathSourceSession.baseline}
+              profile={shapePathSourceProfile(shapePathSourceSession.kind)}
+              ariaLabel={t("editor.shapeSourceEditor")}
+              onSave={saveShapePathSourceDraft}
+              onDirtyChange={setShapePathSourceEditorDirty}
+              onExit={exitShapePathSourceEditor}
+            />
+          </>
         ) : scriptedSourceSession ? (
           <>
             <aside className={styles.scriptedSourceContext} data-scripted-source-context>
@@ -7152,9 +7228,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "resources"}
-                disabled={scriptedSourceEditorActive}
+                disabled={largeSourceEditorActive}
                 onClick={() => {
-                  if (scriptedSourceEditorActive) return;
+                  if (largeSourceEditorActive) return;
                   setRightPanelMode((current) =>
                     current === "resources" ? "editor" : "resources",
                   );
@@ -7171,9 +7247,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "notes"}
-                disabled={rootDefinitionMode || scriptedSourceEditorActive}
+                disabled={rootDefinitionMode || largeSourceEditorActive}
                 onClick={() => {
-                  if (rootDefinitionMode || scriptedSourceEditorActive) return;
+                  if (rootDefinitionMode || largeSourceEditorActive) return;
                   setRightPanelMode((current) =>
                     current === "notes" ? "editor" : "notes",
                   );
@@ -7651,7 +7727,7 @@ export function EditorWorkspace({
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
                    onBrowseElementStyles={() => {
-                     if (elementStyleApplyAllowed && !scriptedSourceEditorActive) setRightPanelMode("resources");
+                     if (elementStyleApplyAllowed && !largeSourceEditorActive) setRightPanelMode("resources");
                    }}
                    palette={presentation.palette}
                    fontResources={presentation.resources?.fonts}
@@ -7791,9 +7867,11 @@ export function EditorWorkspace({
                               : undefined
                           }
                           onEditScriptedSource={editScriptedSource}
+                          onEditShapePathSource={editShapePathSource}
                           activeScriptedSource={scriptedSourceSession?.source ?? null}
                           scriptedSourceEditorActive={scriptedSourceEditorActive}
                           scriptedSourceEditorDirty={scriptedSourceEditorDirty}
+                          shapeSourceEditorActive={shapePathSourceEditorActive}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}

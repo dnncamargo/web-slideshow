@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { EditorView } from "@codemirror/view";
 
 import { PresentationSchema, type Presentation, type PresentationFileResource, type ShapeElement } from "@web-slideshow/document-schema";
 
@@ -10,6 +11,8 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ElementInspector } from "../src/features/editor/element-inspector";
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { ShapeInspector } from "../src/features/editor/inspector/shape-inspector";
+import type { ShapePathSourceEditRequest } from "../src/features/editor/inspector/inspector-types";
+import { StructuredTextEditor } from "../src/features/editor/structured-text-editor";
 import { PresentationColorPaletteProvider } from "../src/features/editor/inspector/sections/presentation-color-palette";
 import { createShapeGeometry } from "../src/features/editor/shape-geometry-authoring";
 
@@ -97,6 +100,55 @@ function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: str
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function ShapeSourceEditingHarness({
+  element,
+  onUpdate,
+  presentationFiles,
+}: {
+  element: ShapeElement;
+  onUpdate: (update: (element: ShapeElement) => ShapeElement) => void;
+  presentationFiles: readonly PresentationFileResource[];
+}) {
+  const [request, setRequest] = useState<ShapePathSourceEditRequest | null>(null);
+  const [dirty, setDirty] = useState(false);
+
+  return (
+    <>
+      <ShapeInspector
+        element={element}
+        onUpdate={(update) => onUpdate((current) => {
+          const next = update(current);
+          return next.type === "shape" ? next : current;
+        })}
+        onEditPathSource={(nextRequest) => {
+          setDirty(false);
+          setRequest(nextRequest);
+        }}
+        largeSourceEditorActive={request !== null}
+        presentationFiles={presentationFiles}
+      />
+      {request ? (
+        <StructuredTextEditor
+          key={`${request.elementId}:${request.kind}`}
+          title="Shape"
+          baseline={request.baseline}
+          profile={request.kind === "svg" ? "xml" : "plain"}
+          ariaLabel="Shape source editor"
+          onSave={(content) => {
+            request.onSaveDraft(content);
+            setRequest((current) => current ? { ...current, baseline: content } : current);
+            setDirty(false);
+          }}
+          onDirtyChange={setDirty}
+          onExit={() => {
+            if (!dirty) setRequest(null);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
 function key(value: string, options: KeyboardEventInit = {}): KeyboardEvent {
   return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options });
 }
@@ -152,7 +204,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const render = () => root.render(
       <StudioI18nProvider>
         <PresentationColorPaletteProvider colors={[{ id: "brand", name: "Brand", value: "#123456" }]}>
-          <ShapeInspector
+          <ShapeSourceEditingHarness
             element={state}
             onUpdate={(update) => {
               const next = update(state);
@@ -214,6 +266,41 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const control = host.querySelector<HTMLTextAreaElement>(`#${id}`);
     if (!control) throw new Error(`textarea ${id} was not rendered`);
     return control;
+  }
+
+  function shapePathSourceEditButton(): HTMLButtonElement {
+    const control = host.querySelector<HTMLButtonElement>("#shape-path-source-edit");
+    if (!control) throw new Error("Shape path source Edit button was not rendered");
+    return control;
+  }
+
+  function panelButton(label: string): HTMLButtonElement {
+    const control = Array.from(host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.textContent?.trim() === label);
+    if (!control) throw new Error(`Panel button ${label} was not rendered`);
+    return control;
+  }
+
+  function editorView(): EditorView {
+    const editor = host.querySelector<HTMLElement>("[data-structured-text-editor] .cm-editor");
+    if (!editor) throw new Error("Shape source editor was not rendered");
+    const view = EditorView.findFromDOM(editor);
+    if (!view) throw new Error("CodeMirror view was not found");
+    return view;
+  }
+
+  async function openShapePathSource(): Promise<EditorView> {
+    await act(async () => shapePathSourceEditButton().click());
+    return editorView();
+  }
+
+  async function saveAndExitShapePathSource(source: string): Promise<void> {
+    await act(async () => {
+      const view = editorView();
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
   }
 
   it("supports None, preserves stroke, and keeps geometry/layout unchanged", async () => {
@@ -620,12 +707,12 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
       "star",
       "custom",
     ]);
-    expect(host.querySelector("#shape-path-source")).toBeNull();
+    expect(host.querySelector("[data-shape-path-source]")).toBeNull();
     expect(host.querySelector("#shape-svg-file")).toBeNull();
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
 
     expect(select("shape-geometry-preset").value).toBe("custom");
-    expect(textArea("shape-path-source")).not.toBeNull();
+    expect(host.querySelector("[data-shape-path-source]")).not.toBeNull();
     expect(state.geometry).toBe(canonicalGeometry);
   });
 
@@ -642,11 +729,11 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
       await mount(shapeElement({ geometry }), [SHAPE_SVG_FILE]);
 
       expect(select("shape-geometry-preset").value).toBe(value);
-      expect(host.querySelector("#shape-path-source")).toBeNull();
+      expect(host.querySelector("[data-shape-path-source]")).toBeNull();
       expect(host.querySelector("#shape-svg-file")).toBeNull();
 
       await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-      expect(textArea("shape-path-source")).not.toBeNull();
+      expect(host.querySelector("[data-shape-path-source]")).not.toBeNull();
       expect(select("shape-svg-file")).not.toBeNull();
       expect(host.querySelector("#shape-apex-x")).toBeNull();
       expect(host.querySelector("#shape-polygon-points")).toBeNull();
@@ -662,13 +749,17 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(Array.from(select("shape-geometry-preset").options).map((option) => option.value)).toContain("custom");
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
     expect(select("shape-geometry-preset").value).toBe("custom");
-    expect(textArea("shape-path-source").value).toBe("");
+    const editor = await openShapePathSource();
+    expect(editor.state.doc.toString()).toBe("");
+    expect(host.querySelector("[data-text-file-action='format']")).toBeNull();
     expect(state.geometry).toBe(generatedGeometry);
 
     await act(async () => {
-      setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: "M 0 0 L 80 0 L 80 80 Z" } });
     });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(state.geometry).not.toBe(generatedGeometry);
     expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 100, height: 100 } });
     expect(select("shape-geometry-preset").value).toBe("custom");
@@ -680,15 +771,40 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     }));
     const generatedGeometry = state.geometry;
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), "<svg>");
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await openShapePathSource();
+    await saveAndExitShapePathSource("<svg>");
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
 
     expect(state.geometry).toBe(generatedGeometry);
     expect(select("shape-geometry-preset").value).toBe("custom");
-    expect(textArea("shape-path-source")).not.toBeNull();
+    expect(host.querySelector("[data-shape-path-source]")).not.toBeNull();
     expect(host.textContent).toContain("SVG");
+  });
+
+  it("keeps Shape source edits local and guards conflicting controls during a dirty session", async () => {
+    await mount(shapeElement(), [SHAPE_SVG_FILE]);
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    const editor = await openShapePathSource();
+
+    await act(async () => {
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: "M 1 1" } });
+    });
+
+    expect(state.geometry).toEqual(RECTANGLE_GEOMETRY);
+    expect(select("shape-geometry-preset").disabled).toBe(true);
+    expect(shapePathSourceEditButton().disabled).toBe(true);
+    expect(select("shape-svg-file").disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("#shape-svg-file-import")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("#shape-path-apply")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("#shape-path-reset")?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(true);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    expect(editor.state.doc.toString()).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.disabled).toBe(false);
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
+    expect(host.querySelector("[data-structured-text-editor]")).toBeNull();
+    expect(host.querySelector<HTMLButtonElement>("#shape-path-apply")?.disabled).toBe(false);
   });
 
   it("leaves Custom path draft mode when an ordinary preset is selected", async () => {
@@ -701,7 +817,7 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await act(async () => changeSelect(select("shape-geometry-preset"), "triangle"));
     expect(select("shape-geometry-preset").value).toBe("triangle");
     expect(state.geometry).toMatchObject({ mode: "generated", generator: "triangle", config: { apexX: 50 } });
-    expect(host.querySelector("#shape-path-source")).toBeNull();
+    expect(host.querySelector("[data-shape-path-source]")).toBeNull();
   });
 
   it("edits Path geometry through a draft and keeps invalid Apply non-mutating", async () => {
@@ -709,15 +825,18 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
 
     expect(select("shape-geometry-preset").value).toBe("rectangle");
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
+    const editor = await openShapePathSource();
+    expect(editor.state.doc.toString()).toBe("M 0 0 L 100 0 L 100 100 L 0 100 Z");
 
     await act(async () => {
-      setInputValue(textArea("shape-path-source"), "m 10 10 h 80 v 80 h -80 z");
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: "m 10 10 h 80 v 80 h -80 z" } });
       setInputValue(input("shape-path-viewbox-width"), "120");
       changeSelect(select("shape-path-fill-rule"), "evenodd");
     });
     expect(state.geometry).toEqual(RECTANGLE_GEOMETRY);
 
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
     await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(state.geometry).toEqual({
       mode: "path",
@@ -734,28 +853,27 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     expect(select("shape-geometry-preset").value).toBe("custom");
 
     const appliedGeometry = state.geometry;
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), "<svg>");
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await openShapePathSource();
+    await saveAndExitShapePathSource("<svg>");
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(state.geometry).toBe(appliedGeometry);
     expect(host.textContent).toContain("SVG");
 
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100" fill-rule="evenodd"><g><path d="M 0 0 L 100 0 L 100 100 Z" /></g></svg>`);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await openShapePathSource();
+    await saveAndExitShapePathSource(`<svg viewBox="0 0 200 100" fill-rule="evenodd"><g><path d="M 0 0 L 100 0 L 100 100 Z" /></g></svg>`);
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(state.geometry).toMatchObject({
       viewBox: { x: 0, y: 0, width: 200, height: 100 },
       fillRule: "evenodd",
     });
     expect(state.geometry.mode === "path" ? state.geometry.commands[0] : undefined).toEqual({ type: "move", x: 0, y: 0 });
 
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), "M 1 1");
-      host.querySelector<HTMLButtonElement>("#shape-path-reset")?.click();
-    });
-    expect(textArea("shape-path-source").value).toBe("M 0 0 L 100 0 L 100 100 Z");
+    await openShapePathSource();
+    await saveAndExitShapePathSource("M 1 1");
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-reset")?.click());
+    const resetEditor = await openShapePathSource();
+    expect(resetEditor.state.doc.toString()).toBe("M 0 0 L 100 0 L 100 100 Z");
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
   });
 
   it("records one history action for Path Apply and restores it with undo", async () => {
@@ -770,11 +888,26 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    const canonicalBeforeApply = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"] svg')?.outerHTML;
+    if (canonicalBeforeApply === undefined) throw new Error("canonical Shape output was not rendered");
 
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), "M 0 0 L 80 0 L 80 80 Z");
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource("M 0 0 L 80 0 L 80 80 Z");
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"] svg')?.outerHTML).toBe(canonicalBeforeApply);
+    await act(async () => panelButton("History").click());
+    expect(host.textContent).toContain("History is not populated yet.");
+    await act(async () => panelButton("Inspector").click());
+
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource("M 0 0 L 80 0 L 80 80 Z");
+    const applyPathButton = host.querySelector<HTMLButtonElement>("#shape-path-apply");
+    if (!applyPathButton) throw new Error("Shape path Apply button was not rendered after returning to Inspector");
+    expect(applyPathButton.disabled).toBe(false);
+    await act(async () => applyPathButton.click());
+    await act(async () => panelButton("History").click());
+    expect(host.querySelectorAll('section[aria-label="Applied"] li')).toHaveLength(1);
+    await act(async () => panelButton("Inspector").click());
     expect(select("shape-geometry-preset").value).toBe("custom");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");
@@ -785,10 +918,12 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     const animation = { durationMs: 1000, rotate: { fromDeg: 0, toDeg: 30 } };
     await mount(shapeElement({ transform, animation }));
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource(`<svg viewBox="0 0 40 20"><rect x="2" y="3" width="30" height="10" fill="#123456" stroke="#ff0000" stroke-width="2" opacity="0.4" /></svg>`);
+    await act(async () => shapePathSourceEditButton().click());
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(state.geometry).toMatchObject({ mode: "path", viewBox: { width: 40, height: 20 } });
     expect(state.style).toMatchObject({ fill: { type: "color", color: "#123456" }, stroke: { width: 2, color: "#ff0000" } });
     expect(state.effect).toEqual({ opacity: 0.4 });
@@ -806,10 +941,9 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>`);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource(`<svg viewBox="0 0 200 100"><rect width="80" height="40" fill="#ff0000" /><circle cx="120" cy="50" r="20" fill="#0000ff" /></svg>`);
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
     expect(container).not.toBeNull();
     expect(container?.querySelectorAll('[data-presentation-type="shape"]')).toHaveLength(2);
@@ -830,10 +964,9 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), SH6E_ACCEPTANCE_SVG);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource(SH6E_ACCEPTANCE_SVG);
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
 
     const container = host.querySelector<HTMLElement>('[data-presentation-type="container"][data-presentation-id="shape-history-1"]');
     const children = Array.from(container?.querySelectorAll<HTMLElement>('[data-presentation-type="shape"]') ?? []);
@@ -862,10 +995,9 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     if (!canvasShape) throw new Error("rendered Shape was not found");
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource(`<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
     expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
     expect(host.querySelector('[data-presentation-type="shape"][data-presentation-id="shape-history-1"]')).not.toBeNull();
@@ -884,10 +1016,9 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await act(async () => changeSelect(select("shape-fill-type"), "gradient"));
     expect(select("shape-fill-type").value).toBe("gradient");
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
-    await act(async () => {
-      setInputValue(textArea("shape-path-source"), `<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
-      host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click();
-    });
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource(`<svg viewBox="0 0 20 20"><rect width="10" height="10" /><circle cx="15" cy="15" r="3" /></svg>`);
+    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
     expect(host.textContent).toContain("Reset Shape transform and animation before importing a compound SVG.");
     expect(host.querySelector('[data-presentation-type="container"][data-presentation-id="shape-history-1"]')).toBeNull();
     expect(select("shape-fill-type").value).toBe("gradient");
