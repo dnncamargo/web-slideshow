@@ -155,7 +155,24 @@
 }
 
 .editorHost :global(.cm-gutters) {
-  display: none;
+  border-right: 1px solid #232a36;
+  background: #0d121a;
+  color: #64748b;
+}
+
+.editorHost :global(.cm-lineNumbers .cm-gutterElement) {
+  min-width: 3ch;
+  padding: 0 10px 0 8px;
+  text-align: right;
+}
+
+.editorHost :global(.cm-activeLine) {
+  background: color-mix(in srgb, var(--ps-ui-semantic-accent) 7%, transparent);
+}
+
+.editorHost :global(.cm-activeLineGutter) {
+  background: color-mix(in srgb, var(--ps-ui-semantic-accent) 14%, transparent);
+  color: #cbd5e1;
 }
 
 .editorHost :global(.cm-cursor) {
@@ -170,4 +187,47 @@
 .editorHost :global(.cm-editor.cm-focused) {
   box-shadow: inset 0 0 0 2px var(--ps-ui-semantic-focus);
   outline: 0;
+}
+
+.editorHost :global(.cm-search) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #303847;
+  background: #111720;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.editorHost :global(.cm-search input) {
+  min-width: 12ch;
+  min-height: 26px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #080b10;
+  color: #e2e8f0;
+  font: inherit;
+}
+
+.editorHost :global(.cm-search button) {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid #303847;
+  border-radius: 5px;
+  background: #111720;
+  color: #cbd5e1;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editorHost :global(.cm-search button:hover) {
+  border-color: #22d3ee;
+  color: #ecfeff;
+}
+
+.editorHost :global(.cm-search input:focus-visible),
+.editorHost :global(.cm-search button:focus-visible) {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 1px;
 }

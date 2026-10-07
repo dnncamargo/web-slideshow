@@ -8,6 +8,12 @@ import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
 import {
+  highlightSelectionMatches,
+  openSearchPanel,
+  search,
+  searchKeymap,
+} from "@codemirror/search";
+import {
   bracketMatching,
   HighlightStyle,
   indentOnInput,
@@ -15,7 +21,13 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import {
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Plugin } from "prettier";
@@ -153,10 +165,16 @@ export function StructuredTextEditor({
     closeBrackets(),
     indentOnInput(),
     history(),
+    lineNumbers(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    search(),
+    highlightSelectionMatches(),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,
       ...historyKeymap,
+      ...searchKeymap,
       indentWithTab,
       ...formatKeymap,
     ]),
@@ -307,6 +325,19 @@ export function StructuredTextEditor({
               {formatting ? t("editor.textFileFormatting") : t("editor.textFileFormatCode")}
             </button>
           ) : null}
+          <button
+            type="button"
+            className={styles.toolbarAction}
+            data-text-file-action="search"
+            aria-label={t("editor.textFileSearchShortcut")}
+            title={t("editor.textFileSearchShortcut")}
+            onClick={() => {
+              const view = editorViewRef.current;
+              if (view) openSearchPanel(view);
+            }}
+          >
+            {t("editor.textFileSearch")}
+          </button>
           <button
             type="button"
             className={styles.toolbarAction}
