@@ -56,17 +56,137 @@
   min-height: 0;
 
   display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  overflow-y: auto;
 
   padding: 16px;
 }
 
-.notesTextarea {
-  flex: 1;
+.notesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
 
+.notesSectionHeading {
+  margin: 0;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pointedNotesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.addPointedNoteButton,
+.removePointedNoteButton {
+  border: 1px solid #303847;
+  border-radius: 5px;
+
+  background: #171d29;
+  color: #cbd5e1;
+
+  cursor: pointer;
+  font: inherit;
+}
+
+.addPointedNoteButton {
+  padding: 5px 8px;
+
+  font-size: 11px;
+}
+
+.addPointedNoteButton:hover:not(:disabled),
+.removePointedNoteButton:hover:not(:disabled) {
+  background: #202938;
+}
+
+.addPointedNoteButton:disabled,
+.removePointedNoteButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.pointedNotesEmpty {
+  margin: 0;
+
+  color: #7f8998;
+
+  font-size: 12px;
+}
+
+.pointedNotesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pointedNoteRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.pointedNoteNumber {
+  padding-top: 9px;
+
+  color: #94a3b8;
+
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pointedNoteTextarea {
   width: 100%;
-  min-height: 0;
+  min-height: 56px;
 
-  resize: none;
+  resize: vertical;
+
+  border: 1px solid #303847;
+  border-radius: 6px;
+
+  background: #0b0f17;
+  color: #cbd5e1;
+
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+
+  padding: 9px;
+}
+
+.pointedNoteTextarea:disabled {
+  opacity: 0.6;
+}
+
+.removePointedNoteButton {
+  width: 28px;
+  height: 28px;
+
+  margin-top: 3px;
+
+  font-size: 18px;
+  line-height: 1;
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 120px;
+
+  resize: vertical;
 
   border: 1px solid #303847;
 

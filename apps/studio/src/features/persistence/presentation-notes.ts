@@ -204,5 +204,56 @@ export function updateSlideNoteText(
   });
 }
 
-/** Backward-compatible domain helper name for ordinary-text updates. */
-export const applySlideNote = updateSlideNoteText;
+/** Append one pointed note while preserving the rest of the slide state. */
+export function appendPointedNote(
+  notes: PresentationNotes,
+  slideId: string,
+  pointedNote: PointedNote,
+): PresentationNotes {
+  return applySlideNotes(notes, slideId, {
+    ...getSlideNotes(notes, slideId),
+    pointed: [...getSlideNotes(notes, slideId).pointed, { ...pointedNote }],
+  });
+}
+
+/** Update pointed-note text by stable identity without changing its position. */
+export function updatePointedNoteText(
+  notes: PresentationNotes,
+  slideId: string,
+  pointedNoteId: string,
+  text: string,
+): PresentationNotes {
+  const slideNotes = getSlideNotes(notes, slideId);
+
+  return applySlideNotes(notes, slideId, {
+    ...slideNotes,
+    pointed: slideNotes.pointed.map((pointedNote) =>
+      pointedNote.id === pointedNoteId ? { ...pointedNote, text } : pointedNote,
+    ),
+  });
+}
+
+/** Remove exactly one pointed note by stable identity. */
+export function removePointedNote(
+  notes: PresentationNotes,
+  slideId: string,
+  pointedNoteId: string,
+): PresentationNotes {
+  const slideNotes = getSlideNotes(notes, slideId);
+
+  return applySlideNotes(notes, slideId, {
+    ...slideNotes,
+    pointed: slideNotes.pointed.filter(
+      (pointedNote) => pointedNote.id !== pointedNoteId,
+    ),
+  });
+}
+
+/** Collect all pointed-note IDs so authoring IDs remain unique across slides. */
+export function getPointedNoteIds(notes: PresentationNotes): Set<string> {
+  return new Set(
+    Object.values(notes.bySlideId).flatMap((slideNotes) =>
+      slideNotes.pointed.map((pointedNote) => pointedNote.id),
+    ),
+  );
+}

@@ -1,5 +1,5 @@
 import {
-  updateSlideNoteText,
+  applySlideNotes,
   createEmptyNotes,
   type PresentationNotes,
   type SlideNotes,
@@ -30,7 +30,7 @@ export type EditorNotesAction =
   | { type: "note-save-start"; slideId: string; slideNotes: SlideNotes }
   | { type: "note-save-success"; slideId: string; slideNotes: SlideNotes }
   | { type: "note-save-error"; slideId: string; slideNotes: SlideNotes }
-  | { type: "note-edit"; slideId: string; note: string };
+  | { type: "slide-notes-edit"; slideId: string; slideNotes: SlideNotes };
 
 export function createInitialEditorNotesState(): EditorNotesState {
   return {
@@ -57,10 +57,10 @@ export function editorNotesReducer(
       };
     case "notes-load-error":
       return { ...state, status: "error" };
-    case "note-edit":
+    case "slide-notes-edit":
       return {
         ...state,
-        notes: updateSlideNoteText(state.notes, action.slideId, action.note),
+        notes: applySlideNotes(state.notes, action.slideId, action.slideNotes),
       };
 
     case "note-save-start":

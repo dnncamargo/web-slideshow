@@ -18,11 +18,15 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 }));
 
 import {
+  appendPointedNote,
   applySlideNotes,
   createEmptyNotes,
+  getPointedNoteIds,
   getNoteForSlide,
   makeFirestoreSafeNotes,
   normalizePersistedNotes,
+  removePointedNote,
+  updatePointedNoteText,
   updateSlideNoteText,
   type SlideNotes,
 } from "../src/features/persistence/presentation-notes";
@@ -122,7 +126,10 @@ describe("presentation notes domain helpers", () => {
 
     expect(notes.bySlideId["slide-1"]).toEqual({
       text: "",
-      pointed: [pointed({ id: "first" }), pointed({ id: "second", text: "second" })],
+      pointed: [
+        pointed({ id: "first" }),
+        pointed({ id: "second", text: "second" }),
+      ],
     });
   });
 
@@ -148,7 +155,9 @@ describe("presentation notes domain helpers", () => {
       }),
     ).toEqual(createEmptyNotes());
     expect(normalizePersistedNotes(undefined)).toEqual(createEmptyNotes());
-    expect(normalizePersistedNotes({ bySlideId: 42 })).toEqual(createEmptyNotes());
+    expect(normalizePersistedNotes({ bySlideId: 42 })).toEqual(
+      createEmptyNotes(),
+    );
   });
 
   it("updates ordinary text without losing pointed entries", () => {
@@ -163,6 +172,93 @@ describe("presentation notes domain helpers", () => {
       pointed: [pointed()],
     });
     expect(getNoteForSlide(updated, "slide-1")).toBe("new text");
+  });
+
+  it("appends pointed notes without losing ordinary text or existing entries", () => {
+    const notes = normalizePersistedNotes({
+      bySlideId: {
+        "slide-1": {
+          text: "ordinary",
+          pointed: [pointed({ id: "first", x: 10, y: 20 })],
+        },
+      },
+    });
+
+    const updated = appendPointedNote(
+      notes,
+      "slide-1",
+      pointed({ id: "second", text: "new", x: 30, y: 40 }),
+    );
+
+    expect(updated.bySlideId["slide-1"]).toEqual({
+      text: "ordinary",
+      pointed: [
+        pointed({ id: "first", x: 10, y: 20 }),
+        pointed({ id: "second", text: "new", x: 30, y: 40 }),
+      ],
+    });
+  });
+
+  it("updates pointed text by id while preserving identity, position, and order", () => {
+    const notes = normalizePersistedNotes({
+      bySlideId: {
+        "slide-1": {
+          text: "ordinary",
+          pointed: [
+            pointed({ id: "first", x: 10, y: 20 }),
+            pointed({ id: "second", x: 30, y: 40 }),
+          ],
+        },
+      },
+    });
+
+    const updated = updatePointedNoteText(notes, "slide-1", "second", "edited");
+
+    expect(updated.bySlideId["slide-1"]).toEqual({
+      text: "ordinary",
+      pointed: [
+        pointed({ id: "first", x: 10, y: 20 }),
+        pointed({ id: "second", text: "edited", x: 30, y: 40 }),
+      ],
+    });
+  });
+
+  it("removes only the matching pointed id and keeps survivor order", () => {
+    const notes = normalizePersistedNotes({
+      bySlideId: {
+        "slide-1": {
+          text: "ordinary",
+          pointed: [
+            pointed({ id: "first" }),
+            pointed({ id: "second" }),
+            pointed({ id: "third" }),
+          ],
+        },
+      },
+    });
+
+    const updated = removePointedNote(notes, "slide-1", "second");
+
+    expect(updated.bySlideId["slide-1"]).toEqual({
+      text: "ordinary",
+      pointed: [pointed({ id: "first" }), pointed({ id: "third" })],
+    });
+    expect(makeFirestoreSafeNotes(updated)).not.toHaveProperty(
+      "bySlideId.slide-1.pointed.0.number",
+    );
+  });
+
+  it("collects pointed ids across slides for deterministic authoring allocation", () => {
+    const notes = normalizePersistedNotes({
+      bySlideId: {
+        "slide-1": { pointed: [pointed({ id: "pointed-note" })] },
+        "slide-2": { pointed: [pointed({ id: "pointed-note-2" })] },
+      },
+    });
+
+    expect(getPointedNoteIds(notes)).toEqual(
+      new Set(["pointed-note", "pointed-note-2"]),
+    );
   });
 
   it("replaces or clears one complete slide without touching other slides", () => {
@@ -206,7 +302,9 @@ describe("presentation notes repository wiring", () => {
   it("loads a missing notes document as empty notes on the owner path", async () => {
     mockedGetDoc.mockResolvedValue({ exists: () => false } as never);
 
-    await expect(repository.getNotes("pres-1")).resolves.toEqual(createEmptyNotes());
+    await expect(repository.getNotes("pres-1")).resolves.toEqual(
+      createEmptyNotes(),
+    );
     expect(mockedDoc).toHaveBeenCalledWith(
       expect.anything(),
       "users",

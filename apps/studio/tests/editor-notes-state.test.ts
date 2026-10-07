@@ -19,7 +19,10 @@ function makePresentation(id: string): Presentation {
   return snapshot;
 }
 
-function slideNotes(text = "", pointed: SlideNotes["pointed"] = []): SlideNotes {
+function slideNotes(
+  text = "",
+  pointed: SlideNotes["pointed"] = [],
+): SlideNotes {
   return { text, pointed };
 }
 
@@ -83,9 +86,11 @@ describe("editor private notes state", () => {
     });
 
     const edited = editorNotesReducer(state, {
-      type: "note-edit",
+      type: "slide-notes-edit",
       slideId: "slide-1",
-      note: "new",
+      slideNotes: slideNotes("new", [
+        { id: "pointed-1", text: "keep", x: 10, y: 20 },
+      ]),
     });
 
     expect(edited.notes.bySlideId["slide-1"]).toEqual({
@@ -101,9 +106,9 @@ describe("editor private notes state", () => {
       notes: createEmptyNotes(),
     });
     const edited = editorNotesReducer(notesState, {
-      type: "note-edit",
+      type: "slide-notes-edit",
       slideId: "slide-1",
-      note: "edited note",
+      slideNotes: slideNotes("edited note"),
     });
     const saving = editorNotesReducer(edited, {
       type: "note-save-start",
@@ -156,9 +161,11 @@ describe("editor private notes state", () => {
       },
     });
     const cleared = editorNotesReducer(state, {
-      type: "note-edit",
+      type: "slide-notes-edit",
       slideId: "slide-1",
-      note: "",
+      slideNotes: slideNotes("", [
+        { id: "pointed-1", text: "keep", x: 1, y: 2 },
+      ]),
     });
 
     expect(cleared.notes.bySlideId["slide-1"]).toEqual({
