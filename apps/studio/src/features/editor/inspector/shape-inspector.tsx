@@ -13,6 +13,7 @@ import { ShapeAppearanceSection } from "./sections/shape-appearance-section";
 import { ShapeEffectsSection } from "./sections/shape-effects-section";
 import { ShapeGeometrySection } from "./sections/shape-geometry-section";
 import type {
+  ShapePathSourceEditRequest,
   ShapePreviewControls,
   ShapeSvgImportCompositionHandler,
   TypedInspectorProps,
@@ -134,10 +135,14 @@ export function ShapeInspector({
   onUpdate,
   previewControls,
   onImportSvgComposition,
+  onEditPathSource,
+  largeSourceEditorActive = false,
   presentationFiles = [],
 }: TypedInspectorProps<ShapeElement> & {
   previewControls?: ShapePreviewControls;
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
+  onEditPathSource?: (request: ShapePathSourceEditRequest) => void;
+  largeSourceEditorActive?: boolean;
   presentationFiles?: readonly PresentationFileResource[];
 }) {
   const { t } = useStudioI18n();
@@ -310,6 +315,8 @@ export function ShapeInspector({
         element={element}
         onUpdate={(update) => onUpdate((current) => current.type === "shape" ? update(current) : current)}
         onImportSvgComposition={onImportSvgComposition}
+        onEditPathSource={onEditPathSource}
+        largeSourceEditorActive={largeSourceEditorActive}
         presentationFiles={presentationFiles}
       />
 

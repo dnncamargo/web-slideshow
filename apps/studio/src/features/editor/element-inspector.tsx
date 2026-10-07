@@ -28,6 +28,7 @@ import type {
   CreateQrCodeFromLink,
   PlotPreviewControls,
   ShapePreviewControls,
+  ShapePathSourceEditRequest,
   ShapeSvgImportCompositionHandler,
   ScriptedSourceEditRequest,
   ScriptedSourceKind,
@@ -122,11 +123,15 @@ interface ElementInspectorProps {
 
   onEditScriptedSource?: (request: ScriptedSourceEditRequest) => void;
 
+  onEditShapePathSource?: (request: ShapePathSourceEditRequest) => void;
+
   activeScriptedSource?: ScriptedSourceKind | null;
 
   scriptedSourceEditorActive?: boolean;
 
   scriptedSourceEditorDirty?: boolean;
+
+  shapeSourceEditorActive?: boolean;
 }
 
 interface ElementTypeInspectorProps extends ElementInspectorProps {
@@ -174,9 +179,11 @@ function ElementTypeInspector({
   onGalleryItemIndexChange,
   rootLocalContentReceiver,
   onEditScriptedSource,
+  onEditShapePathSource,
   activeScriptedSource,
   scriptedSourceEditorActive,
   scriptedSourceEditorDirty,
+  shapeSourceEditorActive,
 }: ElementTypeInspectorProps) {
   switch (element.type) {
     case "container":
@@ -216,7 +223,7 @@ function ElementTypeInspector({
       return <PlotInspector element={element} onUpdate={onUpdate} previewControls={plotPreviewControls} />;
 
     case "shape":
-      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} onImportSvgComposition={onImportSvgComposition} presentationFiles={presentation?.resources?.files ?? []} />;
+      return <ShapeInspector element={element} onUpdate={onUpdate} previewControls={shapePreviewControls} onImportSvgComposition={onImportSvgComposition} onEditPathSource={onEditShapePathSource} largeSourceEditorActive={shapeSourceEditorActive} presentationFiles={presentation?.resources?.files ?? []} />;
 
     case "terminal":
       return <TerminalInspector element={element} onUpdate={onUpdate} fontResources={fontResources} presentation={presentation} onAttachLinkedStyle={onAttachLinkedTargetStyle} onDetachLinkedStyle={onDetachLinkedTargetStyle} />;
@@ -365,9 +372,11 @@ export function ElementInspector({
   onCreateQrFromLink,
   rootLocalContentReceiver,
   onEditScriptedSource,
+  onEditShapePathSource,
   activeScriptedSource,
   scriptedSourceEditorActive,
   scriptedSourceEditorDirty,
+  shapeSourceEditorActive,
 }: ElementInspectorProps) {
   const { t } = useStudioI18n();
   const targetInspection = (element.type === "code" || element.type === "terminal" || element.type === "table" || element.type === "divider")
@@ -459,9 +468,11 @@ export function ElementInspector({
         onGalleryItemIndexChange={onGalleryItemIndexChange}
         rootLocalContentReceiver={rootLocalContentReceiver}
         onEditScriptedSource={onEditScriptedSource}
+        onEditShapePathSource={onEditShapePathSource}
         activeScriptedSource={activeScriptedSource}
         scriptedSourceEditorActive={scriptedSourceEditorActive}
         scriptedSourceEditorDirty={scriptedSourceEditorDirty}
+        shapeSourceEditorActive={shapeSourceEditorActive}
       />
 
       {element.type !== "container" && element.type !== "text" && shouldShowElementPositioning(layerControls) && (

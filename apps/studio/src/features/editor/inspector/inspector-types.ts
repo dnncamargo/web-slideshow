@@ -27,6 +27,18 @@ export interface ScriptedSourceEditRequest {
   onSaveDraft: (content: string) => void;
 }
 
+export type ShapePathSourceKind = "path" | "svg";
+
+export interface ShapePathSourceEditRequest {
+  elementId: string;
+
+  kind: ShapePathSourceKind;
+
+  baseline: string;
+
+  onSaveDraft: (content: string) => void;
+}
+
 export type CreateQrCodeFromLink = (href: string) => void;
 
 export interface PlotPreviewControls {
