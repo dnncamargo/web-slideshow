@@ -26,6 +26,7 @@ import {
   makeFirestoreSafeNotes,
   normalizePersistedNotes,
   removePointedNote,
+  updatePointedNotePosition,
   updatePointedNoteText,
   updateSlideNoteText,
   type SlideNotes,
@@ -221,6 +222,38 @@ describe("presentation notes domain helpers", () => {
         pointed({ id: "second", text: "edited", x: 30, y: 40 }),
       ],
     });
+  });
+
+  it("updates only the position of the matching pointed id", () => {
+    const notes = normalizePersistedNotes({
+      bySlideId: {
+        "slide-1": {
+          text: "ordinary",
+          pointed: [
+            pointed({ id: "first", text: "keep first", x: 10, y: 20 }),
+            pointed({ id: "second", text: "keep second", x: 30, y: 40 }),
+          ],
+        },
+      },
+    });
+
+    const updated = updatePointedNotePosition(
+      notes,
+      "slide-1",
+      "second",
+      480,
+      270,
+    );
+
+    expect(updated.bySlideId["slide-1"]).toEqual({
+      text: "ordinary",
+      pointed: [
+        pointed({ id: "first", text: "keep first", x: 10, y: 20 }),
+        pointed({ id: "second", text: "keep second", x: 480, y: 270 }),
+      ],
+    });
+    expect(updatePointedNotePosition(notes, "slide-1", "missing", 1, 2))
+      .toEqual(notes);
   });
 
   it("removes only the matching pointed id and keeps survivor order", () => {

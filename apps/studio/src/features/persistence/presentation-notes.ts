@@ -233,6 +233,24 @@ export function updatePointedNoteText(
   });
 }
 
+/** Update one pointed-note position by stable identity without changing order. */
+export function updatePointedNotePosition(
+  notes: PresentationNotes,
+  slideId: string,
+  pointedNoteId: string,
+  x: number,
+  y: number,
+): PresentationNotes {
+  const slideNotes = getSlideNotes(notes, slideId);
+
+  return applySlideNotes(notes, slideId, {
+    ...slideNotes,
+    pointed: slideNotes.pointed.map((pointedNote) =>
+      pointedNote.id === pointedNoteId ? { ...pointedNote, x, y } : pointedNote,
+    ),
+  });
+}
+
 /** Remove exactly one pointed note by stable identity. */
 export function removePointedNote(
   notes: PresentationNotes,

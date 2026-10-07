@@ -112,8 +112,14 @@ import {
   resolvePublishButtonLabelStatus,
 } from "./editor-publish-state";
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
+import type { PointedNote } from "@/features/persistence/presentation-notes";
 import { SlideNotesWorkspace } from "./notes/slide-notes-workspace";
 import { useEditorNotes } from "./notes/use-editor-notes";
+import {
+  clampPointedNotePosition,
+  POINTED_NOTE_MARKER_SIZE,
+  toLogicalPointedNoteDelta,
+} from "./pointed-note-canvas-geometry";
 import {
   CustomResourcesWorkspace,
   type CustomLibraryFileAddOutcome,
@@ -977,6 +983,19 @@ interface CanvasDragState {
   guideBounds: CanvasBounds;
 }
 
+interface PointedNoteDragState {
+  pointerId: number;
+  pointedNoteId: string;
+  startClientX: number;
+  startClientY: number;
+  startLogicalPosition: PointedNotePosition;
+}
+
+interface PointedNotePosition {
+  x: number;
+  y: number;
+}
+
 interface CanvasResizeOverlay {
   elementId: string;
   left: number;
@@ -1542,6 +1561,7 @@ export function EditorWorkspace({
     () => fitLogicalSlideGeometry(presentation.aspectRatio, 0, 0),
   );
   const canvasDragRef = useRef<CanvasDragState | null>(null);
+  const pointedNoteDragRef = useRef<PointedNoteDragState | null>(null);
   const canvasResizeRef = useRef<CanvasResizeState | null>(null);
   const canvasFocalDragRef = useRef<CanvasFocalDragState | null>(null);
   const canvasCropDragRef = useRef<CanvasCropDragState | null>(null);
@@ -1567,6 +1587,9 @@ export function EditorWorkspace({
   } | null>(null);
   const [canvasCropAppearance, setCanvasCropAppearance] =
     useState<CanvasCropAppearance | null>(null);
+  const [pointedNotePreview, setPointedNotePreview] = useState<
+    (PointedNotePosition & { id: string }) | null
+  >(null);
   const [cropMeasureVersion, setCropMeasureVersion] = useState(0);
 
   function setCropEditingMode(target: OwnedImageMediaAuthoringTarget | null) {
@@ -1714,10 +1737,10 @@ export function EditorWorkspace({
 
   const editorNotes = useEditorNotes({
     presentationId: presentation.id,
-    notesRepository,
+    notesRepository: rootDefinitionMode ? undefined : notesRepository,
     selectedSlideId: retainedSlide?.id ?? "",
     aspectRatio: presentation.aspectRatio,
-    enabled: rightPanelMode === "notes" && !rootDefinitionMode,
+    enabled: !rootDefinitionMode,
   });
 
   useEffect(() => {
@@ -1750,6 +1773,7 @@ export function EditorWorkspace({
 
     closeCanvasMediaEditing();
     clearCanvasDragPreview();
+    clearPointedNoteDragPreview();
     canvasResizeRef.current = null;
     setCanvasResizeOverlay(null);
     setCanvasGuides([]);
@@ -2958,6 +2982,133 @@ export function EditorWorkspace({
 
     canvasDragRef.current = null;
     clearCanvasGuides();
+  }
+
+  function clearPointedNoteDragPreview() {
+    pointedNoteDragRef.current = null;
+    setPointedNotePreview(null);
+  }
+
+  function getPointedNoteCanvasPosition(
+    position: PointedNotePosition,
+  ): PointedNotePosition {
+    return clampPointedNotePosition(position, {
+      logicalWidth: canvasGeometry.logicalWidth,
+      logicalHeight: canvasGeometry.logicalHeight,
+      markerSize: POINTED_NOTE_MARKER_SIZE,
+    });
+  }
+
+  function handlePointedNotePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    pointedNote: PointedNote,
+  ) {
+    if (
+      rootDefinitionMode ||
+      authoringTarget.kind !== "slide" ||
+      editorNotes.status !== "ready"
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+
+    pointedNoteDragRef.current = {
+      pointerId: event.pointerId,
+      pointedNoteId: pointedNote.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startLogicalPosition: getPointedNoteCanvasPosition(pointedNote),
+    };
+    setPointedNotePreview({
+      id: pointedNote.id,
+      ...getPointedNoteCanvasPosition(pointedNote),
+    });
+  }
+
+  function handlePointedNotePointerMove(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    const drag = pointedNoteDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const position = getPointedNoteCanvasPosition({
+      x:
+        drag.startLogicalPosition.x +
+        toLogicalPointedNoteDelta(
+          event.clientX - drag.startClientX,
+          canvasGeometry.scale,
+        ),
+      y:
+        drag.startLogicalPosition.y +
+        toLogicalPointedNoteDelta(
+          event.clientY - drag.startClientY,
+          canvasGeometry.scale,
+        ),
+    });
+
+    setPointedNotePreview({ id: drag.pointedNoteId, ...position });
+  }
+
+  function handlePointedNotePointerUp(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    const drag = pointedNoteDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const position = getPointedNoteCanvasPosition({
+      x:
+        drag.startLogicalPosition.x +
+        toLogicalPointedNoteDelta(
+          event.clientX - drag.startClientX,
+          canvasGeometry.scale,
+        ),
+      y:
+        drag.startLogicalPosition.y +
+        toLogicalPointedNoteDelta(
+          event.clientY - drag.startClientY,
+          canvasGeometry.scale,
+        ),
+    });
+
+    clearPointedNoteDragPreview();
+
+    if (
+      position.x !== drag.startLogicalPosition.x ||
+      position.y !== drag.startLogicalPosition.y
+    ) {
+      editorNotes.onPointedNoteMove(
+        drag.pointedNoteId,
+        position.x,
+        position.y,
+      );
+    }
+  }
+
+  function handlePointedNotePointerCancel(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (pointedNoteDragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    clearPointedNoteDragPreview();
   }
 
   function preserveTargetOwnedCanvasLayout(
@@ -7294,6 +7445,56 @@ export function EditorWorkspace({
                 onClick={handleCanvasLinkClick}
                 dangerouslySetInnerHTML={renderedSlideHtml}
               />
+              {authoringTarget.kind === "slide" &&
+                !rootDefinitionMode &&
+                editorNotes.status === "ready" &&
+                editorNotes.slideNotes.pointed.length > 0 && (
+                  <div
+                    className={styles.pointedNoteLayer}
+                    data-pointed-note-layer
+                    style={{
+                      width: `${canvasGeometry.logicalWidth}px`,
+                      height: `${canvasGeometry.logicalHeight}px`,
+                      transform: `scale(${canvasGeometry.scale})`,
+                    }}
+                  >
+                    {editorNotes.slideNotes.pointed.map((pointedNote, index) => {
+                      const persistedPosition = getPointedNoteCanvasPosition(pointedNote);
+                      const position =
+                        pointedNotePreview?.id === pointedNote.id
+                          ? pointedNotePreview
+                          : persistedPosition;
+                      const number = index + 1;
+
+                      return (
+                        <button
+                          key={pointedNote.id}
+                          type="button"
+                          className={styles.pointedNoteMarker}
+                          data-pointed-note-marker
+                          data-pointed-note-id={pointedNote.id}
+                          aria-label={`Pointed note ${number}`}
+                          style={{
+                            left: `${position.x}px`,
+                            top: `${position.y}px`,
+                          }}
+                          onPointerDown={(event) =>
+                            handlePointedNotePointerDown(event, pointedNote)
+                          }
+                          onPointerMove={handlePointedNotePointerMove}
+                          onPointerUp={handlePointedNotePointerUp}
+                          onPointerCancel={handlePointedNotePointerCancel}
+                          onLostPointerCapture={handlePointedNotePointerCancel}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                          }}
+                        >
+                          {number}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
             </div>
             {cropEditingTarget && currentImageMediaTarget && areImageMediaTargetsEqual(cropEditingTarget, currentImageMediaTarget) && (
               <img

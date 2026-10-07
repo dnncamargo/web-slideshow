@@ -37,6 +37,13 @@ function NotesHookHarness({
       <button type="button" data-add onClick={notes.onAddPointedNote}>
         add
       </button>
+      <button
+        type="button"
+        data-move
+        onClick={() => notes.onPointedNoteMove("pointed-note", 80, 90)}
+      >
+        move
+      </button>
       {notes.slideNotes.pointed.map((pointedNote) => (
         <textarea
           key={pointedNote.id}
@@ -209,5 +216,57 @@ describe("useEditorNotes pointed-note authoring", () => {
     expect(readSlideNotes(container).pointed).toEqual([
       { id: "pointed-note", text: "", x: 480, y: 360 },
     ]);
+  });
+
+  it("moves by stable id and schedules one complete snapshot after the debounce", async () => {
+    const repository: PresentationNotesRepository = {
+      getNotes: vi.fn(async () => ({
+        bySlideId: {
+          "slide-1": {
+            text: "ordinary",
+            pointed: [
+              { id: "pointed-note", text: "keep", x: 10, y: 20 },
+              { id: "other", text: "other", x: 30, y: 40 },
+            ],
+          },
+        },
+      })),
+      setSlideNotes: vi.fn(async () => undefined),
+    };
+
+    act(() =>
+      root.render(
+        <NotesHookHarness repository={repository} aspectRatio="16:9" />,
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const moveButton = container.querySelector<HTMLButtonElement>("[data-move]");
+    if (!moveButton) throw new Error("expected the move button");
+
+    act(() => moveButton.click());
+
+    expect(readSlideNotes(container)).toEqual({
+      text: "ordinary",
+      pointed: [
+        { id: "pointed-note", text: "keep", x: 80, y: 90 },
+        { id: "other", text: "other", x: 30, y: 40 },
+      ],
+    });
+    expect(repository.setSlideNotes).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+
+    expect(repository.setSlideNotes).toHaveBeenCalledTimes(1);
+    expect(repository.setSlideNotes).toHaveBeenCalledWith(
+      "presentation-1",
+      "slide-1",
+      readSlideNotes(container),
+    );
   });
 });

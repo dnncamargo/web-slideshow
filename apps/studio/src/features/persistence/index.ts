@@ -53,6 +53,7 @@ export {
   makeFirestoreSafeNotes,
   normalizePersistedNotes,
   removePointedNote,
+  updatePointedNotePosition,
   updatePointedNoteText,
   updateSlideNoteText,
   type PresentationNotes,

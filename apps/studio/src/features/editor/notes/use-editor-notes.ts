@@ -28,6 +28,7 @@ import {
   getPointedNoteIds,
   getSlideNotes,
   removePointedNote,
+  updatePointedNotePosition,
   updatePointedNoteText,
   updateSlideNoteText,
 } from "../../persistence/presentation-notes";
@@ -59,6 +60,7 @@ export interface UseEditorNotesResult {
   onChange: (note: string) => void;
   onAddPointedNote: () => void;
   onPointedNoteChange: (pointedNoteId: string, text: string) => void;
+  onPointedNoteMove: (pointedNoteId: string, x: number, y: number) => void;
   onRemovePointedNote: (pointedNoteId: string) => void;
   flush: () => void;
 }
@@ -305,6 +307,24 @@ export function useEditorNotes({
     [commitSlideNotes, selectedSlideId, state.notes, state.status],
   );
 
+  const onPointedNoteMove = useCallback(
+    (pointedNoteId: string, x: number, y: number) => {
+      if (!selectedSlideId || state.status !== "ready") {
+        return;
+      }
+
+      const nextNotes = updatePointedNotePosition(
+        state.notes,
+        selectedSlideId,
+        pointedNoteId,
+        x,
+        y,
+      );
+      commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
+    },
+    [commitSlideNotes, selectedSlideId, state.notes, state.status],
+  );
+
   const onRemovePointedNote = useCallback(
     (pointedNoteId: string) => {
       if (!selectedSlideId || state.status !== "ready") {
@@ -332,6 +352,7 @@ export function useEditorNotes({
     onChange,
     onAddPointedNote,
     onPointedNoteChange,
+    onPointedNoteMove,
     onRemovePointedNote,
     flush,
   };
