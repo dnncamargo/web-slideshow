@@ -13,6 +13,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 export type TextStyleInspectorProperty =
+  | "fill"
   | (typeof TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES_R2)[number]
   | (typeof TEXT_STYLE_VISUAL_PROPERTY_NAMES)[number]
   | (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number];
@@ -35,6 +36,7 @@ function readLocalValue(
   element: TextElement,
   property: TextStyleInspectorProperty,
 ): unknown {
+  if (property === "fill") return element.style?.color ?? element.style?.gradient;
   if (property === "color") return element.style?.color;
   if (property === "gradient") return element.style?.gradient;
   if (TEXT_STYLE_LAYOUT_PROPERTY_NAMES.includes(property as (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number])) {
@@ -47,6 +49,7 @@ function readLinkedValue(
   style: TextStyle | undefined,
   property: TextStyleInspectorProperty,
 ): unknown {
+  if (property === "fill") return style?.style?.color ?? style?.style?.gradient;
   if (property === "color") return style?.style?.color;
   if (property === "gradient") return style?.style?.gradient;
   if (TEXT_STYLE_LAYOUT_PROPERTY_NAMES.includes(property as (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number])) {
@@ -63,13 +66,13 @@ export function getTextStylePropertyInfo(
   if (presentation === undefined || element.styleDetached === true) return undefined;
   const linkedStyle = linkedStyleFor(presentation, element);
   const linkedValue = readLinkedValue(linkedStyle, property);
-  const isTextFill = property === "color" || property === "gradient";
+  const isTextFill = property === "fill" || property === "color" || property === "gradient";
   const localValue = isTextFill
     ? element.style?.color ?? element.style?.gradient
     : readLocalValue(element, property);
   const linkedFill = linkedStyle?.style?.color ?? linkedStyle?.style?.gradient;
   return {
-    source: (isTextFill ? localValue : readLocalValue(element, property)) !== undefined
+    source: localValue !== undefined
       ? "local"
       : (isTextFill ? linkedFill : linkedValue) !== undefined
         ? "linked"
@@ -79,7 +82,7 @@ export function getTextStylePropertyInfo(
 }
 
 function ownerForProperty(property: TextStyleInspectorProperty): Pick<TextStyle, "typography" | "style" | "layout"> {
-  if (property === "color" || property === "gradient") {
+  if (property === "fill" || property === "color" || property === "gradient") {
     return { style: { color: "#000000" } as TextVisualStyle };
   }
   if (TEXT_STYLE_LAYOUT_PROPERTY_NAMES.includes(property as (typeof TEXT_STYLE_LAYOUT_PROPERTY_NAMES)[number])) {

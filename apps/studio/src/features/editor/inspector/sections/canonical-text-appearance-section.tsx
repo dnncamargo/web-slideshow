@@ -11,7 +11,7 @@ import { useAuthoringHistory } from "../../authoring-history-context";
 import { InspectorSection } from "../inspector-section";
 import { ColorControl } from "./color-control";
 import { ElementBorderControl } from "./element-border-control";
-import { ElementGradientControl } from "./element-gradient-control";
+import { createDefaultGradient, ElementGradientControl } from "./element-gradient-control";
 import { EffectiveLengthInput } from "./effective-length-input";
 import type { TextStylePropertyInfo } from "../text-style-property";
 import { TextStylePropertyMeta } from "./text-style-property-meta";
@@ -26,12 +26,12 @@ interface CanonicalTextAppearanceSectionProps {
   onUpdateStyle: UpdateElementVisualStyle;
   onUpdateEffect: UpdateElementEffect;
   controlPrefix: string;
+  effectiveTextFill?: Pick<TextVisualStyle, "color" | "gradient">;
   effectiveTextColor?: TextVisualStyle["color"];
-  effectiveTextColorSource?: InheritedColorSource;
   fallbackTextColorSource?: InheritedColorSource;
   textColorDisabled?: boolean;
-  textColorSource?: TextStylePropertyInfo;
-  onResetTextColor?: () => void;
+  textFillSource?: TextStylePropertyInfo;
+  onResetTextFill?: () => void;
 }
 
 function readOpacityPercentage(value: number | undefined): number {
@@ -40,6 +40,12 @@ function readOpacityPercentage(value: number | undefined): number {
 
 const numberHistoryMeta = { kind: "number.change", labelKey: "history.number.change" } as const;
 
+function clearTextFill(style: TextVisualStyle | undefined): TextVisualStyle {
+  if (style === undefined) return {};
+  const { color: _color, gradient: _gradient, ...remaining } = style;
+  return remaining;
+}
+
 export function CanonicalTextAppearanceSection({
   element,
   style,
@@ -47,17 +53,23 @@ export function CanonicalTextAppearanceSection({
   onUpdateStyle,
   onUpdateEffect,
   controlPrefix,
+  effectiveTextFill,
   effectiveTextColor,
-  effectiveTextColorSource,
   fallbackTextColorSource,
   textColorDisabled = false,
-  textColorSource,
-  onResetTextColor,
+  textFillSource,
+  onResetTextFill,
 }: CanonicalTextAppearanceSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const defaults = resolveEffectiveElementStyleDefaults(element);
   const opacityHistoryKey = `number:${controlPrefix}-opacity`;
+  const fillMode = style?.gradient !== undefined || effectiveTextFill?.gradient !== undefined ? "gradient" : "color";
+  const localFill = style?.color !== undefined || style?.gradient !== undefined;
+  const detachedFillReset = localFill && textFillSource === undefined ? {
+    label: fallbackTextColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"),
+    onClick: () => onUpdateStyle((current) => clearTextFill(current)),
+  } : undefined;
   const updateOpacity = (opacity: number | undefined) => {
     if (opacity === effect?.opacity) return;
     const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
@@ -69,32 +81,78 @@ export function CanonicalTextAppearanceSection({
     authoringHistory.update(opacityHistoryKey, update);
   };
 
+  const runFillModeChange = (mode: "color" | "gradient") => {
+    if (mode === fillMode) return;
+    const update = () => onUpdateStyle((current) => mode === "gradient"
+      ? { ...clearTextFill(current), gradient: createDefaultGradient("linear") }
+      : { ...clearTextFill(current), color: effectiveTextColor ?? effectiveTextFill?.color });
+    if (authoringHistory) {
+      authoringHistory.discrete({
+        kind: "element.setting",
+        labelKey: "history.element.setting",
+        labelParams: { setting: "text.fill.mode" },
+      }, update);
+    } else {
+      update();
+    }
+  };
+
   return (
     <InspectorSection title={t("inspector.appearance")}>
       <div className={styles.colorControl}>
         <label className={styles.field}>
-          <span>{t("inspector.color")}</span>
-          <ColorControl
-            id={`${controlPrefix}-color`}
-            name={getControlName(controlPrefix, "Color")}
-            value={textColorDisabled ? undefined : style?.color}
-            effectiveValue={effectiveTextColor}
-            effectiveSource={effectiveTextColorSource}
+          <span>{t("inspector.fill")}</span>
+          <select
+            id={`${controlPrefix}-fill-mode`}
+            name={getControlName(controlPrefix, "FillMode")}
+            value={fillMode}
             disabled={textColorDisabled}
-            onChange={(color) =>
-              onUpdateStyle((current) => ({ ...current, color }))
-            }
-            secondaryAction={style?.color !== undefined && textColorSource === undefined ? {
-              label: fallbackTextColorSource === "container" ? t("inspector.useInheritedColor") : t("inspector.useThemeDefault"),
-              onClick: () => onUpdateStyle((current) => ({ ...current, color: undefined })),
-            } : undefined}
-          />
-          <TextStylePropertyMeta
-            source={textColorSource?.source}
-            linkedValue={textColorSource?.linkedValue}
-            onReset={onResetTextColor}
-          />
+            onChange={(event) => {
+              if (event.target.value === "color" || event.target.value === "gradient") runFillModeChange(event.target.value);
+            }}
+          >
+            <option value="color">{t("inspector.color")}</option>
+            <option value="gradient">{t("inspector.gradient")}</option>
+          </select>
+          {fillMode === "gradient" ? <TextStylePropertyMeta
+              source={textFillSource?.source}
+              linkedValue={textFillSource?.linkedValue}
+              onReset={onResetTextFill}
+            /> : null}
         </label>
+        {fillMode === "color" ? (
+          <label className={styles.field}>
+            <ColorControl
+              id={`${controlPrefix}-color`}
+              name={getControlName(controlPrefix, "Color")}
+              value={textColorDisabled ? undefined : style?.color}
+              effectiveValue={effectiveTextFill?.color}
+              effectiveSource={textColorDisabled ? undefined : effectiveTextFill?.color === undefined ? undefined : (style?.color === undefined && textFillSource?.source !== "linked" ? fallbackTextColorSource : undefined)}
+              disabled={textColorDisabled}
+              onChange={(color) => onUpdateStyle((current) => ({ ...clearTextFill(current), color }))}
+              secondaryAction={detachedFillReset}
+            />
+            <TextStylePropertyMeta
+              source={textFillSource?.source}
+              linkedValue={textFillSource?.linkedValue}
+              onReset={onResetTextFill}
+            />
+          </label>
+        ) : (
+          <>
+            <ElementGradientControl
+              gradient={effectiveTextFill?.gradient}
+              authoredGradient={{ value: style?.gradient }}
+              controlPrefix={`${controlPrefix}-fill`}
+              allowNone={false}
+              disabled={textColorDisabled}
+              onChange={(gradient) => {
+                if (gradient !== undefined) onUpdateStyle((current) => ({ ...clearTextFill(current), gradient }));
+              }}
+            />
+            {detachedFillReset ? <button type="button" className={styles.colorPaletteDisclosure} onClick={detachedFillReset.onClick}>{detachedFillReset.label}</button> : null}
+          </>
+        )}
       </div>
 
       <div className={styles.backgroundControls}>
