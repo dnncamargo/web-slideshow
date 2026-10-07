@@ -25,7 +25,7 @@ import { FundamentalTextStyleIdSchema } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
-import { renderCanonicalTextStyle } from "./render-canonical-text";
+import { renderCanonicalTextStyle, renderTextGlowFilter } from "./render-canonical-text";
 import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
 import { renderGradient, renderGradientBorder } from "./render-visual";
@@ -37,6 +37,7 @@ import {
 } from "./render-canonical-image";
 
 const AUTHORED_LINK_APPEARANCE = "color:inherit;text-decoration:inherit";
+const TEXT_CONTENT_CLASS = "presentation-text-content";
 const TEXT_GRADIENT_CONTENT_CLASS = "presentation-text-gradient-content";
 
 function hasGradientBorder(element: ImageElement): boolean {
@@ -139,13 +140,20 @@ function buildAttributes(
   );
 }
 
-function renderTextGradientContent(content: string, gradient: NonNullable<TextElement["style"]>["gradient"]): string {
-  if (gradient === undefined) {
-    return content;
+function renderTextContentSurface(
+  content: string,
+  gradient: NonNullable<TextElement["style"]>["gradient"],
+  glowFilter: string | undefined,
+): string {
+  const classes = [TEXT_CONTENT_CLASS];
+  const styles: string[] = [];
+  if (gradient !== undefined) {
+    classes.push(TEXT_GRADIENT_CONTENT_CLASS);
+    styles.push(`--presentation-text-gradient:${renderGradient(gradient)}`);
   }
-
-  const style = `--presentation-text-gradient:${renderGradient(gradient)}`;
-  return `<span class="${TEXT_GRADIENT_CONTENT_CLASS}" style="${escapeHtml(style)}">${content}</span>`;
+  if (glowFilter !== undefined) styles.push(`filter:${glowFilter}`);
+  const styleAttribute = styles.length > 0 ? ` style="${escapeHtml(styles.join(";"))}"` : "";
+  return `<span class="${classes.join(" ")}"${styleAttribute}>${content}</span>`;
 }
 
 function renderText(element: TextElement, context?: RenderContext): string {
@@ -165,7 +173,10 @@ function renderText(element: TextElement, context?: RenderContext): string {
       ? renderTextContent(element.content, gradient === undefined ? {} : { gradientFill: true })
       : renderRichText(element.content, gradient === undefined ? {} : { gradientFill: true });
   const linkedContent = renderLinkContent(renderedContent, element.link);
-  const content = renderTextGradientContent(linkedContent, gradient);
+  const glowFilter = renderTextGlowFilter(element.effect?.glow);
+  const content = gradient !== undefined || glowFilter !== undefined
+    ? renderTextContentSurface(linkedContent, gradient, glowFilter)
+    : linkedContent;
   const role = resolved?.role ?? FundamentalTextStyleIdSchema.parse(element.variant);
   const gradientBorder = element.style?.border?.gradient;
   const migratesGradientBorder = gradientBorder !== undefined &&

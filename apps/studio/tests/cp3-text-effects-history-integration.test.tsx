@@ -115,6 +115,8 @@ describe("CP3 Text Fill, Shadow, Glow history", () => {
 
     await act(async () => changeSelect(select("text-shadow-mode"), "outer"));
     await act(async () => changeSelect(select("text-glow-mode"), "glow"));
+    expect(input("text-glow-blur").value).toBe("12");
+    expect(input("text-glow-blur").min).toBe("1");
 
     const shadowX = input("text-shadow-x");
     await act(async () => {
@@ -141,6 +143,30 @@ describe("CP3 Text Fill, Shadow, Glow history", () => {
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(select("text-glow-mode").value).toBe("none");
     expect(select("text-shadow-mode").value).toBe("outer");
+  });
+
+  it("clamps Glow numeric authoring to a positive blur", async () => {
+    await mount(presentation());
+    await act(async () => changeSelect(select("text-glow-mode"), "glow"));
+
+    const glowBlur = input("text-glow-blur");
+    await act(async () => changeInput(glowBlur, "0"));
+    expect(glowBlur.value).toBe("1");
+    await act(async () => changeInput(glowBlur, "-4"));
+    expect(glowBlur.value).toBe("1");
+  });
+
+  it("does not write dormant zero Glow on mount and re-enables with the default", async () => {
+    await mount(presentation({ effect: { glow: { blur: 0, color: "#22d3ee" } } }));
+
+    expect(select("text-glow-mode").value).toBe("none");
+    expect(host.querySelector("#text-glow-blur")).toBeNull();
+    const mountUndo = key("z", { ctrlKey: true });
+    await act(async () => window.dispatchEvent(mountUndo));
+    expect(mountUndo.defaultPrevented).toBe(false);
+
+    await act(async () => changeSelect(select("text-glow-mode"), "glow"));
+    expect(input("text-glow-blur").value).toBe("12");
   });
 
   it("does not create History from displaying an inherited Gradient and coalesces the first stop edit", async () => {

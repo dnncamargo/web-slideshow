@@ -206,7 +206,7 @@ describe("canonical Text family renderer", () => {
     expect(html).not.toContain("inset");
   });
 
-  it("composes one deterministic glyph shadow declaration for Shadow and Glow", () => {
+  it("keeps Shadow in text-shadow and renders Glow externally", () => {
     const html = renderElement({
       id: "glyph-effects",
       type: "text",
@@ -219,7 +219,9 @@ describe("canonical Text family renderer", () => {
       },
     });
 
-    expect(html).toContain("text-shadow:1px 2px 3px #000000,0 0 8px #22d3ee");
+    expect(html).toContain("text-shadow:1px 2px 3px #000000");
+    expect(html).toContain("filter:drop-shadow(0 0 8px #22d3ee)");
+    expect(html).not.toContain("text-shadow:1px 2px 3px #000000,0 0 8px #22d3ee");
     expect(html.match(/text-shadow:/g)).toHaveLength(1);
     expect(html).not.toContain("box-shadow:");
   });
@@ -252,7 +254,106 @@ describe("canonical Text family renderer", () => {
     });
 
     const html = renderPresentation(source);
-    expect(html).toContain("text-shadow:1px 2px 3px var(--ps-palette-0073006800610064006f0077),0 0 8px var(--ps-palette-0067006c006f0077)");
+    expect(html).toContain("text-shadow:1px 2px 3px var(--ps-palette-0073006800610064006f0077)");
+    expect(html).toContain("filter:drop-shadow(0 0 8px var(--ps-palette-0067006c006f0077))");
+  });
+
+  it("renders Glow-only Text on one external content surface", () => {
+    const html = renderElement({
+      id: "glow-only",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "Glow",
+      effect: { glow: { blur: 1, color: "#22d3ee" } },
+    });
+
+    expect(html.match(/presentation-text-content/g)).toHaveLength(1);
+    expect(html).toContain("filter:drop-shadow(0 0 1px #22d3ee)");
+    expect(html).not.toContain("text-shadow:");
+  });
+
+  it("keeps Gradient and Glow on one shared content surface", () => {
+    const html = renderElement({
+      id: "gradient-glow",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "Gradient Glow",
+      style: { gradient },
+      effect: { glow: { blur: 12, color: "#22d3ee" } },
+    });
+
+    expect(html.match(/presentation-text-content/g)).toHaveLength(1);
+    expect(html.match(/presentation-text-gradient-content/g)).toHaveLength(1);
+    expect(html).toContain("--presentation-text-gradient:linear-gradient(180deg,#000 0%,#fff 100%)");
+    expect(html).toContain("filter:drop-shadow(0 0 12px #22d3ee)");
+  });
+
+  it.each([0, -4, "0px"] as const)("keeps Gradient visible and omits non-positive Glow blur %s", (blur) => {
+    const html = renderElement({
+      id: "zero-gradient-glow",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "Gradient Glow",
+      style: { gradient },
+      effect: { glow: { blur, color: "#22d3ee" } },
+    });
+
+    expect(html).toContain("presentation-text-gradient-content");
+    expect(html).not.toContain("filter:");
+  });
+
+  it("does not apply Glow to a Text background or border box", () => {
+    const html = renderElement({
+      id: "background-glow",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "Glyph Glow",
+      style: { background: { color: "#101218" }, border: { width: 2, style: "solid", color: "#ffffff" }, borderRadius: 8 },
+      effect: { glow: { blur: 12, color: "#22d3ee" } },
+    });
+    const root = html.slice(0, html.indexOf(">"));
+
+    expect(root).toContain("background:#101218");
+    expect(root).toContain("border-width:2px");
+    expect(root).not.toContain("filter:");
+    expect(html).toContain("filter:drop-shadow(0 0 12px #22d3ee)");
+  });
+
+  it("uses one Glow content surface for rich text without duplicating markup", () => {
+    const html = renderElement({
+      id: "rich-glow",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: {
+        type: "rich-text",
+        runs: [{ text: "bold", marks: { bold: true } }, { text: " and code", marks: { code: true } }],
+      },
+      effect: { glow: { blur: 12, color: "#22d3ee" } },
+    });
+
+    expect(html.match(/presentation-text-content/g)).toHaveLength(1);
+    expect(html).toContain("<strong>bold</strong>");
+    expect(html).toContain("<code> and code</code>");
+    expect(html).toContain("filter:drop-shadow(0 0 12px #22d3ee)");
+  });
+
+  it("uses one Glow content surface for multiline Text", () => {
+    const html = renderElement({
+      id: "multiline-glow",
+      type: "text",
+      hidden: false,
+      variant: "body",
+      content: "first line\nsecond line",
+      effect: { glow: { blur: 12, color: "#22d3ee" } },
+    });
+
+    expect(html.match(/presentation-text-content/g)).toHaveLength(1);
+    expect(html).toContain("first line<br>second line");
   });
 
   it("owns an effective glyph Gradient on one internal content surface", () => {

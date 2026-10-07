@@ -1,6 +1,7 @@
 import type {
   ElementTypography,
   Glow,
+  Length,
   Shadow,
   TextElement,
   TextStyleLayoutProperties,
@@ -134,13 +135,16 @@ function renderTextShadow(shadow: Shadow): string {
   ].join(" ");
 }
 
-function renderTextGlow(glow: Glow): string {
-  return [
-    "0",
-    "0",
-    renderLength(glow.blur),
-    renderColorValue(glow.color),
-  ].join(" ");
+function isKnownPositiveLength(value: Length): boolean {
+  if (typeof value === "number") return value > 0;
+  const normalized = value.trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:px)?$/i.test(normalized)) return true;
+  return Number.parseFloat(normalized) > 0;
+}
+
+export function renderTextGlowFilter(glow: Glow | undefined): string | undefined {
+  if (glow === undefined || !isKnownPositiveLength(glow.blur)) return undefined;
+  return `drop-shadow(0 0 ${renderLength(glow.blur)} ${renderColorValue(glow.color)})`;
 }
 
 function renderEffect(effect: TextElement["effect"]): string[] {
@@ -152,18 +156,8 @@ function renderEffect(effect: TextElement["effect"]): string[] {
 
   addStyle(output, "opacity", effect.opacity);
 
-  const textShadows: string[] = [];
-
   if (effect.shadow) {
-    textShadows.push(renderTextShadow(effect.shadow));
-  }
-
-  if (effect.glow) {
-    textShadows.push(renderTextGlow(effect.glow));
-  }
-
-  if (textShadows.length > 0) {
-    output.push(`text-shadow:${textShadows.join(",")}`);
+    output.push(`text-shadow:${renderTextShadow(effect.shadow)}`);
   }
 
   return output;

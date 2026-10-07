@@ -39,6 +39,12 @@ const defaultShadow = (): NonNullable<TextEffect["shadow"]> => ({
 
 const defaultGlow = (): Glow => ({ blur: 12, color: THEME_COLORS.accent });
 
+function isDormantGlow(glow: Glow | undefined): boolean {
+  if (glow === undefined) return false;
+  const blur = readAbsoluteNumber(glow.blur);
+  return typeof blur === "number" && blur <= 0;
+}
+
 const defaultTextStroke = (color: string | undefined): TextStroke => ({
   width: 1,
   color: color ?? "#f8fafc",
@@ -63,8 +69,8 @@ export function CanonicalTextEffectsSection({
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
   const shadowMode: ShadowMode = effect?.shadow === undefined ? "none" : "outer";
-  const glowMode = effect?.glow === undefined ? "none" : "glow";
-  const glow = effect?.glow;
+  const glow = isDormantGlow(effect?.glow) ? undefined : effect?.glow;
+  const glowMode = glow === undefined ? "none" : "glow";
   const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
   const strokeMode = effectiveTextStroke === undefined || readAbsoluteNumber(effectiveTextStroke.width) === 0 ? "none" : "stroke";
   const shadow = effect?.shadow;
@@ -324,7 +330,7 @@ export function CanonicalTextEffectsSection({
             if (mode === glowMode) return;
             runDiscrete("glow.mode", () => onUpdateEffect((current) => ({
               ...current,
-              glow: mode === "none" ? undefined : current?.glow ?? defaultGlow(),
+              glow: mode === "none" ? undefined : current?.glow !== undefined && !isDormantGlow(current.glow) ? current.glow : defaultGlow(),
             })));
           }}
         >
@@ -340,11 +346,14 @@ export function CanonicalTextEffectsSection({
               id={`${controlPrefix}-glow-blur`}
               name={getControlName(controlPrefix, "GlowBlur")}
               type="number"
-              min="0"
+              min="1"
               value={readAbsoluteNumber(glow.blur)}
               onFocus={() => beginNumberEditing("glow-blur")}
               onBlur={() => authoringHistory?.finish(`number:${controlPrefix}-glow-blur`)}
-              onChange={(event) => updateNumber("glow-blur", glow.blur, parseOptionalNumber(event.target.value) ?? 0, () => updateGlow((current) => ({ ...current, blur: parseOptionalNumber(event.target.value) ?? 0 })))}
+              onChange={(event) => {
+                const blur = Math.max(1, parseOptionalNumber(event.target.value) ?? 1);
+                updateNumber("glow-blur", glow.blur, blur, () => updateGlow((current) => ({ ...current, blur })));
+              }}
             />
           </label>
           <label className={styles.field}>
