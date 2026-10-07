@@ -120,6 +120,10 @@ import {
   type PresentationTextFileCreateOutcome,
 } from "./resources/custom-resources-workspace";
 import { PresentationTextFileEditor } from "./resources/presentation-text-file-editor";
+import {
+  StructuredTextEditor,
+  type StructuredTextEditorProfile,
+} from "./structured-text-editor";
 import { createUniqueId } from "./preset-structure";
 import {
   resolveCanvasEmbedPointerTarget,
@@ -318,6 +322,8 @@ import type {
   ShapePreviewControls,
   ShapeSvgImportComposition,
   ShapeSvgImportCompositionHandler,
+  ScriptedSourceEditRequest,
+  ScriptedSourceKind,
   TableAuthoringControls,
 } from "./inspector/inspector-types";
 import type { TableStructuralSelection } from "./table-tree-helpers";
@@ -450,6 +456,12 @@ function isRootDefinitionGenericInspectorElement(element: PresentationElement): 
 }
 
 type EditorPanelView = "inspector" | "elements" | "clipboard" | "history";
+
+function scriptedSourceProfile(source: ScriptedSourceKind): StructuredTextEditorProfile {
+  if (source === "html") return "html";
+  if (source === "css") return "css";
+  return "javascript";
+}
 
 interface GalleryItemSelection {
   galleryId: string;
@@ -1408,11 +1420,14 @@ export function EditorWorkspace({
   >("editor");
   const [textEditingFileId, setTextEditingFileId] = useState<string | null>(null);
   const [textEditingDirty, setTextEditingDirty] = useState(false);
+  const [scriptedSourceSession, setScriptedSourceSession] = useState<ScriptedSourceEditRequest | null>(null);
+  const [scriptedSourceEditorDirty, setScriptedSourceEditorDirty] = useState(false);
   const textEditingFile = textEditingFileId === null
     ? null
     : presentation.resources?.files?.find(
       (file): file is PresentationTextFileResource => file.id === textEditingFileId && file.representation === "text",
     ) ?? null;
+  const scriptedSourceEditorActive = scriptedSourceSession !== null;
 
   const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
   const resourcePresentationId = useRef(presentation.id);
@@ -1830,6 +1845,21 @@ export function EditorWorkspace({
 
     return findElementById(effectiveElements, selectedElement.id);
   }, [effectiveElements, selectedElement, selectedSlide]);
+
+  // The transient callback must be dropped as soon as its owning Inspector
+  // disappears; this is intentionally a synchronous lifecycle cleanup.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (
+      scriptedSourceSession !== null
+      && (selectedDocumentElement?.type !== "scripted"
+        || selectedDocumentElement.id !== scriptedSourceSession.elementId)
+    ) {
+      setScriptedSourceSession(null);
+      setScriptedSourceEditorDirty(false);
+    }
+  }, [scriptedSourceSession, selectedDocumentElement]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const selectedElementOwner = selectedDocumentElement && materializedOwnership
     ? materializedOwnership.get(selectedDocumentElement.id)
     : undefined;
@@ -4735,6 +4765,27 @@ export function EditorWorkspace({
     setTextEditingFileId(file.id);
   }
 
+  function editScriptedSource(request: ScriptedSourceEditRequest): void {
+    if (selectedDocumentElement?.type !== "scripted" || selectedDocumentElement.id !== request.elementId) return;
+    setRightPanelMode("editor");
+    setScriptedSourceEditorDirty(false);
+    setScriptedSourceSession(request);
+  }
+
+  function saveScriptedSourceDraft(content: string): void {
+    const session = scriptedSourceSession;
+    if (session === null) return;
+    session.onSaveDraft(content);
+    setScriptedSourceSession({ ...session, baseline: content });
+    setScriptedSourceEditorDirty(false);
+  }
+
+  function exitScriptedSourceEditor(): void {
+    if (scriptedSourceEditorDirty) return;
+    setScriptedSourceSession(null);
+    setScriptedSourceEditorDirty(false);
+  }
+
   function updatePresentationTextFileContent(fileResourceId: string, content: string): void {
     commitPresentationGlobalAction(
       {
@@ -6880,6 +6931,43 @@ export function EditorWorkspace({
               setTextEditingDirty(false);
             }}
           />
+        ) : scriptedSourceSession ? (
+          <>
+            <aside className={styles.scriptedSourceContext} data-scripted-source-context>
+              <div className={styles.scriptedSourceContextHeader}>{t("editor.scriptedSourceEditing")}</div>
+              <div className={styles.scriptedSourceContextContent}>
+                <h2 className={styles.scriptedSourceContextTitle}>
+                  {selectedDocumentElement?.type === "scripted"
+                    ? selectedDocumentElement.title
+                    : scriptedSourceSession.elementId}
+                </h2>
+                <dl className={styles.scriptedSourceContextMetadata}>
+                  <div className={styles.scriptedSourceContextMetadataRow}>
+                    <dt className={styles.scriptedSourceContextLabel}>{t("scripted.sourceKind")}</dt>
+                    <dd className={styles.scriptedSourceContextValue}>
+                      {t(scriptedSourceSession.source === "html" ? "scripted.html" : scriptedSourceSession.source === "css" ? "scripted.css" : "scripted.javascript")}
+                    </dd>
+                  </div>
+                </dl>
+                <p
+                  className={`${styles.scriptedSourceContextStatus} ${scriptedSourceEditorDirty ? styles.scriptedSourceContextStatusModified : ""}`}
+                  data-scripted-source-status
+                >
+                  {scriptedSourceEditorDirty ? t("editor.textFileModified") : t("editor.textFileClean")}
+                </p>
+              </div>
+            </aside>
+            <StructuredTextEditor
+              key={`${scriptedSourceSession.elementId}:${scriptedSourceSession.source}`}
+              title={selectedDocumentElement?.type === "scripted" ? selectedDocumentElement.title : scriptedSourceSession.elementId}
+              baseline={scriptedSourceSession.baseline}
+              profile={scriptedSourceProfile(scriptedSourceSession.source)}
+              ariaLabel={t("editor.scriptedSourceEditor")}
+              onSave={saveScriptedSourceDraft}
+              onDirtyChange={setScriptedSourceEditorDirty}
+              onExit={exitScriptedSourceEditor}
+            />
+          </>
         ) : (
           <>
         {/* ===================================================
@@ -7064,8 +7152,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "resources"}
-                disabled={false}
+                disabled={scriptedSourceEditorActive}
                 onClick={() => {
+                  if (scriptedSourceEditorActive) return;
                   setRightPanelMode((current) =>
                     current === "resources" ? "editor" : "resources",
                   );
@@ -7082,9 +7171,9 @@ export function EditorWorkspace({
                     : styles.notesToggle
                 }
                 aria-pressed={rightPanelMode === "notes"}
-                disabled={rootDefinitionMode}
+                disabled={rootDefinitionMode || scriptedSourceEditorActive}
                 onClick={() => {
-                  if (rootDefinitionMode) return;
+                  if (rootDefinitionMode || scriptedSourceEditorActive) return;
                   setRightPanelMode((current) =>
                     current === "notes" ? "editor" : "notes",
                   );
@@ -7562,7 +7651,7 @@ export function EditorWorkspace({
                    onSelectTableStructuralNode={setSelectedTableStructuralNode}
                    customLibraryRepository={customLibraryRepository}
                    onBrowseElementStyles={() => {
-                     if (elementStyleApplyAllowed) setRightPanelMode("resources");
+                     if (elementStyleApplyAllowed && !scriptedSourceEditorActive) setRightPanelMode("resources");
                    }}
                    palette={presentation.palette}
                    fontResources={presentation.resources?.fonts}
@@ -7701,6 +7790,10 @@ export function EditorWorkspace({
                                 }
                               : undefined
                           }
+                          onEditScriptedSource={editScriptedSource}
+                          activeScriptedSource={scriptedSourceSession?.source ?? null}
+                          scriptedSourceEditorActive={scriptedSourceEditorActive}
+                          scriptedSourceEditorDirty={scriptedSourceEditorDirty}
                           onAttachLinkedStyle={attachSelectedContainerLinkedStyle}
                           onDetachLinkedStyle={detachSelectedContainerLinkedStyle}
                           onAttachLinkedTopicsStyle={attachSelectedTopicsLinkedStyle}

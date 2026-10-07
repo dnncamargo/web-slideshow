@@ -2,6 +2,9 @@
 
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { css } from "@codemirror/lang-css";
+import { html } from "@codemirror/lang-html";
+import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
 import {
@@ -21,15 +24,18 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./structured-text-editor.module.css";
 
-export type StructuredTextEditorProfile = "plain" | "json" | "xml";
+export type StructuredTextEditorProfile = "plain" | "json" | "xml" | "html" | "css" | "javascript";
 
 type IndentationMode = "2" | "4" | "tab";
-type FormatterParser = "json-stringify" | "xml";
+type FormatterParser = "json-stringify" | "xml" | "html" | "css" | "babel";
 
 interface FormatterModules {
   formatWithCursor: typeof import("prettier/standalone").formatWithCursor;
   jsonPlugins: Plugin[];
   xmlPlugins: Plugin[];
+  htmlPlugins: Plugin[];
+  cssPlugins: Plugin[];
+  javascriptPlugins: Plugin[];
 }
 
 let formatterModulesPromise: Promise<FormatterModules> | null = null;
@@ -39,11 +45,16 @@ function loadFormatterModules(): Promise<FormatterModules> {
     import("prettier/standalone"),
     import("prettier/plugins/babel"),
     import("prettier/plugins/estree"),
+    import("prettier/plugins/html"),
+    import("prettier/plugins/postcss"),
     import("@prettier/plugin-xml"),
-  ]).then(([prettier, babel, estree, xml]) => ({
+  ]).then(([prettier, babel, estree, html, postcss, xml]) => ({
     formatWithCursor: prettier.formatWithCursor,
     jsonPlugins: [babel, estree],
     xmlPlugins: [xml.default],
+    htmlPlugins: [html, estree],
+    cssPlugins: [postcss],
+    javascriptPlugins: [babel, estree],
   }));
   return formatterModulesPromise;
 }
@@ -66,13 +77,30 @@ const editorSyntaxHighlightStyle = HighlightStyle.define([
 function getEditorLanguage(profile: StructuredTextEditorProfile): Extension {
   if (profile === "json") return json();
   if (profile === "xml") return xml();
+  if (profile === "html") return html();
+  if (profile === "css") return css();
+  if (profile === "javascript") return javascript();
   return [];
 }
 
 function getFormatterParser(profile: StructuredTextEditorProfile): FormatterParser | null {
   if (profile === "json") return "json-stringify";
   if (profile === "xml") return "xml";
+  if (profile === "html") return "html";
+  if (profile === "css") return "css";
+  if (profile === "javascript") return "babel";
   return null;
+}
+
+function getFormatterPlugins(
+  modules: FormatterModules,
+  parser: FormatterParser,
+): Plugin[] {
+  if (parser === "json-stringify") return modules.jsonPlugins;
+  if (parser === "xml") return modules.xmlPlugins;
+  if (parser === "html") return modules.htmlPlugins;
+  if (parser === "css") return modules.cssPlugins;
+  return modules.javascriptPlugins;
 }
 
 export interface StructuredTextEditorProps {
@@ -96,6 +124,7 @@ export function StructuredTextEditor({
 }: StructuredTextEditorProps) {
   const { t } = useStudioI18n();
   const [draft, setDraft] = useState(baseline);
+  const [acceptedBaseline, setAcceptedBaseline] = useState(baseline);
   const [indentationMode, setIndentationMode] = useState<IndentationMode>("2");
   const [formatting, setFormatting] = useState(false);
   const [formatError, setFormatError] = useState(false);
@@ -145,7 +174,7 @@ export function StructuredTextEditor({
       indentationCompartmentRef.current.of(indentUnit.of(getIndentationUnit(mode))),
     ],
   }), [editorExtensions]);
-  const dirty = draft !== baseline;
+  const dirty = draft !== acceptedBaseline;
 
   useEffect(() => {
     onDirtyChange(dirty);
@@ -189,8 +218,8 @@ export function StructuredTextEditor({
     const view = editorViewRef.current;
     if (!view) return;
 
-    view.setState(createEditorState(baseline, indentationMode));
-    setDraft(baseline);
+    view.setState(createEditorState(acceptedBaseline, indentationMode));
+    setDraft(acceptedBaseline);
   }
 
   const formatCode = useCallback(async (): Promise<void> => {
@@ -209,7 +238,7 @@ export function StructuredTextEditor({
       const modules = await loadFormatterModules();
       const result = await modules.formatWithCursor(source, {
         parser: formatterParser,
-        plugins: formatterParser === "json-stringify" ? modules.jsonPlugins : modules.xmlPlugins,
+        plugins: getFormatterPlugins(modules, formatterParser),
         cursorOffset,
         tabWidth: mode === "tab" ? 2 : Number(mode),
         useTabs: mode === "tab",
@@ -284,7 +313,10 @@ export function StructuredTextEditor({
             data-text-file-action="save"
             onClick={() => {
               const content = getCurrentDraft();
-              if (content !== baseline) onSave(content);
+              if (content !== acceptedBaseline) {
+                onSave(content);
+                setAcceptedBaseline(content);
+              }
             }}
           >
             {t("topbar.save")}

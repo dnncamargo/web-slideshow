@@ -15,6 +15,18 @@ export type ElementInspectorUpdate = (
   update: (element: PresentationElement) => PresentationElement,
 ) => void;
 
+export type ScriptedSourceKind = "html" | "css" | "script";
+
+export interface ScriptedSourceEditRequest {
+  elementId: string;
+
+  source: ScriptedSourceKind;
+
+  baseline: string;
+
+  onSaveDraft: (content: string) => void;
+}
+
 export type CreateQrCodeFromLink = (href: string) => void;
 
 export interface PlotPreviewControls {
