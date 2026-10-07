@@ -189,28 +189,91 @@
   outline: 0;
 }
 
-.editorHost :global(.cm-search) {
+.editorHost :global(.cm-panel.cm-search) {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  position: relative;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 8px 44px 8px 12px;
   border-bottom: 1px solid #303847;
   background: #111720;
   color: #cbd5e1;
   font-size: 12px;
+  line-height: 1.2;
 }
 
-.editorHost :global(.cm-search input) {
-  min-width: 12ch;
+.editorHost :global(.cm-search input[name="search"]),
+.editorHost :global(.cm-search input[name="replace"]) {
+  flex: 1 1 16ch;
+  min-width: 0;
+  width: auto;
   min-height: 26px;
+  box-sizing: border-box;
+  padding: 0 7px;
   border: 1px solid #303847;
   border-radius: 5px;
   background: #080b10;
   color: #e2e8f0;
   font: inherit;
+  line-height: 1.2;
 }
 
-.editorHost :global(.cm-search button) {
+.editorHost :global(.cm-search > input[name="search"]) {
+  order: 1;
+}
+
+.editorHost :global(.cm-search > button[name="next"]) {
+  order: 2;
+}
+
+.editorHost :global(.cm-search > button[name="prev"]) {
+  order: 3;
+}
+
+.editorHost :global(.cm-search > button[name="select"]) {
+  order: 4;
+}
+
+.editorHost :global(.cm-search > label:nth-of-type(1)) {
+  order: 5;
+}
+
+.editorHost :global(.cm-search > label:nth-of-type(2)) {
+  order: 6;
+}
+
+.editorHost :global(.cm-search > label:nth-of-type(3)) {
+  order: 7;
+}
+
+.editorHost :global(.cm-search input[type="checkbox"]) {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--ps-ui-semantic-accent);
+}
+
+.editorHost :global(.cm-search label) {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-height: 26px;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.editorHost :global(.cm-search button:not([name="close"])) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   min-height: 26px;
   padding: 0 8px;
   border: 1px solid #303847;
@@ -218,6 +281,53 @@
   background: #111720;
   color: #cbd5e1;
   font: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.editorHost :global(.cm-panel.cm-search::before) {
+  content: "";
+  flex: 0 0 100%;
+  order: 8;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.editorHost :global(.cm-panel.cm-search br) {
+  display: none;
+}
+
+.editorHost :global(.cm-search > input[name="replace"]) {
+  order: 9;
+}
+
+.editorHost :global(.cm-search > button[name="replace"]) {
+  order: 10;
+}
+
+.editorHost :global(.cm-search > button[name="replaceAll"]) {
+  order: 11;
+}
+
+.editorHost :global(.cm-panel.cm-search button[name="close"]) {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #94a3b8;
+  font: inherit;
+  line-height: 1;
   cursor: pointer;
 }
 
