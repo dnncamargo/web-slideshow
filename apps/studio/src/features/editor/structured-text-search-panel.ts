@@ -1,5 +1,4 @@
 import {
-  closeSearchPanel,
   findNext,
   findPrevious,
   getSearchQuery,
@@ -177,6 +176,10 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   status.className = "cm-structuredSearchStatus";
   status.setAttribute("aria-live", "polite");
   status.dataset.searchStatus = "";
+  const replaceField = document.createElement("div");
+  replaceField.className = "cm-structuredSearchField";
+  replaceField.append(replaceInput);
+  field.append(status);
 
   const previousButton = createButton(
     "cm-structuredSearchAction",
@@ -192,14 +195,6 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
     () => { findNext(view); },
   );
   nextButton.name = "next";
-  const closeButton = createButton(
-    "cm-structuredSearchAction cm-structuredSearchClose",
-    "×",
-    t("editor.textFileSearchClose"),
-    () => { closeSearchPanel(view); },
-  );
-  closeButton.name = "close";
-
   const replaceSpacer = document.createElement("span");
   replaceSpacer.className = "cm-structuredSearchSpacer";
   replaceSpacer.setAttribute("aria-hidden", "true");
@@ -219,9 +214,16 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   );
   replaceAllButton.name = "replaceAll";
 
-  findRow.append(disclosure, field, status, previousButton, nextButton, closeButton);
-  replaceRow.append(replaceSpacer, replaceInput, replaceNextButton, replaceAllButton);
-  panel.append(findRow, replaceRow);
+  const leftColumn = document.createElement("div");
+  leftColumn.className = "cm-structuredSearchLeftColumn";
+  findRow.append(disclosure, field);
+  replaceRow.append(replaceSpacer, replaceField);
+  leftColumn.append(findRow, replaceRow);
+
+  const actionColumn = document.createElement("div");
+  actionColumn.className = "cm-structuredSearchActionColumn";
+  actionColumn.append(previousButton, nextButton, replaceNextButton, replaceAllButton);
+  panel.append(leftColumn, actionColumn);
 
   const sync = (): void => {
     const query = getSearchQuery(view.state);

@@ -8,6 +8,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
 import {
+  closeSearchPanel,
   highlightSelectionMatches,
   openSearchPanel,
   search,
@@ -337,7 +338,12 @@ export function StructuredTextEditor({
             title={t("editor.textFileSearchShortcut")}
             onClick={() => {
               const view = editorViewRef.current;
-              if (view) openSearchPanel(view);
+              if (!view) return;
+              if (view.dom.querySelector(".cm-structuredSearch")) {
+                closeSearchPanel(view);
+              } else {
+                openSearchPanel(view);
+              }
             }}
           >
             {t("editor.textFileSearch")}

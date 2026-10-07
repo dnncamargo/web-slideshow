@@ -103,7 +103,7 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     expect(host.querySelectorAll(".cm-selectionMatch").length).toBeGreaterThan(0);
   });
 
-  it("opens the same native search panel from the toolbar and Ctrl+F", async () => {
+  it("toggles the custom search panel from the toolbar and reopens it with Ctrl+F", async () => {
     await mount();
     const view = editorView();
     const searchButton = host.querySelector<HTMLButtonElement>("[data-text-file-action='search']");
@@ -113,11 +113,15 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     const toolbarPanel = searchPanel();
     expect(toolbarPanel.querySelector<HTMLInputElement>("input[name='search']")).not.toBeNull();
 
+    await act(async () => searchButton.click());
+    expect(host.querySelector(".cm-panel.cm-structuredSearch")).toBeNull();
+
     await act(async () => {
       view.focus();
       view.contentDOM.dispatchEvent(key("f", { ctrlKey: true }));
     });
     expect(host.querySelectorAll(".cm-panel.cm-structuredSearch")).toHaveLength(1);
+    expect(host.querySelector<HTMLInputElement>("input[name='search']")).toBe(document.activeElement);
   });
 
   it("renders a compact custom panel with a local replace disclosure and query toggles", async () => {
@@ -128,10 +132,14 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     const panel = searchPanel();
     const searchInput = panel.querySelector<HTMLInputElement>("input[name='search']");
     const replaceRow = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow");
+    const replaceField = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow .cm-structuredSearchField");
     const disclosure = panel.querySelector<HTMLButtonElement>(".cm-structuredSearchDisclosure");
-    if (!searchInput || !replaceRow || !disclosure) throw new Error("custom search controls were not rendered");
+    if (!searchInput || !replaceRow || !replaceField || !disclosure) throw new Error("custom search controls were not rendered");
 
     expect(searchInput.getAttribute("main-field")).toBe("true");
+    expect(panel.querySelector("button[name='close']")).toBeNull();
+    expect(panel.querySelectorAll(".cm-structuredSearchActionColumn > button")).toHaveLength(4);
+    expect(panel.querySelector(".cm-structuredSearchReplaceRow .cm-structuredSearchToggle")).toBeNull();
     expect(replaceRow.hidden).toBe(false);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(searchToggle("Aa").getAttribute("aria-pressed")).toBe("false");
@@ -153,7 +161,7 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     expect(searchToggle(".*").getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("shows result status, closes, and reopens focused through the same command", async () => {
+  it("shows result status, closes from the toolbar, and closes with Escape", async () => {
     await mount();
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='search']")?.click());
 
@@ -161,8 +169,8 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     const searchInput = panel.querySelector<HTMLInputElement>("input[name='search']");
     const status = panel.querySelector<HTMLElement>("[data-search-status]");
     const nextButton = panel.querySelector<HTMLButtonElement>("button[name='next']");
-    const closeButton = panel.querySelector<HTMLButtonElement>("button[name='close']");
-    if (!searchInput || !status || !nextButton || !closeButton) throw new Error("custom search status controls were not rendered");
+    const searchButton = host.querySelector<HTMLButtonElement>("[data-text-file-action='search']");
+    if (!searchInput || !status || !nextButton || !searchButton) throw new Error("custom search status controls were not rendered");
 
     await act(async () => setNativeValue(searchInput, "alpha"));
     expect(status.textContent).toBe("0 / 2");
@@ -171,11 +179,14 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
 
     await act(async () => setNativeValue(searchInput, "missing"));
     expect(status.textContent).toBe("No results");
-    await act(async () => closeButton.click());
+    await act(async () => searchButton.click());
     expect(host.querySelector(".cm-panel.cm-structuredSearch")).toBeNull();
 
-    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='search']")?.click());
-    expect(searchPanel().querySelector<HTMLInputElement>("input[name='search']")).toBe(document.activeElement);
+    await act(async () => searchButton.click());
+    const reopenedInput = searchPanel().querySelector<HTMLInputElement>("input[name='search']");
+    if (!reopenedInput) throw new Error("search panel did not reopen");
+    await act(async () => reopenedInput.dispatchEvent(key("Escape")));
+    expect(host.querySelector(".cm-panel.cm-structuredSearch")).toBeNull();
   });
 
   it("uses native search navigation and replacement as transient editor changes", async () => {
