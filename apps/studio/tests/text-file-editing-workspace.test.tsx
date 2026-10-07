@@ -251,7 +251,7 @@ describe("Presentation text file editing workspace", () => {
       .find((details) => details.querySelector("[data-presentation-files]"));
     const summary = filesDetails?.querySelector<HTMLElement>("summary");
     if (!summary) throw new Error("Presentation Files section not found");
-    await act(async () => summary.click());
+    if (!filesDetails?.open) await act(async () => summary.click());
   }
 
   async function enterTextEditing(): Promise<void> {
@@ -365,6 +365,27 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.click());
   }
 
+  async function formatText(): Promise<void> {
+    const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
+    if (!format) throw new Error("Format Code action not found");
+    await act(async () => format.click());
+    await waitForFormatCompletion();
+  }
+
+  async function formatTextWithShortcut(): Promise<void> {
+    await pressKey("f", { altKey: true, shiftKey: true });
+    await waitForFormatCompletion();
+  }
+
+  async function waitForFormatCompletion(): Promise<void> {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 25)));
+      const format = host.querySelector<HTMLButtonElement>("[data-text-file-action='format']");
+      if (format && !format.disabled) return;
+    }
+    throw new Error("Format Code action did not finish");
+  }
+
   async function exitTextEditing(): Promise<void> {
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='exit']")?.click());
   }
@@ -382,6 +403,35 @@ describe("Presentation text file editing workspace", () => {
     const edit = row?.querySelector<HTMLButtonElement>("[data-resource-action='edit']");
     if (!edit) throw new Error(`Text file Edit action not found for ${name}`);
     return edit;
+  }
+
+  async function createLocalFile(name: string): Promise<void> {
+    await openPresentationFiles();
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]")?.click());
+    const input = host.querySelector<HTMLInputElement>("[data-presentation-file-name-input]");
+    if (!input) throw new Error("Local Presentation File form not found");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, name);
+    await act(async () => input.dispatchEvent(new Event("input", { bubbles: true })));
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
+  }
+
+  async function openHistory(): Promise<void> {
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => button(host, "History").click());
+  }
+
+  function historyLabels(): string[] {
+    return Array.from(host.querySelectorAll<HTMLElement>("[class*='historyEntry']"))
+      .map((entry) => entry.textContent?.trim() ?? "");
+  }
+
+  async function presentationUndo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true })));
+  }
+
+  async function presentationRedo(): Promise<void> {
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })));
   }
 
   it("keeps draft editing local, protects dirty exit, and discards without history", async () => {
@@ -837,6 +887,138 @@ describe("Presentation text file editing workspace", () => {
     expect(nodeNames).toContain("TagName");
   });
 
+  it("offers Format Code only for JSON, XML, and SVG text files", async () => {
+    await enterTextFileEditing("data.json");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextFileEditing("data.xml");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextFileEditing("icon.svg");
+    expect(host.querySelector("[data-text-file-action='format']")).not.toBeNull();
+    await exitTextEditing();
+
+    await enterTextEditing();
+    expect(host.querySelector("[data-text-file-action='format']")).toBeNull();
+  });
+
+  it("formats short JSON structurally with configured indentation and one-step editor undo/redo", async () => {
+    await enterTextFileEditing("data.json");
+    const compact = '{"a":1,"b":{"c":2}}';
+    const formattedTwo = '{\n  "a": 1,\n  "b": {\n    "c": 2\n  }\n}\n';
+    const formattedFour = '{\n    "a": 1,\n    "b": {\n        "c": 2\n    }\n}\n';
+    const formattedTab = '{\n\t"a": 1,\n\t"b": {\n\t\t"c": 2\n\t}\n}\n';
+
+    await act(async () => setText(compact));
+    await formatText();
+    expect(editorText()).toBe(formattedTwo);
+
+    await act(async () => undo(editorView()));
+    expect(editorText()).toBe(compact);
+    await act(async () => redo(editorView()));
+    expect(editorText()).toBe(formattedTwo);
+
+    await act(async () => setText(compact));
+    await setIndentationMode("4");
+    await formatText();
+    expect(editorText()).toBe(formattedFour);
+
+    await act(async () => setText(compact));
+    await setIndentationMode("tab");
+    await formatTextWithShortcut();
+    expect(editorText()).toBe(formattedTab);
+    expect(saved).toHaveLength(0);
+    expect(button(host, "Save").disabled).toBe(true);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toHaveLength(0);
+  });
+
+  it("restores editor focus after a no-op format without creating a document mutation or History action", async () => {
+    await enterTextFileEditing("data.json");
+    const formatted = '{\n  "answer": 42\n}\n';
+    await act(async () => setText(formatted));
+    const view = editorView();
+    view.focus();
+    const beforeState = view.state;
+
+    await formatText();
+
+    expect(editorText()).toBe(formatted);
+    expect(editorView()).toBe(view);
+    expect(editorView().state).toBe(beforeState);
+    expect(editorView().hasFocus).toBe(true);
+    expect(saved).toHaveLength(0);
+
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toHaveLength(0);
+  });
+
+  it("formats XML and SVG with whitespace-safe structured output and the keyboard shortcut", async () => {
+    await enterTextFileEditing("data.xml");
+    await act(async () => setText("<root><item id=\"1\" /></root>"));
+    await formatText();
+    expect(editorText()).toBe('<root>\n  <item id="1" />\n</root>\n');
+
+    const xmlSource = "<root>Hello <b>world</b>!</root>";
+    await act(async () => setText(xmlSource));
+    await setIndentationMode("4");
+    await formatTextWithShortcut();
+    expect(editorText()).toBe(`${xmlSource}\n`);
+
+    await act(async () => setText("<root><item id=\"1\" /><item id=\"2\" /></root>"));
+    await formatText();
+    expect(editorText()).toBe('<root>\n    <item id="1" />\n    <item id="2" />\n</root>\n');
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+
+    await enterTextFileEditing("icon.svg");
+    await act(async () => setText("<svg><g><path d=\"M0 0\" /></g></svg>"));
+    await setIndentationMode("tab");
+    await formatText();
+    expect(editorText()).toBe('<svg>\n\t<g>\n\t\t<path d="M0 0" />\n\t</g>\n</svg>\n');
+  });
+
+  it.each([
+    ["data.json", '{"answer":'],
+    ["data.xml", "<root><child></root>"],
+    ["icon.svg", "<svg><g></svg>"],
+  ])("keeps invalid %s drafts unchanged and reports a formatting error", async (name, invalidSource) => {
+    await enterTextFileEditing(name);
+    await act(async () => setText(invalidSource));
+    await formatText();
+
+    expect(editorText()).toBe(invalidSource);
+    expect(host.querySelector("[data-text-file-format-error]")?.textContent).toContain("Could not format invalid code.");
+    expect(saved).toHaveLength(0);
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+  });
+
+  it("keeps formatting local until the explicit text Save creates one content History action", async () => {
+    await enterTextFileEditing("data.json");
+    await act(async () => setText('{"answer":42}'));
+    await formatText();
+    expect(saved).toHaveLength(0);
+
+    await saveText();
+    expect(editorText()).toContain('"answer": 42');
+    const canonical = await saveCanonicalSnapshot();
+    expect(canonical.resources?.files?.find((file) => file.id === "json-text-file")?.source).toEqual({
+      type: "text",
+      content: editorText(),
+    });
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File content"]);
+  });
+
   it("uses a plain-text profile for non-JSON text files", async () => {
     await enterTextEditing();
 
@@ -850,6 +1032,98 @@ describe("Presentation text file editing workspace", () => {
     expect(nodeNames).not.toContain("JsonText");
     expect(nodeNames).not.toContain("PropertyName");
     expect(editorText()).toBe("before");
+  });
+
+  it("creates a clean local text file, opens it immediately, and allocates IDs independently", async () => {
+    await createLocalFile("  local-notes.txt  ");
+
+    expect(host.querySelector("[data-text-file-editor-region]")).not.toBeNull();
+    expect(editorText()).toBe("");
+    expect(host.querySelector("[data-text-file-status]")?.textContent).toContain("Saved");
+    const created = await saveCanonicalSnapshot();
+    expect(created.resources?.files?.at(-1)).toEqual({
+      id: "file-local",
+      name: "local-notes.txt",
+      kind: "text",
+      representation: "text",
+      contentType: "text/plain",
+      source: { type: "text", content: "" },
+    });
+
+    await createLocalFile("second.md");
+    expect(editorText()).toBe("");
+    const second = await saveCanonicalSnapshot();
+    expect(second.resources?.files?.at(-1)?.id).toBe("file-local-2");
+    expect(second.resources?.files?.at(-1)?.name).toBe("second.md");
+
+    await createLocalFile("data.csv");
+    await createLocalFile("config.json");
+    await createLocalFile("layout.xml");
+    await createLocalFile("ICON.SVG");
+    const allFiles = (await saveCanonicalSnapshot()).resources?.files ?? [];
+    expect(allFiles.slice(-4).map((file) => [file.name, file.kind, file.contentType])).toEqual([
+      ["data.csv", "structured-data", "text/csv"],
+      ["config.json", "structured-data", "application/json"],
+      ["layout.xml", "structured-data", "application/xml"],
+      ["ICON.SVG", "image", "image/svg+xml"],
+    ]);
+  });
+
+  it("keeps local File creation and content in independent Presentation History actions", async () => {
+    await createLocalFile("history.txt");
+    const created = await saveCanonicalSnapshot();
+    const createdFile = created.resources?.files?.at(-1);
+    expect(createdFile?.id).toBe("file-local");
+    expect(createdFile?.source).toEqual({ type: "text", content: "" });
+
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File create"]);
+
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => fileEditButton("history.txt").click());
+    await act(async () => setText("hello"));
+    const beforeTextSave = await saveCanonicalSnapshot();
+    expect(beforeTextSave.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "" });
+    await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File create"]);
+
+    await act(async () => button(host, "Custom Resources").click());
+    await act(async () => fileEditButton("history.txt").click());
+    await act(async () => setText("hello"));
+    await saveText();
+    expect(editorText()).toBe("hello");
+    const contentSaved = await saveCanonicalSnapshot();
+    expect(contentSaved.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "hello" });
+    await exitTextEditing();
+    await openHistory();
+    expect(historyLabels()).toEqual(["Change: File content", "Change: File create"]);
+
+    await presentationUndo();
+    const undoneContent = await saveCanonicalSnapshot();
+    expect(undoneContent.resources?.files?.find((file) => file.id === "file-local")?.source).toEqual({ type: "text", content: "" });
+
+    await presentationUndo();
+    const undoneCreate = await saveCanonicalSnapshot();
+    expect(undoneCreate.resources?.files?.some((file) => file.id === "file-local")).toBe(false);
+
+    await presentationRedo();
+    const redoneCreate = await saveCanonicalSnapshot();
+    expect(redoneCreate.resources?.files?.find((file) => file.id === "file-local")).toEqual(expect.objectContaining({
+      id: "file-local",
+      name: "history.txt",
+      source: { type: "text", content: "" },
+    }));
+
+    await presentationRedo();
+    const redoneContent = await saveCanonicalSnapshot();
+    expect(redoneContent.resources?.files?.find((file) => file.id === "file-local")).toEqual(expect.objectContaining({
+      id: "file-local",
+      name: "history.txt",
+      source: { type: "text", content: "hello" },
+    }));
   });
 
   it("switches clean text files without canonical writes or history", async () => {

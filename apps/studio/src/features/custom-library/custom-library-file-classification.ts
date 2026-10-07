@@ -34,9 +34,11 @@ const CLASSIFICATION_BY_EXTENSION: Readonly<Record<string, ClassificationEntry>>
 
 export const CUSTOM_LIBRARY_FILE_ACCEPT = Object.keys(CLASSIFICATION_BY_EXTENSION).join(",");
 
-export interface CustomLibraryFileClassification extends ClassificationEntry {
+export interface SupportedFileNameClassification extends ClassificationEntry {
   extension: string;
 }
+
+export type CustomLibraryFileClassification = SupportedFileNameClassification;
 
 export class UnsupportedCustomLibraryFileError extends Error {
   constructor(filename: string) {
@@ -51,13 +53,19 @@ function getFilenameExtension(filename: string): string {
   return trimmedLastDot >= 0 ? trimmedFilename.slice(trimmedLastDot).toLowerCase() : "";
 }
 
-export function classifyCustomLibraryFile(file: Pick<File, "name" | "type">): CustomLibraryFileClassification {
-  const extension = getFilenameExtension(file.name);
+export function classifySupportedFileName(filename: string): SupportedFileNameClassification | null {
+  const extension = getFilenameExtension(filename);
   const classification = CLASSIFICATION_BY_EXTENSION[extension];
 
-  if (!classification) {
+  return classification === undefined ? null : { extension, ...classification };
+}
+
+export function classifyCustomLibraryFile(file: Pick<File, "name" | "type">): CustomLibraryFileClassification {
+  const classification = classifySupportedFileName(file.name);
+
+  if (classification === null) {
     throw new UnsupportedCustomLibraryFileError(file.name);
   }
 
-  return { extension, ...classification };
+  return classification;
 }

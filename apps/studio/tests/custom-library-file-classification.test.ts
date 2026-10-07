@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyCustomLibraryFile,
+  classifySupportedFileName,
   UnsupportedCustomLibraryFileError,
 } from "../src/features/custom-library/custom-library-file-classification";
 
@@ -47,5 +48,33 @@ describe("classifyCustomLibraryFile", () => {
 
   it.each(["asset", "asset.exe", "asset.tar.gz"])("rejects unsupported extension %s", (name) => {
     expect(() => classifyCustomLibraryFile({ name, type: "" })).toThrow(UnsupportedCustomLibraryFileError);
+  });
+});
+
+describe("classifySupportedFileName", () => {
+  it.each(cases.filter(([, , representation]) => representation === "text"))(
+    "classifies presentation text filename %s",
+    (extension, kind, representation, contentType) => {
+      expect(classifySupportedFileName(`asset${extension}`)).toEqual({
+        extension,
+        kind,
+        representation,
+        contentType,
+      });
+    },
+  );
+
+  it("matches extensions case-insensitively", () => {
+    expect(classifySupportedFileName("ICON.SVG")).toEqual({
+      extension: ".svg",
+      kind: "image",
+      representation: "text",
+      contentType: "image/svg+xml",
+    });
+  });
+
+  it("returns null for an unsupported filename without changing the Custom Library API", () => {
+    expect(classifySupportedFileName("asset.exe")).toBeNull();
+    expect(() => classifyCustomLibraryFile({ name: "asset.exe", type: "" })).toThrow(UnsupportedCustomLibraryFileError);
   });
 });

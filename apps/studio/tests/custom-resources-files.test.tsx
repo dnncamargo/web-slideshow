@@ -87,8 +87,10 @@ describe("Custom Resources Files", () => {
     fileRepository?: CustomLibraryFileRepository;
     files?: PresentationFileResource[];
     onAdd?: (file: CustomLibraryFileRecord) => Promise<"added" | "unchanged" | "conflict" | "load-error">;
+    onCreate?: (filename: string) => "created" | "empty" | "unsupported" | "dirty";
     onEdit?: (id: string) => void;
     onRemove?: (id: string) => void;
+    textEditingDirty?: boolean;
   } = {}): HTMLDivElement {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -103,7 +105,9 @@ describe("Custom Resources Files", () => {
       onAddLibraryPalette={() => ({ ok: true, addedColors: [] })}
       onAddLibraryFont={() => ({ kind: "unchanged", addedFaces: 0 })}
       onAddLibraryFile={options.onAdd}
+      onCreatePresentationTextFile={options.onCreate}
       onEditPresentationFile={options.onEdit}
+      textEditingDirty={options.textEditingDirty}
       onApplyElementStyle={() => ({ ok: true })}
       onAddPresentationColor={() => undefined}
       onUpdatePresentationColor={() => undefined}
@@ -217,5 +221,55 @@ describe("Custom Resources Files", () => {
 
     await act(async () => edit?.click());
     expect(onEdit).toHaveBeenCalledWith("local-text-id");
+  });
+
+  it("creates a local Presentation File through the compact form", async () => {
+    const onCreate = vi.fn(() => "created" as const);
+    const container = renderWorkspace({ fileRepository: repository([]), onCreate });
+    const toggle = container.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]");
+    expect(toggle).not.toBeNull();
+    await act(async () => toggle?.click());
+
+    const input = container.querySelector<HTMLInputElement>("[data-presentation-file-name-input]");
+    if (!input) throw new Error("Local file name input was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, " notes.md ");
+    await act(async () => input.dispatchEvent(new Event("input", { bubbles: true })));
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
+
+    expect(onCreate).toHaveBeenCalledWith(" notes.md ");
+    expect(container.querySelector("[data-presentation-file-create-form]")).toBeNull();
+  });
+
+  it("keeps the local file form open and reports unsupported names", async () => {
+    const onCreate = vi.fn(() => "unsupported" as const);
+    const container = renderWorkspace({ fileRepository: repository([]), onCreate });
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]")?.click());
+    const input = container.querySelector<HTMLInputElement>("[data-presentation-file-name-input]");
+    if (!input) throw new Error("Local file name input was not rendered");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, "notes.exe");
+    await act(async () => input.dispatchEvent(new Event("input", { bubbles: true })));
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
+
+    expect(container.textContent).toContain("Use a supported file extension.");
+    expect(container.querySelector("[data-presentation-file-create-form]")).not.toBeNull();
+  });
+
+  it("reports an empty local file name without mutating the Presentation", async () => {
+    const onCreate = vi.fn(() => "empty" as const);
+    const container = renderWorkspace({ fileRepository: repository([]), onCreate });
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]")?.click());
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-presentation-file-create]")?.click());
+
+    expect(onCreate).toHaveBeenCalledWith("");
+    expect(container.textContent).toContain("Enter a file name.");
+    expect(container.querySelector("[data-presentation-file-create-form]")).not.toBeNull();
+  });
+
+  it("disables local file creation while the active text editor is dirty", async () => {
+    const container = renderWorkspace({ fileRepository: repository([]), textEditingDirty: true });
+    await flush();
+    expect(container.querySelector<HTMLButtonElement>("[data-presentation-file-create-toggle]")?.disabled).toBe(true);
   });
 });
