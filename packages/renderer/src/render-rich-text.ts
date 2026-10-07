@@ -10,6 +10,7 @@ import { renderColorValue } from "./render-palette";
 
 export type RichTextRenderOptions = Readonly<{
   newlineMode?: "br" | "preserve";
+  gradientFill?: boolean;
 }>;
 
 function renderNewlines(text: string, newlineMode: "br" | "preserve"): string {
@@ -28,7 +29,10 @@ export function renderTextContent(
   );
 }
 
-function renderSpanStyle(marks: TextRunMarks): string | undefined {
+function renderSpanStyle(
+  marks: TextRunMarks,
+  options: RichTextRenderOptions,
+): string | undefined {
   const styles: string[] = [];
 
   if (marks.underline === true) {
@@ -36,13 +40,22 @@ function renderSpanStyle(marks: TextRunMarks): string | undefined {
   }
 
   if (marks.color !== undefined) {
-    styles.push(`color:${renderColorValue(marks.color)}`);
+    const color = renderColorValue(marks.color);
+    styles.push(`color:${color}`);
+
+    if (options.gradientFill === true) {
+      styles.push(`-webkit-text-fill-color:${color}`);
+    }
   }
 
   return styles.length > 0 ? styles.join(";") : undefined;
 }
 
-function wrapMarks(content: string, marks: TextRunMarks | undefined): string {
+function wrapMarks(
+  content: string,
+  marks: TextRunMarks | undefined,
+  options: RichTextRenderOptions,
+): string {
   let output = content;
 
   if (marks?.code === true) {
@@ -57,7 +70,7 @@ function wrapMarks(content: string, marks: TextRunMarks | undefined): string {
     output = `<em>${output}</em>`;
   }
 
-  const spanStyle = marks ? renderSpanStyle(marks) : undefined;
+  const spanStyle = marks ? renderSpanStyle(marks, options) : undefined;
 
   if (spanStyle) {
     output = `<span style="${escapeHtml(spanStyle)}">${output}</span>`;
@@ -72,7 +85,7 @@ function renderRun(
 ): string {
   const content = renderTextContent(run.text, options);
 
-  return wrapMarks(content, run.marks);
+  return wrapMarks(content, run.marks, options);
 }
 
 export function renderRichText(

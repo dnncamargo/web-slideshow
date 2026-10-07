@@ -1,6 +1,7 @@
 import type {
-  ElementEffect,
   ElementTypography,
+  Glow,
+  Shadow,
   TextElement,
   TextStyleLayoutProperties,
   TextVisualStyle,
@@ -8,7 +9,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { quoteCssString } from "./escape-css-string";
-import { renderBorder, renderGradient, renderShadow } from "./render-visual";
+import { renderBorder, renderGradient } from "./render-visual";
 import { renderLength } from "./render-length";
 import { renderColorValue } from "./render-palette";
 
@@ -124,7 +125,25 @@ function renderTypography(typography: ElementTypography | undefined): string[] {
   return output;
 }
 
-function renderEffect(effect: ElementEffect | undefined): string[] {
+function renderTextShadow(shadow: Shadow): string {
+  return [
+    renderLength(shadow.x),
+    renderLength(shadow.y),
+    renderLength(shadow.blur),
+    renderColorValue(shadow.color),
+  ].join(" ");
+}
+
+function renderTextGlow(glow: Glow): string {
+  return [
+    "0",
+    "0",
+    renderLength(glow.blur),
+    renderColorValue(glow.color),
+  ].join(" ");
+}
+
+function renderEffect(effect: TextElement["effect"]): string[] {
   const output: string[] = [];
 
   if (!effect) {
@@ -133,8 +152,18 @@ function renderEffect(effect: ElementEffect | undefined): string[] {
 
   addStyle(output, "opacity", effect.opacity);
 
+  const textShadows: string[] = [];
+
   if (effect.shadow) {
-    output.push(`box-shadow:${renderShadow(effect.shadow)}`);
+    textShadows.push(renderTextShadow(effect.shadow));
+  }
+
+  if (effect.glow) {
+    textShadows.push(renderTextGlow(effect.glow));
+  }
+
+  if (textShadows.length > 0) {
+    output.push(`text-shadow:${textShadows.join(",")}`);
   }
 
   return output;

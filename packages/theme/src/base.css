@@ -81,6 +81,16 @@
   color: var(--presentation-container-color, var(--presentation-text-muted));
 }
 
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .presentation-text-gradient-content {
+    background-image: var(--presentation-text-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
 /* ==========================================================
    END: TEXT
    ========================================================== */
