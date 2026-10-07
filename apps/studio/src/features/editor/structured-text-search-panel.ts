@@ -153,7 +153,7 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   replaceInput.autocomplete = "off";
 
   const field = document.createElement("div");
-  field.className = "cm-structuredSearchField";
+  field.className = "cm-structuredSearchField cm-structuredSearchFindField";
   field.append(searchInput);
 
   const createToggle = (content: string, label: string, changes: SearchQueryChanges): HTMLButtonElement => {
@@ -179,7 +179,9 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   const replaceField = document.createElement("div");
   replaceField.className = "cm-structuredSearchField";
   replaceField.append(replaceInput);
-  field.append(status);
+  const statusSpacer = document.createElement("span");
+  statusSpacer.className = "cm-structuredSearchStatusSpacer";
+  statusSpacer.setAttribute("aria-hidden", "true");
 
   const previousButton = createButton(
     "cm-structuredSearchAction",
@@ -214,8 +216,8 @@ export function createStructuredTextSearchPanel(view: EditorView, t: StudioTrans
   );
   replaceAllButton.name = "replaceAll";
 
-  findRow.append(disclosure, field, previousButton, nextButton);
-  replaceRow.append(replaceSpacer, replaceField, replaceNextButton, replaceAllButton);
+  findRow.append(disclosure, field, status, previousButton, nextButton);
+  replaceRow.append(replaceSpacer, replaceField, statusSpacer, replaceNextButton, replaceAllButton);
   panel.append(findRow, replaceRow);
 
   const sync = (): void => {

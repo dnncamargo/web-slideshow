@@ -133,19 +133,25 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     const searchInput = panel.querySelector<HTMLInputElement>("input[name='search']");
     const findRow = panel.querySelector<HTMLElement>(".cm-structuredSearchFindRow");
     const replaceRow = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow");
+    const findField = panel.querySelector<HTMLElement>(".cm-structuredSearchFindField");
     const replaceField = panel.querySelector<HTMLElement>(".cm-structuredSearchReplaceRow .cm-structuredSearchField");
+    const status = panel.querySelector<HTMLElement>("[data-search-status]");
     const disclosure = panel.querySelector<HTMLButtonElement>(".cm-structuredSearchDisclosure");
     const previousButton = panel.querySelector<HTMLButtonElement>("button[name='prev']");
     const nextButton = panel.querySelector<HTMLButtonElement>("button[name='next']");
     const replaceButton = panel.querySelector<HTMLButtonElement>("button[name='replace']");
     const replaceAllButton = panel.querySelector<HTMLButtonElement>("button[name='replaceAll']");
-    if (!searchInput || !findRow || !replaceRow || !replaceField || !disclosure || !previousButton || !nextButton || !replaceButton || !replaceAllButton) {
+    if (!searchInput || !findRow || !replaceRow || !findField || !replaceField || !status || !disclosure || !previousButton || !nextButton || !replaceButton || !replaceAllButton) {
       throw new Error("custom search controls were not rendered");
     }
 
     expect(searchInput.getAttribute("main-field")).toBe("true");
     expect(panel.querySelector("button[name='close']")).toBeNull();
-    expect(panel.querySelector(".cm-structuredSearchReplaceRow .cm-structuredSearchToggle")).toBeNull();
+    expect(findField.querySelectorAll(".cm-structuredSearchToggle")).toHaveLength(3);
+    expect(findField.contains(status)).toBe(false);
+    expect(findRow.contains(status)).toBe(true);
+    expect(replaceField.querySelector("input[name='replace']")).not.toBeNull();
+    expect(replaceField.querySelector(".cm-structuredSearchToggle")).toBeNull();
     expect(findRow.contains(previousButton)).toBe(true);
     expect(findRow.contains(nextButton)).toBe(true);
     expect(replaceRow.contains(replaceButton)).toBe(true);
