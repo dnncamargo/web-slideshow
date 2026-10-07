@@ -274,6 +274,13 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     return control;
   }
 
+  function panelButton(label: string): HTMLButtonElement {
+    const control = Array.from(host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.textContent?.trim() === label);
+    if (!control) throw new Error(`Panel button ${label} was not rendered`);
+    return control;
+  }
+
   function editorView(): EditorView {
     const editor = host.querySelector<HTMLElement>("[data-structured-text-editor] .cm-editor");
     if (!editor) throw new Error("Shape source editor was not rendered");
@@ -881,10 +888,26 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
     await act(async () => canvasShape.dispatchEvent(new Event("pointerdown", { bubbles: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");
     await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    const canonicalBeforeApply = host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"] svg')?.outerHTML;
+    if (canonicalBeforeApply === undefined) throw new Error("canonical Shape output was not rendered");
 
     await act(async () => shapePathSourceEditButton().click());
     await saveAndExitShapePathSource("M 0 0 L 80 0 L 80 80 Z");
-    await act(async () => host.querySelector<HTMLButtonElement>("#shape-path-apply")?.click());
+    expect(host.querySelector<HTMLElement>('[data-presentation-id="shape-history-1"] svg')?.outerHTML).toBe(canonicalBeforeApply);
+    await act(async () => panelButton("History").click());
+    expect(host.textContent).toContain("History is not populated yet.");
+    await act(async () => panelButton("Inspector").click());
+
+    await act(async () => changeSelect(select("shape-geometry-preset"), "custom"));
+    await act(async () => shapePathSourceEditButton().click());
+    await saveAndExitShapePathSource("M 0 0 L 80 0 L 80 80 Z");
+    const applyPathButton = host.querySelector<HTMLButtonElement>("#shape-path-apply");
+    if (!applyPathButton) throw new Error("Shape path Apply button was not rendered after returning to Inspector");
+    expect(applyPathButton.disabled).toBe(false);
+    await act(async () => applyPathButton.click());
+    await act(async () => panelButton("History").click());
+    expect(host.querySelectorAll('section[aria-label="Applied"] li')).toHaveLength(1);
+    await act(async () => panelButton("Inspector").click());
     expect(select("shape-geometry-preset").value).toBe("custom");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(select("shape-geometry-preset").value).toBe("rectangle");

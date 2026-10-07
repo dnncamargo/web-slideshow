@@ -86,6 +86,15 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
     expect(host.querySelector(".cm-activeLineGutter")).not.toBeNull();
   });
 
+  it("highlights other occurrences of the selected text with native selection-match decoration", async () => {
+    await mount();
+    const view = editorView();
+
+    view.dispatch({ selection: { anchor: 0, head: 5 } });
+
+    expect(host.querySelectorAll(".cm-selectionMatch").length).toBeGreaterThan(0);
+  });
+
   it("opens the same native search panel from the toolbar and Ctrl+F", async () => {
     await mount();
     const view = editorView();
