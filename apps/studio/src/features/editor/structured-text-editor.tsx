@@ -35,6 +35,7 @@ import type { Plugin } from "prettier";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import styles from "./structured-text-editor.module.css";
+import { createStructuredTextSearchPanel } from "./structured-text-search-panel";
 
 export type StructuredTextEditorProfile = "plain" | "json" | "xml" | "html" | "css" | "javascript";
 
@@ -168,7 +169,10 @@ export function StructuredTextEditor({
     lineNumbers(),
     highlightActiveLine(),
     highlightActiveLineGutter(),
-    search(),
+    search({
+      top: true,
+      createPanel: (view) => createStructuredTextSearchPanel(view, t),
+    }),
     highlightSelectionMatches(),
     keymap.of([
       ...closeBracketsKeymap,
@@ -184,7 +188,7 @@ export function StructuredTextEditor({
         setFormatError(false);
       }
     }),
-  ], [formatKeymap, languageExtension]);
+  ], [formatKeymap, languageExtension, t]);
   const createEditorState = useCallback((content: string, mode: IndentationMode): EditorState => EditorState.create({
     doc: content,
     extensions: [
