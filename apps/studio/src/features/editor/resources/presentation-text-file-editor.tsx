@@ -24,7 +24,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import styles from "./presentation-text-file-editor.module.css";
 
 type IndentationMode = "2" | "4" | "tab";
-type FormatterParser = "json" | "xml";
+type FormatterParser = "json-stringify" | "xml";
 
 interface FormatterModules {
   formatWithCursor: typeof import("prettier/standalone").formatWithCursor;
@@ -70,7 +70,7 @@ function getEditorLanguage(contentType: PresentationTextFileResource["contentTyp
 }
 
 function getFormatterParser(contentType: PresentationTextFileResource["contentType"]): FormatterParser | null {
-  if (contentType === "application/json") return "json";
+  if (contentType === "application/json") return "json-stringify";
   if (contentType === "application/xml" || contentType === "image/svg+xml") return "xml";
   return null;
 }
@@ -201,7 +201,7 @@ export function PresentationTextFileEditor({
       const modules = await loadFormatterModules();
       const result = await modules.formatWithCursor(source, {
         parser: formatterParser,
-        plugins: formatterParser === "json" ? modules.jsonPlugins : modules.xmlPlugins,
+        plugins: formatterParser === "json-stringify" ? modules.jsonPlugins : modules.xmlPlugins,
         cursorOffset,
         tabWidth: mode === "tab" ? 2 : Number(mode),
         useTabs: mode === "tab",

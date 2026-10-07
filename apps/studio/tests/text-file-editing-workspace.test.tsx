@@ -904,22 +904,33 @@ describe("Presentation text file editing workspace", () => {
     expect(host.querySelector("[data-text-file-action='format']")).toBeNull();
   });
 
-  it("formats JSON locally with configured indentation and one-step editor undo/redo", async () => {
+  it("formats short JSON structurally with configured indentation and one-step editor undo/redo", async () => {
     await enterTextFileEditing("data.json");
-    const compact = '{"longPropertyName":"long value that is deliberately long enough to exceed the default print width","anotherProperty":"another value that also exceeds the default print width"}';
-    await act(async () => setText(compact));
-    await setIndentationMode("4");
-    await formatText();
+    const compact = '{"a":1,"b":{"c":2}}';
+    const formattedTwo = '{\n  "a": 1,\n  "b": {\n    "c": 2\n  }\n}\n';
+    const formattedFour = '{\n    "a": 1,\n    "b": {\n        "c": 2\n    }\n}\n';
+    const formattedTab = '{\n\t"a": 1,\n\t"b": {\n\t\t"c": 2\n\t}\n}\n';
 
-    const formatted = editorText();
-    expect(formatted).toContain('\n    "longPropertyName": "long value that is deliberately long enough to exceed the default print width",');
-    expect(formatted).toContain('\n    "anotherProperty": "another value that also exceeds the default print width"');
-    expect(saved).toHaveLength(0);
+    await act(async () => setText(compact));
+    await formatText();
+    expect(editorText()).toBe(formattedTwo);
 
     await act(async () => undo(editorView()));
     expect(editorText()).toBe(compact);
     await act(async () => redo(editorView()));
-    expect(editorText()).toBe(formatted);
+    expect(editorText()).toBe(formattedTwo);
+
+    await act(async () => setText(compact));
+    await setIndentationMode("4");
+    await formatText();
+    expect(editorText()).toBe(formattedFour);
+
+    await act(async () => setText(compact));
+    await setIndentationMode("tab");
+    await formatTextWithShortcut();
+    expect(editorText()).toBe(formattedTab);
+    expect(saved).toHaveLength(0);
+    expect(button(host, "Save").disabled).toBe(true);
 
     await act(async () => host.querySelector<HTMLButtonElement>("[data-text-file-action='discard']")?.click());
     await exitTextEditing();
