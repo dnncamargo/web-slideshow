@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -125,6 +125,7 @@ describe("PresenterView controls", () => {
     nextGallery = vi.fn(),
     setGalleryExpanded = vi.fn(),
     end = vi.fn(),
+    pairingControl = null,
     playerStatus = {
       kind: "ready",
       presence: {
@@ -161,6 +162,7 @@ describe("PresenterView controls", () => {
     nextGallery?: ReturnType<typeof vi.fn>;
     setGalleryExpanded?: ReturnType<typeof vi.fn>;
     end?: ReturnType<typeof vi.fn>;
+    pairingControl?: ReactNode;
     playerStatus?: PlayerOperationalStatus;
   } = {}) {
     const publishedPresentation = presentation();
@@ -169,6 +171,7 @@ describe("PresenterView controls", () => {
       root.render(
         <StudioI18nProvider>
           <PresenterView
+            pairingControl={pairingControl}
             view={controlView}
             sendFailed={false}
             presentationState={{
@@ -528,6 +531,18 @@ describe("PresenterView controls", () => {
     expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(0, 3).every((button) => button.disabled)).toBe(true);
     expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(3, 6).every((button) => button.disabled)).toBe(true);
     expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(6).every((button) => button.disabled)).toBe(true);
+  });
+
+  it("anchors Player pairing inside the current presentation column", () => {
+    render({
+      pairingControl: <div data-player-pairing>Connect Player</div>,
+    });
+
+    const pairing = container.querySelector("[data-player-pairing]");
+    const anchor = pairing?.parentElement;
+    expect(pairing).not.toBeNull();
+    expect(anchor?.className).toContain("pairingAnchor");
+    expect(anchor?.parentElement?.className).toContain("currentColumn");
   });
 
   it("renders Gallery commands and sends exact desired intents without fullscreen", () => {
