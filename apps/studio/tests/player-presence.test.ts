@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parsePlayerPresence, resolveConnectedPlayerLeases, resolvePlayerOperationalStatus } from "../src/features/control/player-presence";
 
 const live = { publicationId: "publication", currentVersionId: "version-1", revision: 4 };
-const current = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId: "boot-b", stage: "starting", transitionedAt: 1, ...overrides });
-const lease = (bootId: string, overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", bootId, connected: true, transitionedAt: 1, ...overrides });
+const current = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", playerUid: "player-b", bootId: "boot-b", stage: "starting", transitionedAt: 1, ...overrides });
+const lease = (bootId: string, overrides: Record<string, unknown> = {}) => ({ activationRevision: 4, currentVersionId: "version-1", playerUid: `player-${bootId}`, bootId, connected: true, transitionedAt: 1, ...overrides });
 const presence = (currentOverrides: Record<string, unknown> = {}, leases: Record<string, unknown> = { "boot-b": lease("boot-b") }) => ({ current: current(currentOverrides), leases });
 const status = (value: unknown) => resolvePlayerOperationalStatus(live, parsePlayerPresence(value));
 
