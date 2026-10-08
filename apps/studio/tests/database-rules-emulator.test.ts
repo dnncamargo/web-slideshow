@@ -296,6 +296,62 @@ describe("Realtime Database Player pairing rules", () => {
     );
   });
 
+  it("lets an unbound Player delete only its own tagged presence and prevents new runtime writes", async () => {
+    const owner = account("account-presence-cleanup");
+    const player = anonymous("player-presence-cleanup");
+    const otherPlayer = anonymous("player-presence-other");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.database();
+      await database.ref("live/account-presence-cleanup/current").set({
+        publicationId: "publication-presence",
+        currentVersionId: "version-presence",
+        revision: 1,
+      });
+      await database.ref("playerBindings/player-presence-cleanup").set({
+        ownerUid: "account-presence-cleanup",
+      });
+    });
+
+    const current = player.ref("live/account-presence-cleanup/playerPresence/current");
+    const lease = player.ref("live/account-presence-cleanup/playerPresence/leases/boot-presence");
+
+    await assertSucceeds(current.set({
+      activationRevision: 1,
+      currentVersionId: "version-presence",
+      playerUid: "player-presence-cleanup",
+      bootId: "boot-presence",
+      stage: "ready",
+      transitionedAt: Date.now(),
+    }));
+    await assertSucceeds(lease.set({
+      activationRevision: 1,
+      currentVersionId: "version-presence",
+      playerUid: "player-presence-cleanup",
+      bootId: "boot-presence",
+      connected: true,
+      transitionedAt: Date.now(),
+    }));
+
+    await assertSucceeds(
+      owner.ref("playerBindings/player-presence-cleanup").remove(),
+    );
+
+    await assertFails(otherPlayer.ref("live/account-presence-cleanup/playerPresence/current").remove());
+    await assertFails(otherPlayer.ref("live/account-presence-cleanup/playerPresence/leases/boot-presence").remove());
+    await assertSucceeds(current.remove());
+    await assertSucceeds(lease.remove());
+
+    await assertFails(current.set({
+      activationRevision: 1,
+      currentVersionId: "version-presence",
+      playerUid: "player-presence-cleanup",
+      bootId: "boot-new",
+      stage: "starting",
+      transitionedAt: Date.now(),
+    }));
+  });
+
   it("rejects anonymous Control writes while preserving bounded Player runtime writes", async () => {
     const player = anonymous("player-runtime");
     const owner = account("account-runtime");
