@@ -538,6 +538,7 @@ Recent merged work includes:
 - managed binary storage migration from Firebase Storage to Vercel Blob (PR #215);
 - Presentation FontResources exposed inside the Scripted sandbox with the existing renderer-owned security boundary (PR #216).
 - Editor History / Undo-Redo over canonical Presentation snapshots, with semantic actions and a 30-action session bound.
+- Root-backed Slide-local Container delete/preserve correction: compatible Containers authored in `localRootChildren` now use the existing owner-aware tree resolution; the preserve mutation path, child IDs/order/payload, destructive deletion and canonical Root Definition protection remain unchanged.
 - parameterized Container Background Patterns with Pattern-owned colors, Size, Rotation and an expanded 14-preset catalog;
 - Pattern Color / Palette / Linked Container Style support, with preset identity remaining Studio-only and canonical documents remaining referential/parameterized;
 - Background-owned masking for Dashed Paper and Cross, keeping Container Background independently authored;
@@ -634,7 +635,8 @@ Divider gradient                                         ✅
 Linked Styles target expansion                           ✅
 Text Effects ✅
 Pointed Notes ✅
-NEXT: Container delete preserving children under Root Definition — urgent fix
+Root-backed Container preserve-children correction        ✅
+NEXT: not selected
 ```
 
 Immediate execution order:
@@ -644,7 +646,7 @@ Immediate execution order:
 3. Linked Styles target expansion ✅
 4. Text effects: gradient fill / shadow / glow ✅
 5. Pointed Notes ✅
-6. Container delete preserving children under Root Definition — urgent fix ← NEXT
+6. Root-backed Container preserve-children correction ✅
 
 Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 

@@ -666,6 +666,7 @@ The following current-state work is complete at its recorded closure point:
 
 - **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
+- **Root Definition preserve-children correction** — The dialog availability probe now resolves the actual persisted owner tree through `resolveOwnedAuthoringTree`, covering ordinary Slides, Root Definitions and Slide-local Root-backed ownership. Compatible Root-backed local Containers receive the same three-action choice; the existing `findLocalRootChildOwner → updateLocalRootChildren → unwrapContainerPreservingChildren` mutation remains unchanged, preserving child IDs/order/payload. Destructive deletion still removes wrapper plus children, Undo/Redo remains one History action, canonical Root protection and in-use receiver protections remain unchanged, and no schema/renderer/Player/publication changes were made. Manual product acceptance is complete.
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
 - **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy authoring is handled separately in Studio and now derives new duplicate IDs from a stable pre-copy family root without migrating existing IDs.
 - **Root Definitions / structural normalization** — SM6E1–SM6E3. The canonical `rootDefinitions` collection, shared preset structural primitive, same-workspace lifecycle, This Presentation browser/management, explicit/default Slide association, receiver authorization, owner-aware master and Slide-local authoring, state-aware assignment safety, Element Style compatibility, resource composition, History, persistence, import/export, publish, Player, Control, Library-thumbnail and renderer acceptance are complete. `schemaVersion` remains literally `1`; V1 intentionally keeps one effective Root per Slide, disallows nested Roots and per-Slide master property overrides, and blocks destructive reassignment instead of migrating content automatically.
@@ -784,9 +785,9 @@ Pointed Notes complete the existing private Notes capability without changing th
 - no second Notes system, private schema version or canonical Presentation/schema change was introduced;
 - manual product acceptance is complete.
 
-### 3. Container delete preserving children under Root Definition — urgent fix ← NEXT
+### 3. Container delete preserving children under Root Definition ✅
 
-Delete + Preserve children is reported not to work when the target Container belongs to or is authored on a Root Definition. The next implementation chat must begin with an audit of current delete/unwrap ownership and parent-location logic, comparing Slide-owned Containers with Root Definition-owned Containers. Verify the existing History and owner-aware tree mutation boundaries, then reuse the existing preserve-children implementation rather than creating a second delete path. Do not preselect a fix before auditing the current `main` code.
+The dialog now offers Delete container and children, Delete container, keep children, and Cancel for compatible non-empty Containers authored in `localRootChildren` on Root-backed Slides. The regression was caused by probing the materialized Slide tree instead of the persisted owner tree; `resolveOwnedAuthoringTree` now supplies the correct probe tree. The existing preserve mutation path remains unchanged, child IDs/order/payload are preserved, destructive deletion remains available, Undo/Redo remains one History action, canonical Root and in-use receiver protections are unchanged, and manual product acceptance is complete. No schema, renderer, Player or publication changes were made.
 
 ---
 
@@ -860,10 +861,10 @@ P12   UX / Properties refinement                            ✅
        Structured source editor + Shape path/SVG authoring    ✅
 
 NEXT:
-  1. Container delete preserving children under Root Definition — urgent fix ← NEXT
+  not selected
 
 IMMEDIATE QUEUE:
-  1. Container delete preserving children under Root Definition — urgent fix ← NEXT
+  not selected
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -879,4 +880,4 @@ FUTURE / DEFERRED:
   Custom Library portability
 ```
 
-The next implementation chat must begin from a fully closed and synchronized local `main`, audit the Root Definition preserve-children failure first, inspect the existing PR #171 implementation and current owner-aware Root Definition authoring paths, and extend the existing behavior rather than introduce a parallel delete system.
+The Root Definition preserve-children correction is closed; future work should be selected from the deferred roadmap after merge and local-main closure.
