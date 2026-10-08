@@ -109,6 +109,45 @@
   font-size: 14px;
 }
 
+.pairedPlayers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pairedPlayer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.pairedPlayer span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pairedPlayer button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+}
+
+.pairedPlayer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .logsControl {
   display: flex;
   align-items: center;
