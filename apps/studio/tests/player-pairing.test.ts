@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   remove: vi.fn(),
   runTransaction: vi.fn(),
+  update: vi.fn(),
   getCurrentNonAnonymousUser: vi.fn(),
 }));
 
@@ -21,6 +22,7 @@ vi.mock("firebase/database", () => ({
   ref: mocks.ref,
   remove: mocks.remove,
   runTransaction: mocks.runTransaction,
+  update: mocks.update,
 }));
 
 vi.mock("../src/features/auth/firebase-auth", () => ({
@@ -46,6 +48,7 @@ describe("Control Player pairing", () => {
       snapshot: { val: () => update(null) },
     }));
     mocks.remove.mockResolvedValue(undefined);
+    mocks.update.mockResolvedValue(undefined);
     mocks.onValue.mockReturnValue(vi.fn());
   });
 
@@ -136,17 +139,41 @@ describe("Control Player pairing", () => {
     expect(cleanup).toBe(unsubscribe);
   });
 
-  it("disconnects only a Player already owned by the authenticated account", async () => {
-    mocks.get.mockResolvedValueOnce({ val: () => ({ ownerUid: "account-1" }) });
+  it("cleans only the target Player presence before removing its owned binding", async () => {
+    mocks.get
+      .mockResolvedValueOnce({ val: () => ({ ownerUid: "account-1" }) })
+      .mockResolvedValueOnce({
+        val: () => ({
+          current: { playerUid: "player-1", bootId: "boot-target" },
+          leases: {
+            "boot-target": { playerUid: "player-1", bootId: "boot-target" },
+            "boot-other": { playerUid: "player-other", bootId: "boot-other" },
+          },
+        }),
+      });
 
     await disconnectOwnedPlayer({} as never, " player-1 ");
 
     expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings/player-1");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/account-1/playerPresence");
+    expect(mocks.update).toHaveBeenCalledWith(
+      { path: "live/account-1/playerPresence" },
+      {
+        current: null,
+        "leases/boot-target": null,
+      },
+    );
     expect(mocks.remove).toHaveBeenCalledWith({ path: "playerBindings/player-1" });
+  });
 
+  it("rejects disconnect when the binding belongs to another account", async () => {
     mocks.get.mockResolvedValueOnce({ val: () => ({ ownerUid: "account-2" }) });
+
     await expect(
       disconnectOwnedPlayer({} as never, "player-2"),
     ).rejects.toThrow("not paired to this account");
+
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });
