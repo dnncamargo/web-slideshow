@@ -167,6 +167,24 @@ describe("Realtime Database Player pairing rules", () => {
   it("rejects extra fields in pairing code, claim, and binding shapes", async () => {
     const player = anonymous("player-shape");
     const owner = account("account-shape");
+    const invalidPins = ["abcdef", "12345a", "12345", "1234567"];
+
+    for (const pin of invalidPins) {
+      await assertFails(player.ref(`playerPairingCodes/${pin}`).set({
+        playerUid: "player-shape",
+        expiresAt: Date.now() + 30_000,
+      }));
+    }
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.database();
+      for (const pin of invalidPins) {
+        await database.ref(`playerPairingCodes/${pin}`).set({
+          playerUid: "player-shape",
+          expiresAt: Date.now() + 30_000,
+        });
+      }
+    });
 
     await assertFails(player.ref("playerPairingCodes/423456").set({
       playerUid: "player-shape",
@@ -188,6 +206,13 @@ describe("Realtime Database Player pairing rules", () => {
       ownerUid: "account-shape",
       expiresAt: Date.now() + 10_000,
     }));
+    for (const pin of invalidPins) {
+      await assertFails(owner.ref("playerPairingClaims/player-shape").set({
+        pin,
+        ownerUid: "account-shape",
+        expiresAt: Date.now() + 10_000,
+      }));
+    }
     await assertFails(owner.ref("playerBindings/player-shape").set({
       ownerUid: "account-shape",
       extra: true,
