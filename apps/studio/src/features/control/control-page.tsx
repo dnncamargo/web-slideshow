@@ -217,40 +217,34 @@ export function ControlPage() {
 
   if (!available) {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("control.unavailable")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("control.unavailable")}</p>
+        </div>
+      </main>
     );
   }
 
   if (liveState.kind === "loading") {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("auth.loading")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("auth.loading")}</p>
+        </div>
+      </main>
     );
   }
 
   if (liveState.kind === "error") {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("control.couldNotLoadActive")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("control.couldNotLoadActive")}</p>
+        </div>
+      </main>
     );
   }
 
@@ -258,11 +252,10 @@ export function ControlPage() {
     const hasLastLiveIdentity = lastLiveIdentityRef.current !== null;
 
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <div className={styles.statusBlock}>
+        <div className={styles.card}>
+          <div className={styles.statusBlock}>
               <p className={styles.status}>{t("control.noActivePresentation")}</p>
               {hasLastLiveIdentity && (
                 <Button
@@ -280,17 +273,15 @@ export function ControlPage() {
               <Button onClick={() => router.push(STUDIO_ROUTES.library)}>
                 {t("editor.backToLibrary")}
               </Button>
-            </div>
           </div>
-        </main>
-      </>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      {pairingControl}
-      <PresenterView
+    <PresenterView
+      pairingControl={pairingControl}
         view={view}
         sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || shapeAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
         presentationState={presentationState}
@@ -331,6 +322,5 @@ export function ControlPage() {
         playerStatus={playerStatus}
         end={end}
       />
-    </>
   );
 }
