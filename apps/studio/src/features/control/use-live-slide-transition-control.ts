@@ -7,7 +7,9 @@ import type { LiveCurrent } from "./live-current";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 
 export type LiveSlideTransition = "fade" | "slide" | "none";
-export const SLIDE_TRANSITION_PATH = "live/slideTransition";
+import { buildAuthenticatedLivePath } from "../live/live-path";
+
+export const SLIDE_TRANSITION_PATH = "slideTransition";
 export const SLIDE_TRANSITION_STORAGE_KEY = "web-slideshow:control-slide-transition:v1";
 
 interface LiveSlideTransitionRecord {
@@ -89,7 +91,7 @@ export function useLiveSlideTransitionControl(
     if (live === null) return;
     const database = getRealtimeDatabaseOrNull();
     if (database === null) return;
-    return onValue(ref(database, SLIDE_TRANSITION_PATH), (snapshot) => {
+    return onValue(ref(database, buildAuthenticatedLivePath(SLIDE_TRANSITION_PATH)), (snapshot) => {
       const record = parseLiveSlideTransition(snapshot.val());
       if (record !== null && record.activationRevision === live.revision) {
         restoreAttemptedRef.current = true;
@@ -108,7 +110,7 @@ export function useLiveSlideTransitionControl(
       writeInFlightRef.current = true;
       setWriteInFlight(true);
       setSendFailed(false);
-      void set(ref(database, SLIDE_TRANSITION_PATH), {
+      void set(ref(database, buildAuthenticatedLivePath(SLIDE_TRANSITION_PATH)), {
         activationRevision,
         transition: storedTransition,
       }).then(() => {
@@ -144,7 +146,7 @@ export function useLiveSlideTransitionControl(
     writeInFlightRef.current = true;
     setWriteInFlight(true);
     setSendFailed(false);
-    void set(ref(database, SLIDE_TRANSITION_PATH), {
+    void set(ref(database, buildAuthenticatedLivePath(SLIDE_TRANSITION_PATH)), {
       activationRevision,
       transition: next,
     }).then(() => {

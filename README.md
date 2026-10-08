@@ -34,15 +34,15 @@ web-slideshow
     └── Cover            /cover  (technical route)
 ```
 
-- **Public Portal** — public application root. Without Live it exposes the self-contained demo; during Live it shows the active presentation cover and Watch entry.
+- **Public Portal** — public application root. Without a publication context it remains neutral and exposes the self-contained demo. With `?publication=<publicationId>`, it resolves that public publication's owner-scoped Live and exposes Cover/Watch only while that same publication is active.
 - **Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
 - **Editor** — visual authoring of the canonical Presentation, with session-scoped History and Undo/Redo.
 - **Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
 - **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery and remote diagnostics mode.
-- **Player** — public projection runtime.
-- **Watch** — public read-only audience surface following actual Player-applied state.
+- **Player** — projection runtime with persistent technical identity. First-time setup pairs the Player to one authenticated account through a temporary PIN; subsequent boots reuse that durable account binding.
+- **Watch** — public read-only audience surface at `/watch?publication=<publicationId>`, following actual Player-applied state only while that requested publication remains Live.
 
-The public root is deliberately not another Player. During Live, Cover remains static/read-only while Watch follows the real Player state.
+The public root is deliberately not another Player and never chooses an arbitrary account Live. Publication-scoped Cover (`/cover?publication=<publicationId>`) remains static/read-only while publication-scoped Watch follows the real Player state.
 
 ## Repository structure
 
@@ -269,7 +269,7 @@ Control reads Pointed Notes for the current slide and shows numbered textual ref
 
 ## Live presentation model
 
-Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions.
+Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions. Live state is account-scoped under `live/{ownerUid}/...`: authenticated Studio/Control surfaces use their own account UID, and a paired Player derives the same `ownerUid` from its persistent `playerBindings/{playerUid}` record. Pairing records remain separate from Live state. Different accounts can therefore run simultaneous independent Lives; multiple Players bound to the same account intentionally share that account's singleton Live.
 
 Primary slide flow:
 
@@ -283,16 +283,24 @@ Control desired slide state
 
 Other bounded Live contracts include:
 
-- `live/galleryControl/<slot>` for one-way Gallery intent;
-- `live/slideTransition` for presentation-slide transition mode;
-- `live/playerControls` for Player control position/style/counter/animation;
-- `live/playerLogs` for activation-scoped remote diagnostics mode;
-- `live/plotAnimationAction/<plotSlot>` for boot-targeted Plot play/pause/reset actions;
-- `live/shapeAnimationAction/<shapeSlot>` for boot-targeted Shape play/pause/reset actions;
-- `live/checkboxControl/<slot>` for one-way Control → Player absolute Checkbox desired state; this is transient runtime state, not Presentation persistence;
+- `live/{ownerUid}/galleryControl/<slot>` for one-way Gallery intent;
+- `live/{ownerUid}/slideTransition` for presentation-slide transition mode;
+- `live/{ownerUid}/playerControls` for Player control position/style/counter/animation;
+- `live/{ownerUid}/playerLogs` for activation-scoped remote diagnostics mode;
+- `live/{ownerUid}/plotAnimationAction/<plotSlot>` for boot-targeted Plot play/pause/reset actions;
+- `live/{ownerUid}/shapeAnimationAction/<shapeSlot>` for boot-targeted Shape play/pause/reset actions;
+- `live/{ownerUid}/checkboxControl/<slot>` for one-way Control → Player absolute Checkbox desired state; this is transient runtime state, not Presentation persistence;
 - Scripted-specific runtime/input/report roots for declared ports.
 
-Runtime state remains outside the canonical Presentation.
+Runtime state remains outside the canonical Presentation. The pairing boundary is also non-canonical and separate from Live:
+
+```text
+playerBindings/{playerUid}
+playerPairingCodes/{pin}
+playerPairingClaims/{playerUid}
+```
+
+The persistent Player identity, account binding and account-scoped Live do not change the Presentation contract; `schemaVersion` remains literally `1`.
 
 ## Blocks
 
@@ -436,7 +444,7 @@ Control can configure:
 
 Maintenance discovers connected Players from existing boot-scoped presence leases and broadcasts only the desired logs boolean. Each Player owns and rewrites its own URL: enabling logs adds/replaces `logs=true`; disabling logs removes all query parameters while preserving path/hash. URL equality prevents reload loops.
 
-RTDB rules for `slideTransition`, `playerControls` and `playerLogs` were explicitly deployed after validation.
+RTDB rules for the historical global forms of `slideTransition`, `playerControls` and `playerLogs` were explicitly deployed after validation. The current implementation scopes these contracts under `live/{ownerUid}/...`; production two-account acceptance for this cutover remains pending.
 
 ## Mobile surfaces
 

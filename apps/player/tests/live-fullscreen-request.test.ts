@@ -101,6 +101,7 @@ describe("subscribeLiveFullscreenRequest", () => {
   }) {
     const cleanup = subscribeLiveFullscreenRequest(
       {} as never,
+      "owner-a",
       4,
       "version-1",
       controller,
@@ -115,7 +116,7 @@ describe("subscribeLiveFullscreenRequest", () => {
   it("subscribes to the dedicated path and ignores stale identities", () => {
     const { handler, controller } = subscribe();
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, FULLSCREEN_REQUEST_PATH);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/fullscreenRequest");
     handler(snapshot({ ...request(), activationRevision: 3 }));
     handler(snapshot({ ...request(), currentVersionId: "version-old" }));
 

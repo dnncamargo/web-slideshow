@@ -24,7 +24,7 @@ const record = (overrides: Record<string, unknown> = {}) => ({
 
 describe("live Shape animation action", () => {
   it("parses the exact contract and canonical slot keys", () => {
-    expect(SHAPE_ANIMATION_ACTION_ROOT_PATH).toBe("live/shapeAnimationAction");
+    expect(SHAPE_ANIMATION_ACTION_ROOT_PATH).toBe("shapeAnimationAction");
     expect(parseShapeAnimationActionIndex("0")).toBe(0);
     expect(parseShapeAnimationActionIndex("2")).toBe(2);
     for (const key of ["-1", "01", "1.5", "shape"]) expect(parseShapeAnimationActionIndex(key)).toBeNull();
@@ -56,8 +56,8 @@ describe("live Shape animation action", () => {
     let currentIndex = 0;
     const controller = { getCurrentIndex: () => currentIndex, controlShapeAnimation };
     const tracker = createLiveShapeAnimationActionTracker();
-    const cleanup = subscribeLiveShapeAnimationAction({} as never, 7, "version-1", "boot-a", { slides: [{ id: "page-1" }, { id: "page-2" }] } as never, controller as never, tracker);
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/shapeAnimationAction");
+    const cleanup = subscribeLiveShapeAnimationAction({} as never, "owner-a", 7, "version-1", "boot-a", { slides: [{ id: "page-1" }, { id: "page-2" }] } as never, controller as never, tracker);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/shapeAnimationAction");
     callback?.({ val: () => ({ 0: record(), 1: record({ elementId: "shape-2", action: "pause" }), "01": record() }) });
     expect(controlShapeAnimation).toHaveBeenCalledTimes(2);
     callback?.({ val: () => ({ 0: record({ revision: 1 }), 1: record({ revision: 1, elementId: "shape-2", action: "pause" }) }) });

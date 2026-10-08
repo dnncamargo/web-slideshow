@@ -5,8 +5,9 @@ import {
   set,
   type Database,
 } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
-export const PLAYER_PRESENCE_PATH = "live/playerPresence";
+export const PLAYER_PRESENCE_PATH = "playerPresence";
 export const PLAYER_PRESENCE_CURRENT_PATH = `${PLAYER_PRESENCE_PATH}/current`;
 
 export type PlayerBootStage = "starting" | "ready" | "load-failed";
@@ -43,13 +44,14 @@ function createBootId(): string {
  */
 export async function startPlayerPresence(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   onError: PlayerPresenceErrorHandler = () => undefined,
 ): Promise<PlayerPresenceReporter> {
   const bootId = createBootId();
-  const currentRef = ref(database, PLAYER_PRESENCE_CURRENT_PATH);
-  const leaseRef = ref(database, `${PLAYER_PRESENCE_PATH}/leases/${bootId}`);
+  const currentRef = ref(database, buildLivePath(ownerUid, `${PLAYER_PRESENCE_PATH}/current`));
+  const leaseRef = ref(database, buildLivePath(ownerUid, `${PLAYER_PRESENCE_PATH}/leases/${bootId}`));
   const writeCurrent = (
     stage: PlayerBootStage,
     errorCode?: PlayerBootErrorCode,

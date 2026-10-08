@@ -1,8 +1,9 @@
 import { onValue, ref, type Database } from "firebase/database";
 import { visitSlideElements, type MaterializedSlide, type Presentation, type ScriptedElement } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const SCRIPTED_INPUT_ROOT_PATH = "live/scriptedInput";
+export const SCRIPTED_INPUT_ROOT_PATH = "scriptedInput";
 export interface LiveScriptedInputRecord { activationRevision: number; currentVersionId: string; revision: number; pageId: string; elementId: string; portId: string; targetBootId: string; targetMountRevision: number; value: boolean | number; }
 const keys = ["activationRevision", "currentVersionId", "revision", "pageId", "elementId", "portId", "targetBootId", "targetMountRevision", "value"] as const;
 const nonNegative = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0;
@@ -29,8 +30,8 @@ export function createLiveScriptedInputTracker() {
 function entries(value: unknown): Array<[string, unknown]> { return value !== null && typeof value === "object" ? Object.entries(value) : []; }
 function index(key: string): number | null { return /^(0|[1-9]\d*)$/.test(key) && nonNegative(Number(key)) ? Number(key) : null; }
 function scripteds(slide: MaterializedSlide): ScriptedElement[] { const found: ScriptedElement[] = []; visitSlideElements(slide, (element) => { if (element.type === "scripted") found.push(element); }); return found; }
-export function subscribeLiveScriptedInput(database: Database, activationRevision: number, currentVersionId: string, bootId: string, presentation: Presentation, controller: PlayerController, getCurrentMount: (slot: number) => { pageId: string; elementId: string; mountRevision: number } | null, tracker: ReturnType<typeof createLiveScriptedInputTracker>, onAppliedInput?: (input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void): () => void {
-  const unsubscribe = onValue(ref(database, SCRIPTED_INPUT_ROOT_PATH), (snapshot) => {
+export function subscribeLiveScriptedInput(database: Database, ownerUid: string, activationRevision: number, currentVersionId: string, bootId: string, presentation: Presentation, controller: PlayerController, getCurrentMount: (slot: number) => { pageId: string; elementId: string; mountRevision: number } | null, tracker: ReturnType<typeof createLiveScriptedInputTracker>, onAppliedInput?: (input: { scriptedSlot: number; portIndex: number; pageId: string; elementId: string; portId: string; mountRevision: number; revision: number }) => void): () => void {
+  const unsubscribe = onValue(ref(database, buildLivePath(ownerUid, SCRIPTED_INPUT_ROOT_PATH)), (snapshot) => {
     for (const [slotKey, ports] of entries(snapshot.val())) for (const [portKey, candidate] of entries(ports)) {
       const slot = index(slotKey); const portIndex = index(portKey); const record = parseLiveScriptedInputRecord(candidate);
       if (slot === null || portIndex === null || !record || record.activationRevision !== activationRevision || record.currentVersionId !== currentVersionId || record.targetBootId !== bootId) continue;

@@ -8,7 +8,7 @@ import {
   buildControlStatePath,
   buildPlayerStatePath,
 } from "../src/features/live/live-state";
-import { PLAYER_PRESENCE_PATH } from "../src/features/control/player-presence";
+import { buildPlayerPresencePath } from "../src/features/control/player-presence";
 import { STUDIO_ROUTES } from "../src/features/app/studio-routes";
 import { displayName } from "@web-slideshow/instance-branding";
 
@@ -168,7 +168,7 @@ describe("Maintenance page", () => {
   }
 
   function emitPresence(value: unknown): void {
-    emit(PLAYER_PRESENCE_PATH, value);
+    emit(buildPlayerPresencePath(), value);
   }
 
   function button(label: string): HTMLButtonElement {
@@ -259,7 +259,7 @@ describe("Maintenance page", () => {
     expect(container.textContent).toContain("Player boot-b…");
     expect(button("Off").disabled).toBe(false);
     await act(async () => button("Off").click());
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/playerLogs" }, { activationRevision: 7, enabled: true });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/playerLogs" }, { activationRevision: 7, enabled: true });
   });
 
   it("requires confirmation, writes clear-cache exactly, and waits for a replacement boot", async () => {
@@ -469,7 +469,7 @@ describe("Maintenance page", () => {
     emitPresence(presence("boot-a"));
     act(() => button("Reload Player").click());
     const staleLiveCallback = liveCallback;
-    const stalePresenceCallback = callbacks.get(PLAYER_PRESENCE_PATH);
+    const stalePresenceCallback = callbacks.get(buildPlayerPresencePath());
 
     await act(async () => root.unmount());
     root = createRoot(container);

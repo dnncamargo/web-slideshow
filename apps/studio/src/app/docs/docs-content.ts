@@ -633,11 +633,11 @@ export const docsGroups: readonly DocsGroup[] = [
         id: "live-identity",
         title: "Identidade da sessão",
         summary:
-          "live/current define qual publicação e versão pertencem à sessão ativa.",
+          "live/{ownerUid}/current define qual publicação e versão pertencem à sessão ativa.",
         sections: [
           {
             title: "Identidade",
-            code: "live/current\n├── publicationId\n├── currentVersionId\n└── revision",
+            code: "live/{ownerUid}/current\n├── publicationId\n├── currentVersionId\n└── revision",
           },
           {
             title: "Carregamento",
@@ -655,7 +655,7 @@ export const docsGroups: readonly DocsGroup[] = [
         sections: [
           {
             title: "Modelo",
-            code: "Control\n  │ desired state\n  ▼\nlive/controlState\n  │\n  ▼\nPlayer\n  │ applied state\n  ▼\nlive/playerState",
+            code: "Control\n  │ desired state\n  ▼\nlive/{ownerUid}/controlState\n  │\n  ▼\nPlayer\n  │ applied state\n  ▼\nlive/{ownerUid}/playerState",
           },
           {
             title: "Fencing",

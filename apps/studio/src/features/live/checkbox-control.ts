@@ -1,3 +1,4 @@
+import { buildAuthenticatedLivePath } from "./live-path";
 import type { CheckboxRuntimeState } from "@web-slideshow/renderer";
 
 /** One-way Control -> Player Checkbox desired-state wire contract. */
@@ -12,7 +13,7 @@ export interface LiveCheckboxControlState {
 }
 
 export function buildCheckboxControlRootPath(): string {
-  return "live/checkboxControl";
+  return buildAuthenticatedLivePath("checkboxControl");
 }
 
 export function buildCheckboxControlSlotPath(slot: number): string {

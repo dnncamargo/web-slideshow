@@ -24,7 +24,7 @@ import {
   type ControlLatencySnapshot,
 } from "./control-latency-snapshot";
 import {
-  PLAYER_PRESENCE_PATH,
+  buildPlayerPresencePath,
   parsePlayerPresence,
   resolveConnectedPlayerLeases,
   resolvePlayerOperationalStatus,
@@ -158,7 +158,7 @@ export function MaintenancePage() {
 
     let subscribed = true;
     const unsubscribes = [
-      onValue(ref(database, PLAYER_PRESENCE_PATH), (snapshot) => {
+      onValue(ref(database, buildPlayerPresencePath()), (snapshot) => {
         if (subscribed) {
           setStatus(
             resolvePlayerOperationalStatus(

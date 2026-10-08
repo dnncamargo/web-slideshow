@@ -5,13 +5,14 @@ import type { Presentation } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
 
 import { recordPlayerDiagnostic } from "./player-diagnostics";
+import { buildLivePath } from "./live-path";
 
 /**
  * Minimal Live projection-state protocol primitives for the Player.
  *
  * The parsers and path constants are the shared wire contract. The helper at
  * the end of the module drives the active Control -> Player projection state
- * using `live/controlState` and `live/playerState`.
+ * using `live/{ownerUid}/controlState` and `live/{ownerUid}/playerState`.
  */
 
 export interface LiveControlState {
@@ -29,9 +30,9 @@ export interface LivePlayerState {
   pageIndex: number;
 }
 
-export const CONTROL_STATE_PATH = "live/controlState";
+export const CONTROL_STATE_PATH = "controlState";
 
-export const PLAYER_STATE_PATH = "live/playerState";
+export const PLAYER_STATE_PATH = "playerState";
 
 function isNonNegativeInteger(value: unknown): boolean {
   return (
@@ -53,7 +54,7 @@ function parsePositiveInteger(value: unknown): number | null {
 }
 
 /**
- * Parse and validate `live/controlState`. Rejects malformed values and any
+ * Parse and validate `live/{ownerUid}/controlState`. Rejects malformed values and any
  * unexpected extra key. Returned strings are trimmed.
  */
 export function parseLiveControlState(value: unknown): LiveControlState | null {
@@ -78,7 +79,7 @@ export function parseLiveControlState(value: unknown): LiveControlState | null {
 }
 
 /**
- * Parse and validate `live/playerState`. Rejects malformed values and any
+ * Parse and validate `live/{ownerUid}/playerState`. Rejects malformed values and any
  * unexpected extra key. Returned strings are trimmed.
  */
 export function parseLivePlayerState(value: unknown): LivePlayerState | null {
@@ -120,11 +121,12 @@ function getCurrentPage(
 }
 
 /**
- * Subscribes to `live/controlState`, publishes the Player baseline state, and
- * emits `live/playerState` only after the current slide has been rendered.
+ * Subscribes to `live/{ownerUid}/controlState`, publishes the Player baseline state, and
+ * emits `live/{ownerUid}/playerState` only after the current slide has been rendered.
  */
 export function subscribeLiveProjectionState(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   presentation: Presentation,
@@ -151,7 +153,7 @@ export function subscribeLiveProjectionState(
 
     recordPlayerDiagnostic("PLAYER_STATE_WRITE_START");
 
-    void set(ref(database, PLAYER_STATE_PATH), {
+    void set(ref(database, buildLivePath(ownerUid, "playerState")), {
       activationRevision,
       currentVersionId,
       appliedControlRevision,
@@ -190,8 +192,8 @@ export function subscribeLiveProjectionState(
 
   if (logsEnabled) {
     console.log("[player][live-state] subscribing", {
-      controlPath: CONTROL_STATE_PATH,
-      playerPath: PLAYER_STATE_PATH,
+      controlPath: buildLivePath(ownerUid, CONTROL_STATE_PATH),
+      playerPath: buildLivePath(ownerUid, "playerState"),
       activationRevision,
       currentVersionId,
     });
@@ -200,7 +202,7 @@ export function subscribeLiveProjectionState(
   publishPlayerState(0);
 
   const unsubscribe = onValue(
-    ref(database, CONTROL_STATE_PATH),
+    ref(database, buildLivePath(ownerUid, "controlState")),
     (snapshot) => {
       const controlState = parseLiveControlState(snapshot.val());
 

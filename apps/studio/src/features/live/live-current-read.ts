@@ -1,8 +1,12 @@
 import { get, onValue, ref, type DataSnapshot } from "firebase/database";
 
 import { getRealtimeDatabaseOrNull } from "../control/realtime-db";
+import {
+  buildLivePath,
+  requireAuthenticatedOwnerUid,
+} from "./live-path";
 
-export const LIVE_CURRENT_PATH = "live/current";
+export const LIVE_CURRENT_PATH = "current";
 
 export interface LiveCurrent {
   publicationId: string;
@@ -50,15 +54,20 @@ function parseLiveCurrent(snapshot: DataSnapshot): LiveCurrent | null {
   return parseLiveCurrentValue(snapshot.val());
 }
 
-export async function readLiveCurrent(): Promise<LiveCurrent | null> {
+export async function readLiveCurrentForOwner(ownerUid: string): Promise<LiveCurrent | null> {
   const database = getRealtimeDatabaseOrNull();
   if (!database) return null;
 
-  const snapshot = await get(ref(database, LIVE_CURRENT_PATH));
+  const snapshot = await get(ref(database, buildLivePath(ownerUid, LIVE_CURRENT_PATH)));
   return snapshot.exists() ? parseLiveCurrent(snapshot) : null;
 }
 
-export function subscribeLiveCurrent(
+export async function readLiveCurrent(): Promise<LiveCurrent | null> {
+  return readLiveCurrentForOwner(requireAuthenticatedOwnerUid());
+}
+
+export function subscribeLiveCurrentForOwner(
+  ownerUid: string,
   onState: (state: LiveState) => void,
 ): (() => void) | null {
   const database = getRealtimeDatabaseOrNull();
@@ -67,7 +76,7 @@ export function subscribeLiveCurrent(
   onState({ kind: "loading" });
 
   return onValue(
-    ref(database, LIVE_CURRENT_PATH),
+    ref(database, buildLivePath(ownerUid, LIVE_CURRENT_PATH)),
     (snapshot) => {
       if (!snapshot.exists()) {
         onState({ kind: "none" });
@@ -79,4 +88,10 @@ export function subscribeLiveCurrent(
     },
     () => onState({ kind: "error" }),
   );
+}
+
+export function subscribeLiveCurrent(
+  onState: (state: LiveState) => void,
+): (() => void) | null {
+  return subscribeLiveCurrentForOwner(requireAuthenticatedOwnerUid(), onState);
 }

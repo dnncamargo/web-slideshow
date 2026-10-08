@@ -38,7 +38,7 @@ export function parseSlideAck(value: unknown): SlideAck | null {
 }
 
 /**
- * Subscribe to `live/slideAck`. Malformed values are ignored. Returns null when
+ * Subscribe to `live/{ownerUid}/slideAck`. Malformed values are ignored. Returns null when
  * Realtime Database is not configured.
  */
 export function subscribeSlideAck(onAck: (ack: SlideAck) => void): (() => void) | null {

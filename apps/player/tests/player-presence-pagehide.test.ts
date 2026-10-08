@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCheckboxControl: vi.fn(),
   createLivePlotAnimationActionTracker: vi.fn(),
   subscribeLivePlotAnimationAction: vi.fn(),
+  createLiveShapeAnimationActionTracker: vi.fn(),
+  subscribeLiveShapeAnimationAction: vi.fn(),
   subscribeLiveSlideTransition: vi.fn(),
   subscribeLivePlayerControls: vi.fn(),
   subscribeLiveScriptedAction: vi.fn(),
@@ -24,6 +26,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull }));
+vi.mock("../src/player-pairing", () => ({
+  formatPairingPin: (pin: string) => pin,
+  startPlayerPairing: async (_database: unknown, onState: (state: unknown) => void) => {
+    const state = { kind: "paired", ownerUid: "account-1" };
+    onState(state);
+    return { playerUid: "player-1", state, destroy: vi.fn() };
+  },
+}));
 vi.mock("../src/live-entry", () => ({
   parseEntrySearch: () => ({ logsEnabled: false }),
   readLiveCurrent: mocks.readLiveCurrent,
@@ -38,6 +48,10 @@ vi.mock("../src/live-checkbox-control", () => ({ subscribeLiveCheckboxControl: m
 vi.mock("../src/live-plot-animation-action", () => ({
   createLivePlotAnimationActionTracker: mocks.createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction: mocks.subscribeLivePlotAnimationAction,
+}));
+vi.mock("../src/live-shape-animation-action", () => ({
+  createLiveShapeAnimationActionTracker: mocks.createLiveShapeAnimationActionTracker,
+  subscribeLiveShapeAnimationAction: mocks.subscribeLiveShapeAnimationAction,
 }));
 vi.mock("../src/live-slide-transition", () => ({ subscribeLiveSlideTransition: mocks.subscribeLiveSlideTransition }));
 vi.mock("../src/live-player-controls", () => ({ subscribeLivePlayerControls: mocks.subscribeLivePlayerControls }));
@@ -70,7 +84,9 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
     mocks.subscribeLiveCheckboxControl.mockReturnValue(vi.fn());
     mocks.createLivePlotAnimationActionTracker.mockReturnValue({});
+    mocks.createLiveShapeAnimationActionTracker.mockReturnValue({});
     mocks.subscribeLivePlotAnimationAction.mockReturnValue(vi.fn());
+    mocks.subscribeLiveShapeAnimationAction.mockReturnValue(vi.fn());
     mocks.subscribeLiveSlideTransition.mockReturnValue(vi.fn());
     mocks.subscribeLivePlayerControls.mockReturnValue(vi.fn());
     mocks.subscribeLiveScriptedAction.mockReturnValue(vi.fn());
@@ -87,7 +103,7 @@ describe("Player presence pagehide cleanup", () => {
     const stop = vi.fn();
     const ready = vi.fn();
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -109,7 +125,7 @@ describe("Player presence pagehide cleanup", () => {
   it("sanitizes initialization rejection without interrupting presentation rendering", async () => {
     let handleLive!: (event: unknown) => void;
     const failure = new Error("presence denied");
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -133,7 +149,7 @@ describe("Player presence pagehide cleanup", () => {
     const ready = vi.fn();
     const failure = new Error("recovery subscription unavailable");
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -187,7 +203,7 @@ describe("Player presence pagehide cleanup", () => {
     let recoveryHandler!: (request: unknown) => void;
     let loadCount = 0;
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -205,7 +221,7 @@ describe("Player presence pagehide cleanup", () => {
         : { kind: "ok", presentation: { slides: [] } };
     });
     mocks.subscribePlayerRecoveryRequest.mockImplementation(
-      (_db, _revision, _version, _boot, _location, _navigation, onRetry) => {
+        (_db, _ownerUid, _revision, _version, _boot, _location, _navigation, onRetry) => {
         recoveryHandler = () => void onRetry();
         return vi.fn();
       },
@@ -256,13 +272,13 @@ describe("Player presence pagehide cleanup", () => {
     expect(mocks.subscribeLiveGalleryControl).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLiveCheckboxControl).toHaveBeenCalledTimes(2);
     expect(mocks.subscribeLiveScriptedAction).toHaveBeenCalledTimes(2);
-    expect(mocks.subscribeLivePlayerControls.mock.calls[0]?.[1]).toBe(7);
-    expect(mocks.subscribeLivePlayerControls.mock.calls[1]?.[1]).toBe(7);
-    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[6]).toBe(
-      mocks.subscribeLiveScriptedAction.mock.calls[1]?.[6],
+    expect(mocks.subscribeLivePlayerControls.mock.calls[0]?.[2]).toBe(7);
+    expect(mocks.subscribeLivePlayerControls.mock.calls[1]?.[2]).toBe(7);
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[7]).toBe(
+      mocks.subscribeLiveScriptedAction.mock.calls[1]?.[7],
     );
-    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[3]).toBe("boot-a");
-    expect(mocks.subscribeLiveScriptedAction.mock.calls[1]?.[3]).toBe("boot-a");
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[0]?.[4]).toBe("boot-a");
+    expect(mocks.subscribeLiveScriptedAction.mock.calls[1]?.[4]).toBe("boot-a");
     expect(
       mocks.subscribeLiveScriptedAction.mock.invocationCallOrder[0],
     ).toBeLessThan(ready.mock.invocationCallOrder[0] ?? Infinity);
@@ -282,14 +298,14 @@ describe("Player presence pagehide cleanup", () => {
     let loadCount = 0;
     let handleLive!: (event: unknown) => void;
     mocks.createLivePlotAnimationActionTracker.mockReturnValue(tracker);
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
     mocks.startPlayerPresence.mockResolvedValue({ bootId: "boot-a", starting, ready, failed, stop: vi.fn() });
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
     mocks.subscribePlayerRecoveryRequest.mockImplementation(
-      (_db, _revision, _version, _boot, _location, _navigation, onRetry) => {
+        (_db, _ownerUid, _revision, _version, _boot, _location, _navigation, onRetry) => {
         recoveryHandler = () => void onRetry();
         return vi.fn();
       },
@@ -302,19 +318,19 @@ describe("Player presence pagehide cleanup", () => {
     handleLive({ kind: "active", live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 } });
     await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
     expect(mocks.subscribeLivePlotAnimationAction).toHaveBeenCalledTimes(1);
-    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[3]).toBe("boot-a");
-    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[6]).toBe(tracker);
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[4]).toBe("boot-a");
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[0]?.[7]).toBe(tracker);
 
     recoveryHandler({ action: "retry" });
     await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(2));
     expect(cleanups[0]).toHaveBeenCalledTimes(1);
-    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[1]?.[6]).toBe(tracker);
+    expect(mocks.subscribeLivePlotAnimationAction.mock.calls[1]?.[7]).toBe(tracker);
     expect(loadCount).toBe(0);
   });
 
   it("does not attach Plot actions when presence has no boot id", async () => {
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -328,7 +344,7 @@ describe("Player presence pagehide cleanup", () => {
 
   it("keeps fatal recovery options collapsed until requested and collapses with See less", async () => {
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -370,7 +386,7 @@ describe("Player presence pagehide cleanup", () => {
 
   it("leaves the no-active surface unchanged", () => {
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -387,7 +403,7 @@ describe("Player presence pagehide cleanup", () => {
     let handleLive!: (event: unknown) => void;
     let resolveRetry!: (result: unknown) => void;
     let loadCount = 0;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });
@@ -436,7 +452,7 @@ describe("Player presence pagehide cleanup", () => {
     presence?: unknown;
   } = {}): Promise<void> {
     let handleLive!: (event: unknown) => void;
-    mocks.subscribeLiveCurrent.mockImplementation((_database, handler) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
       return vi.fn();
     });

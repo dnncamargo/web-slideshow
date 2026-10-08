@@ -1,4 +1,5 @@
 import { onValue, ref, type Database } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
 import type {
   PlayerControlsAnimation,
@@ -8,7 +9,7 @@ import type {
   PlayerController,
 } from "./player";
 
-export const PLAYER_CONTROLS_PATH = "live/playerControls";
+export const PLAYER_CONTROLS_PATH = "playerControls";
 
 export interface LivePlayerControlsRecord {
   activationRevision: number;
@@ -78,11 +79,12 @@ export function resolveLivePlayerControls(
 
 export function subscribeLivePlayerControls(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   controller: Pick<PlayerController, "setControlsOptions">,
   fallbackControls: PlayerControlsOptions,
 ): () => void {
-  return onValue(ref(database, PLAYER_CONTROLS_PATH), (snapshot) => {
+  return onValue(ref(database, buildLivePath(ownerUid, PLAYER_CONTROLS_PATH)), (snapshot) => {
     controller.setControlsOptions(
       resolveLivePlayerControls(snapshot.val(), activationRevision, fallbackControls),
     );

@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 /** One-way Control -> Player Shape animation action occurrence contract. */
 export type ShapeAnimationAction = "play" | "pause" | "reset";
 
@@ -12,7 +14,7 @@ export interface LiveShapeAnimationActionRecord {
 }
 
 export function buildShapeAnimationActionRootPath(): string {
-  return "live/shapeAnimationAction";
+  return buildAuthenticatedLivePath("shapeAnimationAction");
 }
 
 export function buildShapeAnimationActionPath(shapeSlot: number): string {

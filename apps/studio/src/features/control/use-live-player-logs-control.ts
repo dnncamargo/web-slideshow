@@ -6,7 +6,9 @@ import { onValue, ref, set } from "firebase/database";
 import type { LiveCurrent } from "./live-current";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 
-export const PLAYER_LOGS_PATH = "live/playerLogs";
+import { buildAuthenticatedLivePath } from "../live/live-path";
+
+export const PLAYER_LOGS_PATH = "playerLogs";
 
 interface LivePlayerLogsRecord { activationRevision: number; enabled: boolean; }
 
@@ -50,7 +52,7 @@ export function useLivePlayerLogsControl(live: LiveCurrent | null): UseLivePlaye
     if (live === null) return;
     const database = getRealtimeDatabaseOrNull();
     if (database === null) return;
-    return onValue(ref(database, PLAYER_LOGS_PATH), (snapshot) => {
+    return onValue(ref(database, buildAuthenticatedLivePath(PLAYER_LOGS_PATH)), (snapshot) => {
       setCurrentEnabled(resolve(snapshot.val(), live));
     });
   }, [live?.revision]);
@@ -64,7 +66,7 @@ export function useLivePlayerLogsControl(live: LiveCurrent | null): UseLivePlaye
     writeInFlightRef.current = true;
     setWriteInFlight(true);
     setSendFailed(false);
-    void set(ref(database, PLAYER_LOGS_PATH), { activationRevision, enabled: next }).then(() => {
+    void set(ref(database, buildAuthenticatedLivePath(PLAYER_LOGS_PATH)), { activationRevision, enabled: next }).then(() => {
       if (latestRef.current?.revision !== activationRevision) return;
       writeInFlightRef.current = false;
       setWriteInFlight(false);

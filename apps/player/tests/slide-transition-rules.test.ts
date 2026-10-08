@@ -1,19 +1,22 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { slideTransition: Record<string, unknown>; ".write": string } } };
+const parsedRules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: Record<string, unknown> } };
+const rules = parsedRules as unknown as { rules: { live: Record<string, any> } };
 
-describe("live/slideTransition rules", () => {
-  const transition = rules.rules.live.slideTransition;
+describe("live/owner-a/slideTransition rules", () => {
+  const transition = rules.rules.live["$ownerUid"].slideTransition;
 
   it("is public read", () => {
-    expect(transition[".read"]).toBe(true);
+    expect(transition[".read"]).toContain("$ownerUid");
   });
 
   it("is authenticated-write for the current activation", () => {
-    expect(transition[".write"]).toBe("auth != null");
-    expect(transition[".validate"]).toContain("newData.child('activationRevision').val() === root.child('live/current/revision').val()");
+    expect(transition[".write"]).toContain("auth.uid === $ownerUid");
+    expect(transition[".validate"]).toContain("root.child('live').child($ownerUid).child('current/revision').val()");
     expect(transition[".validate"]).toContain("newData.hasChildren(['activationRevision', 'transition'])");
   });
 
@@ -24,7 +27,7 @@ describe("live/slideTransition rules", () => {
 
   it("rejects stale activations", () => {
     expect(transition[".validate"]).toContain("activationRevision");
-    expect(transition[".validate"]).toContain("root.child('live/current/revision').val()");
+    expect(transition[".validate"]).toContain("root.child('live').child($ownerUid).child('current/revision').val()");
   });
 
   it("accepts slide alongside fade and none", () => {

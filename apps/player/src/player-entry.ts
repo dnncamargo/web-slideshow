@@ -47,6 +47,12 @@ import {
   recordPlayerDiagnostic,
 } from "./player-diagnostics";
 import { mountPlayer, type PlayerController } from "./player";
+import {
+  formatPairingPin,
+  startPlayerPairing,
+  type PlayerPairingSession,
+  type PlayerPairingState,
+} from "./player-pairing";
 
 const controls = {
   position: "bottom-right",
@@ -69,6 +75,10 @@ function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
 
 /** Boots the existing Player runtime on the shared root element. */
 export function startPlayer(root: HTMLElement): () => void {
+  let destroyed = false;
+  let liveStarted = false;
+  let pairingSession: PlayerPairingSession | undefined;
+  let ownerUid: string | undefined;
   let activeController: PlayerController | undefined;
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
@@ -147,6 +157,16 @@ export function startPlayer(root: HTMLElement): () => void {
         renderRecoveryExpanded();
       }
     });
+  }
+
+  function renderPairingState(pin: string): void {
+    root.innerHTML = `
+      <div class="player-load-state player-pairing-state" data-loading="false">
+        <span>Configure Player</span>
+        <strong class="player-pairing-pin">${formatPairingPin(pin)}</strong>
+        <span>Enter this PIN in Control.</span>
+      </div>
+    `;
   }
 
   function renderRecoveryExpanded(): void {
@@ -277,6 +297,7 @@ export function startPlayer(root: HTMLElement): () => void {
 
       cleanupLiveProjection = subscribeLiveProjectionState(
         database,
+        ownerUid!,
         live.revision,
         live.currentVersionId,
         presentation,
@@ -290,6 +311,7 @@ export function startPlayer(root: HTMLElement): () => void {
 
       cleanupLiveFullscreenRequest = subscribeLiveFullscreenRequest(
         database,
+        ownerUid!,
         live.revision,
         live.currentVersionId,
         controller,
@@ -297,6 +319,7 @@ export function startPlayer(root: HTMLElement): () => void {
       );
       cleanupLiveGalleryControl = subscribeLiveGalleryControl(
         database,
+        ownerUid!,
         live.revision,
         live.currentVersionId,
         presentation,
@@ -304,17 +327,20 @@ export function startPlayer(root: HTMLElement): () => void {
       );
       cleanupLiveCheckboxControl = subscribeLiveCheckboxControl(
         database,
+        ownerUid!,
         live.revision,
         live.currentVersionId,
         controller,
       );
       cleanupLiveSlideTransition = subscribeLiveSlideTransition(
         database,
+        ownerUid!,
         live.revision,
         controller,
       );
       cleanupLivePlayerControls = subscribeLivePlayerControls(
         database,
+        ownerUid!,
         live.revision,
         controller,
         controls,
@@ -322,6 +348,7 @@ export function startPlayer(root: HTMLElement): () => void {
       if (presenceReporter?.bootId) {
         cleanupLivePlotAnimationAction = subscribeLivePlotAnimationAction(
           database,
+          ownerUid!,
           live.revision,
           live.currentVersionId,
           presenceReporter.bootId,
@@ -331,6 +358,7 @@ export function startPlayer(root: HTMLElement): () => void {
         );
         cleanupLiveShapeAnimationAction = subscribeLiveShapeAnimationAction(
           database,
+          ownerUid!,
           live.revision,
           live.currentVersionId,
           presenceReporter.bootId,
@@ -340,6 +368,7 @@ export function startPlayer(root: HTMLElement): () => void {
         );
         cleanupLiveScriptedAction = subscribeLiveScriptedAction(
           database,
+          ownerUid!,
           live.revision,
           live.currentVersionId,
           presenceReporter.bootId,
@@ -348,7 +377,7 @@ export function startPlayer(root: HTMLElement): () => void {
           liveScriptedActionTracker,
         );
         if (getCurrentScriptedMount) cleanupLiveScriptedInput = subscribeLiveScriptedInput(
-          database, live.revision, live.currentVersionId, presenceReporter.bootId,
+          database, ownerUid!, live.revision, live.currentVersionId, presenceReporter.bootId,
           presentation, controller, getCurrentScriptedMount, liveScriptedInputTracker, markAppliedScriptedInput,
         );
       }
@@ -474,6 +503,7 @@ export function startPlayer(root: HTMLElement): () => void {
         const publisher = presenceReporter?.bootId && database
           ? createLiveScriptedStatePublisher({
               database,
+              ownerUid: ownerUid!,
               activationRevision: requestedLive.revision,
               currentVersionId: requestedLive.currentVersionId,
               bootId: presenceReporter.bootId,
@@ -554,7 +584,7 @@ export function startPlayer(root: HTMLElement): () => void {
     renderLoadState("Loading presentation…", true);
 
     try {
-      const liveResult = await readLiveCurrent(database);
+      const liveResult = await readLiveCurrent(database, ownerUid!);
       if (token !== loadToken) return;
       if (
         liveResult.kind !== "ok" ||
@@ -636,6 +666,7 @@ export function startPlayer(root: HTMLElement): () => void {
       presenceReporter?.stop();
       presenceReporter = await startPlayerPresence(
         database!,
+        ownerUid!,
         event.live.revision,
         event.live.currentVersionId,
         recordPresenceWriteError,
@@ -648,6 +679,7 @@ export function startPlayer(root: HTMLElement): () => void {
       try {
         cleanupPlayerRecoveryRequest = subscribePlayerRecoveryRequest(
           database!,
+          ownerUid!,
           event.live.revision,
           event.live.currentVersionId,
           presenceReporter.bootId,
@@ -662,7 +694,7 @@ export function startPlayer(root: HTMLElement): () => void {
 
     try {
       cleanupLivePlayerLogs = subscribePlayerLogs(
-        database!, event.live.revision, window.location, window.location,
+        database!, ownerUid!, event.live.revision, window.location, window.location,
       );
     } catch (error) {
       recordPlayerDiagnostic("PLAYER_LOGS_SUBSCRIBE_ERROR", { error });
@@ -694,6 +726,32 @@ export function startPlayer(root: HTMLElement): () => void {
 
   let database: ReturnType<typeof getRealtimeDatabaseOrNull> | null = null;
 
+  function startLiveRuntime(): void {
+    if (destroyed || liveStarted || database === null) return;
+    liveStarted = true;
+    renderLoadState("Loading presentation…", true);
+    cleanupLiveCurrent = subscribeLiveCurrent(database, ownerUid!, (event) => {
+      void handleLiveEvent(event);
+    });
+  }
+
+  function handlePairingState(state: PlayerPairingState): void {
+    if (destroyed) return;
+
+    if (state.kind === "pairing") {
+      renderPairingState(state.pin);
+      return;
+    }
+
+    if (state.kind === "paired") {
+      ownerUid = state.ownerUid;
+      startLiveRuntime();
+      return;
+    }
+
+    renderLoadState("Could not configure Player.");
+  }
+
   recordPlayerDiagnostic("RTDB_INIT_START");
 
   try {
@@ -712,13 +770,28 @@ export function startPlayer(root: HTMLElement): () => void {
   if (!database) {
     renderLoadState("Could not load presentation.");
   } else {
-    renderLoadState("Loading presentation…", true);
-    cleanupLiveCurrent = subscribeLiveCurrent(database, (event) => {
-      void handleLiveEvent(event);
-    });
+    renderLoadState("Configuring Player…", true);
+    void startPlayerPairing(database, handlePairingState)
+      .then((session) => {
+        if (destroyed) {
+          session.destroy();
+          return;
+        }
+        pairingSession = session;
+        handlePairingState(session.state);
+      })
+      .catch((error: unknown) => {
+        if (destroyed) return;
+        recordPlayerDiagnostic("PLAYER_PAIRING_INIT_ERROR", { error });
+        renderLoadState("Could not configure Player.");
+      });
   }
 
   const cleanup = (): void => {
+    destroyed = true;
+    pairingSession?.destroy();
+    pairingSession = undefined;
+    ownerUid = undefined;
     cleanupLiveCurrent?.();
     cleanupLiveCurrent = undefined;
     teardownLiveSession();

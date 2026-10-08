@@ -178,6 +178,7 @@ describe("Root Definition runtime consumers", () => {
 
     subscribeLiveGalleryControl(
       {} as never,
+      "owner-a",
       2,
       "version-1",
       presentation,
@@ -212,6 +213,7 @@ describe("Root Definition runtime consumers", () => {
 
     subscribeLiveScriptedAction(
       {} as never,
+      "owner-a",
       2,
       "version-1",
       "boot-1",
@@ -256,6 +258,7 @@ describe("Root Definition runtime consumers", () => {
 
     subscribeLiveScriptedInput(
       {} as never,
+      "owner-a",
       2,
       "version-1",
       "boot-1",
@@ -278,7 +281,7 @@ describe("Root Definition runtime consumers", () => {
     const canonicalSlide = presentation.slides[0]!;
     const slide = effectiveSlide(presentation);
     let mountRevision = 0;
-    const publisher = createLiveScriptedStatePublisher({
+    const publisher = createLiveScriptedStatePublisher({ ownerUid: "owner-a",
       database: {} as never,
       activationRevision: 2,
       currentVersionId: "version-1",

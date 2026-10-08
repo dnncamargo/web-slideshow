@@ -38,6 +38,15 @@ vi.mock("../src/realtime-db", () => ({
   getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull,
 }));
 
+vi.mock("../src/player-pairing", () => ({
+  formatPairingPin: (pin: string) => pin,
+  startPlayerPairing: async (_database: unknown, onState: (state: unknown) => void) => {
+    const state = { kind: "paired", ownerUid: "account-1" };
+    onState(state);
+    return { playerUid: "player-1", state, destroy: vi.fn() };
+  },
+}));
+
 vi.mock("../src/live-entry", () => ({
   parseEntrySearch: () => ({ logsEnabled: false }),
   subscribeLiveCurrent: mocks.subscribeLiveCurrent,
@@ -102,7 +111,7 @@ describe("Player live version promotion", () => {
     document.body.innerHTML = '<div id="app"></div>';
 
     mocks.getRealtimeDatabaseOrNull.mockReturnValue({});
-    mocks.subscribeLiveCurrent.mockImplementation((_database, onEvent) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, onEvent) => {
       mocks.liveHandler = onEvent;
       return vi.fn();
     });
@@ -204,6 +213,7 @@ describe("Player live version promotion", () => {
       expect(promotedController.goTo).toHaveBeenCalledWith(2);
       expect(mocks.subscribeLiveProjectionState).toHaveBeenLastCalledWith(
         expect.anything(),
+        "account-1",
         5,
         "version-3",
         latest,

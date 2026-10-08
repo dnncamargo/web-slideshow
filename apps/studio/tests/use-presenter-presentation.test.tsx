@@ -48,7 +48,6 @@ function presentation(firstSlideColor: string): Presentation {
     })),
   };
 }
-
 describe("usePresenterPresentation", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -110,12 +109,12 @@ describe("usePresenterPresentation", () => {
     );
 
     await act(async () => {
-      onPointer?.({ currentVersionId: "version-1", publishedRevision: 1 });
+      onPointer?.({ ownerUid: "owner-a", currentVersionId: "version-1", publishedRevision: 1 });
     });
     expect(state).toMatchObject({ kind: "ready", pendingVersion: null });
 
     await act(async () => {
-      onPointer?.({ currentVersionId: "version-2", publishedRevision: 2 });
+      onPointer?.({ ownerUid: "owner-a", currentVersionId: "version-2", publishedRevision: 2 });
     });
 
     expect(state).toMatchObject({
@@ -167,7 +166,7 @@ describe("usePresenterPresentation", () => {
     );
 
     await act(async () => {
-      onPointer?.({ currentVersionId: "version-2", publishedRevision: 2 });
+      onPointer?.({ ownerUid: "owner-a", currentVersionId: "version-2", publishedRevision: 2 });
     });
 
     if (state?.kind !== "ready") {
@@ -180,7 +179,7 @@ describe("usePresenterPresentation", () => {
       "A",
       "B",
     ]);
-    // ...but the outgoing command is still scoped to live/current V1, so the
+    // ...but the outgoing command is still scoped to the owner Live current V1, so the
     // queued index 1 must resolve to V1's "B", never V2's "A".
     expect(state.livePresentation.slides.map((slide) => slide.id)).toEqual([
       "A",
@@ -312,7 +311,7 @@ describe("usePresenterPresentation", () => {
     );
 
     await act(async () => {
-      onPointer?.({ currentVersionId: "version-2", publishedRevision: 2 });
+      onPointer?.({ ownerUid: "owner-a", currentVersionId: "version-2", publishedRevision: 2 });
     });
 
     if (state?.kind !== "ready") {

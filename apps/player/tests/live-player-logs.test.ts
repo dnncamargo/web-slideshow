@@ -32,7 +32,7 @@ describe("live Player logs", () => {
     mocks.onValue.mockImplementation((_reference: unknown, callback: typeof listener) => { listener = callback; return unsubscribe; });
     const navigation = { replace: vi.fn() };
     const location = { href: "https://player.example/?foo=bar" };
-    const cleanup = subscribePlayerLogs({} as never, 7, location, navigation);
+    const cleanup = subscribePlayerLogs({} as never, "owner-a", 7, location, navigation);
     listener({ val: () => ({ activationRevision: 7, enabled: true }) });
     expect(navigation.replace).toHaveBeenCalledWith("https://player.example/?foo=bar&logs=true");
     listener({ val: () => ({ activationRevision: 7, enabled: false }) });
@@ -50,7 +50,7 @@ describe("live Player logs", () => {
     let listener!: (snapshot: { val(): unknown }) => void;
     mocks.onValue.mockImplementation((_reference: unknown, callback: typeof listener) => { listener = callback; return vi.fn(); });
     const navigation = { replace: vi.fn() };
-    subscribePlayerLogs({} as never, 7, { href: "https://player.example/?logs=true" }, navigation);
+    subscribePlayerLogs({} as never, "owner-a", 7, { href: "https://player.example/?logs=true" }, navigation);
     listener({ val: () => ({ activationRevision: 7, enabled: true }) });
     expect(navigation.replace).not.toHaveBeenCalled();
   });

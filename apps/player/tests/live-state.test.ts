@@ -104,8 +104,8 @@ afterEach(() => {
 
 describe("paths and parsers", () => {
   it("exposes the exact RTDB paths", () => {
-    expect(CONTROL_STATE_PATH).toBe("live/controlState");
-    expect(PLAYER_STATE_PATH).toBe("live/playerState");
+    expect(CONTROL_STATE_PATH).toBe("controlState");
+    expect(PLAYER_STATE_PATH).toBe("playerState");
   });
 
   it("parses live control state", () => {
@@ -149,6 +149,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -156,7 +157,7 @@ describe("subscribeLiveProjectionState", () => {
     );
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/playerState" },
+      { path: "live/owner-a/playerState" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -167,7 +168,7 @@ describe("subscribeLiveProjectionState", () => {
     );
 
     expect(mocks.onValue).toHaveBeenCalledWith(
-      { path: "live/controlState" },
+      { path: "live/owner-a/controlState" },
       expect.any(Function),
       expect.any(Function),
     );
@@ -178,6 +179,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -208,7 +210,7 @@ describe("subscribeLiveProjectionState", () => {
     rafCallbacks.clear();
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/playerState" },
+      { path: "live/owner-a/playerState" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -224,6 +226,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -248,7 +251,7 @@ describe("subscribeLiveProjectionState", () => {
     expect(liveController.goTo).not.toHaveBeenCalled();
     expect([...rafCallbacks.values()]).toHaveLength(0);
     expect(
-      mocks.set.mock.calls.filter((call) => call[0]?.path === "live/playerState"),
+      mocks.set.mock.calls.filter((call) => call[0]?.path === "live/owner-a/playerState"),
     ).toHaveLength(0);
   });
 
@@ -257,6 +260,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -317,6 +321,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -359,6 +364,7 @@ describe("subscribeLiveProjectionState", () => {
 
     subscribeLiveProjectionState(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentation(["page-a", "page-b", "page-c"]),
@@ -383,7 +389,7 @@ describe("subscribeLiveProjectionState", () => {
     const firstFrame = [...rafCallbacks.values()][0];
     (firstFrame as FrameRequestCallback)(0);
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/playerState" },
+      { path: "live/owner-a/playerState" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -412,7 +418,7 @@ describe("subscribeLiveProjectionState", () => {
     (secondFrame as FrameRequestCallback)(0);
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/playerState" },
+      { path: "live/owner-a/playerState" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",

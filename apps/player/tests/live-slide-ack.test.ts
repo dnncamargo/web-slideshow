@@ -109,7 +109,7 @@ function errorHandler(): unknown {
 }
 
 function ackCalls() {
-  return mocks.set.mock.calls.filter((c) => c[0]?.path === "live/slideAck");
+  return mocks.set.mock.calls.filter((c) => c[0]?.path === "live/owner-a/slideAck");
 }
 
 describe("parseSlideCommand", () => {
@@ -181,6 +181,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -188,7 +189,7 @@ describe("live slide ACK subscription", () => {
     );
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/slideAck" },
+      { path: "live/owner-a/slideAck" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -199,7 +200,7 @@ describe("live slide ACK subscription", () => {
     );
 
     expect(mocks.onValue).toHaveBeenCalledWith(
-      { path: "live/slideCommand" },
+      { path: "live/owner-a/slideCommand" },
       expect.any(Function),
       expect.any(Function),
     );
@@ -211,6 +212,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-2",
       presentationState,
@@ -218,7 +220,7 @@ describe("live slide ACK subscription", () => {
     );
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/slideAck" },
+      { path: "live/owner-a/slideAck" },
       {
         activationRevision: 7,
         currentVersionId: "version-2",
@@ -235,6 +237,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       current,
@@ -255,7 +258,7 @@ describe("live slide ACK subscription", () => {
     (frame as FrameRequestCallback)(0);
 
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/slideAck" },
+      { path: "live/owner-a/slideAck" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -272,6 +275,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       reordered,
@@ -291,6 +295,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -310,6 +315,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -334,6 +340,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -362,6 +369,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -385,6 +393,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -404,7 +413,7 @@ describe("live slide ACK subscription", () => {
 
     expect(controller.goTo).toHaveBeenCalledTimes(1);
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/slideAck" },
+      { path: "live/owner-a/slideAck" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -421,6 +430,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -441,7 +451,7 @@ describe("live slide ACK subscription", () => {
 
     expect(ackCalls()).toHaveLength(1);
     expect(mocks.set).toHaveBeenCalledWith(
-      { path: "live/slideAck" },
+      { path: "live/owner-a/slideAck" },
       {
         activationRevision: 7,
         currentVersionId: "version-1",
@@ -458,6 +468,7 @@ describe("live slide ACK subscription", () => {
 
     subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -487,6 +498,7 @@ describe("live slide ACK subscription", () => {
 
     const cleanup = subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,
@@ -521,6 +533,7 @@ describe("live slide ACK subscription", () => {
 
     const cleanup = subscribeLiveSlideAck(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       presentationState,

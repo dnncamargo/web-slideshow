@@ -1,5 +1,5 @@
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
-import { loadPublishedVersion } from "./published-presentation-loader";
+import { loadPublishedOwnerUid, loadPublishedVersion } from "./published-presentation-loader";
 import { resolveLiveMount } from "./live-entry";
 import {
   mountProjectionSurface,
@@ -27,34 +27,36 @@ function renderMessage(root: HTMLElement, message: string, loading = false): voi
 
 /** Boots a one-shot, read-only projection of the active presentation cover. */
 export function startCover(root: HTMLElement): CoverController {
+  const requestedPublicationId = new URLSearchParams(window.location.search).get("publication")?.trim() || null;
   let projection: ProjectionSurface | null = null;
   let destroyed = false;
 
   const database = getRealtimeDatabaseOrNull();
-  if (database === null) {
+  if (database === null || requestedPublicationId === null) {
     renderMessage(root, COVER_COPY.unavailable);
   } else {
     renderMessage(root, COVER_COPY.loading, true);
-    void resolveLiveMount(database, loadPublishedVersion).then((result) => {
-      if (destroyed) return;
-
-      if (result.kind === "ok") {
-        if (result.presentation.slides.length === 0) {
-          renderMessage(root, COVER_COPY.unavailable);
-          return;
-        }
-        projection = mountProjectionSurface(root, result.presentation, {
-          transition: "none",
-          animatePlots: false,
-          animateShapes: false,
-        });
+    void loadPublishedOwnerUid(requestedPublicationId).then((ownerUid) => {
+      if (destroyed || ownerUid === null) {
+        renderMessage(root, COVER_COPY.unavailable);
         return;
       }
-
-      renderMessage(
-        root,
-        result.kind === "no-active" ? COVER_COPY.unavailable : COVER_COPY.error,
-      );
+      return resolveLiveMount(database, ownerUid, loadPublishedVersion).then((result) => {
+        if (destroyed) return;
+        if (result.kind === "ok" && result.publicationId === requestedPublicationId) {
+          if (result.presentation.slides.length === 0) {
+            renderMessage(root, COVER_COPY.unavailable);
+            return;
+          }
+          projection = mountProjectionSurface(root, result.presentation, {
+            transition: "none",
+            animatePlots: false,
+            animateShapes: false,
+          });
+          return;
+        }
+        renderMessage(root, result.kind === "no-active" ? COVER_COPY.unavailable : COVER_COPY.error);
+      });
     });
   }
 

@@ -19,8 +19,8 @@ const record = (overrides: Record<string, unknown> = {}) => ({
 
 describe("Shape animation action protocol", () => {
   it("builds the independent numeric slot path", () => {
-    expect(buildShapeAnimationActionRootPath()).toBe("live/shapeAnimationAction");
-    expect(buildShapeAnimationActionPath(3)).toBe("live/shapeAnimationAction/3");
+    expect(buildShapeAnimationActionRootPath()).toBe("live/owner-a/shapeAnimationAction");
+    expect(buildShapeAnimationActionPath(3)).toBe("live/owner-a/shapeAnimationAction/3");
     expect(() => buildShapeAnimationActionPath(-1)).toThrow(/slot/);
     expect(() => buildShapeAnimationActionPath(1.5)).toThrow(/slot/);
   });

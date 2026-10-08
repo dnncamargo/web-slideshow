@@ -2,7 +2,9 @@ import { ref, runTransaction, serverTimestamp, type Database } from "firebase/da
 
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 
-export const PLAYER_RECOVERY_REQUEST_PATH = "live/playerRecoveryRequest";
+import { buildAuthenticatedLivePath } from "../live/live-path";
+
+export const PLAYER_RECOVERY_REQUEST_PATH = "playerRecoveryRequest";
 
 export interface PlayerRecoveryRequest {
   activationRevision: number;
@@ -119,7 +121,7 @@ async function requestPlayerRecovery(
   if (getCurrentNonAnonymousUser() === null) {
     throw new Error("Control requires an authenticated user.");
   }
-  const requestRef = ref(database, PLAYER_RECOVERY_REQUEST_PATH);
+  const requestRef = ref(database, buildAuthenticatedLivePath(PLAYER_RECOVERY_REQUEST_PATH));
   const outcome = await runTransaction(requestRef, (current) => {
     const previous = parsePlayerRecoveryRequest(current);
     const revision =

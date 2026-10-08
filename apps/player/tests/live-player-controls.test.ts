@@ -101,7 +101,7 @@ describe("live player controls", () => {
       callback = next as unknown as (snapshot: { val(): unknown }) => void;
       return unsubscribe;
     });
-    const cleanup = subscribeLivePlayerControls({} as never, 7, { setControlsOptions }, FALLBACK);
+    const cleanup = subscribeLivePlayerControls({} as never, "owner-a", 7, { setControlsOptions }, FALLBACK);
     callback?.({ val: () => ({ activationRevision: 7, position: "top-left", style: "minimal", showCounter: false, animation: "slide" }) });
     callback?.({ val: () => null });
     callback?.({ val: () => ({ ...FULL_RECORD, activationRevision: 6 }) });

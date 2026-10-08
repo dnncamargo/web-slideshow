@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteField, doc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
+import { collection, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch, Timestamp } from "firebase/firestore";
 
 const projectId = "demo-web-slideshow-firestore-rules";
 const rules = readFileSync(new URL("../../../firestore.rules", import.meta.url), "utf8");
@@ -217,6 +217,59 @@ describe("Firestore deletion authorization", () => {
     await seedPublished("active-owner", "presentation-active", false);
     const active = testEnv.authenticatedContext("active-owner").firestore();
     await assertFails(getDocs(collection(active, "publishedPresentations", "publication-presentation-active", "versions")));
+  });
+
+  it("rejects anonymous authoring and publishing while preserving public reads", async () => {
+    const anonymous = testEnv.authenticatedContext("anonymous-author", {
+      firebase: { sign_in_provider: "anonymous" },
+    }).firestore();
+    const presentationId = "anonymous-presentation";
+
+    await assertFails(
+      setDoc(
+        doc(anonymous, "users", "anonymous-author", "presentations", presentationId),
+        draft("anonymous-author", presentationId, false),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(anonymous, "users", "anonymous-author", "presentations", presentationId, "private", "notes"),
+        { text: "not authoring access" },
+      ),
+    );
+
+    const publicationId = "anonymous-publication";
+    const versionId = "anonymous-version";
+    const publishedAt = serverTimestamp();
+    const presentationJson = JSON.stringify({ published: "anonymous" });
+    await assertFails(
+      writeBatch(anonymous)
+        .set(doc(anonymous, "users", "anonymous-author", "presentations", presentationId), {
+          presentationJson,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          draftRevision: 1,
+          publication: { publicationId, currentVersionId: versionId, publishedRevision: 1, publishedAt },
+        })
+        .set(doc(anonymous, "publishedPresentations", publicationId, "versions", versionId), {
+          presentationId,
+          presentationJson,
+          publishedRevision: 1,
+          publishedAt,
+        })
+        .set(doc(anonymous, "publishedPresentations", publicationId), {
+          ownerUid: "anonymous-author",
+          currentVersionId: versionId,
+          publishedRevision: 1,
+          publishedAt,
+        })
+        .commit(),
+    );
+
+    const ids = await seedPublished("public-reader-owner", "public-reader");
+    await assertSucceeds(
+      getDoc(doc(anonymous, "publishedPresentations", ids.publicationId, "versions", ids.currentVersionId)),
+    );
   });
 
   it("allows the owner to atomically delete published and unpublished archived lifecycles", async () => {

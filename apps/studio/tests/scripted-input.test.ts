@@ -11,5 +11,5 @@ describe("Scripted input contract", () => {
     expect(parseLiveScriptedInputRecord(record({ targetMountRevision: 0 }))).toBeNull();
     expect(parseLiveScriptedInputRecord(record({ value: Infinity }))).toBeNull();
   });
-  it("uses numeric RTDB addresses", () => expect(buildScriptedInputPath(1, 2)).toBe("live/scriptedInput/1/2"));
+  it("uses numeric RTDB addresses", () => expect(buildScriptedInputPath(1, 2)).toBe("live/owner-a/scriptedInput/1/2"));
 });

@@ -31,7 +31,7 @@ export type PresenterPresentationState =
 /**
  * Resolve the pageId for an outgoing Live navigation target.
  *
- * A queued navigation is scoped to `live/current.currentVersionId`, which is
+ * A queued navigation is scoped to `live/{ownerUid}/current.currentVersionId`, which is
  * always the immutable live presentation. It must never be resolved against the
  * newer staged preview (`presentation`), even when the Control UI is already
  * previewing it.
@@ -72,7 +72,7 @@ function sameIdentity(
 
 /**
  * Resolves both persisted identities needed by Control: the version in
- * live/current and the newest version in the public publication pointer.
+ * live/{ownerUid}/current and the newest version in the public publication pointer.
  * Pointer updates survive reload and converge across Control clients because
  * no pending state is kept in local storage or cross-tab messaging.
  *
@@ -116,7 +116,7 @@ export function usePresenterPresentation(
       },
       () => {
         // Keep the last valid pointer on a listener error. With no prior value,
-        // Control safely falls back to the version in live/current.
+        // Control safely falls back to the version in the owner-scoped Live current.
       },
     );
 

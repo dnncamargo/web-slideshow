@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 /** One-way Control -> Player Scripted action occurrence wire contract. */
 export interface LiveScriptedActionRecord {
   activationRevision: number;
@@ -10,7 +12,7 @@ export interface LiveScriptedActionRecord {
 }
 
 export function buildScriptedActionRootPath(): string {
-  return "live/scriptedAction";
+  return buildAuthenticatedLivePath("scriptedAction");
 }
 
 export function buildScriptedActionPath(

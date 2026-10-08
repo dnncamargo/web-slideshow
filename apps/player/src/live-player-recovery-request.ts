@@ -1,8 +1,9 @@
 import { onValue, ref, type Database } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
 import { recordPlayerDiagnostic } from "./player-diagnostics";
 
-export const PLAYER_RECOVERY_REQUEST_PATH = "live/playerRecoveryRequest";
+export const PLAYER_RECOVERY_REQUEST_PATH = "playerRecoveryRequest";
 export const PLAYER_CACHE_CLEAR_ROUTE = "/__player/clear-cache";
 
 export interface PlayerRecoveryRequest {
@@ -94,6 +95,7 @@ export type PlayerRecoveryRetryHandler = (
 /** Observes only commands addressed to this specific Player boot. */
 export function subscribePlayerRecoveryRequest(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   bootId: string,
@@ -104,7 +106,7 @@ export function subscribePlayerRecoveryRequest(
   let highestHandledRevision = 0;
   let tornDown = false;
   const unsubscribe = onValue(
-    ref(database, PLAYER_RECOVERY_REQUEST_PATH),
+    ref(database, buildLivePath(ownerUid, PLAYER_RECOVERY_REQUEST_PATH)),
     (snapshot) => {
       if (tornDown) return;
       const request = parsePlayerRecoveryRequest(snapshot.val());

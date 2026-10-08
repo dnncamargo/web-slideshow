@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 export interface LiveScriptedInputRecord {
   activationRevision: number;
   currentVersionId: string;
@@ -16,7 +18,7 @@ const positiveInteger = (value: unknown): value is number => nonNegativeInteger(
 const liveString = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
 const canonicalId = (value: unknown): value is string => typeof value === "string" && value.length > 0;
 
-export function buildScriptedInputRootPath(): string { return "live/scriptedInput"; }
+export function buildScriptedInputRootPath(): string { return buildAuthenticatedLivePath("scriptedInput"); }
 export function buildScriptedInputPath(scriptedSlot: number, portIndex: number): string {
   if (!nonNegativeInteger(scriptedSlot) || !nonNegativeInteger(portIndex)) throw new Error("Scripted input indexes must be non-negative integers.");
   return `${buildScriptedInputRootPath()}/${scriptedSlot}/${portIndex}`;

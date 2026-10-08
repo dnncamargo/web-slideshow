@@ -6,10 +6,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isNonAnonymous() {
+      return isSignedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     function isPrivatePresentationOwner(userId) {
-      // Private drafts remain readable/writable only by their authenticated
-      // owner. Anonymous Firebase Auth counts as authenticated.
-      return isSignedIn() && request.auth.uid == userId;
+      // Private authoring data belongs only to a non-anonymous Studio user.
+      return isNonAnonymous() && request.auth.uid == userId;
     }
 
     function publicationMetadataHasValidShape(publication) {
@@ -102,14 +106,14 @@ service cloud.firestore {
     }
 
     function publishedPointerCreateIsAuthoritative(publicationId, userId) {
-      return isSignedIn()
+      return isNonAnonymous()
         && publishedPointerHasValidShape()
         && request.resource.data.ownerUid == request.auth.uid
         && publishedPointerMatchesAuthoritativeDraft(publicationId, userId);
     }
 
     function publishedPointerUpdateIsAuthoritative(publicationId, userId) {
-      return isSignedIn()
+      return isNonAnonymous()
         && resource.data.ownerUid is string
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.ownerUid == resource.data.ownerUid
@@ -151,7 +155,7 @@ service cloud.firestore {
     }
 
     function archivedOwnerDraftForPublication(publicationId, version) {
-      return isSignedIn()
+      return isNonAnonymous()
         && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && version.data.presentationId is string
         && exists(/databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(version.data.presentationId))
@@ -165,7 +169,7 @@ service cloud.firestore {
     }
 
     function archivedOwnerForPublication(publicationId) {
-      return isSignedIn()
+      return isNonAnonymous()
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId))
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.currentVersionId))
         && archivedOwnerDraftForPublication(
@@ -324,7 +328,7 @@ service cloud.firestore {
       // Creation is allowed only for a valid publish transaction verified
       // against the author's private draft pointer and snapshot, and only when
       // the atomically-advanced public pointer targets this exact version.
-      allow create: if isSignedIn()
+      allow create: if isNonAnonymous()
         && publishedVersionHasValidShape()
         && publishedVersionMatchesAuthoritativeDraft(
           publicationId,
@@ -335,7 +339,7 @@ service cloud.firestore {
 
       allow list: if archivedOwnerForPublication(publicationId);
 
-      allow delete: if isSignedIn()
+      allow delete: if isNonAnonymous()
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId))
         && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && resource.data.presentationId is string
@@ -344,7 +348,7 @@ service cloud.firestore {
         && resource.data.presentationId == get(/databases/$(database)/documents/publishedPresentations/$(publicationId)/versions/$(get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.currentVersionId)).data.presentationId
         && get(/databases/$(database)/documents/users/$(request.auth.uid)/presentations/$(resource.data.presentationId)).data.archivedAt is timestamp;
 
-      allow delete: if isSignedIn()
+      allow delete: if isNonAnonymous()
         && exists(/databases/$(database)/documents/publishedPresentations/$(publicationId))
         && get(/databases/$(database)/documents/publishedPresentations/$(publicationId)).data.ownerUid == request.auth.uid
         && resource.data.presentationId is string

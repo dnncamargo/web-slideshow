@@ -57,7 +57,7 @@ describe("live slide transition", () => {
       callback = next as unknown as (snapshot: { val(): unknown }) => void;
       return unsubscribe;
     });
-    const cleanup = subscribeLiveSlideTransition({} as never, 7, { setTransition });
+    const cleanup = subscribeLiveSlideTransition({} as never, "owner-a", 7, { setTransition });
     callback?.({ val: () => ({ activationRevision: 7, transition: "slide" }) });
     callback?.({ val: () => ({ activationRevision: 7, transition: "none" }) });
     callback?.({ val: () => ({ activationRevision: 6, transition: "slide" }) });

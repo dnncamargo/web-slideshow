@@ -82,7 +82,7 @@ describe("useLivePlayerControlsControl", () => {
     window.localStorage.setItem(PLAYER_CONTROLS_STORAGE_KEY, JSON.stringify(saved));
     const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
     await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/playerControls" }, { activationRevision: 7, ...saved });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/playerControls" }, { activationRevision: 7, ...saved });
     expect(result?.controls).toEqual(saved);
   });
 
@@ -146,7 +146,7 @@ describe("useLivePlayerControlsControl", () => {
     act(() => root.render(<Harness />));
     const callback = mocks.onValue.mock.calls.at(-1)?.[1] as ((snapshot: { val(): unknown }) => void);
     await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/playerControls" }, { activationRevision: 8, ...saved });
+    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/owner-a/playerControls" }, { activationRevision: 8, ...saved });
     expect(result?.controls).toEqual(saved);
   });
 

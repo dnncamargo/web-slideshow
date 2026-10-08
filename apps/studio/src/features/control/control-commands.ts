@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "../live/live-path";
+
 export type ControlAction = "next" | "previous";
 
 export interface ControlCommand {
@@ -38,7 +40,7 @@ export interface FullscreenRequest {
 }
 
 export function buildFullscreenRequestPath(): string {
-  return "live/fullscreenRequest";
+  return buildAuthenticatedLivePath("fullscreenRequest");
 }
 
 export function buildFullscreenRequest(
@@ -50,11 +52,11 @@ export function buildFullscreenRequest(
 }
 
 export function buildSlideCommandPath(): string {
-  return "live/slideCommand";
+  return buildAuthenticatedLivePath("slideCommand");
 }
 
 export function buildSlideAckPath(): string {
-  return "live/slideAck";
+  return buildAuthenticatedLivePath("slideAck");
 }
 
 export function buildSlideCommand(
