@@ -117,6 +117,14 @@ describe("Player presence pagehide cleanup", () => {
     });
 
     await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
+    expect(mocks.startPlayerPresence).toHaveBeenCalledWith(
+      expect.anything(),
+      "account-1",
+      "player-1",
+      7,
+      "version-1",
+      expect.any(Function),
+    );
     window.dispatchEvent(new Event("pagehide"));
 
     expect(stop).toHaveBeenCalledTimes(1);
