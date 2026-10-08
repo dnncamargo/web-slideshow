@@ -217,40 +217,34 @@ export function ControlPage() {
 
   if (!available) {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("control.unavailable")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("control.unavailable")}</p>
+        </div>
+      </main>
     );
   }
 
   if (liveState.kind === "loading") {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("auth.loading")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("auth.loading")}</p>
+        </div>
+      </main>
     );
   }
 
   if (liveState.kind === "error") {
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <p className={styles.status}>{t("control.couldNotLoadActive")}</p>
-          </div>
-        </main>
-      </>
+        <div className={styles.card}>
+          <p className={styles.status}>{t("control.couldNotLoadActive")}</p>
+        </div>
+      </main>
     );
   }
 
@@ -258,13 +252,12 @@ export function ControlPage() {
     const hasLastLiveIdentity = lastLiveIdentityRef.current !== null;
 
     return (
-      <>
+      <main className={styles.page}>
         {pairingControl}
-        <main className={styles.page}>
-          <div className={styles.card}>
-            <div className={styles.statusBlock}>
-              <p className={styles.status}>{t("control.noActivePresentation")}</p>
-              {hasLastLiveIdentity && (
+        <div className={styles.card}>
+          <div className={styles.statusBlock}>
+            <p className={styles.status}>{t("control.noActivePresentation")}</p>
+            {hasLastLiveIdentity && (
                 <Button
                   variant="primary"
                   disabled={reactivationInFlight}
@@ -276,61 +269,58 @@ export function ControlPage() {
                       : "control.reDisplayLastPresentation",
                   )}
                 </Button>
-              )}
-              <Button onClick={() => router.push(STUDIO_ROUTES.library)}>
-                {t("editor.backToLibrary")}
-              </Button>
-            </div>
+            )}
+            <Button onClick={() => router.push(STUDIO_ROUTES.library)}>
+              {t("editor.backToLibrary")}
+            </Button>
           </div>
-        </main>
-      </>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      {pairingControl}
-      <PresenterView
-        view={view}
-        sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || shapeAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
-        presentationState={presentationState}
-        galleries={galleryControl.galleries}
-        checkboxTargets={checkboxControl.targets}
-        setCheckboxState={checkboxControl.setCheckboxState}
-        scriptedActionGroups={scriptedActionControl.groups}
-        scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
-        plotTargets={plotAnimationControl.plotTargets}
-        plotActionsEnabled={plotAnimationControl.actionsEnabled}
-        pendingPlotSlots={plotAnimationControl.pendingPlotSlots}
-        shapeTargets={shapeAnimationControl.shapeTargets}
-        shapeActionsEnabled={shapeAnimationControl.actionsEnabled}
-        pendingShapeSlots={shapeAnimationControl.pendingShapeSlots}
-        scriptedStateGroups={scriptedStateControl.groups}
-        setScriptedPortValue={scriptedStateControl.setPortValue}
-        previous={previous}
-        next={next}
-        goTo={goTo}
-        followPlayer={followPlayer}
-        updatePlayer={updatePlayer}
-        requestFullscreen={requestFullscreen}
-        transition={transitionControl.transition}
-        setTransition={transitionControl.setTransition}
-        transitionWriteInFlight={transitionControl.writeInFlight}
-        playerControls={playerControls.controls}
-        setPlayerControls={playerControls.setControlsOptions}
-        playerControlsWriteInFlight={playerControls.writeInFlight}
-        nextGallery={galleryControl.nextGallery}
-        setGalleryExpanded={galleryControl.setGalleryExpanded}
-        triggerScriptedAction={scriptedActionControl.triggerAction}
-        triggerPlotAction={plotAnimationControl.triggerAction}
-        triggerAllPlotActions={plotAnimationControl.triggerAll}
-        triggerShapeAction={shapeAnimationControl.triggerAction}
-        triggerAllShapeActions={shapeAnimationControl.triggerAll}
-        promotingVersionId={promotingVersionId}
-        failedPromotionVersionId={failedPromotionVersionId}
-        playerStatus={playerStatus}
-        end={end}
-      />
-    </>
+    <PresenterView
+      pairingControl={pairingControl}
+      view={view}
+      sendFailed={sendFailed || galleryControl.sendFailed || checkboxControl.sendFailed || plotAnimationControl.sendFailed || shapeAnimationControl.sendFailed || scriptedActionControl.sendFailed || scriptedStateControl.sendFailed || transitionControl.sendFailed || playerControls.sendFailed}
+      presentationState={presentationState}
+      galleries={galleryControl.galleries}
+      checkboxTargets={checkboxControl.targets}
+      setCheckboxState={checkboxControl.setCheckboxState}
+      scriptedActionGroups={scriptedActionControl.groups}
+      scriptedActionsEnabled={scriptedActionControl.actionsEnabled}
+      plotTargets={plotAnimationControl.plotTargets}
+      plotActionsEnabled={plotAnimationControl.actionsEnabled}
+      pendingPlotSlots={plotAnimationControl.pendingPlotSlots}
+      shapeTargets={shapeAnimationControl.shapeTargets}
+      shapeActionsEnabled={shapeAnimationControl.actionsEnabled}
+      pendingShapeSlots={shapeAnimationControl.pendingShapeSlots}
+      scriptedStateGroups={scriptedStateControl.groups}
+      setScriptedPortValue={scriptedStateControl.setPortValue}
+      previous={previous}
+      next={next}
+      goTo={goTo}
+      followPlayer={followPlayer}
+      updatePlayer={updatePlayer}
+      requestFullscreen={requestFullscreen}
+      transition={transitionControl.transition}
+      setTransition={transitionControl.setTransition}
+      transitionWriteInFlight={transitionControl.writeInFlight}
+      playerControls={playerControls.controls}
+      setPlayerControls={playerControls.setControlsOptions}
+      playerControlsWriteInFlight={playerControls.writeInFlight}
+      nextGallery={galleryControl.nextGallery}
+      setGalleryExpanded={galleryControl.setGalleryExpanded}
+      triggerScriptedAction={scriptedActionControl.triggerAction}
+      triggerPlotAction={plotAnimationControl.triggerAction}
+      triggerAllPlotActions={plotAnimationControl.triggerAll}
+      triggerShapeAction={shapeAnimationControl.triggerAction}
+      triggerAllShapeActions={shapeAnimationControl.triggerAll}
+      promotingVersionId={promotingVersionId}
+      failedPromotionVersionId={failedPromotionVersionId}
+      playerStatus={playerStatus}
+      end={end}
+    />
   );
 }

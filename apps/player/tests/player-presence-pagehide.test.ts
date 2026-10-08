@@ -111,12 +111,21 @@ describe("Player presence pagehide cleanup", () => {
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
     });
 
     await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
+    expect(mocks.startPlayerPresence).toHaveBeenCalledWith(
+      expect.anything(),
+      "account-1",
+      "player-1",
+      7,
+      "version-1",
+      expect.any(Function),
+    );
     window.dispatchEvent(new Event("pagehide"));
 
     expect(stop).toHaveBeenCalledTimes(1);
@@ -133,6 +142,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
@@ -169,6 +179,7 @@ describe("Player presence pagehide cleanup", () => {
     });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: {
@@ -243,6 +254,7 @@ describe("Player presence pagehide cleanup", () => {
       .mockReturnValueOnce(checkboxCleanups[1]);
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
@@ -315,6 +327,7 @@ describe("Player presence pagehide cleanup", () => {
       .mockReturnValueOnce(cleanups[1]);
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({ kind: "active", live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 } });
     await vi.waitFor(() => expect(ready).toHaveBeenCalledTimes(1));
     expect(mocks.subscribeLivePlotAnimationAction).toHaveBeenCalledTimes(1);
@@ -337,6 +350,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.startPlayerPresence.mockResolvedValue({ starting: vi.fn(), ready: vi.fn(), failed: vi.fn(), stop: vi.fn() });
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "ok", presentation: { slides: [] } });
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({ kind: "active", live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 } });
     await vi.waitFor(() => expect(mocks.mountPlayer).toHaveBeenCalledTimes(1));
     expect(mocks.subscribeLivePlotAnimationAction).not.toHaveBeenCalled();
@@ -358,6 +372,7 @@ describe("Player presence pagehide cleanup", () => {
     mocks.resolveLiveIdentityMount.mockResolvedValue({ kind: "error" });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
@@ -384,7 +399,7 @@ describe("Player presence pagehide cleanup", () => {
     expect(document.body.textContent).not.toContain("Try presentation again");
   });
 
-  it("leaves the no-active surface unchanged", () => {
+  it("leaves the no-active surface unchanged", async () => {
     let handleLive!: (event: unknown) => void;
     mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, handler) => {
       handleLive = handler;
@@ -392,6 +407,7 @@ describe("Player presence pagehide cleanup", () => {
     });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({ kind: "no-active" });
 
     expect(document.body.textContent).toContain("No active presentation.");
@@ -423,6 +439,7 @@ describe("Player presence pagehide cleanup", () => {
     });
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },
@@ -468,6 +485,7 @@ describe("Player presence pagehide cleanup", () => {
     );
 
     startPlayer(document.querySelector("#app")!);
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrent).toHaveBeenCalledTimes(1));
     handleLive({
       kind: "active",
       live: { publicationId: "publication-1", currentVersionId: "version-1", revision: 7 },

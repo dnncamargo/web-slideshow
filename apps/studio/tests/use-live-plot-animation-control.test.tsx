@@ -18,7 +18,7 @@ import {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 7 };
-const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "version-1", bootId: "boot-a", stage: "ready" as const, transitionedAt: 1 } };
+const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "version-1", playerUid: "player-a", bootId: "boot-a", stage: "ready" as const, transitionedAt: 1 } };
 const plot = (id: string, source = "  y =   sin(x)  ", animation = true) => ({ id, type: "plot", source, ...(animation ? { animation: { parameter: "t", from: 0, to: 1, durationMs: 1000 } } : {}) });
 const presentation = (elements: unknown[], pageB: unknown[] = []) => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "page-a", elements }, { id: "page-b", elements: pageB }] });
 const effective = (elements: unknown[], pageB: unknown[] = [], pageId = "page-a") => presentation(elements, pageB).slides.find((slide) => slide.id === pageId)!;

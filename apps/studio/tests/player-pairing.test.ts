@@ -1,18 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  equalTo: vi.fn((value: string) => ({ equalTo: value })),
   get: vi.fn(),
+  onValue: vi.fn(),
+  orderByChild: vi.fn((path: string) => ({ orderByChild: path })),
+  query: vi.fn((reference: unknown, ...constraints: unknown[]) => ({ reference, constraints })),
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   remove: vi.fn(),
   runTransaction: vi.fn(),
+  update: vi.fn(),
   getCurrentNonAnonymousUser: vi.fn(),
 }));
 
 vi.mock("firebase/database", () => ({
+  equalTo: mocks.equalTo,
   get: mocks.get,
+  onValue: mocks.onValue,
+  orderByChild: mocks.orderByChild,
+  query: mocks.query,
   ref: mocks.ref,
   remove: mocks.remove,
   runTransaction: mocks.runTransaction,
+  update: mocks.update,
 }));
 
 vi.mock("../src/features/auth/firebase-auth", () => ({
@@ -21,7 +31,9 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 
 import {
   claimPlayerByPin,
+  disconnectOwnedPlayer,
   normalizePairingPin,
+  subscribeOwnedPlayerBindings,
 } from "../src/features/control/player-pairing";
 
 describe("Control Player pairing", () => {
@@ -36,6 +48,8 @@ describe("Control Player pairing", () => {
       snapshot: { val: () => update(null) },
     }));
     mocks.remove.mockResolvedValue(undefined);
+    mocks.update.mockResolvedValue(undefined);
+    mocks.onValue.mockReturnValue(vi.fn());
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -100,5 +114,66 @@ describe("Control Player pairing", () => {
       "already paired",
     );
     expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingClaims/player-1" });
+  });
+
+  it("subscribes only to bindings owned by the authenticated account", () => {
+    const onPlayers = vi.fn();
+    const unsubscribe = vi.fn();
+    mocks.onValue.mockImplementation((_query, callback) => {
+      callback({
+        val: () => ({
+          "player-b": { ownerUid: "account-1" },
+          "player-other": { ownerUid: "account-2" },
+          "player-a": { ownerUid: "account-1" },
+        }),
+      });
+      return unsubscribe;
+    });
+
+    const cleanup = subscribeOwnedPlayerBindings({} as never, onPlayers);
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings");
+    expect(mocks.orderByChild).toHaveBeenCalledWith("ownerUid");
+    expect(mocks.equalTo).toHaveBeenCalledWith("account-1");
+    expect(onPlayers).toHaveBeenCalledWith(["player-a", "player-b"]);
+    expect(cleanup).toBe(unsubscribe);
+  });
+
+  it("cleans only the target Player presence before removing its owned binding", async () => {
+    mocks.get
+      .mockResolvedValueOnce({ val: () => ({ ownerUid: "account-1" }) })
+      .mockResolvedValueOnce({
+        val: () => ({
+          current: { playerUid: "player-1", bootId: "boot-target" },
+          leases: {
+            "boot-target": { playerUid: "player-1", bootId: "boot-target" },
+            "boot-other": { playerUid: "player-other", bootId: "boot-other" },
+          },
+        }),
+      });
+
+    await disconnectOwnedPlayer({} as never, " player-1 ");
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings/player-1");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/account-1/playerPresence");
+    expect(mocks.update).toHaveBeenCalledWith(
+      { path: "live/account-1/playerPresence" },
+      {
+        current: null,
+        "leases/boot-target": null,
+      },
+    );
+    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerBindings/player-1" });
+  });
+
+  it("rejects disconnect when the binding belongs to another account", async () => {
+    mocks.get.mockResolvedValueOnce({ val: () => ({ ownerUid: "account-2" }) });
+
+    await expect(
+      disconnectOwnedPlayer({} as never, "player-2"),
+    ).rejects.toThrow("not paired to this account");
+
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });

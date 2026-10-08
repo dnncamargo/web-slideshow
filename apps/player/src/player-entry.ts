@@ -667,6 +667,7 @@ export function startPlayer(root: HTMLElement): () => void {
       presenceReporter = await startPlayerPresence(
         database!,
         ownerUid!,
+        pairingSession!.playerUid,
         event.live.revision,
         event.live.currentVersionId,
         recordPresenceWriteError,
@@ -739,12 +740,18 @@ export function startPlayer(root: HTMLElement): () => void {
     if (destroyed) return;
 
     if (state.kind === "pairing") {
+      cleanupLiveCurrent?.();
+      cleanupLiveCurrent = undefined;
+      liveStarted = false;
+      teardownLiveSession();
+      ownerUid = undefined;
       renderPairingState(state.pin);
       return;
     }
 
     if (state.kind === "paired") {
       ownerUid = state.ownerUid;
+      if (pairingSession === undefined) return;
       startLiveRuntime();
       return;
     }

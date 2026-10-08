@@ -10,7 +10,7 @@ vi.mock("../src/features/control/control-command-writer", () => ({ writeScripted
 import { useLiveScriptedStateControl, type UseLiveScriptedStateControlResult } from "../src/features/control/use-live-scripted-state-control";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const LIVE = { publicationId: "p", currentVersionId: "v", revision: 7 };
-const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "v", bootId: "boot", stage: "ready" as const, transitionedAt: 1 } };
+const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "v", playerUid: "player-1", bootId: "boot", stage: "ready" as const, transitionedAt: 1 } };
 const runtime = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", mountRevision: 2, pageId: "page", elementId: "state", bootId: "boot", ...overrides });
 const input = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 3, pageId: "page", elementId: "state", portId: "n", targetBootId: "boot", targetMountRevision: 2, value: .12, ...overrides });
 const report = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 4, pageId: "page", elementId: "state", portId: "n", sourceBootId: "boot", mountRevision: 2, appliedInputRevision: 3, value: .12, ...overrides });

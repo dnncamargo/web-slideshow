@@ -1,6 +1,8 @@
 import {
   onDisconnect,
   ref,
+  remove,
+  runTransaction,
   serverTimestamp,
   set,
   type Database,
@@ -45,6 +47,7 @@ function createBootId(): string {
 export async function startPlayerPresence(
   database: Database,
   ownerUid: string,
+  playerUid: string,
   activationRevision: number,
   currentVersionId: string,
   onError: PlayerPresenceErrorHandler = () => undefined,
@@ -59,6 +62,7 @@ export async function startPlayerPresence(
     set(currentRef, {
       activationRevision,
       currentVersionId,
+      playerUid,
       bootId,
       stage,
       transitionedAt: serverTimestamp(),
@@ -69,6 +73,7 @@ export async function startPlayerPresence(
   await disconnect.set({
     activationRevision,
     currentVersionId,
+    playerUid,
     bootId,
     connected: false,
     transitionedAt: serverTimestamp(),
@@ -76,6 +81,7 @@ export async function startPlayerPresence(
   await set(leaseRef, {
     activationRevision,
     currentVersionId,
+    playerUid,
     bootId,
     connected: true,
     transitionedAt: serverTimestamp(),
@@ -103,6 +109,19 @@ export async function startPlayerPresence(
     stop: () => {
       if (stopped) return;
       stopped = true;
+
+      void remove(leaseRef).catch(() => undefined);
+      void runTransaction(
+        currentRef,
+        (current) => {
+          if (typeof current !== "object" || current === null) return;
+          const record = current as { bootId?: unknown; playerUid?: unknown };
+          return record.bootId === bootId && record.playerUid === playerUid
+            ? null
+            : undefined;
+        },
+        { applyLocally: false },
+      ).catch(() => undefined);
     },
   };
 }

@@ -16,6 +16,8 @@ const database = { name: "maintenance-db" };
 const mocks = vi.hoisted(() => ({
   onValue: vi.fn(),
   readControlLatencySnapshot: vi.fn(),
+  disconnectOwnedPlayer: vi.fn(),
+  subscribeOwnedPlayerBindings: vi.fn(),
   requestPlayerClearCache: vi.fn(),
   ref: vi.fn(),
   requestPlayerReload: vi.fn(),
@@ -38,6 +40,10 @@ vi.mock("../src/features/control/player-recovery-request", () => ({
 }));
 vi.mock("../src/features/control/control-latency-snapshot", () => ({
   readControlLatencySnapshot: mocks.readControlLatencySnapshot,
+}));
+vi.mock("../src/features/control/player-pairing", () => ({
+  disconnectOwnedPlayer: mocks.disconnectOwnedPlayer,
+  subscribeOwnedPlayerBindings: mocks.subscribeOwnedPlayerBindings,
 }));
 
 import { MaintenancePage } from "../src/features/control/maintenance-page";
@@ -91,6 +97,7 @@ const presence = (
     current: {
       activationRevision,
       currentVersionId,
+      playerUid: `player-${bootId}`,
       bootId,
       stage,
       transitionedAt: 100,
@@ -102,6 +109,7 @@ const presence = (
       [bootId]: {
         activationRevision,
         currentVersionId,
+        playerUid: `player-${bootId}`,
         bootId,
         connected,
         transitionedAt: 100,
@@ -144,6 +152,11 @@ describe("Maintenance page", () => {
       return liveUnsubscribe;
     });
     mocks.readControlLatencySnapshot.mockReturnValue(null);
+    mocks.disconnectOwnedPlayer.mockResolvedValue(undefined);
+    mocks.subscribeOwnedPlayerBindings.mockImplementation((_database, onPlayers) => {
+      onPlayers([]);
+      return vi.fn();
+    });
     mocks.requestPlayerReload.mockResolvedValue({});
     mocks.requestPlayerClearCache.mockResolvedValue({});
     mocks.requestPlayerRetry.mockResolvedValue({});
@@ -190,6 +203,29 @@ describe("Maintenance page", () => {
     expect(sections[1]?.querySelector("h2")?.textContent).toBe("Recovery");
     expect(container.querySelectorAll("main")).toHaveLength(1);
     expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(4);
+  });
+
+  it("lists paired Players and disconnects one after confirmation", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mocks.subscribeOwnedPlayerBindings.mockImplementation((_database, onPlayers) => {
+      onPlayers(["player-owned-1"]);
+      return vi.fn();
+    });
+
+    render();
+
+    expect(container.textContent).toContain("Player player…");
+    const disconnect = button("Disconnect Player");
+    await act(async () => disconnect.click());
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Disconnect this Player? It will return to pairing mode and show a new PIN.",
+    );
+    expect(mocks.disconnectOwnedPlayer).toHaveBeenCalledWith(
+      database,
+      "player-owned-1",
+    );
+    confirm.mockRestore();
   });
 
   it("never opens a local Player URL for logs", () => {
@@ -253,7 +289,7 @@ describe("Maintenance page", () => {
     render();
     emitPresence({
       ...presence("boot-a"),
-      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", bootId: "boot-b", connected: true, transitionedAt: 100 } },
+      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", playerUid: "player-boot-b", bootId: "boot-b", connected: true, transitionedAt: 100 } },
     });
     expect(container.textContent).toContain("Player boot-a…");
     expect(container.textContent).toContain("Player boot-b…");

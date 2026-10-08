@@ -163,6 +163,7 @@ describe("Player live version promotion", () => {
     const cleanup = startPlayer(root);
 
     try {
+      await vi.waitFor(() => expect(mocks.liveHandler).toBeDefined());
       mocks.liveHandler?.({
         kind: "active",
         live: {

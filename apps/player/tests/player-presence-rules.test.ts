@@ -67,6 +67,7 @@ function current(bootId: string, overrides: Record<string, unknown> = {}) {
   return {
     activationRevision: 7,
     currentVersionId: "version-1",
+    playerUid: `player-${bootId}`,
     bootId,
     stage: "starting",
     transitionedAt: 123,
@@ -78,6 +79,7 @@ function lease(bootId: string, overrides: Record<string, unknown> = {}) {
   return {
     activationRevision: 7,
     currentVersionId: "version-1",
+    playerUid: `player-${bootId}`,
     bootId,
     connected: true,
     transitionedAt: 123,

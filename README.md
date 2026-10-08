@@ -38,8 +38,8 @@ web-slideshow
 - **Library** — authenticated presentation management, folders, import/export, publishing, lifecycle actions and Custom Library access.
 - **Editor** — visual authoring of the canonical Presentation, with session-scoped History and Undo/Redo.
 - **Control** — authenticated live-session control, navigation, Player options, contextual element controls and Player-state feedback.
-- **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery and remote diagnostics mode.
-- **Player** — projection runtime with persistent technical identity. First-time setup pairs the Player to one authenticated account through a temporary PIN; subsequent boots reuse that durable account binding.
+- **Maintenance & Diagnostics** — a Control-owned authenticated operational surface for Player evidence, bounded recovery, remote diagnostics mode and explicit Player disconnection.
+- **Player** — projection runtime with persistent technical identity. First-time setup pairs the Player to one authenticated account through a temporary PIN; subsequent boots reuse that durable account binding until the owning account explicitly disconnects it in Maintenance, after which the same Player identity returns to PIN pairing.
 - **Watch** — public read-only audience surface at `/watch?publication=<publicationId>`, following actual Player-applied state only while that requested publication remains Live.
 
 The public root is deliberately not another Player and never chooses an arbitrary account Live. Publication-scoped Cover (`/cover?publication=<publicationId>`) remains static/read-only while publication-scoped Watch follows the real Player state.
@@ -269,7 +269,7 @@ Control reads Pointed Notes for the current slide and shows numbered textual ref
 
 ## Live presentation model
 
-Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions. Live state is account-scoped under `live/{ownerUid}/...`: authenticated Studio/Control surfaces use their own account UID, and a paired Player derives the same `ownerUid` from its persistent `playerBindings/{playerUid}` record. Pairing records remain separate from Live state. Different accounts can therefore run simultaneous independent Lives; multiple Players bound to the same account intentionally share that account's singleton Live.
+Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions. Live state is account-scoped under `live/{ownerUid}/...`: authenticated Studio/Control surfaces use their own account UID, and a paired Player derives the same `ownerUid` from its persistent `playerBindings/{playerUid}` record. Pairing records remain separate from Live state. An authenticated owner may query and delete only its own bindings; deleting a binding returns that Player to temporary-PIN setup without changing its persistent anonymous `playerUid`. Different accounts can therefore run simultaneous independent Lives; multiple Players bound to the same account intentionally share that account's singleton Live.
 
 Primary slide flow:
 
