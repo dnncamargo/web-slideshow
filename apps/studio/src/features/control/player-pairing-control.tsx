@@ -77,16 +77,6 @@ export function PlayerPairingControl() {
     <section className={styles.pairing} aria-label={t("control.connectPlayer")}>
       <form className={styles.pairingForm} onSubmit={onSubmit}>
         <span className={styles.pairingTitle}>{t("control.connectPlayer")}</span>
-        <Button
-          type="button"
-          size="compact"
-          variant="ghost"
-          aria-expanded={true}
-          aria-label={t("control.connectPlayer")}
-          onClick={() => setOpen(false)}
-        >
-          ×
-        </Button>
         <label className={styles.pairingField}>
           <span>{t("control.pin")}</span>
           <input
@@ -110,6 +100,16 @@ export function PlayerPairingControl() {
           disabled={submitting || normalizePairingPin(pin) === null}
         >
           {submitting ? t("control.connectingPlayer") : t("control.connect")}
+        </Button>
+        <Button
+          type="button"
+          size="compact"
+          variant="ghost"
+          aria-expanded={true}
+          aria-label={t("control.connectPlayer")}
+          onClick={() => setOpen(false)}
+        >
+          ×
         </Button>
       </form>
       {error !== null && <span className={styles.pairingError}>{error}</span>}
