@@ -35,14 +35,10 @@
 }
 
 .pairing {
-  position: fixed;
-  z-index: 20;
-  top: 12px;
-  right: 12px;
-
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-width: 100%;
 
   padding: 8px 10px;
   border: 1px solid #303847;
@@ -102,14 +98,12 @@
 
 @media (max-width: 640px) {
   .pairing {
-    top: auto;
-    right: 8px;
-    bottom: 8px;
-    left: 8px;
+    max-width: calc(100vw - 24px);
   }
 
   .pairingForm {
-    justify-content: space-between;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
 
