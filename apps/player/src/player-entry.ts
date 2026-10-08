@@ -667,6 +667,7 @@ export function startPlayer(root: HTMLElement): () => void {
       presenceReporter = await startPlayerPresence(
         database!,
         ownerUid!,
+        pairingSession!.playerUid,
         event.live.revision,
         event.live.currentVersionId,
         recordPresenceWriteError,
