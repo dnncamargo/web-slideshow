@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getPlayerFirebaseApp: vi.fn(() => ({})),
   get: vi.fn(),
   onValue: vi.fn(),
+  bindingCallback: null as ((snapshot: { val(): unknown }) => void) | null,
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   runTransaction: vi.fn(),
 }));
@@ -54,7 +55,11 @@ describe("Player pairing identity", () => {
       return { user };
     });
     mocks.get.mockResolvedValue({ val: () => null });
-    mocks.onValue.mockReturnValue(vi.fn());
+    mocks.bindingCallback = null;
+    mocks.onValue.mockImplementation((_ref, callback) => {
+      mocks.bindingCallback = callback;
+      return vi.fn();
+    });
     mocks.runTransaction.mockImplementation(async (_ref, update) => ({
       committed: true,
       snapshot: { val: () => update(null) },
@@ -107,6 +112,28 @@ describe("Player pairing identity", () => {
     const session = await startPlayerPairing({} as never, vi.fn());
 
     expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
+    session.destroy();
+  });
+
+  it("returns a paired Player to PIN mode when its durable binding is removed", async () => {
+    mocks.auth.currentUser = { uid: "player-existing", isAnonymous: true };
+    mocks.get.mockResolvedValueOnce({ val: () => ({ ownerUid: "account-1" }) });
+    const states: unknown[] = [];
+    const session = await startPlayerPairing(
+      {} as never,
+      (state) => states.push(state),
+    );
+
+    expect(session.state).toEqual({ kind: "paired", ownerUid: "account-1" });
+    expect(mocks.bindingCallback).not.toBeNull();
+
+    mocks.bindingCallback?.({ val: () => null });
+
+    await vi.waitFor(() => {
+      expect(states).toContainEqual({ kind: "pairing", pin: expect.any(String) });
+    });
+    expect(mocks.runTransaction).toHaveBeenCalled();
+
     session.destroy();
   });
 });
