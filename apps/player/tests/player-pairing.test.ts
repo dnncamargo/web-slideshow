@@ -132,6 +132,7 @@ describe("Player pairing identity", () => {
     await vi.waitFor(() => {
       expect(states).toContainEqual({ kind: "pairing", pin: expect.any(String) });
     });
+    expect(session.playerUid).toBe("player-existing");
     expect(mocks.runTransaction).toHaveBeenCalled();
 
     session.destroy();
