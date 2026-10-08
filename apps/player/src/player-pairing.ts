@@ -201,29 +201,20 @@ export async function startPlayerPairing(
     if (!destroyed) onState(state);
   };
 
+  function stopRenewal(): void {
+    if (renewalTimer === undefined) return;
+    clearInterval(renewalTimer);
+    renewalTimer = undefined;
+  }
+
   const publishPaired = (ownerUid: string): void => {
     if (paired && pairedOwnerUid === ownerUid) return;
     paired = true;
     pairedOwnerUid = ownerUid;
-    if (renewalTimer !== undefined) clearInterval(renewalTimer);
+    pin = undefined;
+    stopRenewal();
     publish({ kind: "paired", ownerUid });
   };
-
-  const handleBinding = (snapshot: { val(): unknown }): void => {
-    const ownerUid = parseOwnerUid(snapshot.val());
-    if (ownerUid !== null) publishPaired(ownerUid);
-  };
-
-  if (existingOwnerUid === null) {
-    pin = await reservePairingPin(database, playerUid);
-    publish({ kind: "pairing", pin });
-  }
-
-  unsubscribeBinding = onValue(
-    bindingRef,
-    handleBinding,
-    () => publish({ kind: "error", message: "Could not observe Player pairing." }),
-  );
 
   const renew = async (): Promise<void> => {
     if (destroyed || paired || pin === undefined) return;
@@ -242,11 +233,46 @@ export async function startPlayerPairing(
     }
   };
 
-  if (!paired) {
+  function startRenewal(): void {
+    if (renewalTimer !== undefined || paired || destroyed) return;
     renewalTimer = setInterval(() => {
       void renew().catch(() => undefined);
     }, PLAYER_PAIRING_PIN_RENEWAL_MS);
   }
+
+  const publishPairing = async (): Promise<void> => {
+    if (destroyed || paired) return;
+    pin = await reservePairingPin(database, playerUid, pin);
+    publish({ kind: "pairing", pin });
+    startRenewal();
+  };
+
+  const handleBinding = (snapshot: { val(): unknown }): void => {
+    const ownerUid = parseOwnerUid(snapshot.val());
+    if (ownerUid !== null) {
+      publishPaired(ownerUid);
+      return;
+    }
+
+    if (!paired) return;
+
+    paired = false;
+    pairedOwnerUid = null;
+    pin = undefined;
+    void publishPairing().catch(() => {
+      publish({ kind: "error", message: "Could not restart Player pairing." });
+    });
+  };
+
+  if (existingOwnerUid === null) {
+    await publishPairing();
+  }
+
+  unsubscribeBinding = onValue(
+    bindingRef,
+    handleBinding,
+    () => publish({ kind: "error", message: "Could not observe Player pairing." }),
+  );
 
   const state = currentState;
   if (state.kind === "error") throw new Error(state.message);
