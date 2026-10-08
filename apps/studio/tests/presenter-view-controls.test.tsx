@@ -131,6 +131,7 @@ describe("PresenterView controls", () => {
       presence: {
         activationRevision: 1,
         currentVersionId: "version-1",
+        playerUid: "player-1",
         bootId: "boot-1",
         stage: "ready",
         transitionedAt: 1,
