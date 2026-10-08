@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   disconnectSet: vi.fn(),
   onDisconnect: vi.fn(),
   ref: vi.fn(),
+  remove: vi.fn(),
+  runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => ({ ".sv": "timestamp" })),
   set: vi.fn(),
 }));
@@ -12,6 +14,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("firebase/database", () => ({
   onDisconnect: mocks.onDisconnect,
   ref: mocks.ref,
+  remove: mocks.remove,
+  runTransaction: mocks.runTransaction,
   serverTimestamp: mocks.serverTimestamp,
   set: mocks.set,
 }));
@@ -37,6 +41,11 @@ describe("Player presence reporter", () => {
     mocks.disconnectSet.mockResolvedValue(undefined);
     mocks.cancel.mockResolvedValue(undefined);
     mocks.onDisconnect.mockReturnValue({ set: mocks.disconnectSet, cancel: mocks.cancel });
+    mocks.remove.mockResolvedValue(undefined);
+    mocks.runTransaction.mockImplementation(async (_ref, update) => ({
+      committed: true,
+      snapshot: { val: () => update(null) },
+    }));
     mocks.set.mockResolvedValue(undefined);
   });
 
@@ -155,15 +164,30 @@ describe("Player presence reporter", () => {
     expect(onError).toHaveBeenNthCalledWith(2, "load-failed", failedFailure);
   });
 
-  it("stops transitions without canceling pagehide disconnect detection", async () => {
+  it("stops transitions, removes its lease, and conditionally clears its current report", async () => {
     const reporter = await startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1");
+    const leaseRef = mocks.set.mock.calls[0]?.[0];
+    const currentRef = mocks.set.mock.calls[1]?.[0];
 
     reporter.stop();
     reporter.stop();
     reporter.ready();
     reporter.failed("player-mount-failed");
-    await Promise.resolve();
 
+    await vi.waitFor(() => {
+      expect(mocks.remove).toHaveBeenCalledTimes(1);
+      expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mocks.remove).toHaveBeenCalledWith(leaseRef);
+    expect(mocks.runTransaction).toHaveBeenCalledWith(
+      currentRef,
+      expect.any(Function),
+      { applyLocally: false },
+    );
+    const update = mocks.runTransaction.mock.calls[0]?.[1] as (value: unknown) => unknown;
+    expect(update({ playerUid: "player-a", bootId: reporter.bootId })).toBeNull();
+    expect(update({ playerUid: "player-other", bootId: reporter.bootId })).toBeUndefined();
     expect(mocks.cancel).not.toHaveBeenCalled();
     expect(mocks.disconnectSet).toHaveBeenCalledTimes(1);
     expect(mocks.set).toHaveBeenCalledTimes(2);
