@@ -768,11 +768,25 @@ The shared editor now includes syntax profiles, pairing/indentation helpers, loc
 
 Completed with the canonical Text contract: Fill persists as mutually exclusive Color or Gradient using existing Gradient/ColorValue primitives; Gradient is one composition across Text content; Shadow remains glyph-based; Glow is Text-local and rendered as an external glyph halo; palette references, publication and the shared renderer preserve the same meaning across Studio and Player. Accepted behavior includes Gradient, Shadow and Glow independently and in combination, with `schemaVersion` remaining literally `1`.
 
-### 2. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
+### 2. Pointed Notes — numbered Canvas markers + Control reading ✅
 
-Extend the existing Notes capability so Editor authors can associate numbered references `[1]`, `[2]`, `[3]`… with note text and visually position the corresponding markers on the relevant slide. Editor must support authoring/editing the pointed notes and marker positions; Control must be able to read the resulting notes and their numbered references.
+Pointed Notes complete the existing private Notes capability without changing the canonical Presentation or `schemaVersion`.
 
-Begin with an audit of the current private Notes storage, Editor ownership, slide association, Control read path and Canvas overlay architecture. Preserve the current rule that Notes stay outside the canonical Presentation unless concrete evidence requires a different boundary. The markers are authoring/presenter metadata, not Player content by default. Do not introduce a second notes system or preselect a persisted marker schema before the audit.
+- one existing private `PresentationNotes` repository/document remains the storage boundary;
+- normalized `SlideNotes` contain pointed entries with stable opaque IDs, plain text and logical `x`/`y` coordinates;
+- numbering is derived from pointed-note order and is not persisted;
+- new notes use a deterministic centered logical slide position;
+- Editor exposes Pointed Notes only, with plain-text editing and a compact `+` action;
+- Editor-only Canvas markers are square 32×32 logical units; drag preview is local and the final position is saved after `pointerup`;
+- legacy ordinary text is hidden from authoring but preserved for persistence compatibility;
+- Control provides read-only numbered lists on desktop and mobile, with no preview markers;
+- Player, Watch, renderer and publication have no dependency on private Notes;
+- no second Notes system, private schema version or canonical Presentation/schema change was introduced;
+- manual product acceptance is complete.
+
+### 3. Container delete preserving children under Root Definition — urgent fix ← NEXT
+
+Delete + Preserve children is reported not to work when the target Container belongs to or is authored on a Root Definition. The next implementation chat must begin with an audit of current delete/unwrap ownership and parent-location logic, comparing Slide-owned Containers with Root Definition-owned Containers. Verify the existing History and owner-aware tree mutation boundaries, then reuse the existing preserve-children implementation rather than creating a second delete path. Do not preselect a fix before auditing the current `main` code.
 
 ---
 
@@ -846,10 +860,11 @@ P12   UX / Properties refinement                            ✅
        Structured source editor + Shape path/SVG authoring    ✅
 
 NEXT:
-  1. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
+  1. Pointed Notes ✅
+  2. Container delete preserving children under Root Definition — urgent fix ← NEXT
 
 IMMEDIATE QUEUE:
-  1. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
+  1. Container delete preserving children under Root Definition — urgent fix ← NEXT
 
 RELEASE GATE STILL PENDING:
   Android interactive display + Firefox 116 physical Player acceptance
@@ -865,4 +880,4 @@ FUTURE / DEFERRED:
   Custom Library portability
 ```
 
-The next implementation chat must begin from a fully closed local `main`, revalidate the real remote baseline, and audit the current private Notes storage first. Pointed Notes remain outside canonical Presentation unless evidence requires otherwise; markers are authoring/presenter metadata by default, Editor authors marker position/text, Control reads them, and no second Notes system or persisted marker schema should be preselected before the audit.
+The next implementation chat must begin from a fully closed and synchronized local `main`, audit the Root Definition preserve-children failure first, inspect the existing PR #171 implementation and current owner-aware Root Definition authoring paths, and extend the existing behavior rather than introduce a parallel delete system.
