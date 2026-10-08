@@ -787,7 +787,7 @@ Pointed Notes complete the existing private Notes capability without changing th
 
 ### 3. Container delete preserving children under Root Definition ✅
 
-The dialog now offers Delete container and children, Delete container, keep children, and Cancel for compatible non-empty Containers authored in `localRootChildren` on Root-backed Slides. The regression was caused by probing the materialized Slide tree instead of the persisted owner tree; `resolveOwnedAuthoringTree` now supplies the correct probe tree. The existing preserve mutation path remains unchanged, child IDs/order/payload are preserved, destructive deletion remains available, Undo/Redo remains one History action, canonical Root and in-use receiver protections are unchanged, and manual product acceptance is complete. No schema, renderer, Player or publication changes were made.
+The dialog now offers Delete container and children, Delete container, keep children, and Cancel for compatible non-empty Containers authored in `localRootChildren` on Root-backed Slides. The regression was caused by probing the Slide-owned `slide.elements` tree instead of the persisted owner tree; `resolveOwnedAuthoringTree` now supplies the correct probe tree. The existing preserve mutation path remains unchanged, child IDs/order/payload are preserved, destructive deletion remains available, Undo/Redo remains one History action, canonical Root and in-use receiver protections are unchanged, and manual product acceptance is complete. No schema, renderer, Player or publication changes were made.
 
 ---
 
