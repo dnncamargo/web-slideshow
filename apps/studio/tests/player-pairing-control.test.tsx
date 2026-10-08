@@ -70,10 +70,18 @@ describe("Player pairing Control", () => {
       input!.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const connectButton = Array.from(container.querySelectorAll("button")).find(
+    const buttons = Array.from(container.querySelectorAll("button"));
+    const connectButton = buttons.find(
       (button) => button.textContent?.trim() === "Connect",
     );
+    const closeButton = buttons.find(
+      (button) => button.textContent?.trim() === "×",
+    );
     expect(connectButton).toBeDefined();
+    expect(closeButton).toBeDefined();
+    expect(buttons.indexOf(closeButton!)).toBeGreaterThan(
+      buttons.indexOf(connectButton!),
+    );
 
     await act(async () => {
       connectButton?.click();
