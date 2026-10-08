@@ -19,7 +19,9 @@ function anonymous(uid: string) {
 }
 
 function account(uid: string) {
-  return testEnv.authenticatedContext(uid).database();
+  return testEnv.authenticatedContext(uid, {
+    firebase: { sign_in_provider: "google.com" },
+  }).database();
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -217,6 +219,39 @@ describe("Realtime Database Player pairing rules", () => {
       ownerUid: "account-shape",
       extra: true,
     }));
+  });
+
+  it("allows the authenticated owner to transact at the Live root without exposing that root cross-account or to a bound anonymous Player", async () => {
+    const owner = account("account-root-transaction");
+    const otherOwner = account("account-root-other");
+    const player = anonymous("player-root-transaction");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-root-transaction").set({
+        ownerUid: "account-root-transaction",
+      });
+    });
+
+    const live = owner.ref("live/account-root-transaction");
+
+    await assertSucceeds(
+      live.transaction(() => ({
+        activationRevision: 1,
+        current: {
+          publicationId: "publication-root",
+          currentVersionId: "version-root",
+          revision: 1,
+        },
+      })),
+    );
+
+    await assertSucceeds(live.once("value"));
+    await assertFails(otherOwner.ref("live/account-root-transaction").once("value"));
+    await assertFails(player.ref("live/account-root-transaction").once("value"));
+
+    await assertSucceeds(
+      player.ref("live/account-root-transaction/current").once("value"),
+    );
   });
 
   it("rejects anonymous Control writes while preserving bounded Player runtime writes", async () => {

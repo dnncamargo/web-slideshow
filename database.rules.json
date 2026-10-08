@@ -2,7 +2,7 @@
   "rules": {
     "live": {
       "$ownerUid": {
-        ".read": false,
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('slideTransition').exists() && !newData.child('playerControls').exists() && !newData.child('playerLogs').exists() && !newData.child('fullscreenRequest').exists() && !newData.child('playerRecoveryRequest').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists() && !newData.child('galleryControl').exists() && !newData.child('checkboxControl').exists() && !newData.child('plotAnimationAction').exists() && !newData.child('shapeAnimationAction').exists() && !newData.child('scriptedAction').exists() && !newData.child('scriptedRuntime').exists() && !newData.child('scriptedReport').exists() && !newData.child('scriptedInput').exists()))",
         "current": {
           ".read": true,
