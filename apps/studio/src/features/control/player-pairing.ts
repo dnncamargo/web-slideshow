@@ -1,4 +1,4 @@
-import { get, ref, remove, runTransaction, type Database } from "firebase/database";
+import { equalTo, get, onValue, orderByChild, query, ref, remove, runTransaction, type Database, type Unsubscribe } from "firebase/database";
 
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 
@@ -40,6 +40,14 @@ function parsePairingRecord(value: unknown): PairingRecord | null {
     return null;
   }
   return { playerUid: record.playerUid, expiresAt: record.expiresAt };
+}
+
+function parseBindingOwnerUid(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  const ownerUid = (value as { ownerUid?: unknown }).ownerUid;
+  return typeof ownerUid === "string" && ownerUid.trim() !== ""
+    ? ownerUid.trim()
+    : null;
 }
 
 function bindingPath(playerUid: string): string {
@@ -158,4 +166,67 @@ export async function claimPlayerByPin(
   }
 
   return { playerUid: pairing.playerUid, ownerUid: owner.uid };
+}
+
+
+export function subscribeOwnedPlayerBindings(
+  database: Database,
+  onPlayers: (playerUids: readonly string[]) => void,
+  onError: (error: unknown) => void = () => undefined,
+): Unsubscribe {
+  const owner = getCurrentNonAnonymousUser();
+  if (owner === null) {
+    throw new Error("Maintenance requires an authenticated non-anonymous user.");
+  }
+
+  const ownedBindings = query(
+    ref(database, PLAYER_BINDINGS_PATH),
+    orderByChild("ownerUid"),
+    equalTo(owner.uid),
+  );
+
+  return onValue(
+    ownedBindings,
+    (snapshot) => {
+      const value = snapshot.val();
+      if (typeof value !== "object" || value === null) {
+        onPlayers([]);
+        return;
+      }
+
+      const playerUids = Object.entries(value as Record<string, unknown>)
+        .flatMap(([playerUid, binding]) =>
+          playerUid.trim() !== "" && parseBindingOwnerUid(binding) === owner.uid
+            ? [playerUid]
+            : [],
+        )
+        .sort();
+
+      onPlayers(playerUids);
+    },
+    onError,
+  );
+}
+
+export async function disconnectOwnedPlayer(
+  database: Database,
+  playerUid: string,
+): Promise<void> {
+  const owner = getCurrentNonAnonymousUser();
+  if (owner === null) {
+    throw new Error("Maintenance requires an authenticated non-anonymous user.");
+  }
+
+  const canonicalPlayerUid = playerUid.trim();
+  if (canonicalPlayerUid === "" || canonicalPlayerUid.includes("/")) {
+    throw new Error("Player identity is invalid.");
+  }
+
+  const bindingRef = ref(database, bindingPath(canonicalPlayerUid));
+  const snapshot = await get(bindingRef);
+  if (parseBindingOwnerUid(snapshot.val()) !== owner.uid) {
+    throw new Error("That Player is not paired to this account.");
+  }
+
+  await remove(bindingRef);
 }
