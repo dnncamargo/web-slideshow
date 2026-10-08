@@ -37,7 +37,7 @@ describe("Player recovery writer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.user = { uid: "user-1" };
-    mocks.ref.mockReturnValue({ path: PLAYER_RECOVERY_REQUEST_PATH });
+    mocks.ref.mockReturnValue({ path: `live/user-1/${PLAYER_RECOVERY_REQUEST_PATH}` });
   });
 
   function resolveTransaction(
@@ -158,9 +158,9 @@ describe("Player recovery writer", () => {
 
     await requestPlayerReload({} as never, 7, " version-1 ", " boot-a ");
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, PLAYER_RECOVERY_REQUEST_PATH);
+    expect(mocks.ref).toHaveBeenCalledWith({}, `live/user-1/${PLAYER_RECOVERY_REQUEST_PATH}`);
     expect(mocks.runTransaction).toHaveBeenCalledWith(
-      { path: PLAYER_RECOVERY_REQUEST_PATH },
+      { path: `live/user-1/${PLAYER_RECOVERY_REQUEST_PATH}` },
       expect.any(Function),
     );
     expect(mocks.serverTimestamp).toHaveBeenCalledTimes(1);
