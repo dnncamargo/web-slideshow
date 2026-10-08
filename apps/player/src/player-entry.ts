@@ -751,6 +751,7 @@ export function startPlayer(root: HTMLElement): () => void {
 
     if (state.kind === "paired") {
       ownerUid = state.ownerUid;
+      if (pairingSession === undefined) return;
       startLiveRuntime();
       return;
     }
