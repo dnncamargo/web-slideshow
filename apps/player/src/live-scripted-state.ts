@@ -7,9 +7,10 @@ import {
   type ScriptedElement,
 } from "@web-slideshow/document-schema";
 import type { ScriptedReportMessage } from "@web-slideshow/renderer";
+import { buildLivePath } from "./live-path";
 
-export const SCRIPTED_RUNTIME_ROOT_PATH = "live/scriptedRuntime";
-export const SCRIPTED_REPORT_ROOT_PATH = "live/scriptedReport";
+export const SCRIPTED_RUNTIME_ROOT_PATH = "scriptedRuntime";
+export const SCRIPTED_REPORT_ROOT_PATH = "scriptedReport";
 
 export interface LiveScriptedRuntimeRecord {
   activationRevision: number;
@@ -42,6 +43,7 @@ interface MountContext extends LiveScriptedRuntimeRecord {
 
 export interface LiveScriptedStatePublisherOptions {
   database: Database;
+  ownerUid: string;
   activationRevision: number;
   currentVersionId: string;
   bootId: string;
@@ -141,7 +143,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
       mountRevision, pageId: event.pageId, elementId: event.elementId, bootId: options.bootId,
       scriptedSlot, scripted, runtimeWrite: Promise.resolve(), appliedInputs: new Map(),
     };
-    context.runtimeWrite = set(ref(options.database, `${SCRIPTED_RUNTIME_ROOT_PATH}/${scriptedSlot}`), {
+    context.runtimeWrite = set(ref(options.database, buildLivePath(options.ownerUid, `${SCRIPTED_RUNTIME_ROOT_PATH}/${scriptedSlot}`)), {
       activationRevision: context.activationRevision, currentVersionId: context.currentVersionId,
       mountRevision: context.mountRevision, pageId: context.pageId, elementId: context.elementId, bootId: context.bootId,
     }).catch(() => { options.onRuntimeWriteError?.(); throw new Error("scripted runtime write failed"); });
@@ -158,7 +160,7 @@ export function createLiveScriptedStatePublisher(options: LiveScriptedStatePubli
     const appliedInputRevision = (port.kind === "boolean" || port.kind === "number") && port.direction === "input-output" ? context.appliedInputs.get(portIndex) ?? 0 : 0;
     void context.runtimeWrite.then(() => {
       if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
-      const reportRef = ref(options.database, `${SCRIPTED_REPORT_ROOT_PATH}/${context.scriptedSlot}/${portIndex}`);
+      const reportRef = ref(options.database, buildLivePath(options.ownerUid, `${SCRIPTED_REPORT_ROOT_PATH}/${context.scriptedSlot}/${portIndex}`));
       return runTransaction(reportRef, (existing: unknown) => {
         if (!options.isCurrent() || options.getCurrentPageId() !== context.pageId || contexts.get(report.elementId) !== context) return;
         const previous = parseLiveScriptedReportRecord(existing);

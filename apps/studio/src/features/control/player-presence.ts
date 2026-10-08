@@ -1,7 +1,12 @@
 import type { LiveCurrent } from "../live/live-current-read";
 import type { LiveControlView } from "./live-control";
+import { buildAuthenticatedLivePath } from "../live/live-path";
 
-export const PLAYER_PRESENCE_PATH = "live/playerPresence";
+export const PLAYER_PRESENCE_PATH = "playerPresence";
+
+export function buildPlayerPresencePath(): string {
+  return buildAuthenticatedLivePath(PLAYER_PRESENCE_PATH);
+}
 export type PlayerBootStage = "starting" | "ready" | "load-failed";
 export type PlayerBootErrorCode = "presentation-not-found" | "presentation-load-failed" | "player-mount-failed";
 

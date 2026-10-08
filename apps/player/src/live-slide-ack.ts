@@ -8,15 +8,16 @@ import {
 
 import type { Presentation } from "@web-slideshow/document-schema";
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-const SLIDE_COMMAND_PATH = "live/slideCommand";
+const SLIDE_COMMAND_PATH = "slideCommand";
 
-const SLIDE_ACK_PATH = "live/slideAck";
+const SLIDE_ACK_PATH = "slideAck";
 
 const BASELINE_REVISION = 0;
 
 // ============================================================
-// BEGIN: VALIDAÇÃO DE live/slideCommand
+// BEGIN: VALIDAÇÃO DE live/{ownerUid}/slideCommand
 //
 // Um comando válido exige:
 //   - activationRevision: inteiro >= 0
@@ -83,17 +84,17 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
 }
 
 // ============================================================
-// END: VALIDAÇÃO DE live/slideCommand
+// END: VALIDAÇÃO DE live/{ownerUid}/slideCommand
 // ============================================================
 
 /**
  * Substitui o antigo fluxo de controlSpikes.
  *
  * Após a montagem grava um ACK baseline:
- *   live/slideAck = { activationRevision, currentVersionId, revision: 0,
+ *   live/{ownerUid}/slideAck = { activationRevision, currentVersionId, revision: 0,
  *                     pageId, pageIndex }
  *
- * Assina live/slideCommand e aplica comandos mais novos:
+ * Assina live/{ownerUid}/slideCommand e aplica comandos mais novos:
  *   - malformados / activationRevision incorreto / revisões antigas -> ignora;
  *   - revisão igual -> não navega de novo, apenas re-ACK do alvo atual;
  *   - revisão mais nova -> resolve pageId -> goTo(pageIndex), lembra a
@@ -104,6 +105,7 @@ export function parseSlideCommand(value: unknown): SlideCommand | null {
  */
 export function subscribeLiveSlideAck(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   presentation: Presentation,
@@ -128,7 +130,7 @@ export function subscribeLiveSlideAck(
       return;
     }
 
-    set(ref(database, SLIDE_ACK_PATH), {
+    set(ref(database, buildLivePath(ownerUid, SLIDE_ACK_PATH)), {
       activationRevision,
       currentVersionId,
       revision,
@@ -170,7 +172,7 @@ export function subscribeLiveSlideAck(
   writeAck(BASELINE_REVISION);
 
   const unsubscribe = onValue(
-    ref(database, SLIDE_COMMAND_PATH),
+    ref(database, buildLivePath(ownerUid, SLIDE_COMMAND_PATH)),
     (snapshot: DataSnapshot) => {
       const command = parseSlideCommand(snapshot.val());
 

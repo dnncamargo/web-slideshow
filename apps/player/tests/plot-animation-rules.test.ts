@@ -1,3 +1,5 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -14,18 +16,19 @@ class Snapshot {
 }
 
 const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: Record<string, unknown> } };
-const live = rules.rules.live;
+const scopedRules = rules as unknown as { rules: { live: Record<string, any> } };
+const live = scopedRules.rules.live["$ownerUid"];
 const actionRules = (live.plotAnimationAction as { ".read": boolean; $plotSlot: Record<string, unknown> }).$plotSlot;
 const action = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "version-1", revision: 1, pageId: "page-1", elementId: "plot-1", targetBootId: "boot-a", action: "play", ...overrides });
 const root = (overrides: Record<string, unknown> = {}) => ({ live: { current: { revision: 7, currentVersionId: "version-1" }, playerPresence: { current: { bootId: "boot-a", stage: "ready" }, leases: { "boot-a": { bootId: "boot-a", activationRevision: 7, currentVersionId: "version-1", connected: true } } }, ...overrides } });
 function evaluate(expression: string, current: unknown, next: unknown, rootValue = root(), authenticated = true): boolean {
   const fn = new Function("auth", "data", "newData", "root", `return Boolean(${expression});`) as (auth: object | null, data: Snapshot, newData: Snapshot, root: Snapshot) => boolean;
-  return fn(authenticated ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(rootValue));
+  return fn(authenticated ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } } : null, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": (rootValue as { live?: unknown }).live } }));
 }
 
-describe("live/plotAnimationAction rules", () => {
+describe("live/owner-a/plotAnimationAction rules", () => {
   it("requires public reads and authenticated exact records", () => {
-    expect(live.plotAnimationAction).toMatchObject({ ".read": true });
+    expect(live.plotAnimationAction[".read"]).toContain("$ownerUid");
     expect(evaluate(actionRules[".write"] as string, null, action(), root(), false)).toBe(false);
     expect(evaluate(actionRules[".validate"] as string, null, action())).toBe(true);
     expect(actionRules.$other).toMatchObject({ ".validate": false });

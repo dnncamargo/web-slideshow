@@ -8,6 +8,7 @@ import { playerTestPresentation } from "./fixtures/player-presentation";
 
 const mocks = vi.hoisted(() => ({
   getRealtimeDatabaseOrNull: vi.fn(),
+  loadPublishedOwnerUid: vi.fn(),
   loadPublishedVersion: vi.fn(),
   onValue: vi.fn(),
   ref: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("../src/realtime-db", () => ({
 }));
 
 vi.mock("../src/published-presentation-loader", () => ({
+  loadPublishedOwnerUid: mocks.loadPublishedOwnerUid,
   loadPublishedVersion: mocks.loadPublishedVersion,
 }));
 
@@ -104,6 +106,8 @@ describe("Player Watch runtime", () => {
     subscriptions = [];
 
     mocks.getRealtimeDatabaseOrNull.mockReturnValue({});
+    mocks.loadPublishedOwnerUid.mockResolvedValue("owner-a");
+    window.history.replaceState({}, "", "/watch?publication=publication-1");
     mocks.ref.mockImplementation((_database: unknown, path: string) => ({ path }));
     mocks.onValue.mockImplementation(
       (
@@ -125,6 +129,7 @@ describe("Player Watch runtime", () => {
 
   afterEach(() => {
     controller?.destroy();
+    window.history.replaceState({}, "", "/watch");
     document.body.replaceChildren();
     vi.clearAllMocks();
   });
@@ -140,12 +145,13 @@ describe("Player Watch runtime", () => {
   }
 
   async function emitLive(value: unknown, exists = true): Promise<void> {
-    subscription("live/current").callback(snapshot(value, exists));
+    await vi.waitFor(() => expect(subscriptions.map(({ path }) => path)).toContain("live/owner-a/current"));
+    subscription("live/owner-a/current").callback(snapshot(value, exists));
     await Promise.resolve();
   }
 
   async function emitPlayer(value: unknown): Promise<void> {
-    subscription("live/playerState").callback(snapshot(value));
+    subscription("live/owner-a/playerState").callback(snapshot(value));
     await Promise.resolve();
   }
 
@@ -155,12 +161,21 @@ describe("Player Watch runtime", () => {
       ?.getAttribute("data-presentation-slide-id") ?? null;
   }
 
-  it("shows no active presentation without subscribing to playerState", () => {
+  it("shows no active presentation without subscribing to playerState", async () => {
     mount();
-
+    await vi.waitFor(() => expect(subscriptions).toHaveLength(1));
     expect(root.textContent).toContain("Nenhuma apresentação ao vivo");
-    expect(subscriptions.map(({ path }) => path)).toEqual(["live/current"]);
+    expect(subscriptions.map(({ path }) => path)).toEqual(["live/owner-a/current"]);
     expect(mocks.loadPublishedVersion).not.toHaveBeenCalled();
+  });
+
+  it("does not select an arbitrary account Live without a publication query", async () => {
+    window.history.replaceState({}, "", "/watch");
+    mount();
+    await vi.waitFor(() => expect(root.textContent).toContain("Nenhuma apresentação ao vivo"));
+
+    expect(mocks.loadPublishedOwnerUid).not.toHaveBeenCalled();
+    expect(subscriptions).toHaveLength(0);
   });
 
   it("loads the exact live version and waits for the matching Player state", async () => {
@@ -211,10 +226,10 @@ describe("Player Watch runtime", () => {
     await vi.waitFor(() => expect(renderedSlideId()).toBe("slide-2"));
 
     expect(subscriptions.map(({ path }) => path)).toEqual([
-      "live/current",
-      "live/playerState",
+      "live/owner-a/current",
+      "live/owner-a/playerState",
     ]);
-    expect(subscriptions.map(({ path }) => path)).not.toContain("live/controlState");
+    expect(subscriptions.map(({ path }) => path)).not.toContain("live/owner-a/controlState");
   });
 
   it("rejects stale identity and unknown page state without a pageIndex fallback", async () => {
@@ -258,7 +273,7 @@ describe("Player Watch runtime", () => {
 
     mount();
     await emitLive(live());
-    const oldPlayerSubscription = subscription("live/playerState");
+    const oldPlayerSubscription = subscription("live/owner-a/playerState");
     await emitPlayer(playerState());
 
     await emitLive(live({ currentVersionId: "version-2" }));

@@ -3,6 +3,7 @@ import { ref, runTransaction, update } from "firebase/database";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import { FirebaseAuthenticationError } from "../persistence/persistence-errors";
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
+import { buildLiveRoot } from "../live/live-path";
 
 import {
   parseLiveCurrentValue,
@@ -22,6 +23,7 @@ export {
 function requireAuth() {
   const user = getCurrentNonAnonymousUser();
   if (!user) throw new FirebaseAuthenticationError("Authentication required.");
+  return user;
 }
 
 function parseActivationRevision(value: unknown): number | null {
@@ -37,7 +39,7 @@ export async function activateLivePresentation(
   publicationId: string,
   currentVersionId: string,
 ): Promise<void> {
-  requireAuth();
+  const ownerUid = requireAuth().uid;
   const db = getRealtimeDatabaseOrNull();
   if (!db) throw new Error("Realtime Database is not configured.");
 
@@ -51,7 +53,7 @@ export async function activateLivePresentation(
     throw new Error("Activation requires a currentVersionId.");
   }
 
-  const liveRef = ref(db, "live");
+  const liveRef = ref(db, buildLiveRoot(ownerUid));
 
   const result = await runTransaction(liveRef, (current) => {
     const currentRecord =
@@ -77,8 +79,13 @@ export async function activateLivePresentation(
         slideCommand: null,
         slideAck: null,
         galleryControl: null,
+        checkboxControl: null,
+        plotAnimationAction: null,
         shapeAnimationAction: null,
         scriptedAction: null,
+        scriptedRuntime: null,
+        scriptedReport: null,
+        scriptedInput: null,
         slideTransition: null,
         playerControls: null,
         playerLogs: null,
@@ -100,7 +107,7 @@ export async function promoteLivePresentationVersion(
   expectedLive: LiveCurrent,
   targetVersionId: string,
 ): Promise<void> {
-  requireAuth();
+  const ownerUid = requireAuth().uid;
   const db = getRealtimeDatabaseOrNull();
   if (!db) throw new Error("Realtime Database is not configured.");
 
@@ -123,7 +130,7 @@ export async function promoteLivePresentationVersion(
   } = { kind: "pending" };
 
   const result = await runTransaction(
-    ref(db, "live"),
+    ref(db, buildLiveRoot(ownerUid)),
     (current) => {
       if (current === null) {
         // RTDB may call the updater with an uncached local null before retrying
@@ -186,6 +193,9 @@ export async function promoteLivePresentationVersion(
         scriptedRuntime: null,
         scriptedReport: null,
         scriptedInput: null,
+        slideTransition: null,
+        playerControls: null,
+        playerLogs: null,
       };
     },
     { applyLocally: false },
@@ -206,11 +216,11 @@ export async function promoteLivePresentationVersion(
 }
 
 export async function endLivePresentation(): Promise<void> {
-  requireAuth();
+  const ownerUid = requireAuth().uid;
   const db = getRealtimeDatabaseOrNull();
   if (!db) return;
 
-  const liveRef = ref(db, "live");
+  const liveRef = ref(db, buildLiveRoot(ownerUid));
 
   await update(liveRef, {
     current: null,

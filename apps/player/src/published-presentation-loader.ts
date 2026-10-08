@@ -186,6 +186,27 @@ export async function loadPublishedVersion(
   }
 }
 
+export async function loadPublishedOwnerUid(
+  publicationId: string,
+): Promise<string | null> {
+  try {
+    if (!isFirebaseConfigured()) return null;
+    const app = getOrInitFirebaseApp();
+    const firestore = getFirestore(app);
+    const pointerSnapshot = await getDoc(
+      doc(firestore, "publishedPresentations", publicationId),
+    );
+    if (!pointerSnapshot.exists()) return null;
+    const ownerUid = pointerSnapshot.data().ownerUid;
+    return typeof ownerUid === "string" && ownerUid.trim() !== ""
+      ? ownerUid.trim()
+      : null;
+  } catch (error) {
+    console.error("Player: could not load published owner", error);
+    return null;
+  }
+}
+
 // ============================================================
 // END: CARREGAMENTO DE VERSÃO EXATA
 // ============================================================

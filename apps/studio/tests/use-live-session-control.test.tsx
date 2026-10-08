@@ -142,8 +142,8 @@ describe("useLiveSessionControl hydration", () => {
   });
 
   it("waits for both initial snapshots before exposing an enabled view when playerState arrives first", async () => {
-    const controlHandler = handlerFor("live/controlState");
-    const playerHandler = handlerFor("live/playerState");
+    const controlHandler = handlerFor("live/owner-a/controlState");
+    const playerHandler = handlerFor("live/owner-a/playerState");
 
     await act(async () => {
       playerHandler(
@@ -183,8 +183,8 @@ describe("useLiveSessionControl hydration", () => {
   });
 
   it("waits for both initial snapshots before exposing an enabled view when controlState arrives first", async () => {
-    const controlHandler = handlerFor("live/controlState");
-    const playerHandler = handlerFor("live/playerState");
+    const controlHandler = handlerFor("live/owner-a/controlState");
+    const playerHandler = handlerFor("live/owner-a/playerState");
 
     await act(async () => {
       controlHandler(
@@ -223,8 +223,8 @@ describe("useLiveSessionControl hydration", () => {
   });
 
   it("treats absent initial snapshots as part of hydration before exposing the fallback awaiting view", async () => {
-    const controlHandler = handlerFor("live/controlState");
-    const playerHandler = handlerFor("live/playerState");
+    const controlHandler = handlerFor("live/owner-a/controlState");
+    const playerHandler = handlerFor("live/owner-a/playerState");
 
     await act(async () => {
       controlHandler(snapshot(null));
@@ -249,8 +249,8 @@ describe("useLiveSessionControl hydration", () => {
 
   it("exposes goTo through the existing live control writer", async () => {
     vi.useFakeTimers();
-    const controlHandler = handlerFor("live/controlState");
-    const playerHandler = handlerFor("live/playerState");
+    const controlHandler = handlerFor("live/owner-a/controlState");
+    const playerHandler = handlerFor("live/owner-a/playerState");
 
     await act(async () => {
       controlHandler(snapshot(null));
@@ -281,8 +281,8 @@ describe("useLiveSessionControl hydration", () => {
 
   it("records a measured synced view for the exact active identity", async () => {
     vi.useFakeTimers();
-    const controlHandler = handlerFor("live/controlState");
-    const playerHandler = handlerFor("live/playerState");
+    const controlHandler = handlerFor("live/owner-a/controlState");
+    const playerHandler = handlerFor("live/owner-a/playerState");
 
     await act(async () => {
       controlHandler(snapshot(null));

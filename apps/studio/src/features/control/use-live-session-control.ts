@@ -21,7 +21,7 @@ import {
   parseLiveControlState,
   parseLivePlayerState,
 } from "../live/live-state";
-import { PLAYER_PRESENCE_PATH, parsePlayerPresence, resolvePlayerOperationalStatus, type PlayerOperationalStatus } from "./player-presence";
+import { buildPlayerPresencePath, parsePlayerPresence, resolvePlayerOperationalStatus, type PlayerOperationalStatus } from "./player-presence";
 import { recordControlLatencyMeasurement } from "./control-latency-snapshot";
 
 export interface UseLiveSessionControlResult {
@@ -206,7 +206,7 @@ export function useLiveSessionControl({
     );
 
     const playerPresenceUnsub = onValue(
-      ref(db, PLAYER_PRESENCE_PATH),
+      ref(db, buildPlayerPresencePath()),
       (snapshot) => setPlayerStatus(resolvePlayerOperationalStatus(liveState.live, parsePlayerPresence(snapshot.val()))),
       () => setPlayerStatus({ kind: "no-report" }),
     );

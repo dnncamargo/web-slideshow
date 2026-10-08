@@ -38,7 +38,17 @@ function parsePublishedPointer(value: unknown): PublishedPresentationPointer {
 
   const record = value as Record<string, unknown>;
   const currentVersionId = record.currentVersionId;
+  const ownerUid = record.ownerUid;
   const publishedRevision = record.publishedRevision;
+
+  if (
+    typeof ownerUid !== "string" ||
+    ownerUid.trim() === ""
+  ) {
+    throw new Error(
+      "Published presentation pointer requires an ownerUid.",
+    );
+  }
 
   if (
     typeof currentVersionId !== "string" ||
@@ -60,9 +70,23 @@ function parsePublishedPointer(value: unknown): PublishedPresentationPointer {
   }
 
   return {
+    ownerUid: ownerUid.trim(),
     currentVersionId: currentVersionId.trim(),
     publishedRevision,
   };
+}
+
+export async function readPublishedOwnerUid(
+  publicationId: string,
+): Promise<string | null> {
+  try {
+    const snapshot = await getDoc(publishedPointerRef(publicationId));
+    if (!snapshot.exists()) return null;
+    return parsePublishedPointer(snapshot.data()).ownerUid;
+  } catch (error) {
+    console.error(`Failed to read published owner for "${publicationId}"`, error);
+    return null;
+  }
 }
 
 function pointerOperationError(

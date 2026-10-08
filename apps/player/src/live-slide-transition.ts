@@ -1,8 +1,9 @@
 import { onValue, ref, type Database } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
 import type { PlayerController, PlayerTransition } from "./player";
 
-export const SLIDE_TRANSITION_PATH = "live/slideTransition";
+export const SLIDE_TRANSITION_PATH = "slideTransition";
 
 export interface LiveSlideTransitionRecord {
   activationRevision: number;
@@ -28,10 +29,11 @@ export function resolveLiveSlideTransition(value: unknown, activationRevision: n
 
 export function subscribeLiveSlideTransition(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   controller: Pick<PlayerController, "setTransition">,
 ): () => void {
-  return onValue(ref(database, SLIDE_TRANSITION_PATH), (snapshot) => {
+  return onValue(ref(database, buildLivePath(ownerUid, SLIDE_TRANSITION_PATH)), (snapshot) => {
     controller.setTransition(resolveLiveSlideTransition(snapshot.val(), activationRevision));
   });
 }

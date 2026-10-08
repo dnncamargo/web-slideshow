@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 /** One-way Control -> Player Gallery intent wire contract. */
 export interface LiveGalleryControlState {
   activationRevision: number;
@@ -10,7 +12,7 @@ export interface LiveGalleryControlState {
 }
 
 export function buildGalleryControlRootPath(): string {
-  return "live/galleryControl";
+  return buildAuthenticatedLivePath("galleryControl");
 }
 
 export function buildGalleryControlSlotPath(slot: number): string {

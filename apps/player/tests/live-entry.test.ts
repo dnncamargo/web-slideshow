@@ -181,16 +181,16 @@ describe("parseLiveCurrent", () => {
 
 describe("readLiveCurrent", () => {
   it("returns no-active when live/current does not exist", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(snapshot(null, false));
 
-    const result = await readLiveCurrent({} as never);
+    const result = await readLiveCurrent({} as never, "owner-a");
 
     expect(result).toEqual({ kind: "no-active" });
   });
 
   it("returns ok with the validated live/current", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({
         publicationId: "pub-1",
@@ -199,31 +199,31 @@ describe("readLiveCurrent", () => {
       }),
     );
 
-    const result = await readLiveCurrent({} as never);
+    const result = await readLiveCurrent({} as never, "owner-a");
 
     expect(result).toEqual({
       kind: "ok",
       live: { publicationId: "pub-1", currentVersionId: "v-2", revision: 4 },
     });
-    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/current");
+    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/owner-a/current");
   });
 
   it("returns error when live/current exists but is malformed", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({ publicationId: "pub-1", currentVersionId: "", revision: 1 }),
     );
 
-    const result = await readLiveCurrent({} as never);
+    const result = await readLiveCurrent({} as never, "owner-a");
 
     expect(result).toEqual({ kind: "error" });
   });
 
   it("returns error without rejecting when the RTDB read fails", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockRejectedValue(new Error("permission denied"));
 
-    const result = await readLiveCurrent({} as never);
+    const result = await readLiveCurrent({} as never, "owner-a");
 
     expect(result).toEqual({ kind: "error" });
   });
@@ -233,12 +233,12 @@ describe("subscribeLiveCurrent", () => {
   it("subscribes onValue to live/current and returns a cleanup function", () => {
     const unsub = vi.fn();
     mocks.onValue.mockReturnValue(unsub);
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
 
     const onEvent = vi.fn();
-    const cleanup = subscribeLiveCurrent({} as never, onEvent);
+    const cleanup = subscribeLiveCurrent({} as never, "owner-a", onEvent);
 
-    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/current");
+    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/owner-a/current");
     expect(mocks.onValue).toHaveBeenCalledTimes(1);
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
@@ -255,10 +255,10 @@ describe("subscribeLiveCurrent", () => {
 
   it("emits active for a valid live/current snapshot", () => {
     mocks.onValue.mockReturnValue(vi.fn());
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
 
     const onEvent = vi.fn();
-    subscribeLiveCurrent({} as never, onEvent);
+    subscribeLiveCurrent({} as never, "owner-a", onEvent);
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
       exists: () => boolean;
@@ -281,10 +281,10 @@ describe("subscribeLiveCurrent", () => {
 
   it("emits no-active when live/current does not exist", () => {
     mocks.onValue.mockReturnValue(vi.fn());
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
 
     const onEvent = vi.fn();
-    subscribeLiveCurrent({} as never, onEvent);
+    subscribeLiveCurrent({} as never, "owner-a", onEvent);
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
       exists: () => boolean;
@@ -298,10 +298,10 @@ describe("subscribeLiveCurrent", () => {
 
   it("emits error for a malformed live/current snapshot", () => {
     mocks.onValue.mockReturnValue(vi.fn());
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
 
     const onEvent = vi.fn();
-    subscribeLiveCurrent({} as never, onEvent);
+    subscribeLiveCurrent({} as never, "owner-a", onEvent);
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (s: {
       exists: () => boolean;
@@ -315,10 +315,10 @@ describe("subscribeLiveCurrent", () => {
 
   it("emits error via the onValue error callback", () => {
     mocks.onValue.mockReturnValue(vi.fn());
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
 
     const onEvent = vi.fn();
-    subscribeLiveCurrent({} as never, onEvent);
+    subscribeLiveCurrent({} as never, "owner-a", onEvent);
 
     const errorHandler = mocks.onValue.mock.calls[0]?.[2] as () => void;
 
@@ -333,7 +333,7 @@ describe("resolveLiveMount", () => {
     vi.fn<(publicationId: string, versionId: string) => Promise<never>>();
 
   it("loads the exact version and returns ok when live/current is valid", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({
         publicationId: "pub-1",
@@ -346,7 +346,7 @@ describe("resolveLiveMount", () => {
       presentation: validPresentation(),
     } as never);
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(loadVersion).toHaveBeenCalledExactlyOnceWith("pub-1", "v-2");
     expect(result.kind).toBe("ok");
@@ -358,39 +358,39 @@ describe("resolveLiveMount", () => {
   });
 
   it("returns no-active and never loads a version when live/current is absent", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(snapshot(null, false));
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(result).toEqual({ kind: "no-active" });
     expect(loadVersion).not.toHaveBeenCalled();
   });
 
   it("returns error and never loads a version when live/current is malformed", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({ publicationId: "", currentVersionId: "v-2", revision: 1 }),
     );
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(result).toEqual({ kind: "error" });
     expect(loadVersion).not.toHaveBeenCalled();
   });
 
   it("returns error when the live/current read fails", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockRejectedValue(new Error("read failed"));
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(result).toEqual({ kind: "error" });
     expect(loadVersion).not.toHaveBeenCalled();
   });
 
   it("returns not-found when the exact version does not exist", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({
         publicationId: "pub-1",
@@ -400,14 +400,14 @@ describe("resolveLiveMount", () => {
     );
     loadVersion.mockResolvedValue({ kind: "not-found" } as never);
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(result).toEqual({ kind: "not-found" });
     expect(loadVersion).toHaveBeenCalledExactlyOnceWith("pub-1", "v-missing");
   });
 
   it("returns error when the exact version is malformed", async () => {
-    mocks.ref.mockReturnValue({ path: "live/current" });
+    mocks.ref.mockReturnValue({ path: "live/owner-a/current" });
     mocks.get.mockResolvedValue(
       snapshot({
         publicationId: "pub-1",
@@ -417,7 +417,7 @@ describe("resolveLiveMount", () => {
     );
     loadVersion.mockResolvedValue({ kind: "error" } as never);
 
-    const result = await resolveLiveMount({} as never, loadVersion);
+    const result = await resolveLiveMount({} as never, "owner-a", loadVersion);
 
     expect(result).toEqual({ kind: "error" });
   });

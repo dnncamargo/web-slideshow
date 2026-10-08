@@ -1,22 +1,26 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 type Rule = { ".validate": string };
-const input = (JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { scriptedInput: { ".read": boolean; $scriptedSlot: { $portIndex: Record<string, Rule> & { ".write": string } } } } } }).rules.live.scriptedInput.$scriptedSlot.$portIndex;
+const parsedRules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: Record<string, unknown> } };
+const scopedRules = parsedRules as unknown as { rules: { live: Record<string, any> } };
+const input = scopedRules.rules.live["$ownerUid"].scriptedInput.$scriptedSlot.$portIndex;
 const fields = ["activationRevision", "currentVersionId", "revision", "pageId", "elementId", "portId", "targetBootId", "targetMountRevision", "value"] as const;
 class Snapshot { constructor(private readonly value: unknown) {} child(path: string): Snapshot { return new Snapshot(path.split("/").reduce<unknown>((v, key) => typeof v === "object" && v !== null ? (v as Record<string, unknown>)[key] : undefined, this.value)); } exists(): boolean { return this.value !== undefined && this.value !== null; } hasChildren(keys: string[]): boolean { return keys.every((key) => this.child(key).exists()); } isNumber(): boolean { return typeof this.value === "number" && Number.isFinite(this.value); } isString(): boolean { return typeof this.value === "string"; } isBoolean(): boolean { return typeof this.value === "boolean"; } val(): unknown { return this.value; } }
 const record = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 1, pageId: "p", elementId: "e", portId: "port", targetBootId: "boot", targetMountRevision: 2, value: true, ...overrides });
 const root = (overrides: Record<string, unknown> = {}) => ({ live: { current: { revision: 7, currentVersionId: "v" }, playerPresence: { current: { bootId: "boot", stage: "ready" }, leases: { boot: { bootId: "boot", activationRevision: 7, currentVersionId: "v", connected: true } } }, scriptedRuntime: { 0: { activationRevision: 7, currentVersionId: "v", pageId: "p", elementId: "e", bootId: "boot", mountRevision: 2 } }, ...overrides } });
-function evaluate(expression: string, current: unknown, next: unknown, rootValue = root(), auth = true): boolean { const fn = new Function("auth", "data", "newData", "root", "$scriptedSlot", "$portIndex", `return Boolean(${expression});`) as (a: object | null, d: Snapshot, n: Snapshot, r: Snapshot, s: string, p: string) => boolean; return fn(auth ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(rootValue), "0", "0"); }
+function evaluate(expression: string, current: unknown, next: unknown, rootValue = root(), auth = true): boolean { const fn = new Function("auth", "data", "newData", "root", "$scriptedSlot", "$portIndex", `return Boolean(${expression});`) as (a: object | null, d: Snapshot, n: Snapshot, r: Snapshot, s: string, p: string) => boolean; return fn(auth ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } } : null, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": (rootValue as { live?: unknown }).live } }), "0", "0"); }
 
 describe("live Scripted input rule structure", () => {
   it("declares each legitimate record child before rejecting other descendants", () => {
     for (const field of fields) expect(input[field]?.[".validate"]).toBeTypeOf("string");
     expect(input.$other?.[".validate"]).toBe(false);
   });
-  it("keeps public read and authenticated contextual writes", () => {
-    expect((JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { scriptedInput: { ".read": boolean } } } }).rules.live.scriptedInput[".read"]).toBe(true);
+  it("keeps account-scoped reads and authenticated contextual writes", () => {
+    expect(scopedRules.rules.live["$ownerUid"].scriptedInput[".read"]).toContain("$ownerUid");
     expect(input[".write"]).toContain("auth != null");
     expect(input.revision?.[".validate"]).toContain("% 1 == 0");
     expect(input.targetMountRevision?.[".validate"]).toContain(">= 1");

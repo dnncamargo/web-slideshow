@@ -8,8 +8,9 @@ import {
 } from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const GALLERY_CONTROL_ROOT_PATH = "live/galleryControl";
+export const GALLERY_CONTROL_ROOT_PATH = "galleryControl";
 
 export interface LiveGalleryControlState {
   activationRevision: number;
@@ -82,6 +83,7 @@ function galleriesOnSlide(slide: Slide): GalleryElement[] {
  */
 export function subscribeLiveGalleryControl(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   presentation: Presentation,
@@ -115,7 +117,7 @@ export function subscribeLiveGalleryControl(
     controller.setGalleryExpanded(state.elementId, state.expanded);
   }
 
-  const root = ref(database, GALLERY_CONTROL_ROOT_PATH);
+  const root = ref(database, buildLivePath(ownerUid, GALLERY_CONTROL_ROOT_PATH));
   const unsubscribeAdded = onChildAdded(root, apply);
   const unsubscribeChanged = onChildChanged(root, apply);
 

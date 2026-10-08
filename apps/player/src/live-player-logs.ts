@@ -1,6 +1,7 @@
 import { onValue, ref, type Database } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
-export const PLAYER_LOGS_PATH = "live/playerLogs";
+export const PLAYER_LOGS_PATH = "playerLogs";
 
 export interface PlayerLogsRecord {
   activationRevision: number;
@@ -34,12 +35,13 @@ export interface PlayerLogsNavigation {
 /** Subscribes to absolute desired state and navigates only when its local URL differs. */
 export function subscribePlayerLogs(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   location: { href: string },
   navigation: PlayerLogsNavigation = window.location,
 ): () => void {
   let tornDown = false;
-  const unsubscribe = onValue(ref(database, PLAYER_LOGS_PATH), (snapshot) => {
+  const unsubscribe = onValue(ref(database, buildLivePath(ownerUid, PLAYER_LOGS_PATH)), (snapshot) => {
     if (tornDown) return;
     const record = parsePlayerLogs(snapshot.val());
     if (record === null || record.activationRevision !== activationRevision) return;

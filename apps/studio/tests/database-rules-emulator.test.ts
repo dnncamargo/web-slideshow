@@ -224,15 +224,18 @@ describe("Realtime Database Player pairing rules", () => {
     const owner = account("account-runtime");
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.database().ref("live/current").set({
+      await context.database().ref("live/account-runtime/current").set({
         publicationId: "publication-1",
         currentVersionId: "version-1",
         revision: 1,
       });
+      await context.database().ref("playerBindings/player-runtime").set({
+        ownerUid: "account-runtime",
+      });
     });
 
     await assertFails(
-      player.ref("live/controlState").set({
+      player.ref("live/account-runtime/controlState").set({
         activationRevision: 1,
         currentVersionId: "version-1",
         revision: 1,
@@ -240,7 +243,7 @@ describe("Realtime Database Player pairing rules", () => {
       }),
     );
     await assertSucceeds(
-      owner.ref("live/controlState").set({
+      owner.ref("live/account-runtime/controlState").set({
         activationRevision: 1,
         currentVersionId: "version-1",
         revision: 1,
@@ -248,7 +251,7 @@ describe("Realtime Database Player pairing rules", () => {
       }),
     );
     await assertSucceeds(
-      player.ref("live/playerState").set({
+      player.ref("live/account-runtime/playerState").set({
         activationRevision: 1,
         currentVersionId: "version-1",
         appliedControlRevision: 0,
@@ -256,5 +259,116 @@ describe("Realtime Database Player pairing rules", () => {
         pageIndex: 0,
       }),
     );
+  });
+
+  it("isolates private Live protocol state by account and Player binding", async () => {
+    const ownerA = account("account-isolation-a");
+    const ownerB = account("account-isolation-b");
+    const playerA = anonymous("player-isolation-a");
+    const playerB = anonymous("player-isolation-b");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.database();
+      await database.ref("playerBindings/player-isolation-a").set({ ownerUid: "account-isolation-a" });
+      await database.ref("playerBindings/player-isolation-b").set({ ownerUid: "account-isolation-b" });
+    });
+
+    await assertSucceeds(ownerA.ref("live/account-isolation-a/current").set({
+      publicationId: "publication-a",
+      currentVersionId: "version-a",
+      revision: 1,
+    }));
+    await assertSucceeds(ownerB.ref("live/account-isolation-b/current").set({
+      publicationId: "publication-b",
+      currentVersionId: "version-b",
+      revision: 1,
+    }));
+
+    await assertSucceeds(ownerA.ref("live/account-isolation-a/controlState").set({
+      activationRevision: 1,
+      currentVersionId: "version-a",
+      revision: 1,
+      pageId: "slide-a",
+    }));
+    await assertSucceeds(ownerB.ref("live/account-isolation-b/controlState").set({
+      activationRevision: 1,
+      currentVersionId: "version-b",
+      revision: 1,
+      pageId: "slide-b",
+    }));
+
+    await assertSucceeds(playerA.ref("live/account-isolation-a/playerState").set({
+      activationRevision: 1,
+      currentVersionId: "version-a",
+      appliedControlRevision: 1,
+      pageId: "slide-a",
+      pageIndex: 0,
+    }));
+    await assertSucceeds(playerB.ref("live/account-isolation-b/playerState").set({
+      activationRevision: 1,
+      currentVersionId: "version-b",
+      appliedControlRevision: 1,
+      pageId: "slide-b",
+      pageIndex: 0,
+    }));
+
+    await assertFails(playerA.ref("live/account-isolation-b/playerState").set({
+      activationRevision: 1,
+      currentVersionId: "version-b",
+      appliedControlRevision: 1,
+      pageId: "slide-b",
+      pageIndex: 0,
+    }));
+    await assertFails(playerB.ref("live/account-isolation-a/controlState").once("value"));
+    await assertFails(ownerA.ref("live/account-isolation-b/controlState").set({
+      activationRevision: 1,
+      currentVersionId: "version-b",
+      revision: 2,
+      pageId: "slide-b-2",
+    }));
+    await assertFails(ownerB.ref("live/account-isolation-a/playerPresence").once("value"));
+  });
+
+  it("keeps activation revisions, promotion, and end account-local", async () => {
+    const ownerA = account("account-lifecycle-a");
+    const ownerB = account("account-lifecycle-b");
+    const liveA = ownerA.ref("live/account-lifecycle-a");
+    const liveB = ownerB.ref("live/account-lifecycle-b");
+
+    await assertSucceeds(liveA.child("activationRevision").set(1));
+    await assertSucceeds(liveB.child("activationRevision").set(1));
+    await assertSucceeds(liveA.child("current").set({
+      publicationId: "publication-a",
+      currentVersionId: "version-a",
+      revision: 1,
+    }));
+    await assertSucceeds(liveB.child("current").set({
+      publicationId: "publication-b",
+      currentVersionId: "version-b",
+      revision: 1,
+    }));
+
+    await assertSucceeds(liveA.child("current").set({
+      publicationId: "publication-a",
+      currentVersionId: "version-a-2",
+      revision: 1,
+    }));
+
+    const bAfterPromotion = await liveB.child("current").once("value");
+    expect(bAfterPromotion.val()).toEqual({
+      publicationId: "publication-b",
+      currentVersionId: "version-b",
+      revision: 1,
+    });
+    expect((await liveA.child("activationRevision").once("value")).val()).toBe(1);
+    expect((await liveB.child("activationRevision").once("value")).val()).toBe(1);
+
+    await assertSucceeds(liveA.update({ current: null }));
+    expect((await liveA.child("current").once("value")).exists()).toBe(false);
+    expect((await liveB.child("current").once("value")).val()).toEqual({
+      publicationId: "publication-b",
+      currentVersionId: "version-b",
+      revision: 1,
+    });
   });
 });

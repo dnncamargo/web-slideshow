@@ -3,8 +3,9 @@ import { onValue, ref, type Database } from "firebase/database";
 import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const PLOT_ANIMATION_ACTION_ROOT_PATH = "live/plotAnimationAction";
+export const PLOT_ANIMATION_ACTION_ROOT_PATH = "plotAnimationAction";
 
 export type PlotAnimationAction = "play" | "pause" | "reset";
 
@@ -88,6 +89,7 @@ function numericEntries(value: unknown): Array<[string, unknown]> {
 /** Consumes Plot action occurrences without replaying revision gaps. */
 export function subscribeLivePlotAnimationAction(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   targetBootId: string,
@@ -96,7 +98,7 @@ export function subscribeLivePlotAnimationAction(
   tracker: PlotAnimationActionTracker,
 ): () => void {
   tracker.prepareBoot(targetBootId);
-  const unsubscribe = onValue(ref(database, PLOT_ANIMATION_ACTION_ROOT_PATH), (snapshot) => {
+  const unsubscribe = onValue(ref(database, buildLivePath(ownerUid, PLOT_ANIMATION_ACTION_ROOT_PATH)), (snapshot) => {
     for (const [slotKey, value] of numericEntries(snapshot.val())) {
       const plotSlot = parsePlotAnimationActionIndex(slotKey);
       const record = parseLivePlotAnimationActionRecord(value);

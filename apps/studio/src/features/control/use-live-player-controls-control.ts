@@ -27,7 +27,9 @@ export interface LivePlayerControls {
 
 export type LivePlayerControlsPatch = Partial<LivePlayerControls>;
 
-export const PLAYER_CONTROLS_PATH = "live/playerControls";
+import { buildAuthenticatedLivePath } from "../live/live-path";
+
+export const PLAYER_CONTROLS_PATH = "playerControls";
 export const PLAYER_CONTROLS_STORAGE_KEY = "web-slideshow:control-player-controls:v1";
 
 /** Baseline do Live Player: posição inferior-direita, compacto, contador visível, fade. */
@@ -163,7 +165,7 @@ export function useLivePlayerControlsControl(
     if (live === null) return;
     const database = getRealtimeDatabaseOrNull();
     if (database === null) return;
-    return onValue(ref(database, PLAYER_CONTROLS_PATH), (snapshot) => {
+    return onValue(ref(database, buildAuthenticatedLivePath(PLAYER_CONTROLS_PATH)), (snapshot) => {
       const record = parseLivePlayerControls(snapshot.val());
       if (record !== null && record.activationRevision === live.revision) {
         restoreAttemptedRef.current = true;
@@ -188,7 +190,7 @@ export function useLivePlayerControlsControl(
       writeInFlightRef.current = true;
       setWriteInFlight(true);
       setSendFailed(false);
-      void set(ref(database, PLAYER_CONTROLS_PATH), {
+      void set(ref(database, buildAuthenticatedLivePath(PLAYER_CONTROLS_PATH)), {
         activationRevision,
         position: storedControls.position,
         style: storedControls.style,
@@ -228,7 +230,7 @@ export function useLivePlayerControlsControl(
     setWriteInFlight(true);
     setSendFailed(false);
     // O registro no RTDB é estado completo, nunca um patch parcial.
-    void set(ref(database, PLAYER_CONTROLS_PATH), {
+    void set(ref(database, buildAuthenticatedLivePath(PLAYER_CONTROLS_PATH)), {
       activationRevision,
       position: next.position,
       style: next.style,

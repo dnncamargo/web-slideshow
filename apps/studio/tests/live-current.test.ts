@@ -87,7 +87,7 @@ describe("live-current activation", () => {
 
     await activateLivePresentation("pub-1", "ver-1");
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/u1");
   });
 
   it("replaces stale Plot action state during activation", async () => {
@@ -101,7 +101,7 @@ describe("live-current activation", () => {
 
     await activateLivePresentation("pub-1", "ver-1");
 
-    expect(committed?.plotAnimationAction).toBeUndefined();
+    expect(committed?.plotAnimationAction).toBeNull();
   });
 
   it("first activation writes activationRevision 1 and current revision 1", async () => {
@@ -182,6 +182,7 @@ describe("live-current activation", () => {
     const current = committed.current as Record<string, unknown>;
     expect(Object.keys(committed).sort()).toEqual([
       "activationRevision",
+      "checkboxControl",
       "controlState",
       "current",
       "fullscreenRequest",
@@ -191,7 +192,11 @@ describe("live-current activation", () => {
       "playerPresence",
       "playerRecoveryRequest",
       "playerState",
+      "plotAnimationAction",
       "scriptedAction",
+      "scriptedInput",
+      "scriptedReport",
+      "scriptedRuntime",
       "shapeAnimationAction",
       "slideAck",
       "slideCommand",
@@ -207,10 +212,11 @@ describe("live-current activation", () => {
     expect(committed.playerRecoveryRequest).toBeNull();
     expect(committed.playerPresence).toBeNull();
     expect(committed.scriptedAction).toBeNull();
-    expect(committed.scriptedRuntime).toBeUndefined();
-    expect(committed.scriptedReport).toBeUndefined();
-    expect(committed.scriptedInput).toBeUndefined();
-    expect(committed.checkboxControl).toBeUndefined();
+    expect(committed.scriptedRuntime).toBeNull();
+    expect(committed.scriptedReport).toBeNull();
+    expect(committed.scriptedInput).toBeNull();
+    expect(committed.checkboxControl).toBeNull();
+    expect(committed.plotAnimationAction).toBeNull();
     expect(committed.slideTransition).toBeNull();
     expect(committed.playerControls).toBeNull();
     expect(committed.playerLogs).toBeNull();
@@ -254,7 +260,7 @@ describe("live-current activation", () => {
     await endLivePresentation();
 
     expect(mocks.update).toHaveBeenCalledWith(
-      { path: "live" },
+      { path: "live/u1" },
       {
         current: null,
         controlState: null,
@@ -335,7 +341,7 @@ describe("live-current activation", () => {
 
     await promoteLivePresentationVersion(previous.current, "ver-2");
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/u1");
     expect(committed).toEqual({
       activationRevision: 7,
       current: {
@@ -358,10 +364,13 @@ describe("live-current activation", () => {
       scriptedRuntime: null,
       scriptedReport: null,
       scriptedInput: null,
+      slideTransition: null,
+      playerControls: null,
+      playerLogs: null,
     });
   });
 
-  it("promotion preserves the Player option records for the same activation", async () => {
+  it("promotion clears Player option records for the new version", async () => {
     setupEnv();
     mocks.getCurrentNonAnonymousUser.mockReturnValue({
       uid: "u1",
@@ -402,15 +411,9 @@ describe("live-current activation", () => {
     const result = committed as Record<string, unknown>;
     expect((result.current as Record<string, unknown>).currentVersionId).toBe("ver-2");
     expect((result.current as Record<string, unknown>).revision).toBe(7);
-    expect(result.slideTransition).toEqual({ activationRevision: 7, transition: "slide" });
-    expect(result.playerControls).toEqual({
-      activationRevision: 7,
-      position: "top-left",
-      style: "minimal",
-      showCounter: false,
-      animation: "slide",
-    });
-    expect(result.playerLogs).toEqual({ activationRevision: 7, enabled: true });
+    expect(result.slideTransition).toBeNull();
+    expect(result.playerControls).toBeNull();
+    expect(result.playerLogs).toBeNull();
     expect((result as Record<string, unknown>).controlState).toBeNull();
     expect((result as Record<string, unknown>).playerPresence).toBeNull();
   });
@@ -446,7 +449,7 @@ describe("live-current activation", () => {
     await promoteLivePresentationVersion(previous.current, "ver-2");
 
     expect(mocks.runTransaction).toHaveBeenCalledWith(
-      { path: "live" },
+      { path: "live/u1" },
       expect.any(Function),
       { applyLocally: false },
     );
@@ -472,6 +475,9 @@ describe("live-current activation", () => {
       scriptedRuntime: null,
       scriptedReport: null,
       scriptedInput: null,
+      slideTransition: null,
+      playerControls: null,
+      playerLogs: null,
     });
   });
 

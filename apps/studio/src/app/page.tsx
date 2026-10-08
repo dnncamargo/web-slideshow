@@ -5,9 +5,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { displayName } from "@web-slideshow/instance-branding";
 
 import {
-  subscribeLiveCurrent,
+  subscribeLiveCurrentForOwner,
   type LiveState,
 } from "@/features/live/live-current-read";
+import { readPublishedOwnerUid } from "@/features/persistence/firestore-published-presentation-reader";
 import { resolvePublicPlayerUrl } from "@/features/public-player/public-player-url";
 
 import styles from "./page.module.css";
@@ -16,11 +17,18 @@ import { clampWatchQrPosition, type WatchQrPosition } from "./watch-qr-position"
 const QR_SAFE_INSET = 12;
 
 export default function Home() {
+  const [requestedPublicationId, setRequestedPublicationId] = useState<string | null>(null);
+  useEffect(() => {
+    setRequestedPublicationId(new URLSearchParams(window.location.search).get("publication")?.trim() || null);
+  }, []);
   const player = resolvePublicPlayerUrl();
   const demoUrl = player.baseUrl === null ? null : `${player.baseUrl}/demo`;
-  const watchUrl = player.baseUrl === null ? null : `${player.baseUrl}/watch`;
-  const coverUrl = player.baseUrl === null ? null : `${player.baseUrl}/cover`;
-  const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
+  const publicQuery = requestedPublicationId === null ? "" : `?publication=${encodeURIComponent(requestedPublicationId)}`;
+  const watchUrl = player.baseUrl === null ? null : `${player.baseUrl}/watch${publicQuery}`;
+  const coverUrl = player.baseUrl === null ? null : `${player.baseUrl}/cover${publicQuery}`;
+  const [liveState, setLiveState] = useState<LiveState>(
+    requestedPublicationId === null ? { kind: "none" } : { kind: "loading" },
+  );
   const [qrPosition, setQrPosition] = useState<WatchQrPosition | null>(null);
   const [dragging, setDragging] = useState(false);
   const qrRef = useRef<HTMLElement | null>(null);
@@ -38,15 +46,33 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    const unsubscribe = subscribeLiveCurrent((nextState) => {
-      if (active) setLiveState(nextState);
+    if (requestedPublicationId === null) {
+      setLiveState({ kind: "none" });
+      return () => { active = false; };
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    void readPublishedOwnerUid(requestedPublicationId).then((ownerUid) => {
+      if (!active) return;
+      if (ownerUid === null) {
+        setLiveState({ kind: "none" });
+        return;
+      }
+      unsubscribe = subscribeLiveCurrentForOwner(ownerUid, (nextState) => {
+        if (!active) return;
+        if (nextState.kind === "active" && nextState.live.publicationId !== requestedPublicationId) {
+          setLiveState({ kind: "none" });
+          return;
+        }
+        setLiveState(nextState);
+      });
     });
 
     return () => {
       active = false;
       unsubscribe?.();
     };
-  }, []);
+  }, [requestedPublicationId]);
 
   useEffect(() => {
     const clampOnResize = () => {

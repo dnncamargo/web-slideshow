@@ -1,20 +1,23 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { playerControls: Record<string, unknown>; ".write": string } } };
+const scopedRules = rules as unknown as { rules: { live: Record<string, any> } };
 
-describe("live/playerControls rules", () => {
-  const controls = rules.rules.live.playerControls;
+describe("live/owner-a/playerControls rules", () => {
+  const controls = scopedRules.rules.live["$ownerUid"].playerControls;
 
   it("is public read", () => {
-    expect(controls[".read"]).toBe(true);
+    expect(controls[".read"]).toContain("$ownerUid");
   });
 
   it("is authenticated-write for the current activation", () => {
-    expect(controls[".write"]).toBe("auth != null");
+    expect(controls[".write"]).toContain("auth.uid === $ownerUid");
     expect(String(controls[".validate"])).toContain("newData.hasChildren(['activationRevision', 'position', 'style', 'showCounter', 'animation'])");
-    expect(String(controls[".validate"])).toContain("root.child('live/current/revision').val()");
+    expect(String(controls[".validate"])).toContain("root.child('live').child($ownerUid).child('current/revision').val()");
   });
 
   it("denies unauthenticated writes", () => {
@@ -24,7 +27,7 @@ describe("live/playerControls rules", () => {
 
   it("rejects stale activations", () => {
     expect(String(controls[".validate"])).toContain("activationRevision");
-    expect(String(controls[".validate"])).toContain("root.child('live/current/revision').val()");
+    expect(String(controls[".validate"])).toContain("root.child('live').child($ownerUid).child('current/revision').val()");
   });
 
   it("accepts only the six canonical positions", () => {
@@ -61,7 +64,7 @@ describe("live/playerControls rules", () => {
   });
 
   it("is included in the whole-live cleanup rule", () => {
-    expect(rules.rules.live[".write"]).toContain("slideTransition");
-    expect(rules.rules.live[".write"]).toContain("playerControls");
+    expect(scopedRules.rules.live["$ownerUid"][".write"]).toContain("slideTransition");
+    expect(scopedRules.rules.live["$ownerUid"][".write"]).toContain("playerControls");
   });
 });

@@ -1,319 +1,546 @@
 {
   "rules": {
     "live": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('slideTransition').exists() && !newData.child('playerControls').exists() && !newData.child('playerLogs').exists() && !newData.child('fullscreenRequest').exists() && !newData.child('playerRecoveryRequest').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists() && !newData.child('galleryControl').exists() && !newData.child('checkboxControl').exists() && !newData.child('plotAnimationAction').exists() && !newData.child('shapeAnimationAction').exists() && !newData.child('scriptedAction').exists() && !newData.child('scriptedRuntime').exists() && !newData.child('scriptedReport').exists() && !newData.child('scriptedInput').exists()))",
-      "current": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['publicationId', 'currentVersionId', 'revision']) && newData.child('publicationId').isString() && newData.child('publicationId').val().length > 0 && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0",
-        "publicationId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "revision": {
-          ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "activationRevision": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
-      },
-      "slideTransition": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'transition']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && (newData.child('transition').val() === 'fade' || newData.child('transition').val() === 'slide' || newData.child('transition').val() === 'none')",
-        "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-        "transition": { ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'" },
-        "$other": { ".validate": false }
-      },
-      "playerControls": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'position', 'style', 'showCounter', 'animation']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && (newData.child('position').val() === 'bottom-center' || newData.child('position').val() === 'bottom-left' || newData.child('position').val() === 'bottom-right' || newData.child('position').val() === 'top-center' || newData.child('position').val() === 'top-left' || newData.child('position').val() === 'top-right') && (newData.child('style').val() === 'floating' || newData.child('style').val() === 'minimal' || newData.child('style').val() === 'compact') && newData.child('showCounter').isBoolean() && (newData.child('animation').val() === 'fade' || newData.child('animation').val() === 'slide' || newData.child('animation').val() === 'none')",
-        "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-        "position": { ".validate": "newData.val() === 'bottom-center' || newData.val() === 'bottom-left' || newData.val() === 'bottom-right' || newData.val() === 'top-center' || newData.val() === 'top-left' || newData.val() === 'top-right'" },
-        "style": { ".validate": "newData.val() === 'floating' || newData.val() === 'minimal' || newData.val() === 'compact'" },
-        "showCounter": { ".validate": "newData.isBoolean()" },
-        "animation": { ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'" },
-        "$other": { ".validate": false }
-      },
-      "playerLogs": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'enabled']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('enabled').isBoolean()",
-        "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-        "enabled": { ".validate": "newData.isBoolean()" },
-        "$other": { ".validate": false }
-      },
-      "fullscreenRequest": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val()) && newData.child('revision').val() === 1))",
-        "activationRevision": {
-          ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "revision": {
-          ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "playerRecoveryRequest": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'targetBootId', 'action', 'requestedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live/playerPresence/current/bootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'reload' || newData.child('action').val() === 'retry' || newData.child('action').val() === 'clear-cache') && newData.child('requestedAt').isNumber() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val()) && newData.child('revision').val() === 1))",
-        "activationRevision": { ".validate": "newData.isNumber()" },
-        "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "revision": { ".validate": "newData.isNumber()" },
-        "targetBootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "action": { ".validate": "newData.val() === 'reload' || newData.val() === 'retry' || newData.val() === 'clear-cache'" },
-        "requestedAt": { ".validate": "newData.isNumber()" },
-        "$other": { ".validate": false }
-      },
-      "slideCommand": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0",
-        "activationRevision": {
-          ".validate": "newData.isNumber()"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "revision": {
-          ".validate": "newData.isNumber()"
-        },
-        "pageId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "controlState": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1))",
-        "activationRevision": {
-          ".validate": "newData.isNumber()"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "revision": {
-          ".validate": "newData.isNumber()"
-        },
-        "pageId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "slideAck": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || newData.exists()",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'pageIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('pageIndex').isNumber() && (newData.child('pageIndex').val() % 1 == 0) && newData.child('pageIndex').val() >= 0 && ((newData.child('revision').val() === 0 && !root.hasChild('live/slideCommand')) || (newData.child('revision').val() > 0 && newData.child('activationRevision').val() === root.child('live/slideCommand/activationRevision').val() && newData.child('currentVersionId').val() === root.child('live/slideCommand/currentVersionId').val() && newData.child('revision').val() === root.child('live/slideCommand/revision').val()))",
-        "activationRevision": {
-          ".validate": "newData.isNumber()"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "revision": {
-          ".validate": "newData.isNumber()"
-        },
-        "pageId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "pageIndex": {
-          ".validate": "newData.isNumber()"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "playerState": {
-        ".read": true,
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || newData.exists()",
-        ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'appliedControlRevision', 'pageId', 'pageIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('appliedControlRevision').isNumber() && (newData.child('appliedControlRevision').val() % 1 == 0) && newData.child('appliedControlRevision').val() >= 0 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('pageIndex').isNumber() && (newData.child('pageIndex').val() % 1 == 0) && newData.child('pageIndex').val() >= 0 && ((!root.hasChild('live/controlState') && newData.child('appliedControlRevision').val() === 0) || (root.hasChild('live/controlState') && root.child('live/controlState/activationRevision').isNumber() && newData.child('activationRevision').val() === root.child('live/controlState/activationRevision').val() && root.child('live/controlState/currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/controlState/currentVersionId').val() && root.child('live/controlState/revision').isNumber() && newData.child('appliedControlRevision').val() >= 0 && newData.child('appliedControlRevision').val() <= root.child('live/controlState/revision').val()))",
-        "activationRevision": {
-          ".validate": "newData.isNumber()"
-        },
-        "currentVersionId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "appliedControlRevision": {
-          ".validate": "newData.isNumber()"
-        },
-        "pageId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "pageIndex": {
-          ".validate": "newData.isNumber()"
-        },
-        "$other": {
-          ".validate": false
-        }
-      },
-      "playerPresence": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+      "$ownerUid": {
+        ".read": false,
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid && ((newData.child('current/revision').isNumber() && (newData.child('current/revision').val() % 1 == 0) && newData.child('current/revision').val() >= 0) || (!newData.child('current').exists() && !newData.child('controlState').exists() && !newData.child('playerState').exists() && !newData.child('slideTransition').exists() && !newData.child('playerControls').exists() && !newData.child('playerLogs').exists() && !newData.child('fullscreenRequest').exists() && !newData.child('playerRecoveryRequest').exists() && !newData.child('slideCommand').exists() && !newData.child('slideAck').exists() && !newData.child('galleryControl').exists() && !newData.child('checkboxControl').exists() && !newData.child('plotAnimationAction').exists() && !newData.child('shapeAnimationAction').exists() && !newData.child('scriptedAction').exists() && !newData.child('scriptedRuntime').exists() && !newData.child('scriptedReport').exists() && !newData.child('scriptedInput').exists()))",
         "current": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || (newData.exists() && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && (((!data.exists() || newData.child('bootId').val() !== data.child('bootId').val()) && newData.child('stage').val() === 'starting' && !newData.hasChild('errorCode') && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('bootId').val() === newData.child('bootId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('connected').val() === true) || (data.exists() && newData.child('bootId').val() === data.child('bootId').val())))",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'stage', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && (newData.child('stage').val() === 'starting' || newData.child('stage').val() === 'ready' || newData.child('stage').val() === 'load-failed') && newData.child('transitionedAt').isNumber() && ((newData.child('stage').val() === 'load-failed' && newData.child('errorCode').isString() && (newData.child('errorCode').val() === 'presentation-not-found' || newData.child('errorCode').val() === 'presentation-load-failed' || newData.child('errorCode').val() === 'player-mount-failed')) || (newData.child('stage').val() !== 'load-failed' && !newData.hasChild('errorCode')))",
-          "activationRevision": { ".validate": "newData.isNumber()" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "stage": { ".validate": "newData.isString()" },
-          "transitionedAt": { ".validate": "newData.isNumber()" },
-          "errorCode": { ".validate": "newData.isString()" },
-          "$other": { ".validate": false }
-        },
-        "leases": {
-          "$bootId": {
-            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || (newData.exists() && $bootId === newData.child('bootId').val() && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val())",
-            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'connected', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val() === $bootId && newData.child('connected').isBoolean() && newData.child('transitionedAt').isNumber()",
-            "activationRevision": { ".validate": "newData.isNumber()" },
-            "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "connected": { ".validate": "newData.isBoolean()" },
-            "transitionedAt": { ".validate": "newData.isNumber()" },
-            "$other": { ".validate": false }
+          ".read": true,
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['publicationId', 'currentVersionId', 'revision']) && newData.child('publicationId').isString() && newData.child('publicationId').val().length > 0 && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0",
+          "publicationId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+          },
+          "$other": {
+            ".validate": false
           }
         },
-        "$other": { ".validate": false }
-      },
-      "galleryControl": {
-        ".read": true,
-        "$slot": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetIndex', 'expanded']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetIndex').isNumber() && (newData.child('targetIndex').val() % 1 == 0) && newData.child('targetIndex').val() >= 0 && newData.child('expanded').isBoolean() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val()) && newData.child('revision').val() === 1))",
-          "activationRevision": { ".validate": "newData.isNumber()" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "revision": { ".validate": "newData.isNumber()" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "targetIndex": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-          "expanded": { ".validate": "newData.isBoolean()" },
-          "$other": { ".validate": false }
-        }
-      },
-      "checkboxControl": {
-        ".read": true,
-        "$slot": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'checkboxId', 'state']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('checkboxId').isString() && newData.child('checkboxId').val().length > 0 && (newData.child('state').val() === 'unchecked' || newData.child('state').val() === 'intermediate' || newData.child('state').val() === 'checked') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('checkboxId').val() === data.child('checkboxId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('checkboxId').val() !== data.child('checkboxId').val()) && newData.child('revision').val() === 1))",
-          "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "checkboxId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "state": { ".validate": "newData.val() === 'unchecked' || newData.val() === 'intermediate' || newData.val() === 'checked'" },
-          "$other": { ".validate": false }
-        }
-      },
-      "plotAnimationAction": {
-        ".read": true,
-        "$plotSlot": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetBootId', 'action']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live/playerPresence/current/bootId').val() && root.child('live/playerPresence/current/stage').val() === 'ready' && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'play' || newData.child('action').val() === 'pause' || newData.child('action').val() === 'reset') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
-          "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "targetBootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "action": { ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'reset')" },
-          "$other": { ".validate": false }
-        }
-      },
-      "shapeAnimationAction": {
-        ".read": true,
-        "$shapeSlot": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetBootId', 'action']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live/playerPresence/current/bootId').val() && root.child('live/playerPresence/current/stage').val() === 'ready' && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'play' || newData.child('action').val() === 'pause' || newData.child('action').val() === 'reset') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
-          "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "targetBootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "action": { ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'reset')" },
-          "$other": { ".validate": false }
-        }
-      },
-      "scriptedAction": {
-        ".read": true,
-        "$scriptedSlot": {
-          "$portIndex": {
-            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'portId', 'targetBootId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live/playerPresence/current/bootId').val() && root.child('live/playerPresence/current/stage').val() === 'ready' && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
-            "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-            "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-            "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "portId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "targetBootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-            "$other": { ".validate": false }
+        "activationRevision": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+        },
+        "slideTransition": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'transition']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && (newData.child('transition').val() === 'fade' || newData.child('transition').val() === 'slide' || newData.child('transition').val() === 'none')",
+          "activationRevision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+          },
+          "transition": {
+            ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'"
+          },
+          "$other": {
+            ".validate": false
           }
-        }
-      },
-      "scriptedRuntime": {
-        "$scriptedSlot": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || (newData.exists() && newData.child('bootId').val() === root.child('live/playerPresence/current/bootId').val())",
-          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'mountRevision', 'pageId', 'elementId', 'bootId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('mountRevision').isNumber() && (newData.child('mountRevision').val() % 1 == 0) && newData.child('mountRevision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && newData.child('bootId').val() === root.child('live/playerPresence/current/bootId').val() && (root.child('live/playerPresence/current/stage').val() === 'starting' || root.child('live/playerPresence/current/stage').val() === 'ready') && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('bootId').val() === newData.child('bootId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('bootId').val()).child('connected').val() === true && (!data.exists() || data.child('bootId').val() !== newData.child('bootId').val() || newData.child('mountRevision').val() > data.child('mountRevision').val())",
-          "activationRevision": { ".validate": "newData.isNumber()" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "mountRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "bootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "$other": { ".validate": false }
-        }
-      },
-      "scriptedInput": {
-        ".read": true,
-        "$scriptedSlot": { "$portIndex": {
-          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-          ".validate": "newData.hasChildren(['activationRevision','currentVersionId','revision','pageId','elementId','portId','targetBootId','targetMountRevision','value']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val() === root.child('live/playerPresence/current/bootId').val() && newData.child('targetMountRevision').isNumber() && (newData.child('targetMountRevision').val() % 1 == 0) && newData.child('targetMountRevision').val() >= 1 && (newData.child('value').isBoolean() || newData.child('value').isNumber()) && root.child('live/playerPresence/current/stage').val() === 'ready' && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && root.child('live/scriptedRuntime').child($scriptedSlot).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('pageId').val() === newData.child('pageId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('elementId').val() === newData.child('elementId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('bootId').val() === newData.child('targetBootId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('mountRevision').val() === newData.child('targetMountRevision').val() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && newData.child('targetMountRevision').val() === data.child('targetMountRevision').val() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val() || newData.child('targetMountRevision').val() !== data.child('targetMountRevision').val()) && newData.child('revision').val() === 1))",
-          "activationRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" },
-          "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "pageId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "elementId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "portId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "targetBootId": { ".validate": "newData.isString() && newData.val().length > 0" },
-          "targetMountRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" },
-          "value": { ".validate": "newData.isBoolean() || newData.isNumber()" },
-          "$other": { ".validate": false }
-        }}
-      },
-      "scriptedReport": {
-        "$scriptedSlot": {
-          "$portIndex": {
-            ".read": true,
-            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' || (newData.exists() && newData.child('sourceBootId').val() === root.child('live/playerPresence/current/bootId').val())",
-            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'portId', 'sourceBootId', 'mountRevision', 'appliedInputRevision', 'value']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live/current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live/current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('sourceBootId').isString() && newData.child('sourceBootId').val() === root.child('live/playerPresence/current/bootId').val() && (root.child('live/playerPresence/current/stage').val() === 'starting' || root.child('live/playerPresence/current/stage').val() === 'ready') && root.child('live/playerPresence/leases').child(newData.child('sourceBootId').val()).child('bootId').val() === newData.child('sourceBootId').val() && root.child('live/playerPresence/leases').child(newData.child('sourceBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/playerPresence/leases').child(newData.child('sourceBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/playerPresence/leases').child(newData.child('sourceBootId').val()).child('connected').val() === true && root.child('live/scriptedRuntime').child($scriptedSlot).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('pageId').val() === newData.child('pageId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('elementId').val() === newData.child('elementId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('bootId').val() === newData.child('sourceBootId').val() && root.child('live/scriptedRuntime').child($scriptedSlot).child('mountRevision').val() === newData.child('mountRevision').val() && newData.child('mountRevision').isNumber() && (newData.child('mountRevision').val() % 1 == 0) && newData.child('mountRevision').val() >= 1 && newData.child('appliedInputRevision').isNumber() && (newData.child('appliedInputRevision').val() % 1 == 0) && newData.child('appliedInputRevision').val() >= 0 && (newData.child('appliedInputRevision').val() === 0 || (root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('pageId').val() === newData.child('pageId').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('elementId').val() === newData.child('elementId').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('portId').val() === newData.child('portId').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('targetBootId').val() === newData.child('sourceBootId').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('targetMountRevision').val() === newData.child('mountRevision').val() && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('revision').isNumber() && (root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('revision').val() % 1 == 0) && root.child('live/scriptedInput').child($scriptedSlot).child($portIndex).child('revision').val() >= newData.child('appliedInputRevision').val())) && (newData.child('value').isBoolean() || newData.child('value').isNumber()) && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('sourceBootId').val() === data.child('sourceBootId').val() && newData.child('mountRevision').val() === data.child('mountRevision').val() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('sourceBootId').val() !== data.child('sourceBootId').val() || newData.child('mountRevision').val() !== data.child('mountRevision').val()) && newData.child('revision').val() === 1))",
-            "activationRevision": { ".validate": "newData.isNumber()" }, "currentVersionId": { ".validate": "newData.isString() && newData.val().length > 0" }, "revision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" }, "pageId": { ".validate": "newData.isString() && newData.val().length > 0" }, "elementId": { ".validate": "newData.isString() && newData.val().length > 0" }, "portId": { ".validate": "newData.isString() && newData.val().length > 0" }, "sourceBootId": { ".validate": "newData.isString() && newData.val().length > 0" }, "mountRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1" }, "appliedInputRevision": { ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0" }, "value": { ".validate": "newData.isBoolean() || newData.isNumber()" }, "$other": { ".validate": false }
+        },
+        "playerControls": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'position', 'style', 'showCounter', 'animation']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && (newData.child('position').val() === 'bottom-center' || newData.child('position').val() === 'bottom-left' || newData.child('position').val() === 'bottom-right' || newData.child('position').val() === 'top-center' || newData.child('position').val() === 'top-left' || newData.child('position').val() === 'top-right') && (newData.child('style').val() === 'floating' || newData.child('style').val() === 'minimal' || newData.child('style').val() === 'compact') && newData.child('showCounter').isBoolean() && (newData.child('animation').val() === 'fade' || newData.child('animation').val() === 'slide' || newData.child('animation').val() === 'none')",
+          "activationRevision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+          },
+          "position": {
+            ".validate": "newData.val() === 'bottom-center' || newData.val() === 'bottom-left' || newData.val() === 'bottom-right' || newData.val() === 'top-center' || newData.val() === 'top-left' || newData.val() === 'top-right'"
+          },
+          "style": {
+            ".validate": "newData.val() === 'floating' || newData.val() === 'minimal' || newData.val() === 'compact'"
+          },
+          "showCounter": {
+            ".validate": "newData.isBoolean()"
+          },
+          "animation": {
+            ".validate": "newData.val() === 'fade' || newData.val() === 'slide' || newData.val() === 'none'"
+          },
+          "$other": {
+            ".validate": false
           }
+        },
+        "playerLogs": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'enabled']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('enabled').isBoolean()",
+          "activationRevision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+          },
+          "enabled": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "fullscreenRequest": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val()) && newData.child('revision').val() === 1))",
+          "activationRevision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "playerRecoveryRequest": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'targetBootId', 'action', 'requestedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'reload' || newData.child('action').val() === 'retry' || newData.child('action').val() === 'clear-cache') && newData.child('requestedAt').isNumber() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val()) && newData.child('revision').val() === 1))",
+          "activationRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "targetBootId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "action": {
+            ".validate": "newData.val() === 'reload' || newData.val() === 'retry' || newData.val() === 'clear-cache'"
+          },
+          "requestedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "slideCommand": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0",
+          "activationRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "pageId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "controlState": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1))",
+          "activationRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "pageId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "slideAck": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'pageIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 0 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('pageIndex').isNumber() && (newData.child('pageIndex').val() % 1 == 0) && newData.child('pageIndex').val() >= 0 && ((newData.child('revision').val() === 0 && !root.child('live').child($ownerUid).hasChild('slideCommand')) || (newData.child('revision').val() > 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('slideCommand/activationRevision').val() && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('slideCommand/currentVersionId').val() && newData.child('revision').val() === root.child('live').child($ownerUid).child('slideCommand/revision').val()))",
+          "activationRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "pageId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "pageIndex": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "playerState": {
+          ".read": true,
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'appliedControlRevision', 'pageId', 'pageIndex']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('appliedControlRevision').isNumber() && (newData.child('appliedControlRevision').val() % 1 == 0) && newData.child('appliedControlRevision').val() >= 0 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('pageIndex').isNumber() && (newData.child('pageIndex').val() % 1 == 0) && newData.child('pageIndex').val() >= 0 && ((!root.child('live').child($ownerUid).hasChild('controlState') && newData.child('appliedControlRevision').val() === 0) || (root.child('live').child($ownerUid).hasChild('controlState') && root.child('live').child($ownerUid).child('controlState/activationRevision').isNumber() && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('controlState/activationRevision').val() && root.child('live').child($ownerUid).child('controlState/currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('controlState/currentVersionId').val() && root.child('live').child($ownerUid).child('controlState/revision').isNumber() && newData.child('appliedControlRevision').val() >= 0 && newData.child('appliedControlRevision').val() <= root.child('live').child($ownerUid).child('controlState/revision').val()))",
+          "activationRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "currentVersionId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "appliedControlRevision": {
+            ".validate": "newData.isNumber()"
+          },
+          "pageId": {
+            ".validate": "newData.isString() && newData.val().length > 0"
+          },
+          "pageIndex": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "playerPresence": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+          "current": {
+            ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'stage', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && (newData.child('stage').val() === 'starting' || newData.child('stage').val() === 'ready' || newData.child('stage').val() === 'load-failed') && newData.child('transitionedAt').isNumber() && ((newData.child('stage').val() === 'load-failed' && newData.child('errorCode').isString() && (newData.child('errorCode').val() === 'presentation-not-found' || newData.child('errorCode').val() === 'presentation-load-failed' || newData.child('errorCode').val() === 'player-mount-failed')) || (newData.child('stage').val() !== 'load-failed' && !newData.hasChild('errorCode')))",
+            "activationRevision": {
+              ".validate": "newData.isNumber()"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "bootId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "stage": {
+              ".validate": "newData.isString()"
+            },
+            "transitionedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "errorCode": {
+              ".validate": "newData.isString()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "leases": {
+            "$bootId": {
+              ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+              ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'bootId', 'connected', 'transitionedAt']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('bootId').isString() && newData.child('bootId').val() === $bootId && newData.child('connected').isBoolean() && newData.child('transitionedAt').isNumber()",
+              "activationRevision": {
+                ".validate": "newData.isNumber()"
+              },
+              "currentVersionId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "bootId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "connected": {
+                ".validate": "newData.isBoolean()"
+              },
+              "transitionedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "galleryControl": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$slot": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetIndex', 'expanded']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetIndex').isNumber() && (newData.child('targetIndex').val() % 1 == 0) && newData.child('targetIndex').val() >= 0 && newData.child('expanded').isBoolean() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val()) && newData.child('revision').val() === 1))",
+            "activationRevision": {
+              ".validate": "newData.isNumber()"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "revision": {
+              ".validate": "newData.isNumber()"
+            },
+            "pageId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "elementId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "targetIndex": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+            },
+            "expanded": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "checkboxControl": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$slot": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'checkboxId', 'state']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('checkboxId').isString() && newData.child('checkboxId').val().length > 0 && (newData.child('state').val() === 'unchecked' || newData.child('state').val() === 'intermediate' || newData.child('state').val() === 'checked') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('checkboxId').val() === data.child('checkboxId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('checkboxId').val() !== data.child('checkboxId').val()) && newData.child('revision').val() === 1))",
+            "activationRevision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "revision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+            },
+            "pageId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "elementId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "checkboxId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "state": {
+              ".validate": "newData.val() === 'unchecked' || newData.val() === 'intermediate' || newData.val() === 'checked'"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "plotAnimationAction": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$plotSlot": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetBootId', 'action']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready' && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'play' || newData.child('action').val() === 'pause' || newData.child('action').val() === 'reset') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
+            "activationRevision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "revision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+            },
+            "pageId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "elementId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "targetBootId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "action": {
+              ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'reset')"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "shapeAnimationAction": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$shapeSlot": {
+            ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'targetBootId', 'action']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready' && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && (newData.child('action').val() === 'play' || newData.child('action').val() === 'pause' || newData.child('action').val() === 'reset') && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
+            "activationRevision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "revision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+            },
+            "pageId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "elementId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "targetBootId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "action": {
+              ".validate": "newData.isString() && (newData.val() === 'play' || newData.val() === 'pause' || newData.val() === 'reset')"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "scriptedAction": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$scriptedSlot": {
+            "$portIndex": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+              ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'portId', 'targetBootId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val().length > 0 && newData.child('targetBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready' && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && data.child('revision').isNumber() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val()) && newData.child('revision').val() === 1))",
+              "activationRevision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+              },
+              "currentVersionId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "revision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+              },
+              "pageId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "elementId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "portId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "targetBootId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "scriptedRuntime": {
+          "$scriptedSlot": {
+            ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+            ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'mountRevision', 'pageId', 'elementId', 'bootId']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('mountRevision').isNumber() && (newData.child('mountRevision').val() % 1 == 0) && newData.child('mountRevision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('bootId').isString() && newData.child('bootId').val().length > 0 && newData.child('bootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && (root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'starting' || root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready') && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('bootId').val()).child('bootId').val() === newData.child('bootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('bootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('bootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('bootId').val()).child('connected').val() === true && (!data.exists() || data.child('bootId').val() !== newData.child('bootId').val() || newData.child('mountRevision').val() > data.child('mountRevision').val())",
+            "activationRevision": {
+              ".validate": "newData.isNumber()"
+            },
+            "currentVersionId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "mountRevision": {
+              ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+            },
+            "pageId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "elementId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "bootId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)"
+        },
+        "scriptedInput": {
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          "$scriptedSlot": {
+            "$portIndex": {
+              ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+              ".validate": "newData.hasChildren(['activationRevision','currentVersionId','revision','pageId','elementId','portId','targetBootId','targetMountRevision','value']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('targetBootId').isString() && newData.child('targetBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && newData.child('targetMountRevision').isNumber() && (newData.child('targetMountRevision').val() % 1 == 0) && newData.child('targetMountRevision').val() >= 1 && (newData.child('value').isBoolean() || newData.child('value').isNumber()) && root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready' && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('targetBootId').val()).child('connected').val() === true && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('pageId').val() === newData.child('pageId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('elementId').val() === newData.child('elementId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('bootId').val() === newData.child('targetBootId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('mountRevision').val() === newData.child('targetMountRevision').val() && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('targetBootId').val() === data.child('targetBootId').val() && newData.child('targetMountRevision').val() === data.child('targetMountRevision').val() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('targetBootId').val() !== data.child('targetBootId').val() || newData.child('targetMountRevision').val() !== data.child('targetMountRevision').val()) && newData.child('revision').val() === 1))",
+              "activationRevision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+              },
+              "currentVersionId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "revision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+              },
+              "pageId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "elementId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "portId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "targetBootId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "targetMountRevision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+              },
+              "value": {
+                ".validate": "newData.isBoolean() || newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
+        },
+        "scriptedReport": {
+          "$scriptedSlot": {
+            "$portIndex": {
+              ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid",
+              ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+              ".validate": "newData.hasChildren(['activationRevision', 'currentVersionId', 'revision', 'pageId', 'elementId', 'portId', 'sourceBootId', 'mountRevision', 'appliedInputRevision', 'value']) && newData.child('activationRevision').isNumber() && (newData.child('activationRevision').val() % 1 == 0) && newData.child('activationRevision').val() >= 0 && newData.child('activationRevision').val() === root.child('live').child($ownerUid).child('current/revision').val() && newData.child('currentVersionId').isString() && newData.child('currentVersionId').val().length > 0 && newData.child('currentVersionId').val() === root.child('live').child($ownerUid).child('current/currentVersionId').val() && newData.child('revision').isNumber() && (newData.child('revision').val() % 1 == 0) && newData.child('revision').val() >= 1 && newData.child('pageId').isString() && newData.child('pageId').val().length > 0 && newData.child('elementId').isString() && newData.child('elementId').val().length > 0 && newData.child('portId').isString() && newData.child('portId').val().length > 0 && newData.child('sourceBootId').isString() && newData.child('sourceBootId').val() === root.child('live').child($ownerUid).child('playerPresence/current/bootId').val() && (root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'starting' || root.child('live').child($ownerUid).child('playerPresence/current/stage').val() === 'ready') && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('sourceBootId').val()).child('bootId').val() === newData.child('sourceBootId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('sourceBootId').val()).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('sourceBootId').val()).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('playerPresence/leases').child(newData.child('sourceBootId').val()).child('connected').val() === true && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('pageId').val() === newData.child('pageId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('elementId').val() === newData.child('elementId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('bootId').val() === newData.child('sourceBootId').val() && root.child('live').child($ownerUid).child('scriptedRuntime').child($scriptedSlot).child('mountRevision').val() === newData.child('mountRevision').val() && newData.child('mountRevision').isNumber() && (newData.child('mountRevision').val() % 1 == 0) && newData.child('mountRevision').val() >= 1 && newData.child('appliedInputRevision').isNumber() && (newData.child('appliedInputRevision').val() % 1 == 0) && newData.child('appliedInputRevision').val() >= 0 && (newData.child('appliedInputRevision').val() === 0 || (root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('activationRevision').val() === newData.child('activationRevision').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('currentVersionId').val() === newData.child('currentVersionId').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('pageId').val() === newData.child('pageId').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('elementId').val() === newData.child('elementId').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('portId').val() === newData.child('portId').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('targetBootId').val() === newData.child('sourceBootId').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('targetMountRevision').val() === newData.child('mountRevision').val() && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('revision').isNumber() && (root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('revision').val() % 1 == 0) && root.child('live').child($ownerUid).child('scriptedInput').child($scriptedSlot).child($portIndex).child('revision').val() >= newData.child('appliedInputRevision').val())) && (newData.child('value').isBoolean() || newData.child('value').isNumber()) && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('activationRevision').val() === data.child('activationRevision').val() && newData.child('currentVersionId').val() === data.child('currentVersionId').val() && newData.child('pageId').val() === data.child('pageId').val() && newData.child('elementId').val() === data.child('elementId').val() && newData.child('portId').val() === data.child('portId').val() && newData.child('sourceBootId').val() === data.child('sourceBootId').val() && newData.child('mountRevision').val() === data.child('mountRevision').val() && newData.child('revision').val() === data.child('revision').val() + 1) || (data.exists() && (newData.child('activationRevision').val() !== data.child('activationRevision').val() || newData.child('currentVersionId').val() !== data.child('currentVersionId').val() || newData.child('pageId').val() !== data.child('pageId').val() || newData.child('elementId').val() !== data.child('elementId').val() || newData.child('portId').val() !== data.child('portId').val() || newData.child('sourceBootId').val() !== data.child('sourceBootId').val() || newData.child('mountRevision').val() !== data.child('mountRevision').val()) && newData.child('revision').val() === 1))",
+              "activationRevision": {
+                ".validate": "newData.isNumber()"
+              },
+              "currentVersionId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "revision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+              },
+              "pageId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "elementId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "portId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "sourceBootId": {
+                ".validate": "newData.isString() && newData.val().length > 0"
+              },
+              "mountRevision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 1"
+              },
+              "appliedInputRevision": {
+                ".validate": "newData.isNumber() && (newData.val() % 1 == 0) && newData.val() >= 0"
+              },
+              "value": {
+                ".validate": "newData.isBoolean() || newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)"
+        },
+        "$other": {
+          ".validate": false,
+          ".read": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid || auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && root.child('playerBindings').child(auth.uid).child('ownerUid').val() === $ownerUid)",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid === $ownerUid"
         }
-      },
-      "$other": {
-        ".validate": false
       }
     },
     "playerBindings": {
@@ -321,8 +548,12 @@
         ".read": "auth != null && (auth.uid === $playerUid || (auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || data.child('ownerUid').val() === auth.uid)))",
         ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && newData.exists() && newData.hasChildren(['ownerUid']) && newData.child('ownerUid').isString() && newData.child('ownerUid').val().length > 0 && newData.child('ownerUid').val() === auth.uid && root.child('playerPairingClaims').child($playerUid).child('ownerUid').val() === auth.uid && root.child('playerPairingClaims').child($playerUid).child('expiresAt').isNumber() && root.child('playerPairingClaims').child($playerUid).child('expiresAt').val() > now && root.child('playerPairingClaims').child($playerUid).child('pin').isString() && root.child('playerPairingCodes').child(root.child('playerPairingClaims').child($playerUid).child('pin').val()).child('playerUid').val() === $playerUid && root.child('playerPairingCodes').child(root.child('playerPairingClaims').child($playerUid).child('pin').val()).child('expiresAt').isNumber() && root.child('playerPairingCodes').child(root.child('playerPairingClaims').child($playerUid).child('pin').val()).child('expiresAt').val() > now",
         ".validate": "newData.hasChildren(['ownerUid']) && newData.child('ownerUid').isString() && newData.child('ownerUid').val().length > 0",
-        "ownerUid": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "$other": { ".validate": false }
+        "ownerUid": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "playerPairingCodes": {
@@ -330,9 +561,15 @@
         ".read": "auth != null",
         ".write": "(auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && $pin.matches(/^[0-9]{6}$/) && newData.exists() && newData.child('playerUid').val() === auth.uid && !root.child('playerBindings').child(auth.uid).exists() && (!data.exists() || (data.child('expiresAt').isNumber() && data.child('expiresAt').val() <= now) || data.child('playerUid').val() === auth.uid)) || (auth != null && auth.token.firebase.sign_in_provider === 'anonymous' && !newData.exists() && data.exists() && data.child('playerUid').val() === auth.uid) || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !newData.exists() && data.exists() && root.child('playerPairingClaims').child(data.child('playerUid').val()).child('ownerUid').val() === auth.uid && root.child('playerBindings').child(data.child('playerUid').val()).child('ownerUid').val() === auth.uid)",
         ".validate": "$pin.matches(/^[0-9]{6}$/) && newData.hasChildren(['playerUid', 'expiresAt']) && newData.child('playerUid').isString() && newData.child('playerUid').val().length > 0 && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + 60000",
-        "playerUid": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "expiresAt": { ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 60000" },
-        "$other": { ".validate": false }
+        "playerUid": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "expiresAt": {
+          ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 60000"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "playerPairingClaims": {
@@ -340,10 +577,18 @@
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || data.child('ownerUid').val() === auth.uid || (data.child('expiresAt').isNumber() && data.child('expiresAt').val() <= now))",
         ".write": "(auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && !newData.exists() && data.exists() && data.child('ownerUid').val() === auth.uid) || (auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && newData.exists() && (!data.exists() || data.child('ownerUid').val() === auth.uid || (data.child('expiresAt').isNumber() && data.child('expiresAt').val() <= now)) && newData.child('ownerUid').val() === auth.uid && newData.child('pin').isString() && newData.child('pin').val().matches(/^[0-9]{6}$/) && root.child('playerPairingCodes').child(newData.child('pin').val()).child('playerUid').val() === $playerUid && root.child('playerPairingCodes').child(newData.child('pin').val()).child('expiresAt').isNumber() && root.child('playerPairingCodes').child(newData.child('pin').val()).child('expiresAt').val() > now && !root.child('playerBindings').child($playerUid).exists())",
         ".validate": "newData.hasChildren(['pin', 'ownerUid', 'expiresAt']) && newData.child('pin').isString() && newData.child('pin').val().matches(/^[0-9]{6}$/) && newData.child('ownerUid').isString() && newData.child('ownerUid').val().length > 0 && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + 15000 && newData.child('expiresAt').val() <= root.child('playerPairingCodes').child(newData.child('pin').val()).child('expiresAt').val() && root.child('playerPairingCodes').child(newData.child('pin').val()).child('playerUid').val() === $playerUid",
-        "pin": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/)" },
-        "ownerUid": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "expiresAt": { ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 15000" },
-        "$other": { ".validate": false }
+        "pin": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/)"
+        },
+        "ownerUid": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "expiresAt": {
+          ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 15000"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
     "controlSpikes": {

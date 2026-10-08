@@ -1,3 +1,5 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,7 +15,8 @@ class Snapshot {
 }
 
 const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { playerRecoveryRequest: { ".write": string; ".read": boolean; ".validate": string; $other: { ".validate": boolean } } } } };
-const recovery = rules.rules.live.playerRecoveryRequest;
+const scopedRules = rules as unknown as { rules: { live: Record<string, any> } };
+const recovery = scopedRules.rules.live["$ownerUid"].playerRecoveryRequest;
 const request = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "version-1", revision: 1, targetBootId: "boot-a", action: "reload", requestedAt: 123, ...overrides });
 const live = (
   connected = true,
@@ -22,12 +25,12 @@ const live = (
 function evaluate(expression: string, current: unknown, next: unknown, root = live(), authenticated = true): boolean {
   // This is an exact-expression harness, not a Firebase Rules emulator.
   const fn = new Function("auth", "data", "newData", "root", `return Boolean(${expression});`) as (auth: object | null, data: Snapshot, newData: Snapshot, root: Snapshot) => boolean;
-  return fn(authenticated ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(root));
+  return fn(authenticated ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } } : null, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": root.live } }));
 }
 
-describe("live/playerRecoveryRequest repository rules", () => {
+describe("live/owner-a/playerRecoveryRequest repository rules", () => {
   it("preserves public reads and requires authenticated writes", () => {
-    expect(recovery[".read"]).toBe(true);
+    expect(recovery[".read"]).toContain("$ownerUid");
     expect(evaluate(recovery[".write"], null, request(), live(), false)).toBe(false);
     expect(evaluate(recovery[".write"], null, request({ action: "retry" }), live(), false)).toBe(false);
   });

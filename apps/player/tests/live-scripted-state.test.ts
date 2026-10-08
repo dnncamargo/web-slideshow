@@ -31,7 +31,7 @@ function publisher(getCurrentPageId: () => string | null = () => "page") {
   firebase.ref.mockImplementation((_db, path) => ({ path }));
   firebase.set.mockResolvedValue(undefined);
   firebase.runTransaction.mockImplementation(async (_ref, update) => update(null));
-  return createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => ++revision, isCurrent: () => true, getCurrentPageId });
+  return createLiveScriptedStatePublisher({ ownerUid: "owner-a", database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => ++revision, isCurrent: () => true, getCurrentPageId });
 }
 
 describe("live Scripted state publisher", () => {
@@ -50,8 +50,8 @@ describe("live Scripted state publisher", () => {
     const state = publisher();
     mount(state, "input");
     mount(state, "output");
-    expect(firebase.set).toHaveBeenNthCalledWith(1, { path: `${SCRIPTED_RUNTIME_ROOT_PATH}/0` }, expect.objectContaining({ mountRevision: 1, elementId: "input" }));
-    expect(firebase.set).toHaveBeenNthCalledWith(2, { path: `${SCRIPTED_RUNTIME_ROOT_PATH}/1` }, expect.objectContaining({ mountRevision: 2, elementId: "output" }));
+    expect(firebase.set).toHaveBeenNthCalledWith(1, { path: `live/owner-a/${SCRIPTED_RUNTIME_ROOT_PATH}/0` }, expect.objectContaining({ mountRevision: 1, elementId: "input" }));
+    expect(firebase.set).toHaveBeenNthCalledWith(2, { path: `live/owner-a/${SCRIPTED_RUNTIME_ROOT_PATH}/1` }, expect.objectContaining({ mountRevision: 2, elementId: "output" }));
   });
 
   it("preserves finite output numbers without step quantization and starts reports at revision one", async () => {
@@ -59,7 +59,7 @@ describe("live Scripted state publisher", () => {
     mount(state, "output");
     state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 0.12 });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledOnce());
-    expect(firebase.runTransaction).toHaveBeenCalledWith({ path: `${SCRIPTED_REPORT_ROOT_PATH}/1/0` }, expect.any(Function));
+    expect(firebase.runTransaction).toHaveBeenCalledWith({ path: `live/owner-a/${SCRIPTED_REPORT_ROOT_PATH}/1/0` }, expect.any(Function));
     const update = firebase.runTransaction.mock.calls[0]?.[1] as (value: unknown) => unknown;
     expect(update(null)).toMatchObject({ revision: 1, mountRevision: 1, appliedInputRevision: 0, value: 0.12 });
   });
@@ -71,7 +71,7 @@ describe("live Scripted state publisher", () => {
     state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "both", value: false });
     await vi.waitFor(() => expect(firebase.runTransaction).toHaveBeenCalledTimes(2));
     expect(firebase.runTransaction.mock.calls.map(([target]) => target.path)).toEqual([
-      `${SCRIPTED_REPORT_ROOT_PATH}/1/1`, `${SCRIPTED_REPORT_ROOT_PATH}/1/2`,
+      `live/owner-a/${SCRIPTED_REPORT_ROOT_PATH}/1/1`, `live/owner-a/${SCRIPTED_REPORT_ROOT_PATH}/1/2`,
     ]);
   });
 
@@ -179,7 +179,7 @@ describe("live Scripted state publisher", () => {
     const onRuntimeWriteError = vi.fn();
     const onReportWriteError = vi.fn();
     firebase.set.mockRejectedValue(new Error("denied"));
-    const state = createLiveScriptedStatePublisher({ database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => 1, isCurrent: () => true, getCurrentPageId: () => "page", onRuntimeWriteError, onReportWriteError });
+    const state = createLiveScriptedStatePublisher({ ownerUid: "owner-a", database: {} as never, activationRevision: 7, currentVersionId: "v", bootId: "boot", presentation, allocateMountRevision: () => 1, isCurrent: () => true, getCurrentPageId: () => "page", onRuntimeWriteError, onReportWriteError });
     mount(state, "output");
     state.onScriptedReport({ type: "scripted:report", elementId: "output", portId: "n", value: 1 });
     await vi.waitFor(() => expect(onRuntimeWriteError).toHaveBeenCalledOnce());

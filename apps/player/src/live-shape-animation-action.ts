@@ -3,8 +3,9 @@ import { onValue, ref, type Database } from "firebase/database";
 import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const SHAPE_ANIMATION_ACTION_ROOT_PATH = "live/shapeAnimationAction";
+export const SHAPE_ANIMATION_ACTION_ROOT_PATH = "shapeAnimationAction";
 
 export type ShapeAnimationAction = "play" | "pause" | "reset";
 
@@ -87,6 +88,7 @@ function numericEntries(value: unknown): Array<[string, unknown]> {
 
 export function subscribeLiveShapeAnimationAction(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   targetBootId: string,
@@ -95,7 +97,7 @@ export function subscribeLiveShapeAnimationAction(
   tracker: ShapeAnimationActionTracker,
 ): () => void {
   tracker.prepareBoot(targetBootId);
-  const unsubscribe = onValue(ref(database, SHAPE_ANIMATION_ACTION_ROOT_PATH), (snapshot) => {
+  const unsubscribe = onValue(ref(database, buildLivePath(ownerUid, SHAPE_ANIMATION_ACTION_ROOT_PATH)), (snapshot) => {
     for (const [slotKey, value] of numericEntries(snapshot.val())) {
       const shapeSlot = parseShapeAnimationActionIndex(slotKey);
       const record = parseLiveShapeAnimationActionRecord(value);

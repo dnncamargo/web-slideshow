@@ -128,7 +128,7 @@ describe("subscribeSlideAck", () => {
 
     subscribeSlideAck(cb);
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/slideAck");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/slideAck");
 
     const handler = mocks.onValue.mock.calls[0]?.[1] as (snapshot: unknown) => void;
 

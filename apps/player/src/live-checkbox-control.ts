@@ -3,8 +3,9 @@ import { onChildAdded, onChildChanged, ref, type Database } from "firebase/datab
 import type { CheckboxRuntimeState } from "@web-slideshow/renderer";
 
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const CHECKBOX_CONTROL_ROOT_PATH = "live/checkboxControl";
+export const CHECKBOX_CONTROL_ROOT_PATH = "checkboxControl";
 
 export interface LiveCheckboxControlState {
   activationRevision: number;
@@ -66,6 +67,7 @@ function parseSlot(key: string | null): number | null {
 /** Subscribes to one-way Control -> Player Checkbox desired state. */
 export function subscribeLiveCheckboxControl(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   controller: PlayerController,
@@ -89,7 +91,7 @@ export function subscribeLiveCheckboxControl(
     );
   }
 
-  const root = ref(database, CHECKBOX_CONTROL_ROOT_PATH);
+  const root = ref(database, buildLivePath(ownerUid, CHECKBOX_CONTROL_ROOT_PATH));
   const unsubscribeAdded = onChildAdded(root, apply);
   const unsubscribeChanged = onChildChanged(root, apply);
 

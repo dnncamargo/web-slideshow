@@ -48,6 +48,9 @@ import {
 } from "../src/features/control/control-command-writer";
 
 describe("control command helpers", () => {
+  beforeEach(() => {
+    mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+  });
   it("builds the exact RTDB path", () => {
     expect(buildControlPath("pub-1")).toBe("controlSpikes/pub-1");
   });
@@ -61,8 +64,8 @@ describe("control command helpers", () => {
   });
 
   it("builds the live slide command path and shape", () => {
-    expect(buildSlideCommandPath()).toBe("live/slideCommand");
-    expect(buildSlideAckPath()).toBe("live/slideAck");
+    expect(buildSlideCommandPath()).toBe("live/user-1/slideCommand");
+    expect(buildSlideAckPath()).toBe("live/user-1/slideAck");
     expect(buildSlideCommand(2, "version-1", 1, "slide-3")).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
@@ -72,7 +75,7 @@ describe("control command helpers", () => {
   });
 
   it("builds the fullscreen request path and shape", () => {
-    expect(buildFullscreenRequestPath()).toBe("live/fullscreenRequest");
+    expect(buildFullscreenRequestPath()).toBe("live/user-1/fullscreenRequest");
     expect(buildFullscreenRequest(2, "version-1", 3)).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
@@ -106,7 +109,7 @@ describe("control command writer", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user" });
     const request = { activationRevision: 7, currentVersionId: "v", pageId: "p", scriptedSlot: 2, elementId: " element/# ", portIndex: 3, portId: " port.$ ", targetBootId: "boot", targetMountRevision: 4, value: 0.12 } as const;
     const first = await writeScriptedInput({} as never, request);
-    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/scriptedInput/2/3");
+    expect(mocks.ref).toHaveBeenCalledWith(expect.anything(), "live/user/scriptedInput/2/3");
     expect(first).toMatchObject({ revision: 1, value: .12, elementId: " element/# ", portId: " port.$ " });
     mocks.runTransaction.mockImplementation(async (_ref, updater) => ({ committed: true, snapshot: { val: () => updater({ ...first, revision: 1 }) } }));
     expect((await writeScriptedInput({} as never, { ...request, value: true })).revision).toBe(2);
@@ -171,7 +174,7 @@ describe("control command writer", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
     const request = { activationRevision: 7, currentVersionId: " version-1 ", pageId: " page-1 ", plotSlot: 2, elementId: "plot/[#]", targetBootId: " boot-a ", action: "play" as const };
     const first = await writePlotAnimationAction({} as never, request);
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/plotAnimationAction/2");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/plotAnimationAction/2");
     expect(first).toMatchObject({ revision: 1, action: "play", elementId: "plot/[#]", currentVersionId: "version-1", pageId: "page-1", targetBootId: "boot-a" });
     let previous = first;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -208,8 +211,8 @@ describe("control command writer", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
     await writePlotAnimationAction({} as never, request);
     await writePlotAnimationAction({} as never, { ...request, plotSlot: 1 });
-    expect(mocks.ref).toHaveBeenNthCalledWith(1, {}, "live/plotAnimationAction/0");
-    expect(mocks.ref).toHaveBeenNthCalledWith(2, {}, "live/plotAnimationAction/1");
+    expect(mocks.ref).toHaveBeenNthCalledWith(1, {}, "live/user-1/plotAnimationAction/0");
+    expect(mocks.ref).toHaveBeenNthCalledWith(2, {}, "live/user-1/plotAnimationAction/1");
     mocks.getCurrentNonAnonymousUser.mockReturnValue(null);
     await expect(writePlotAnimationAction({} as never, request)).rejects.toThrow(/anonymous/);
     expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
@@ -228,7 +231,7 @@ describe("control command writer", () => {
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
     const request = { activationRevision: 7, currentVersionId: " version-1 ", pageId: " page-1 ", shapeSlot: 2, elementId: "shape/[#]", targetBootId: " boot-a ", action: "play" as const };
     const first = await writeShapeAnimationAction({} as never, request);
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/shapeAnimationAction/2");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/shapeAnimationAction/2");
     expect(first).toMatchObject({ revision: 1, action: "play", elementId: "shape/[#]", currentVersionId: "version-1", pageId: "page-1", targetBootId: "boot-a" });
     let previous = first;
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
@@ -299,7 +302,7 @@ describe("slide command writer", () => {
       "slide-3",
     );
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/slideCommand");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/slideCommand");
     expect(committed).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
@@ -490,7 +493,7 @@ describe("control state writer", () => {
       "page-b",
     );
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/controlState");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/controlState");
     expect(committed).toEqual({
       activationRevision: 2,
       currentVersionId: "version-1",
@@ -614,7 +617,7 @@ describe("fullscreen request writer", () => {
       revision: 1,
     });
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1");
   });
 
   it("retries an uncached null and writes only the fullscreen request", async () => {
@@ -643,7 +646,7 @@ describe("fullscreen request writer", () => {
     });
 
     expect(mocks.runTransaction).toHaveBeenCalledWith(
-      { path: "live" },
+      { path: "live/user-1" },
       expect.any(Function),
       { applyLocally: false },
     );

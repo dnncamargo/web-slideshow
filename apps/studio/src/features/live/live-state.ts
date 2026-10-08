@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 /**
  * Desired Live projection state owned by Control.
  *
@@ -26,11 +28,11 @@ export interface LivePlayerState {
 }
 
 export function buildControlStatePath(): string {
-  return "live/controlState";
+  return buildAuthenticatedLivePath("controlState");
 }
 
 export function buildPlayerStatePath(): string {
-  return "live/playerState";
+  return buildAuthenticatedLivePath("playerState");
 }
 
 function isNonNegativeInteger(value: unknown): boolean {
@@ -53,7 +55,7 @@ function parsePositiveInteger(value: unknown): number | null {
 }
 
 /**
- * Parse and validate `live/controlState`. Rejects malformed values and any
+ * Parse and validate `live/{ownerUid}/controlState`. Rejects malformed values and any
  * unexpected extra key. Returned strings are trimmed.
  */
 export function parseLiveControlState(value: unknown): LiveControlState | null {
@@ -78,7 +80,7 @@ export function parseLiveControlState(value: unknown): LiveControlState | null {
 }
 
 /**
- * Parse and validate `live/playerState`. Rejects malformed values and any
+ * Parse and validate `live/{ownerUid}/playerState`. Rejects malformed values and any
  * unexpected extra key. Returned strings are trimmed.
  */
 export function parseLivePlayerState(value: unknown): LivePlayerState | null {

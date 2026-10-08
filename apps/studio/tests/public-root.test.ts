@@ -11,12 +11,17 @@ const stylesSource = readFileSync("src/app/page.module.css", "utf8");
 const pageSource = readFileSync("src/app/page.tsx", "utf8");
 
 const mocks = vi.hoisted(() => ({
-  subscribeLiveCurrent: vi.fn(),
+  readPublishedOwnerUid: vi.fn(),
+  subscribeLiveCurrentForOwner: vi.fn(),
   resolvePublicPlayerUrl: vi.fn(),
 }));
 
 vi.mock("../src/features/live/live-current-read", () => ({
-  subscribeLiveCurrent: mocks.subscribeLiveCurrent,
+  subscribeLiveCurrentForOwner: mocks.subscribeLiveCurrentForOwner,
+}));
+
+vi.mock("../src/features/persistence/firestore-published-presentation-reader", () => ({
+  readPublishedOwnerUid: mocks.readPublishedOwnerUid,
 }));
 
 vi.mock("../src/features/public-player/public-player-url", () => ({
@@ -45,6 +50,7 @@ describe("public root", () => {
   let unsubscribe: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    window.history.replaceState({}, "", "/?publication=publication-1");
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -53,7 +59,8 @@ describe("public root", () => {
       available: true,
       baseUrl: "https://player.example.com",
     });
-    mocks.subscribeLiveCurrent.mockImplementation((next: (state: LiveState) => void) => {
+    mocks.readPublishedOwnerUid.mockResolvedValue("owner-a");
+    mocks.subscribeLiveCurrentForOwner.mockImplementation((_ownerUid: string, next: (state: LiveState) => void) => {
       callback = next;
       return unsubscribe;
     });
@@ -61,10 +68,12 @@ describe("public root", () => {
     await act(async () => {
       root.render(createElement(Home));
     });
+    await vi.waitFor(() => expect(mocks.subscribeLiveCurrentForOwner).toHaveBeenCalledWith("owner-a", expect.any(Function)));
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    window.history.replaceState({}, "", "/");
     container.remove();
     vi.clearAllMocks();
   });
@@ -89,6 +98,21 @@ describe("public root", () => {
     expect(container.querySelector("[data-qr-value]")).toBeNull();
   });
 
+  it("does not observe an arbitrary account Live without a publication query", async () => {
+    await act(async () => root.unmount());
+    window.history.replaceState({}, "", "/");
+    vi.clearAllMocks();
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(createElement(Home));
+    });
+
+    expect(mocks.readPublishedOwnerUid).not.toHaveBeenCalled();
+    expect(mocks.subscribeLiveCurrentForOwner).not.toHaveBeenCalled();
+    expect(iframeSrc(`${displayName} demo presentation`)).toBe("https://player.example.com/demo");
+  });
+
   it("uses a contained keyed cover and the stable Watch URL QR while active", async () => {
     await emit({
       kind: "active",
@@ -96,11 +120,11 @@ describe("public root", () => {
     });
 
     expect(iframeSrc(`${displayName} demo presentation`)).toBeNull();
-    expect(iframeSrc(`${displayName} live presentation cover`)).toBe("https://player.example.com/cover");
+    expect(iframeSrc(`${displayName} live presentation cover`)).toBe("https://player.example.com/cover?publication=publication-1");
     expect(container.textContent).toContain("WATCH LIVE");
     expect(container.querySelector("[aria-hidden=\"true\"]")).not.toBeNull();
     expect(container.querySelector("[data-qr-value]")?.getAttribute("data-qr-value")).toBe(
-      "https://player.example.com/watch",
+      "https://player.example.com/watch?publication=publication-1",
     );
   });
 
@@ -118,7 +142,7 @@ describe("public root", () => {
     const secondCover = container.querySelector(`iframe[title="${displayName} live presentation cover"]`);
 
     expect(firstCover).not.toBe(secondCover);
-    expect(secondCover?.getAttribute("src")).toBe("https://player.example.com/cover");
+    expect(secondCover?.getAttribute("src")).toBe("https://player.example.com/cover?publication=publication-1");
     expect(secondCover?.getAttribute("tabindex")).toBe("-1");
   });
 

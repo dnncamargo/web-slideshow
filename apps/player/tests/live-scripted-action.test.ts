@@ -79,7 +79,7 @@ function subscribe(index = 0, tracker = createLiveScriptedActionTracker()) {
     return unsubscribe;
   });
   const cleanup = subscribeLiveScriptedAction(
-    {} as never, 7, "version-a", "boot-a", presentation, controller as never, tracker,
+    {} as never, "owner-a", 7, "version-a", "boot-a", presentation, controller as never, tracker,
   );
   return { cleanup, controller, sendScriptedAction, tracker, unsubscribe };
 }
@@ -99,7 +99,7 @@ describe("live Scripted action subscriber", () => {
     for (const key of ["01", "-1", "1.5", "", "port"]) expect(parseScriptedActionIndex(key)).toBeNull();
 
     subscribe();
-    expect(firebase.ref).toHaveBeenCalledWith(expect.anything(), SCRIPTED_ACTION_ROOT_PATH);
+    expect(firebase.ref).toHaveBeenCalledWith(expect.anything(), "live/owner-a/scriptedAction");
   });
 
   it("traverses object and array trees, recovers coalesced revisions, and never lowers high-water", () => {
@@ -142,7 +142,7 @@ describe("live Scripted action subscriber", () => {
       firebase.callback = callback;
       return vi.fn();
     });
-    subscribeLiveScriptedAction({} as never, 7, "version-a", "boot-b", presentation, {
+    subscribeLiveScriptedAction({} as never, "owner-a", 7, "version-a", "boot-b", presentation, {
       getCurrentIndex: () => 0, getCurrentSlide: () => presentation.slides[0], sendScriptedAction,
     } as never, tracker);
     emit({ 0: { 0: record({ targetBootId: "boot-a", revision: 4 }) } });
@@ -162,7 +162,7 @@ describe("live Scripted action subscriber", () => {
       firebase.callback = callback;
       return vi.fn();
     });
-    subscribeLiveScriptedAction({} as never, 7, "version-a", "boot-a", presentation, {
+    subscribeLiveScriptedAction({} as never, "owner-a", 7, "version-a", "boot-a", presentation, {
       getCurrentIndex: () => currentIndex, getCurrentSlide: () => presentation.slides[currentIndex],
       sendScriptedAction,
     } as never, tracker);

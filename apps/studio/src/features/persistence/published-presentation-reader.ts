@@ -1,6 +1,7 @@
 import type { Presentation } from "@web-slideshow/document-schema";
 
 export interface PublishedPresentationPointer {
+  ownerUid: string;
   currentVersionId: string;
   publishedRevision: number;
 }

@@ -1,3 +1,5 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -27,7 +29,8 @@ interface LeafRules {
 const rules = JSON.parse(
   readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8"),
 ) as { rules: { live: LeafRules & { scriptedAction: { ".read": boolean; $scriptedSlot: { $portIndex: LeafRules } } } } };
-const liveRules = rules.rules.live;
+const scopedRules = rules as unknown as { rules: { live: Record<string, any> } };
+const liveRules = scopedRules.rules.live["$ownerUid"];
 const actionRules = liveRules.scriptedAction.$scriptedSlot.$portIndex;
 
 const action = (overrides: Record<string, unknown> = {}) => ({
@@ -78,12 +81,12 @@ function evaluate(
     "auth", "data", "newData", "root",
     `return Boolean(${expression});`,
   ) as (auth: object | null, data: Snapshot, newData: Snapshot, root: Snapshot) => boolean;
-  return fn(authenticated ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(rootValue));
+  return fn(authenticated ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } } : null, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": (rootValue as { live?: unknown }).live } }));
 }
 
-describe("live/scriptedAction repository rules", () => {
+describe("live/owner-a/scriptedAction repository rules", () => {
   it("allows public reads but requires authenticated writes", () => {
-    expect(liveRules.scriptedAction[".read"]).toBe(true);
+    expect(liveRules.scriptedAction[".read"]).toContain("$ownerUid");
     expect(evaluate(actionRules[".write"], null, action(), root(), false)).toBe(false);
   });
 

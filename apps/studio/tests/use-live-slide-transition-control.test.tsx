@@ -65,7 +65,7 @@ describe("useLiveSlideTransitionControl", () => {
     window.localStorage.setItem(SLIDE_TRANSITION_STORAGE_KEY, JSON.stringify("slide"));
     const callback = mocks.onValue.mock.calls[0]?.[1] as ((snapshot: { val(): unknown }) => void);
     await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "slide" });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/slideTransition" }, { activationRevision: 7, transition: "slide" });
     expect(result?.transition).toBe("slide");
   });
 
@@ -80,17 +80,17 @@ describe("useLiveSlideTransitionControl", () => {
 
   it("writes fade as an exact two-field record", async () => {
     await act(async () => { result?.setTransition("fade"); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "fade" });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/slideTransition" }, { activationRevision: 7, transition: "fade" });
   });
 
   it("writes slide as an exact two-field record", async () => {
     await act(async () => { result?.setTransition("slide"); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "slide" });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/slideTransition" }, { activationRevision: 7, transition: "slide" });
   });
 
   it("writes none as an exact two-field record", async () => {
     await act(async () => { result?.setTransition("none"); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/slideTransition" }, { activationRevision: 7, transition: "none" });
+    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/slideTransition" }, { activationRevision: 7, transition: "none" });
   });
 
   it("persists a successful user transition", async () => {
@@ -119,7 +119,7 @@ describe("useLiveSlideTransitionControl", () => {
     act(() => root.render(<Harness />));
     const callback = mocks.onValue.mock.calls.at(-1)?.[1] as ((snapshot: { val(): unknown }) => void);
     await act(async () => { callback({ val: () => null }); await Promise.resolve(); });
-    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/slideTransition" }, { activationRevision: 8, transition: "slide" });
+    expect(mocks.set).toHaveBeenLastCalledWith({ path: "live/owner-a/slideTransition" }, { activationRevision: 8, transition: "slide" });
   });
 
   it("writes no currentVersionId or revision fields", async () => {

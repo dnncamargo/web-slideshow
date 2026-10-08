@@ -12,8 +12,8 @@ import { resolveLivePageId } from "../src/features/control/presenter/use-present
 
 describe("live-state path helpers", () => {
   it("exposes the exact RTDB paths", () => {
-    expect(buildControlStatePath()).toBe("live/controlState");
-    expect(buildPlayerStatePath()).toBe("live/playerState");
+    expect(buildControlStatePath()).toBe("live/owner-a/controlState");
+    expect(buildPlayerStatePath()).toBe("live/owner-a/playerState");
   });
 });
 

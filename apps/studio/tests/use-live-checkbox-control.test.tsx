@@ -72,7 +72,7 @@ describe("useLiveCheckboxControl", () => {
   });
 
   it("reads the exact root and exposes only current valid records sorted by numeric slot", async () => {
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/checkboxControl");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/checkboxControl");
     await emit({
       "10": record({ elementId: "ten", checkboxId: "ten-id", state: "checked" }),
       "2": record({ elementId: "two", checkboxId: "two-id", state: "intermediate" }),

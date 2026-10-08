@@ -56,7 +56,7 @@ describe("live current read seam", () => {
       () => void,
     ];
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, LIVE_CURRENT_PATH);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/current");
     expect(onState).toHaveBeenCalledWith({ kind: "loading" });
 
     success({
@@ -95,7 +95,7 @@ describe("live current read seam", () => {
 
   it("has no authenticated mutation coupling", () => {
     expect(readerSource).not.toMatch(
-      /firebase-auth|runTransaction|\bupdate\b|\bset\b|requireAuth/,
+      /runTransaction|\bupdate\b|\bset\b/,
     );
   });
 });

@@ -24,7 +24,7 @@ const record = (overrides: Record<string, unknown> = {}) => ({
 
 describe("live Plot animation action parser", () => {
   it("uses the exact root and accepts all V1 actions", () => {
-    expect(PLOT_ANIMATION_ACTION_ROOT_PATH).toBe("live/plotAnimationAction");
+    expect(PLOT_ANIMATION_ACTION_ROOT_PATH).toBe("plotAnimationAction");
     for (const action of ["play", "pause", "reset"] as const) {
       expect(parseLivePlotAnimationActionRecord(record({ action }))?.action).toBe(action);
     }
@@ -112,8 +112,8 @@ describe("live Plot animation action tracker and subscriber", () => {
     const presentation = { slides: [{ id: "page-a" }, { id: "page-b" }] };
     const controller = { getCurrentIndex: () => currentIndex, controlPlotAnimation };
     const tracker = createLivePlotAnimationActionTracker();
-    const cleanup = subscribeLivePlotAnimationAction({} as never, 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/plotAnimationAction");
+    const cleanup = subscribeLivePlotAnimationAction({} as never, "owner-a", 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/plotAnimationAction");
     callback?.({ val: () => ({ bad: record(), "01": record(), 0: record({ pageId: "page-a" }) }) });
     expect(controlPlotAnimation).not.toHaveBeenCalled();
     currentIndex = 0;
@@ -144,10 +144,10 @@ describe("live Plot animation action tracker and subscriber", () => {
     const presentation = { slides: [{ id: "page-1" }] };
     const controller = { getCurrentIndex: () => 0, controlPlotAnimation };
     const tracker = createLivePlotAnimationActionTracker();
-    const first = subscribeLivePlotAnimationAction({} as never, 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
+    const first = subscribeLivePlotAnimationAction({} as never, "owner-a", 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
     callbacks[0]?.({ val: () => ({ 0: record({ action: "play" }) }) });
     first();
-    const second = subscribeLivePlotAnimationAction({} as never, 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
+    const second = subscribeLivePlotAnimationAction({} as never, "owner-a", 7, "version-1", "boot-a", presentation as never, controller as never, tracker);
     callbacks[1]?.({ val: () => ({ 0: record({ action: "play" }) }) });
     callbacks[1]?.({ val: () => ({ 0: record({ revision: 2, action: "pause" }), 1: record({ elementId: "plot-2", action: "reset" }) }) });
     expect(controlPlotAnimation).toHaveBeenNthCalledWith(1, "plot/[#]", "play");

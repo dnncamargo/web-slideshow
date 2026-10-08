@@ -1,3 +1,5 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -22,7 +24,8 @@ class Snapshot {
 const rules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as {
   rules: { live: { fullscreenRequest: { ".read": boolean; ".write": string; ".validate": string; $other: { ".validate": boolean } } } };
 };
-const fullscreen = rules.rules.live.fullscreenRequest;
+const scopedRules = rules as unknown as { rules: { live: Record<string, any> } };
+const fullscreen = scopedRules.rules.live["$ownerUid"].fullscreenRequest;
 const request = (overrides: Record<string, unknown> = {}) => ({
   activationRevision: 7,
   currentVersionId: "version-1",
@@ -39,12 +42,12 @@ function evaluate(expression: string, current: unknown, next: unknown, rootValue
     newData: Snapshot,
     root: Snapshot,
   ) => boolean;
-  return fn(authenticated ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(rootValue));
+  return fn(authenticated ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } } : null, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": (rootValue as { live?: unknown }).live } }));
 }
 
-describe("live/fullscreenRequest rules", () => {
+describe("live/owner-a/fullscreenRequest rules", () => {
   it("requires public reads, authenticated writes, and the exact record shape", () => {
-    expect(fullscreen[".read"]).toBe(true);
+    expect(fullscreen[".read"]).toContain("$ownerUid");
     expect(evaluate(fullscreen[".write"], null, request(), root(), false)).toBe(false);
     expect(evaluate(fullscreen[".validate"], null, request())).toBe(true);
     expect(fullscreen.$other[".validate"]).toBe(false);

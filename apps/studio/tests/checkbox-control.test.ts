@@ -65,9 +65,9 @@ describe("checkbox control wire and writer", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("builds the exact root and numeric slot paths", () => {
-    expect(buildCheckboxControlRootPath()).toBe("live/checkboxControl");
-    expect(buildCheckboxControlSlotPath(0)).toBe("live/checkboxControl/0");
-    expect(buildCheckboxControlSlotPath(12)).toBe("live/checkboxControl/12");
+    expect(buildCheckboxControlRootPath()).toBe("live/u/checkboxControl");
+    expect(buildCheckboxControlSlotPath(0)).toBe("live/u/checkboxControl/0");
+    expect(buildCheckboxControlSlotPath(12)).toBe("live/u/checkboxControl/12");
     expect(() => buildCheckboxControlSlotPath(-1)).toThrow();
     expect(() => buildCheckboxControlSlotPath(1.5)).toThrow();
   });
@@ -109,7 +109,7 @@ describe("checkbox control wire and writer", () => {
 
     const first = await writeCheckboxControlState(database, 2, "v", "p", 0, " topics / #% ", " item / #% ", "unchecked");
     expect(first).toEqual(valid());
-    expect(mocks.ref).toHaveBeenCalledWith(database, "live/checkboxControl/0");
+    expect(mocks.ref).toHaveBeenCalledWith(database, "live/u/checkboxControl/0");
     const second = await writeCheckboxControlState(database, 2, "v", "p", 0, " topics / #% ", " item / #% ", "checked");
     expect(second).toMatchObject({ revision: 2, state: "checked" });
     expect(second).not.toHaveProperty("checked");

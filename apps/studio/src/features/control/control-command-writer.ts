@@ -21,6 +21,7 @@ import {
   isRealtimeDatabaseConfigured,
 } from "./realtime-db";
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
+import { buildAuthenticatedLiveRoot } from "../live/live-path";
 import {
   buildControlStatePath,
   parseLiveControlState,
@@ -575,7 +576,7 @@ function parseSlideCommand(value: unknown): SlideCommand | null {
 }
 
 /**
- * Write an absolute slide target to `live/slideCommand`.
+ * Write an absolute slide target to `live/{ownerUid}/slideCommand`.
  *
  * Commands are scoped to an activation. Within the same activation the command
  * revision increments; a different/absent activation restarts at 1. Returns the
@@ -633,7 +634,7 @@ export async function writeSlideCommand(
 }
 
 /**
- * Write the desired live control state to `live/controlState` transactionally.
+ * Write the desired live control state to `live/{ownerUid}/controlState` transactionally.
  *
  * Revision starts at 1 for a fresh Live identity and increments only within
  * the same activation/current-version pair.
@@ -765,7 +766,7 @@ export async function writeFullscreenRequest(
   };
 
   const result = await runTransaction(
-    ref(database, "live"),
+    ref(database, buildAuthenticatedLiveRoot()),
     (current) => {
       if (current === null) {
         outcome.kind = "uncached";

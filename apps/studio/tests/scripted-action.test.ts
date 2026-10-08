@@ -24,6 +24,10 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
   getCurrentNonAnonymousUser: mocks.getCurrentNonAnonymousUser,
 }));
 
+beforeEach(() => {
+  mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
+});
+
 import {
   buildScriptedActionPath,
   buildScriptedActionRootPath,
@@ -58,9 +62,9 @@ const request = (overrides: Partial<ScriptedActionRequest> = {}): ScriptedAction
 
 describe("Scripted action live contract", () => {
   it("builds deterministic numeric paths and rejects invalid indexes", () => {
-    expect(buildScriptedActionRootPath()).toBe("live/scriptedAction");
-    expect(buildScriptedActionPath(0, 0)).toBe("live/scriptedAction/0/0");
-    expect(buildScriptedActionPath(12, 34)).toBe("live/scriptedAction/12/34");
+    expect(buildScriptedActionRootPath()).toBe("live/user-1/scriptedAction");
+    expect(buildScriptedActionPath(0, 0)).toBe("live/user-1/scriptedAction/0/0");
+    expect(buildScriptedActionPath(12, 34)).toBe("live/user-1/scriptedAction/12/34");
     for (const invalid of [-1, 1.5, NaN, Infinity]) {
       expect(() => buildScriptedActionPath(invalid, 0)).toThrow();
       expect(() => buildScriptedActionPath(0, invalid)).toThrow();
@@ -120,7 +124,7 @@ describe("Scripted action writer", () => {
     await expect(writeScriptedAction({} as never, request())).resolves.toMatchObject({ revision: 1 });
     await expect(writeScriptedAction({} as never, request())).resolves.toMatchObject({ revision: 2 });
     await expect(writeScriptedAction({} as never, request())).resolves.toMatchObject({ revision: 3 });
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/scriptedAction/0/0");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/scriptedAction/0/0");
     expect(mocks.runTransaction).toHaveBeenCalledTimes(3);
   });
 

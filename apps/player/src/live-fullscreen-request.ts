@@ -1,8 +1,9 @@
 import { onValue, ref, type Database } from "firebase/database";
+import { buildLivePath } from "./live-path";
 
 import type { PlayerController } from "./player";
 
-export const FULLSCREEN_REQUEST_PATH = "live/fullscreenRequest";
+export const FULLSCREEN_REQUEST_PATH = "fullscreenRequest";
 
 export interface FullscreenRequest {
   activationRevision: number;
@@ -63,6 +64,7 @@ function requestButton(root: HTMLElement): HTMLButtonElement {
 /** Subscribes to an activation-scoped fullscreen intent without remotely invoking the Fullscreen API. */
 export function subscribeLiveFullscreenRequest(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   controller: PlayerController,
@@ -117,7 +119,7 @@ export function subscribeLiveFullscreenRequest(
   }
 
   const unsubscribe = onValue(
-    ref(database, FULLSCREEN_REQUEST_PATH),
+    ref(database, buildLivePath(ownerUid, FULLSCREEN_REQUEST_PATH)),
     (snapshot) => {
       const request = parseFullscreenRequest(snapshot.val());
 

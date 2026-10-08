@@ -51,8 +51,8 @@ describe("live Checkbox Control subscription", () => {
     mocks.onChildChanged.mockImplementation((_root, callback) => { changed = callback; return unsubscribeChanged; });
     const controller = { setCheckboxControlState: vi.fn() };
 
-    const cleanup = subscribeLiveCheckboxControl({} as never, 2, "version-1", controller as never);
-    expect(mocks.ref).toHaveBeenCalledWith({}, CHECKBOX_CONTROL_ROOT_PATH);
+    const cleanup = subscribeLiveCheckboxControl({} as never, "owner-a", 2, "version-1", controller as never);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/checkboxControl");
 
     added?.({ key: "4", val: () => record() });
     changed?.({ key: "4", val: () => record({ state: "intermediate", revision: 2 }) });

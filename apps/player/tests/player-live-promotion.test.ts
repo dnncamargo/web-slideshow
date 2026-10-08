@@ -111,7 +111,7 @@ describe("Player live version promotion", () => {
     document.body.innerHTML = '<div id="app"></div>';
 
     mocks.getRealtimeDatabaseOrNull.mockReturnValue({});
-    mocks.subscribeLiveCurrent.mockImplementation((_database, onEvent) => {
+    mocks.subscribeLiveCurrent.mockImplementation((_database, _ownerUid, onEvent) => {
       mocks.liveHandler = onEvent;
       return vi.fn();
     });
@@ -213,6 +213,7 @@ describe("Player live version promotion", () => {
       expect(promotedController.goTo).toHaveBeenCalledWith(2);
       expect(mocks.subscribeLiveProjectionState).toHaveBeenLastCalledWith(
         expect.anything(),
+        "account-1",
         5,
         "version-3",
         latest,

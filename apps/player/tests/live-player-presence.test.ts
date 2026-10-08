@@ -46,7 +46,7 @@ describe("Player presence reporter", () => {
     mocks.disconnectSet.mockReturnValueOnce(registration.promise);
     mocks.set.mockReturnValueOnce(leasePublication.promise).mockResolvedValueOnce(undefined);
 
-    const starting = startPlayerPresence({} as never, 7, "version-1");
+    const starting = startPlayerPresence({} as never, "owner-a", 7, "version-1");
 
     expect(mocks.disconnectSet).toHaveBeenCalledTimes(1);
     expect(mocks.set).not.toHaveBeenCalled();
@@ -54,20 +54,20 @@ describe("Player presence reporter", () => {
     registration.resolve();
     await vi.waitFor(() => expect(mocks.set).toHaveBeenCalledTimes(1));
     expect((mocks.set.mock.calls[0]?.[0] as { path: string }).path).toMatch(
-      /^live\/playerPresence\/leases\/[a-z0-9-]+$/,
+      /^live\/owner-a\/playerPresence\/leases\/[a-z0-9-]+$/,
     );
 
     leasePublication.resolve();
     await starting;
     expect(mocks.set).toHaveBeenCalledTimes(2);
-    expect(mocks.set.mock.calls[1]?.[0]).toEqual({ path: PLAYER_PRESENCE_CURRENT_PATH });
+    expect(mocks.set.mock.calls[1]?.[0]).toEqual({ path: "live/owner-a/playerPresence/current" });
 
     const disconnect = mocks.disconnectSet.mock.calls[0]?.[0] as { bootId: string };
     const lease = mocks.set.mock.calls[0]?.[1] as { bootId: string };
     const current = mocks.set.mock.calls[1]?.[1] as { bootId: string };
     const leasePath = (mocks.set.mock.calls[0]?.[0] as { path: string }).path;
 
-    expect(leasePath).toBe(`${PLAYER_PRESENCE_PATH}/leases/${lease.bootId}`);
+    expect(leasePath).toBe(`live/owner-a/${PLAYER_PRESENCE_PATH}/leases/${lease.bootId}`);
     expect(disconnect).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
@@ -92,16 +92,16 @@ describe("Player presence reporter", () => {
   });
 
   it("updates only current for ready and allowlisted failure", async () => {
-    const reporter = await startPlayerPresence({} as never, 7, "version-1");
+    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1");
     const initial = mocks.set.mock.calls[1]?.[1] as { bootId: string };
 
     reporter.ready();
     reporter.failed("presentation-load-failed");
     await vi.waitFor(() => expect(mocks.set).toHaveBeenCalledTimes(4));
 
-    expect(mocks.set.mock.calls[2]?.[0]).toEqual({ path: PLAYER_PRESENCE_CURRENT_PATH });
+    expect(mocks.set.mock.calls[2]?.[0]).toEqual({ path: "live/owner-a/playerPresence/current" });
     expect(mocks.set.mock.calls[2]?.[1]).toMatchObject({ bootId: initial.bootId, stage: "ready" });
-    expect(mocks.set.mock.calls[3]?.[0]).toEqual({ path: PLAYER_PRESENCE_CURRENT_PATH });
+    expect(mocks.set.mock.calls[3]?.[0]).toEqual({ path: "live/owner-a/playerPresence/current" });
     expect(mocks.set.mock.calls[3]?.[1]).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
@@ -116,7 +116,7 @@ describe("Player presence reporter", () => {
     const failure = new Error("registration denied");
     mocks.disconnectSet.mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).not.toHaveBeenCalled();
   });
 
@@ -124,7 +124,7 @@ describe("Player presence reporter", () => {
     const failure = new Error("lease denied");
     mocks.set.mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).toHaveBeenCalledTimes(1);
   });
 
@@ -132,13 +132,13 @@ describe("Player presence reporter", () => {
     const failure = new Error("current denied");
     mocks.set.mockResolvedValueOnce(undefined).mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).toHaveBeenCalledTimes(2);
   });
 
   it("sanitizes rejected ready and failed transitions", async () => {
     const onError = vi.fn();
-    const reporter = await startPlayerPresence({} as never, 7, "version-1", onError);
+    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1", onError);
     const readyFailure = new Error("ready denied");
     const failedFailure = new Error("failure denied");
     mocks.set.mockRejectedValueOnce(readyFailure).mockRejectedValueOnce(failedFailure);
@@ -152,7 +152,7 @@ describe("Player presence reporter", () => {
   });
 
   it("stops transitions without canceling pagehide disconnect detection", async () => {
-    const reporter = await startPlayerPresence({} as never, 7, "version-1");
+    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1");
 
     reporter.stop();
     reporter.stop();

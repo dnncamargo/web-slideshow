@@ -7,12 +7,13 @@ import {
   subscribeLiveCurrent,
   type LiveCurrentEvent,
 } from "./live-entry";
+import { buildLivePath } from "./live-path";
 import {
   PLAYER_STATE_PATH,
   parseLivePlayerState,
   type LivePlayerState,
 } from "./live-state";
-import { loadPublishedVersion } from "./published-presentation-loader";
+import { loadPublishedOwnerUid, loadPublishedVersion } from "./published-presentation-loader";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import {
   mountProjectionSurface,
@@ -60,7 +61,9 @@ function renderMessage(root: HTMLElement, message: string, loading = false): voi
 
 /** Boots the read-only Watch projection on the shared Player root. */
 export function startWatch(root: HTMLElement): WatchController {
+  const requestedPublicationId = new URLSearchParams(window.location.search).get("publication")?.trim() || null;
   let activeLive: LiveCurrent | null = null;
+  let liveOwnerUid: string | null = null;
   let currentPlayerState: LivePlayerState | null = null;
   let versionState: VersionState | null = null;
   let versionLoadToken = 0;
@@ -142,13 +145,14 @@ export function startWatch(root: HTMLElement): WatchController {
 
   function subscribePlayerState(
     database: Database,
+    ownerUid: string,
     expectedLive: LiveCurrent,
   ): void {
     const expectedIdentity = identityKey(expectedLive);
 
     cleanupPlayerState?.();
     cleanupPlayerState = onValue(
-      ref(database, PLAYER_STATE_PATH),
+      ref(database, buildLivePath(ownerUid, PLAYER_STATE_PATH)),
       (snapshot) => {
         if (
           destroyed ||
@@ -225,8 +229,9 @@ export function startWatch(root: HTMLElement): WatchController {
   }
 
   function handleLiveEvent(event: LiveCurrentEvent): void {
-    if (event.kind !== "active") {
+    if (event.kind !== "active" || event.live.publicationId !== requestedPublicationId) {
       activeLive = null;
+      liveOwnerUid = null;
       currentPlayerState = null;
       versionState = null;
       versionLoadToken += 1;
@@ -249,7 +254,7 @@ export function startWatch(root: HTMLElement): WatchController {
 
     const database = getRealtimeDatabaseOrNull();
     if (database !== null) {
-      subscribePlayerState(database, event.live);
+      if (liveOwnerUid !== null) subscribePlayerState(database, liveOwnerUid, event.live);
     }
 
     loadVersion(event.live);
@@ -257,8 +262,12 @@ export function startWatch(root: HTMLElement): WatchController {
 
   const database = getRealtimeDatabaseOrNull();
   renderMessage(root, WATCH_COPY.noLive);
-  if (database !== null) {
-    cleanupLiveCurrent = subscribeLiveCurrent(database, handleLiveEvent);
+  if (database !== null && requestedPublicationId !== null) {
+    void loadPublishedOwnerUid(requestedPublicationId).then((ownerUid) => {
+      if (destroyed || ownerUid === null) return;
+      liveOwnerUid = ownerUid;
+      cleanupLiveCurrent = subscribeLiveCurrent(database, ownerUid, handleLiveEvent);
+    });
   }
 
   let controller: WatchController;
@@ -273,6 +282,7 @@ export function startWatch(root: HTMLElement): WatchController {
       window.removeEventListener("pagehide", handlePagehide);
       cleanupLiveCurrent?.();
       cleanupLiveCurrent = undefined;
+      liveOwnerUid = null;
       cleanupPlayerState?.();
       cleanupPlayerState = undefined;
       destroyProjection();

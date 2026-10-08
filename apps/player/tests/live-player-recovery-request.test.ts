@@ -37,9 +37,9 @@ describe("Player recovery request", () => {
 
   it("replaces only for a valid exact-target new revision", () => {
     const navigation = { replace: vi.fn() };
-    const cleanup = subscribePlayerRecoveryRequest({} as never, 7, "version-1", "boot-a", { href: "https://player.example/live?logs=true#x" }, navigation);
+    const cleanup = subscribePlayerRecoveryRequest({} as never, "owner-a", 7, "version-1", "boot-a", { href: "https://player.example/live?logs=true#x" }, navigation);
     const handler = mocks.onValue.mock.calls[0]?.[1] as (value: ReturnType<typeof snapshot>) => void;
-    expect(mocks.ref).toHaveBeenCalledWith({}, PLAYER_RECOVERY_REQUEST_PATH);
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/owner-a/playerRecoveryRequest");
     handler(snapshot({ ...request(), targetBootId: "boot-b" }));
     handler(snapshot({ ...request(), activationRevision: 6 }));
     handler(snapshot({ ...request(), currentVersionId: "old" }));
@@ -61,6 +61,7 @@ describe("Player recovery request", () => {
     const retry = vi.fn();
     subscribePlayerRecoveryRequest(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       "boot-a",
@@ -82,7 +83,7 @@ describe("Player recovery request", () => {
 
   it("accepts clear-cache once for an exact target and records before navigation", () => {
     const navigation = { replace: vi.fn() };
-    subscribePlayerRecoveryRequest({} as never, 7, "version-1", "boot-a", { href: "https://player.example/live?logs=true#slide" }, navigation);
+    subscribePlayerRecoveryRequest({} as never, "owner-a", 7, "version-1", "boot-a", { href: "https://player.example/live?logs=true#slide" }, navigation);
     const handler = mocks.onValue.mock.calls[0]?.[1] as (value: ReturnType<typeof snapshot>) => void;
     handler(snapshot(request({ action: "clear-cache" })));
     handler(snapshot(request({ action: "clear-cache" })));
@@ -97,6 +98,7 @@ describe("Player recovery request", () => {
     const navigation = { replace: vi.fn() };
     subscribePlayerRecoveryRequest(
       {} as never,
+      "owner-a",
       7,
       "version-1",
       "boot-a",
@@ -114,7 +116,7 @@ describe("Player recovery request", () => {
 
   it("makes a new boot ignore a persisted request addressed to the old boot", () => {
     const navigation = { replace: vi.fn() };
-    subscribePlayerRecoveryRequest({} as never, 7, "version-1", "boot-b", { href: "https://player.example/live" }, navigation);
+    subscribePlayerRecoveryRequest({} as never, "owner-a", 7, "version-1", "boot-b", { href: "https://player.example/live" }, navigation);
     const handler = mocks.onValue.mock.calls[0]?.[1] as (value: ReturnType<typeof snapshot>) => void;
     handler(snapshot(request()));
     expect(navigation.replace).not.toHaveBeenCalled();

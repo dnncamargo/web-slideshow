@@ -1,3 +1,5 @@
+import { buildAuthenticatedLivePath } from "./live-path";
+
 /** One-way Control -> Player Plot animation action occurrence contract. */
 export type PlotAnimationAction = "play" | "pause" | "reset";
 
@@ -12,7 +14,7 @@ export interface LivePlotAnimationActionRecord {
 }
 
 export function buildPlotAnimationActionRootPath(): string {
-  return "live/plotAnimationAction";
+  return buildAuthenticatedLivePath("plotAnimationAction");
 }
 
 export function buildPlotAnimationActionPath(plotSlot: number): string {

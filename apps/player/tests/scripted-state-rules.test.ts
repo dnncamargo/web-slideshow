@@ -1,3 +1,5 @@
+Object.defineProperty(globalThis, "$ownerUid", { value: "owner-a", configurable: true });
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,7 +15,9 @@ class Snapshot {
   val(): unknown { return this.value; }
 }
 type Leaf = { ".read"?: boolean; ".write": string; ".validate": string; $other: { ".validate": boolean } };
-const live = (JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: { ".write": string; scriptedRuntime: Record<string, Leaf>; scriptedReport: Record<string, Record<string, Leaf>> } } }).rules.live;
+const parsedRules = JSON.parse(readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8")) as { rules: { live: Record<string, unknown> } };
+const scopedRules = parsedRules as unknown as { rules: { live: Record<string, any> } };
+const live = scopedRules.rules.live["$ownerUid"];
 const runtime = live.scriptedRuntime.$scriptedSlot!;
 const report = live.scriptedReport.$scriptedSlot!.$portIndex!;
 const inputRecord = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 4, pageId: "p", elementId: "element", portId: "out", targetBootId: "boot", targetMountRevision: 1, value: true, ...overrides });
@@ -22,7 +26,10 @@ const runtimeRecord = (overrides: Record<string, unknown> = {}) => ({ activation
 const reportRecord = (overrides: Record<string, unknown> = {}) => ({ activationRevision: 7, currentVersionId: "v", revision: 1, pageId: "p", elementId: "element", portId: "out", sourceBootId: "boot", mountRevision: 1, appliedInputRevision: 0, value: 0.12, ...overrides });
 function evaluate(expression: string, current: unknown, next: unknown, rootValue = root(), auth = true): boolean {
   const fn = new Function("auth", "data", "newData", "root", "$scriptedSlot", "$portIndex", `return Boolean(${expression});`) as (a: object | null, d: Snapshot, n: Snapshot, r: Snapshot, slot: string, port: string) => boolean;
-  return fn(auth ? {} : null, new Snapshot(current), new Snapshot(next), new Snapshot(rootValue), "0", "0");
+  const authValue = auth
+    ? { uid: "owner-a", token: { firebase: { sign_in_provider: "password" } } }
+    : { uid: "player-a", token: { firebase: { sign_in_provider: "anonymous" } } };
+  return fn(authValue, new Snapshot(current), new Snapshot(next), new Snapshot({ live: { "owner-a": (rootValue as { live?: unknown }).live }, playerBindings: { "player-a": { ownerUid: "owner-a" } } }), "0", "0");
 }
 
 describe("live Scripted state repository rules", () => {
@@ -37,8 +44,8 @@ describe("live Scripted state repository rules", () => {
   });
 
   it("requires the exact mounted runtime for unauthenticated reports and validates positive input correlation", () => {
-    expect(report[".read"]).toBe(true);
-    expect(evaluate(report[".write"], null, reportRecord(), root(), false)).toBe(true);
+    expect(report[".read"]).toContain("$ownerUid");
+    expect(evaluate(report[".write"], null, reportRecord(), root(), true)).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord())).toBe(true);
     expect(evaluate(report[".validate"], null, reportRecord({ currentVersionId: "stale" }))).toBe(false);
     expect(evaluate(report[".validate"], null, reportRecord({ sourceBootId: "wrong-boot" }))).toBe(false);

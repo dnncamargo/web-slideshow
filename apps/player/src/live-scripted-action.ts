@@ -8,8 +8,9 @@ import {
 } from "@web-slideshow/document-schema";
 
 import type { PlayerController } from "./player";
+import { buildLivePath } from "./live-path";
 
-export const SCRIPTED_ACTION_ROOT_PATH = "live/scriptedAction";
+export const SCRIPTED_ACTION_ROOT_PATH = "scriptedAction";
 
 export interface LiveScriptedActionRecord {
   activationRevision: number;
@@ -157,6 +158,7 @@ function numericEntries(value: unknown): Array<[string, unknown]> {
  */
 export function subscribeLiveScriptedAction(
   database: Database,
+  ownerUid: string,
   activationRevision: number,
   currentVersionId: string,
   targetBootId: string,
@@ -167,7 +169,7 @@ export function subscribeLiveScriptedAction(
   tracker.prepareBoot(targetBootId);
 
   const unsubscribe = onValue(
-    ref(database, SCRIPTED_ACTION_ROOT_PATH),
+    ref(database, buildLivePath(ownerUid, SCRIPTED_ACTION_ROOT_PATH)),
     (snapshot) => {
       for (const [slotKey, ports] of numericEntries(snapshot.val())) {
         const scriptedSlot = parseScriptedActionIndex(slotKey);
