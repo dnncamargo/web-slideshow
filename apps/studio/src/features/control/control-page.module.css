@@ -34,6 +34,85 @@
   gap: 16px;
 }
 
+.pairing {
+  position: fixed;
+  z-index: 20;
+  top: 12px;
+  right: 12px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  padding: 8px 10px;
+  border: 1px solid #303847;
+  border-radius: 8px;
+  background: #111620;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.pairingForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pairingTitle {
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pairingField {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  color: #87909f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pairingInput {
+  width: 76px;
+  height: 28px;
+  box-sizing: border-box;
+
+  padding: 0 7px;
+  border: 1px solid #475569;
+  border-radius: 5px;
+
+  background: #0b0f17;
+  color: #f8fafc;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.pairingInput:focus {
+  outline: 2px solid #64748b;
+  outline-offset: 1px;
+}
+
+.pairingError {
+  color: #f87171;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .pairing {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+  }
+
+  .pairingForm {
+    justify-content: space-between;
+  }
+}
+
 .shell {
   width: 100%;
   height: 100dvh;

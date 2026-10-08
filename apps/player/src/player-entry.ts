@@ -47,6 +47,12 @@ import {
   recordPlayerDiagnostic,
 } from "./player-diagnostics";
 import { mountPlayer, type PlayerController } from "./player";
+import {
+  formatPairingPin,
+  startPlayerPairing,
+  type PlayerPairingSession,
+  type PlayerPairingState,
+} from "./player-pairing";
 
 const controls = {
   position: "bottom-right",
@@ -69,6 +75,9 @@ function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
 
 /** Boots the existing Player runtime on the shared root element. */
 export function startPlayer(root: HTMLElement): () => void {
+  let destroyed = false;
+  let liveStarted = false;
+  let pairingSession: PlayerPairingSession | undefined;
   let activeController: PlayerController | undefined;
   let cleanupLiveProjection: (() => void) | undefined;
   let cleanupLiveFullscreenRequest: (() => void) | undefined;
@@ -147,6 +156,16 @@ export function startPlayer(root: HTMLElement): () => void {
         renderRecoveryExpanded();
       }
     });
+  }
+
+  function renderPairingState(pin: string): void {
+    root.innerHTML = `
+      <div class="player-load-state player-pairing-state" data-loading="false">
+        <span>Configure Player</span>
+        <strong class="player-pairing-pin">${formatPairingPin(pin)}</strong>
+        <span>Enter this PIN in Control.</span>
+      </div>
+    `;
   }
 
   function renderRecoveryExpanded(): void {
@@ -694,6 +713,31 @@ export function startPlayer(root: HTMLElement): () => void {
 
   let database: ReturnType<typeof getRealtimeDatabaseOrNull> | null = null;
 
+  function startLiveRuntime(): void {
+    if (destroyed || liveStarted || database === null) return;
+    liveStarted = true;
+    renderLoadState("Loading presentation…", true);
+    cleanupLiveCurrent = subscribeLiveCurrent(database, (event) => {
+      void handleLiveEvent(event);
+    });
+  }
+
+  function handlePairingState(state: PlayerPairingState): void {
+    if (destroyed) return;
+
+    if (state.kind === "pairing") {
+      renderPairingState(state.pin);
+      return;
+    }
+
+    if (state.kind === "paired") {
+      startLiveRuntime();
+      return;
+    }
+
+    renderLoadState("Could not configure Player.");
+  }
+
   recordPlayerDiagnostic("RTDB_INIT_START");
 
   try {
@@ -712,13 +756,27 @@ export function startPlayer(root: HTMLElement): () => void {
   if (!database) {
     renderLoadState("Could not load presentation.");
   } else {
-    renderLoadState("Loading presentation…", true);
-    cleanupLiveCurrent = subscribeLiveCurrent(database, (event) => {
-      void handleLiveEvent(event);
-    });
+    renderLoadState("Configuring Player…", true);
+    void startPlayerPairing(database, handlePairingState)
+      .then((session) => {
+        if (destroyed) {
+          session.destroy();
+          return;
+        }
+        pairingSession = session;
+        handlePairingState(session.state);
+      })
+      .catch((error: unknown) => {
+        if (destroyed) return;
+        recordPlayerDiagnostic("PLAYER_PAIRING_INIT_ERROR", { error });
+        renderLoadState("Could not configure Player.");
+      });
   }
 
   const cleanup = (): void => {
+    destroyed = true;
+    pairingSession?.destroy();
+    pairingSession = undefined;
     cleanupLiveCurrent?.();
     cleanupLiveCurrent = undefined;
     teardownLiveSession();

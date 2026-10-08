@@ -38,6 +38,15 @@ vi.mock("../src/realtime-db", () => ({
   getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull,
 }));
 
+vi.mock("../src/player-pairing", () => ({
+  formatPairingPin: (pin: string) => pin,
+  startPlayerPairing: async (_database: unknown, onState: (state: unknown) => void) => {
+    const state = { kind: "paired", ownerUid: "account-1" };
+    onState(state);
+    return { playerUid: "player-1", state, destroy: vi.fn() };
+  },
+}));
+
 vi.mock("../src/live-entry", () => ({
   parseEntrySearch: () => ({ logsEnabled: false }),
   subscribeLiveCurrent: mocks.subscribeLiveCurrent,

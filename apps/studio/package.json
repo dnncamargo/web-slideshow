@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts"
+    "test:rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/firestore-rules-emulator.test.ts",
+    "test:database-rules-emulator": "vitest run --config vitest.rules-emulator.config.ts tests/database-rules-emulator.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

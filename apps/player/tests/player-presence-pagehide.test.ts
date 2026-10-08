@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCheckboxControl: vi.fn(),
   createLivePlotAnimationActionTracker: vi.fn(),
   subscribeLivePlotAnimationAction: vi.fn(),
+  createLiveShapeAnimationActionTracker: vi.fn(),
+  subscribeLiveShapeAnimationAction: vi.fn(),
   subscribeLiveSlideTransition: vi.fn(),
   subscribeLivePlayerControls: vi.fn(),
   subscribeLiveScriptedAction: vi.fn(),
@@ -24,6 +26,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/realtime-db", () => ({ getRealtimeDatabaseOrNull: mocks.getRealtimeDatabaseOrNull }));
+vi.mock("../src/player-pairing", () => ({
+  formatPairingPin: (pin: string) => pin,
+  startPlayerPairing: async (_database: unknown, onState: (state: unknown) => void) => {
+    const state = { kind: "paired", ownerUid: "account-1" };
+    onState(state);
+    return { playerUid: "player-1", state, destroy: vi.fn() };
+  },
+}));
 vi.mock("../src/live-entry", () => ({
   parseEntrySearch: () => ({ logsEnabled: false }),
   readLiveCurrent: mocks.readLiveCurrent,
@@ -38,6 +48,10 @@ vi.mock("../src/live-checkbox-control", () => ({ subscribeLiveCheckboxControl: m
 vi.mock("../src/live-plot-animation-action", () => ({
   createLivePlotAnimationActionTracker: mocks.createLivePlotAnimationActionTracker,
   subscribeLivePlotAnimationAction: mocks.subscribeLivePlotAnimationAction,
+}));
+vi.mock("../src/live-shape-animation-action", () => ({
+  createLiveShapeAnimationActionTracker: mocks.createLiveShapeAnimationActionTracker,
+  subscribeLiveShapeAnimationAction: mocks.subscribeLiveShapeAnimationAction,
 }));
 vi.mock("../src/live-slide-transition", () => ({ subscribeLiveSlideTransition: mocks.subscribeLiveSlideTransition }));
 vi.mock("../src/live-player-controls", () => ({ subscribeLivePlayerControls: mocks.subscribeLivePlayerControls }));
@@ -70,7 +84,9 @@ describe("Player presence pagehide cleanup", () => {
     mocks.subscribeLiveGalleryControl.mockReturnValue(vi.fn());
     mocks.subscribeLiveCheckboxControl.mockReturnValue(vi.fn());
     mocks.createLivePlotAnimationActionTracker.mockReturnValue({});
+    mocks.createLiveShapeAnimationActionTracker.mockReturnValue({});
     mocks.subscribeLivePlotAnimationAction.mockReturnValue(vi.fn());
+    mocks.subscribeLiveShapeAnimationAction.mockReturnValue(vi.fn());
     mocks.subscribeLiveSlideTransition.mockReturnValue(vi.fn());
     mocks.subscribeLivePlayerControls.mockReturnValue(vi.fn());
     mocks.subscribeLiveScriptedAction.mockReturnValue(vi.fn());

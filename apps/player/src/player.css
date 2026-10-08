@@ -523,6 +523,17 @@ button {
   display: block;
 }
 
+.player-pairing-state {
+  gap: 10px;
+}
+
+.player-pairing-pin {
+  color: #f8fafc;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
 .player-load-indicator::before {
   display: block;
   width: 42%;

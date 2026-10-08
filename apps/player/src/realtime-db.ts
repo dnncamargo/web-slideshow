@@ -5,7 +5,7 @@ import { getDatabase, type Database } from "firebase/database";
  * Realtime Database is optional for the Player. Publishing/Firestore loading
  * works without it; remote control is only enabled when configured.
  */
-function getFirebaseApp(): FirebaseApp {
+export function getPlayerFirebaseApp(): FirebaseApp {
   const existing = getApps()[0];
 
   if (existing) {
@@ -47,5 +47,5 @@ export function getRealtimeDatabaseOrNull(): Database | null {
     return null;
   }
 
-  return getDatabase(getFirebaseApp(), url);
+  return getDatabase(getPlayerFirebaseApp(), url);
 }

@@ -27,6 +27,7 @@ export type PlayerDiagnosticCode =
   | "RTDB_INIT_OK"
   | "RTDB_INIT_MISSING"
   | "RTDB_INIT_ERROR"
+  | "PLAYER_PAIRING_INIT_ERROR"
   | "LIVE_EVENT_ACTIVE"
   | "LIVE_EVENT_NO_ACTIVE"
   | "LIVE_EVENT_ERROR"
