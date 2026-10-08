@@ -37,6 +37,10 @@ import {
   requestPlayerRetry,
 } from "./player-recovery-request";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
+import {
+  disconnectOwnedPlayer,
+  subscribeOwnedPlayerBindings,
+} from "./player-pairing";
 
 import styles from "./maintenance-page.module.css";
 
@@ -62,6 +66,9 @@ export function MaintenancePage() {
   const playerLogs = useLivePlayerLogsControl(live);
   const [status, setStatus] = useState<PlayerOperationalStatus | null>(null);
   const [connectedPlayers, setConnectedPlayers] = useState<string[]>([]);
+  const [pairedPlayers, setPairedPlayers] = useState<string[]>([]);
+  const [disconnectingPlayerUid, setDisconnectingPlayerUid] = useState<string | null>(null);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [controlState, setControlState] = useState<LiveControlState | null>(null);
   const [playerState, setPlayerState] = useState<LivePlayerState | null>(null);
   const [latencySnapshot, setLatencySnapshot] =
@@ -92,6 +99,43 @@ export function MaintenancePage() {
         setLiveState(nextState);
       }
     });
+
+    return () => {
+      subscribed = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setPairedPlayers([]);
+      return;
+    }
+
+    let subscribed = true;
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = subscribeOwnedPlayerBindings(
+        database,
+        (playerUids) => {
+          if (subscribed) {
+            setPairedPlayers([...playerUids]);
+            setDisconnectError(null);
+          }
+        },
+        () => {
+          if (subscribed) {
+            setPairedPlayers([]);
+            setDisconnectError("Could not load paired Players.");
+          }
+        },
+      );
+    } catch {
+      setPairedPlayers([]);
+      setDisconnectError("Could not load paired Players.");
+    }
 
     return () => {
       subscribed = false;
@@ -349,6 +393,32 @@ export function MaintenancePage() {
     }
   }
 
+  async function disconnectPlayer(playerUid: string): Promise<void> {
+    if (
+      disconnectingPlayerUid !== null ||
+      !window.confirm("Disconnect this Player? It will return to pairing mode and show a new PIN.")
+    ) {
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setDisconnectError("Player pairing is unavailable.");
+      return;
+    }
+
+    setDisconnectingPlayerUid(playerUid);
+    setDisconnectError(null);
+
+    try {
+      await disconnectOwnedPlayer(database, playerUid);
+    } catch {
+      setDisconnectError("Could not disconnect Player. Try again.");
+    } finally {
+      setDisconnectingPlayerUid(null);
+    }
+  }
+
   async function clearCacheAndReload(): Promise<void> {
     if (
       !canClearCache ||
@@ -463,6 +533,28 @@ export function MaintenancePage() {
               ))}
             </ul>
           )}
+          <h3 className={styles.subheading}>Paired Players</h3>
+          {pairedPlayers.length === 0 ? (
+            <p>No paired Players</p>
+          ) : (
+            <ul className={styles.pairedPlayers}>
+              {pairedPlayers.map((playerUid) => (
+                <li className={styles.pairedPlayer} key={playerUid}>
+                  <span title={playerUid}>Player {playerUid.slice(0, 6)}…</span>
+                  <button
+                    type="button"
+                    disabled={disconnectingPlayerUid !== null}
+                    onClick={() => void disconnectPlayer(playerUid)}
+                  >
+                    {disconnectingPlayerUid === playerUid
+                      ? "Disconnecting…"
+                      : "Disconnect Player"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {disconnectError && <p role="alert">{disconnectError}</p>}
           <div className={styles.logsControl}>
             <span>Logs</span>
             <button
