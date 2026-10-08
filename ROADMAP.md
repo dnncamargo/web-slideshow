@@ -153,7 +153,7 @@ Established Library Present / Control / End lifecycle. Publish and Present remai
 
 References: PRs #47–#57 and later hardening.
 
-Delivered Player live entry, immutable-version loading, logical `pageId` navigation, Control desired state, Player applied state / ACK, latency evidence, reconnect convergence, staged publication promotion, private Notes and Watch following actual Player-applied state.
+Delivered Player live entry, immutable-version loading, logical `pageId` navigation, Control desired state, Player applied state / ACK, latency evidence, reconnect convergence, staged publication promotion, private Notes and Watch following actual Player-applied state. The current implementation additionally binds each Player persistently to one account and scopes the complete Live protocol under `live/{ownerUid}/...`, allowing different accounts to run independent simultaneous Lives.
 
 Core flow:
 
@@ -249,7 +249,7 @@ Application
 
 The current product surfaces are Library, Editor, Control, Player and Watch.
 
-Public Portal / Live Cover is complete; Cover remains static/read-only while Watch follows real Player state.
+Public Portal / Live Cover is publication-scoped: `/watch?publication=<publicationId>` and `/cover?publication=<publicationId>` resolve the publication owner and observe only that owner's Live while the requested publication remains active. Without a publication context, public surfaces never select an arbitrary account Live.
 
 ---
 
@@ -257,7 +257,7 @@ Public Portal / Live Cover is complete; Cover remains static/read-only while Wat
 
 References: PRs #114–#115.
 
-Gallery is one semantic media frame with ordered items. Studio, Player local behavior and one-way Control commands through `live/galleryControl/<slot>` are complete.
+Gallery is one semantic media frame with ordered items. Studio, Player local behavior and one-way Control commands through `live/{ownerUid}/galleryControl/<slot>` are complete.
 
 ---
 
@@ -346,9 +346,9 @@ Delivered:
 - Player control style;
 - counter On / Off;
 - control-bar animation;
-- activation-scoped `live/slideTransition`;
-- activation-scoped `live/playerControls`;
-- activation-scoped `live/playerLogs`;
+- activation-scoped `live/{ownerUid}/slideTransition`;
+- activation-scoped `live/{ownerUid}/playerControls`;
+- activation-scoped `live/{ownerUid}/playerLogs`;
 - Maintenance connected-Player discovery from boot-scoped leases;
 - remote logs On/Off without sending arbitrary Player URLs through RTDB.
 
@@ -531,7 +531,7 @@ Delivered the Checkbox presentation kind within the existing Topics structure:
 
 - `Topics.kind = checkbox`, with local two-state / three-state mode;
 - native shared renderer/runtime, with `markerColor` reused as the Checkbox accent;
-- Canvas interaction and one-way Control → Player absolute state through `live/checkboxControl`;
+- Canvas interaction and one-way Control → Player absolute state through `live/{ownerUid}/checkboxControl`;
 - transient runtime state only, with Player-local interaction remaining local;
 - Live activation, promotion and end cleanup;
 - no `schemaVersion` bump.
@@ -667,6 +667,8 @@ The following current-state work is complete at its recorded closure point:
 - **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
 - **Root Definition preserve-children correction** — The dialog availability probe now resolves the actual persisted owner tree through `resolveOwnedAuthoringTree`, covering ordinary Slides, Root Definitions and Slide-local Root-backed ownership. Compatible Root-backed local Containers receive the same three-action choice; the existing `findLocalRootChildOwner → updateLocalRootChildren → unwrapContainerPreservingChildren` mutation remains unchanged, preserving child IDs/order/payload. Destructive deletion still removes wrapper plus children, Undo/Redo remains one History action, canonical Root protection and in-use receiver protections remain unchanged, and no schema/renderer/Player/publication changes were made. Manual product acceptance is complete.
+- **Player account pairing + account-scoped Live** — Implementation complete on the feature branch: the Player uses a persistent anonymous technical identity, temporary PIN claim binds it durably to one authenticated account, and the complete RTDB Live protocol is scoped under `live/{ownerUid}/...`. Pairing state remains outside Live and outside the canonical Presentation. Different accounts can run simultaneous isolated Lives; Players bound to the same account intentionally share that account's singleton Live. Watch/Cover/public root use publication context instead of a global Live. Production two-account/two-Player acceptance remains pending, and `schemaVersion` remains literally `1`.
+
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
 - **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy authoring is handled separately in Studio and now derives new duplicate IDs from a stable pre-copy family root without migrating existing IDs.
 - **Root Definitions / structural normalization** — SM6E1–SM6E3. The canonical `rootDefinitions` collection, shared preset structural primitive, same-workspace lifecycle, This Presentation browser/management, explicit/default Slide association, receiver authorization, owner-aware master and Slide-local authoring, state-aware assignment safety, Element Style compatibility, resource composition, History, persistence, import/export, publish, Player, Control, Library-thumbnail and renderer acceptance are complete. `schemaVersion` remains literally `1`; V1 intentionally keeps one effective Root per Slide, disallows nested Roots and per-Slide master property overrides, and blocks destructive reassignment instead of migrating content automatically.
@@ -795,7 +797,7 @@ The dialog now offers Delete container and children, Delete container, keep chil
 
 ## P14 — Maintenance & Diagnostics 🟡
 
-D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded. Do not turn Maintenance into a generic fleet-management surface without concrete need.
+D0–D2 plus remote logs are operational. Further expansion remains evidence-driven and bounded. Do not turn Maintenance into a generic fleet-management surface without concrete need. Presence, logs and recovery are account-scoped and must remain isolated between authenticated owners.
 
 ## P15 — Audience / Watch expansion — future
 
@@ -859,6 +861,7 @@ P12   UX / Properties refinement                            ✅
        Scripted FontResource parity (#216)                    ✅
        Library-thumbnail FontResource rendering              ✅
        Structured source editor + Shape path/SVG authoring    ✅
+       Player account pairing + account-scoped Live            ✅
 
 NEXT:
   not selected
@@ -867,6 +870,7 @@ IMMEDIATE QUEUE:
   not selected
 
 RELEASE GATE STILL PENDING:
+  Production two-account / two-Player isolation acceptance
   Android interactive display + Firefox 116 physical Player acceptance
 
 FUTURE / DEFERRED:
@@ -880,4 +884,4 @@ FUTURE / DEFERRED:
   Custom Library portability
 ```
 
-The Root Definition preserve-children correction is closed; future work should be selected from the deferred roadmap after merge and local-main closure.
+The Player account-pairing/account-scoped-Live implementation is complete but still awaits production two-account/two-Player acceptance. After merge and local-main closure, that production smoke is the immediate validation gate before selecting unrelated future work.
