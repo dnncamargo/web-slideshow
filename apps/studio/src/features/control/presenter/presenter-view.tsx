@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import Link from "next/link";
 
@@ -292,6 +292,7 @@ function PresenterPointedNotes({
 }
 
 export interface PresenterViewProps {
+  pairingControl?: ReactNode;
   view: LiveControlView | null;
   sendFailed: boolean;
   presentationState: PresenterPresentationState;
@@ -363,6 +364,7 @@ export interface PresenterViewProps {
  */
 
 export function PresenterView({
+  pairingControl = null,
   view,
   sendFailed,
   presentationState,
@@ -643,6 +645,11 @@ export function PresenterView({
         </aside>
 
         <section className={presenterStyles.currentColumn}>
+          {pairingControl !== null && (
+            <div className={presenterStyles.pairingAnchor}>
+              {pairingControl}
+            </div>
+          )}
           {fontResourcesCss && (
             <style data-presentation-font-resources>{fontResourcesCss}</style>
           )}
