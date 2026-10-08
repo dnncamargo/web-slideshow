@@ -1,6 +1,8 @@
 import {
   onDisconnect,
   ref,
+  remove,
+  runTransaction,
   serverTimestamp,
   set,
   type Database,
@@ -107,6 +109,19 @@ export async function startPlayerPresence(
     stop: () => {
       if (stopped) return;
       stopped = true;
+
+      void remove(leaseRef).catch(() => undefined);
+      void runTransaction(
+        currentRef,
+        (current) => {
+          if (typeof current !== "object" || current === null) return;
+          const record = current as { bootId?: unknown; playerUid?: unknown };
+          return record.bootId === bootId && record.playerUid === playerUid
+            ? null
+            : undefined;
+        },
+        { applyLocally: false },
+      ).catch(() => undefined);
     },
   };
 }
