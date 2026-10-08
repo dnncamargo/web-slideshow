@@ -20,6 +20,10 @@ import type { StudioTranslate } from "@/features/i18n/studio-i18n";
 import { LocaleSelector } from "@/features/i18n/locale-selector";
 import { STUDIO_ROUTES } from "@/features/app/studio-routes";
 import { ProductSurfaceBrand } from "@/features/app/product-surface-brand";
+import {
+  getSlideNotes,
+  type PointedNote,
+} from "@/features/persistence/presentation-notes";
 import type { LiveControlView } from "../live-control";
 import type { ControlGalleryView } from "../use-live-gallery-control";
 import type { ControlScriptedActionGroup } from "../use-live-scripted-action-control";
@@ -251,6 +255,40 @@ function ScriptedStateControls({ groups, setPortValue }: { groups: readonly Cont
     const controls = port.direction === "output" ? null : port.kind === "boolean" ? <div className={presenterStyles.scriptedStateValue}><Button variant="secondary" size="compact" disabled={!port.writable} aria-pressed={port.desiredValue === false} onClick={() => setPortValue(group.scriptedSlot, port.portIndex, false)}>{t("control.off")}</Button><Button variant="secondary" size="compact" disabled={!port.writable} aria-pressed={port.desiredValue === true} onClick={() => setPortValue(group.scriptedSlot, port.portIndex, true)}>{t("control.on")}</Button></div> : <NumberPortControl key={`${group.scriptedSlot}:${port.portIndex}:${port.runtimeKey}`} group={group} port={port} setPortValue={setPortValue} t={t} />;
     return <div className={presenterStyles.scriptedStatePort} key={port.portIndex}><span className={presenterStyles.scriptedStatePortLabel}>{port.label}</span>{controls}{actual}{status && <span className={presenterStyles.scriptedStateStatus}>{status}</span>}</div>;
   })}</div>);
+}
+
+function PresenterPointedNotes({
+  pointedNotes,
+  mobile = false,
+  t,
+}: {
+  pointedNotes: readonly PointedNote[];
+  mobile?: boolean;
+  t: StudioTranslate;
+}) {
+  if (pointedNotes.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      className={`${presenterStyles.pointedNotes}${mobile ? ` ${presenterStyles.mobilePointedNotes}` : ""}`}
+      data-pointed-notes={mobile ? undefined : ""}
+      data-mobile-pointed-notes={mobile ? "" : undefined}
+    >
+      <h2 className={presenterStyles.pointedNotesTitle}>{t("notes.pointed")}</h2>
+      <ol className={presenterStyles.pointedNotesList}>
+        {pointedNotes.map((pointedNote, index) => (
+          <li className={presenterStyles.pointedNoteItem} key={pointedNote.id}>
+            <span className={presenterStyles.pointedNoteNumber} aria-hidden="true">
+              [{index + 1}]
+            </span>
+            <span className={presenterStyles.pointedNoteText}>{pointedNote.text}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 export interface PresenterViewProps {
@@ -514,10 +552,10 @@ export function PresenterView({
 
   const notesState = usePresenterNotes(presentation);
 
-  const currentSlideNote =
+  const currentSlidePointedNotes =
     currentSlide !== null && notesState.kind === "ready"
-      ? (notesState.notes.bySlideId[currentSlide.id] ?? "")
-      : "";
+      ? getSlideNotes(notesState.notes, currentSlide.id).pointed
+      : [];
 
   const fontResourcesCss = useMemo(
     () =>
@@ -880,6 +918,17 @@ export function PresenterView({
           </div>
         )}
 
+        {(currentSlidePointedNotes.length > 0 || notesState.kind === "error") && (
+          <div className={presenterStyles.mobileNotesRegion}>
+            <PresenterPointedNotes pointedNotes={currentSlidePointedNotes} mobile t={t} />
+            {notesState.kind === "error" && (
+              <p className={`${styles.error} ${presenterStyles.mobileNotesLoadError}`}>
+                {t("notes.loadError")}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className={presenterStyles.mobilePlayerStatus}>
           <span className={styles.clockStatus}>{clock}</span>
 
@@ -932,9 +981,8 @@ export function PresenterView({
                 <ScriptedStateControls groups={scriptedStateGroups} setPortValue={setScriptedPortValue} />
               </div>
             )}
-            {currentSlide && currentSlideNote !== "" && (
-              <p className={presenterStyles.note}>{currentSlideNote}</p>
-            )}
+
+            <PresenterPointedNotes pointedNotes={currentSlidePointedNotes} t={t} />
 
             {notesState.kind === "error" && (
               <p className={styles.error}>{t("notes.loadError")}</p>

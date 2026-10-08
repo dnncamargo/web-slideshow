@@ -494,10 +494,10 @@ describe("SM6C Root Definition workspace shell", () => {
 
   it("keeps Notes unavailable but allows Resources without touching the notes repository", () => {
     const getNotes = vi.fn(() => new Promise<PresentationNotes>(() => {}));
-    const setSlideNote = vi.fn(async () => {});
+    const setSlideNotes = vi.fn(async () => {});
     const notesRepository: PresentationNotesRepository = {
       getNotes,
-      setSlideNote,
+      setSlideNotes,
     };
     render(presentation(), vi.fn(), notesRepository);
 
@@ -519,7 +519,7 @@ describe("SM6C Root Definition workspace shell", () => {
     expect(getNotes.mock.calls.flat()).not.toContain(
       "root-definition-workspace:root-1",
     );
-    expect(setSlideNote).not.toHaveBeenCalled();
+    expect(setSlideNotes).not.toHaveBeenCalled();
   });
 
   it("commits a Root Presentation palette mutation with exact Undo/Redo", async () => {

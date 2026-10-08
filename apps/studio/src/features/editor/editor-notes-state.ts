@@ -1,8 +1,11 @@
 import {
-  applySlideNote,
+  applySlideNotes,
   createEmptyNotes,
   type PresentationNotes,
+  type SlideNotes,
 } from "../persistence/presentation-notes";
+
+export { getNoteForSlide } from "../persistence/presentation-notes";
 
 /**
  * Editor-local private notes state.
@@ -20,15 +23,14 @@ export interface EditorNotesState {
   isSaving: boolean;
   failedSlideIds: string[];
 }
-
 export type EditorNotesAction =
   | { type: "notes-load-start" }
   | { type: "notes-load-success"; notes: PresentationNotes }
   | { type: "notes-load-error" }
-  | { type: "note-save-start"; slideId: string; note: string }
-  | { type: "note-save-success"; slideId: string; note: string }
-  | { type: "note-save-error"; slideId: string; note: string }
-  | { type: "note-edit"; slideId: string; note: string };
+  | { type: "note-save-start"; slideId: string; slideNotes: SlideNotes }
+  | { type: "note-save-success"; slideId: string; slideNotes: SlideNotes }
+  | { type: "note-save-error"; slideId: string; slideNotes: SlideNotes }
+  | { type: "slide-notes-edit"; slideId: string; slideNotes: SlideNotes };
 
 export function createInitialEditorNotesState(): EditorNotesState {
   return {
@@ -55,10 +57,10 @@ export function editorNotesReducer(
       };
     case "notes-load-error":
       return { ...state, status: "error" };
-    case "note-edit":
+    case "slide-notes-edit":
       return {
         ...state,
-        notes: applySlideNote(state.notes, action.slideId, action.note),
+        notes: applySlideNotes(state.notes, action.slideId, action.slideNotes),
       };
 
     case "note-save-start":
@@ -85,19 +87,4 @@ export function editorNotesReducer(
           : [...state.failedSlideIds, action.slideId],
       };
   }
-}
-
-/**
- * Resolve the note text for a slide. Missing slides or missing notes resolve
- * to an empty string so the Editor always has a stable value to edit.
- */
-export function getNoteForSlide(
-  notes: PresentationNotes,
-  slideId: string,
-): string {
-  if (slideId.length === 0) {
-    return "";
-  }
-
-  return notes.bySlideId[slideId] ?? "";
 }

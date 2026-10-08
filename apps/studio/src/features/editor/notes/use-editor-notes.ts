@@ -1,15 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+
+import { resolveLogicalSlideSize } from "@web-slideshow/renderer";
 
 import type { PresentationNotesRepository } from "@/features/persistence/presentation-notes-repository";
+import type { Presentation } from "@web-slideshow/document-schema";
+import type {
+  PointedNote,
+  SlideNotes,
+} from "../../persistence/presentation-notes";
 
 import {
   createInitialEditorNotesState,
   editorNotesReducer,
-  getNoteForSlide,
   type EditorNotesStatus,
 } from "../editor-notes-state";
+import {
+  appendPointedNote,
+  getPointedNoteIds,
+  getSlideNotes,
+  removePointedNote,
+  updatePointedNotePosition,
+  updatePointedNoteText,
+} from "../../persistence/presentation-notes";
+import { createUniqueId } from "../preset-structure";
 import {
   createNotesAutosave,
   type NotesAutosaveController,
@@ -21,18 +43,22 @@ export interface UseEditorNotesOptions {
   presentationId: string;
   notesRepository?: PresentationNotesRepository;
   selectedSlideId: string;
+  aspectRatio: Presentation["aspectRatio"];
   enabled: boolean;
   autosaveDelayMs?: number;
 }
 
 export interface UseEditorNotesResult {
-  note: string;
+  slideNotes: SlideNotes;
   status: EditorNotesStatus;
   isSaving: boolean;
   hasSaveError: boolean;
   hasCurrentSaveError: boolean;
   hasPending: boolean;
-  onChange: (note: string) => void;
+  onAddPointedNote: () => void;
+  onPointedNoteChange: (pointedNoteId: string, text: string) => void;
+  onPointedNoteMove: (pointedNoteId: string, x: number, y: number) => void;
+  onRemovePointedNote: (pointedNoteId: string) => void;
   flush: () => void;
 }
 
@@ -48,6 +74,7 @@ export function useEditorNotes({
   presentationId,
   notesRepository,
   selectedSlideId,
+  aspectRatio,
   enabled,
   autosaveDelayMs = NOTES_AUTOSAVE_DELAY_MS,
 }: UseEditorNotesOptions): UseEditorNotesResult {
@@ -64,8 +91,8 @@ export function useEditorNotes({
   const autosaveRef = useRef<NotesAutosaveController | null>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const persistNote = useCallback(
-    (targetPresentationId: string, slideId: string, note: string) => {
+  const persistSlideNotes = useCallback(
+    (targetPresentationId: string, slideId: string, slideNotes: SlideNotes) => {
       const repository = notesRepositoryRef.current;
 
       if (!repository) {
@@ -77,18 +104,22 @@ export function useEditorNotes({
           dispatch({
             type: "note-save-start",
             slideId,
-            note,
+            slideNotes,
           });
         }
 
         try {
-          await repository.setSlideNote(targetPresentationId, slideId, note);
+          await repository.setSlideNotes(
+            targetPresentationId,
+            slideId,
+            slideNotes,
+          );
 
           if (mountedRef.current) {
             dispatch({
               type: "note-save-success",
               slideId,
-              note,
+              slideNotes,
             });
           }
         } catch (error) {
@@ -98,7 +129,7 @@ export function useEditorNotes({
             dispatch({
               type: "note-save-error",
               slideId,
-              note,
+              slideNotes,
             });
           }
         }
@@ -119,7 +150,7 @@ export function useEditorNotes({
       delayMs: autosaveDelayMs,
       onSave: (save) => {
         setHasPending(autosave.hasPending());
-        persistNote(save.presentationId, save.slideId, save.note);
+        persistSlideNotes(save.presentationId, save.slideId, save.slideNotes);
       },
     });
     autosaveRef.current = autosave;
@@ -131,7 +162,7 @@ export function useEditorNotes({
       autosave.dispose();
       autosaveRef.current = null;
     };
-  }, [persistNote, autosaveDelayMs]);
+  }, [persistSlideNotes, autosaveDelayMs]);
 
   useEffect(() => {
     presentationIdRef.current = presentationId;
@@ -181,33 +212,121 @@ export function useEditorNotes({
     }
   }, [enabled, flush]);
 
-  const note = useMemo(
-    () => getNoteForSlide(state.notes, selectedSlideId),
+  const slideNotes = useMemo(
+    () => getSlideNotes(state.notes, selectedSlideId),
     [state.notes, selectedSlideId],
   );
 
-  function onChange(value: string) {
-    if (!selectedSlideId) {
+  const commitSlideNotes = useCallback(
+    (nextSlideNotes: SlideNotes) => {
+      if (!selectedSlideId || state.status !== "ready") {
+        return;
+      }
+
+      dispatch({
+        type: "slide-notes-edit",
+        slideId: selectedSlideId,
+        slideNotes: nextSlideNotes,
+      });
+      autosaveRef.current?.schedule(
+        presentationId,
+        selectedSlideId,
+        nextSlideNotes,
+      );
+      setHasPending(autosaveRef.current?.hasPending() ?? false);
+    },
+    [presentationId, selectedSlideId, state.status],
+  );
+
+  const onAddPointedNote = useCallback(() => {
+    if (!selectedSlideId || state.status !== "ready") {
       return;
     }
 
-    if (value === getNoteForSlide(state.notes, selectedSlideId)) {
-      return;
-    }
+    const logicalSize = resolveLogicalSlideSize(aspectRatio);
+    const pointedNote: PointedNote = {
+      id: createUniqueId("pointed-note", getPointedNoteIds(state.notes)),
+      text: "",
+      x: logicalSize.logicalWidth / 2,
+      y: logicalSize.logicalHeight / 2,
+    };
 
-    dispatch({ type: "note-edit", slideId: selectedSlideId, note: value });
-    autosaveRef.current?.schedule(presentationId, selectedSlideId, value);
-    setHasPending(autosaveRef.current?.hasPending() ?? false);
-  }
+    const nextNotes = appendPointedNote(
+      state.notes,
+      selectedSlideId,
+      pointedNote,
+    );
+    commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
+  }, [
+    aspectRatio,
+    commitSlideNotes,
+    selectedSlideId,
+    state.notes,
+    state.status,
+  ]);
+
+  const onPointedNoteChange = useCallback(
+    (pointedNoteId: string, text: string) => {
+      if (!selectedSlideId || state.status !== "ready") {
+        return;
+      }
+
+      const nextNotes = updatePointedNoteText(
+        state.notes,
+        selectedSlideId,
+        pointedNoteId,
+        text,
+      );
+      commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
+    },
+    [commitSlideNotes, selectedSlideId, state.notes, state.status],
+  );
+
+  const onPointedNoteMove = useCallback(
+    (pointedNoteId: string, x: number, y: number) => {
+      if (!selectedSlideId || state.status !== "ready") {
+        return;
+      }
+
+      const nextNotes = updatePointedNotePosition(
+        state.notes,
+        selectedSlideId,
+        pointedNoteId,
+        x,
+        y,
+      );
+      commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
+    },
+    [commitSlideNotes, selectedSlideId, state.notes, state.status],
+  );
+
+  const onRemovePointedNote = useCallback(
+    (pointedNoteId: string) => {
+      if (!selectedSlideId || state.status !== "ready") {
+        return;
+      }
+
+      const nextNotes = removePointedNote(
+        state.notes,
+        selectedSlideId,
+        pointedNoteId,
+      );
+      commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
+    },
+    [commitSlideNotes, selectedSlideId, state.notes, state.status],
+  );
 
   return {
-    note,
+    slideNotes,
     status: state.status,
     isSaving: state.isSaving,
     hasSaveError: state.failedSlideIds.length > 0,
     hasCurrentSaveError: state.failedSlideIds.includes(selectedSlideId),
     hasPending,
-    onChange,
+    onAddPointedNote,
+    onPointedNoteChange,
+    onPointedNoteMove,
+    onRemovePointedNote,
     flush,
   };
 }

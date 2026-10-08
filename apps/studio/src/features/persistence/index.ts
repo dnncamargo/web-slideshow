@@ -47,10 +47,15 @@ export {
   type PresentationFolder,
 } from "./presentation-folder";
 export {
-  applySlideNote,
+  appendPointedNote,
   createEmptyNotes,
+  getPointedNoteIds,
   makeFirestoreSafeNotes,
   normalizePersistedNotes,
+  removePointedNote,
+  updatePointedNotePosition,
+  updatePointedNoteText,
+  updateSlideNoteText,
   type PresentationNotes,
 } from "./presentation-notes";
 export type {

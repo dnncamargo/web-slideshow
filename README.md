@@ -261,6 +261,12 @@ Republishing never mutates an existing published version. The canonical Presenta
 
 Private organization metadata and slide Notes remain outside the canonical Presentation.
 
+### Pointed Notes
+
+Pointed Notes are private metadata stored outside the canonical Presentation. The Editor authors numbered references with stable opaque identity, plain text and logical slide `x`/`y` coordinates. Editor-only Canvas markers are 32×32 logical units with a dark-red background and white number derived from array order; numbering is never persisted, and completed drags save the logical position.
+
+Control reads Pointed Notes for the current slide and shows numbered textual references on desktop and mobile without marker overlays. Player, Watch, the renderer and publication do not consume private Notes. Legacy ordinary-note text remains only for persistence compatibility and is no longer a visible authoring or Control surface. The canonical `schemaVersion` remains `1`.
+
 ## Live presentation model
 
 Transient live control uses Firebase Realtime Database while published content remains in immutable Firestore versions.
@@ -627,7 +633,8 @@ Table Size                                               ✅
 Divider gradient                                         ✅
 Linked Styles target expansion                           ✅
 Text Effects ✅
-NEXT: Pointed Notes — numbered Canvas markers + Control reading
+Pointed Notes ✅
+NEXT: Container delete preserving children under Root Definition — urgent fix
 ```
 
 Immediate execution order:
@@ -636,7 +643,8 @@ Immediate execution order:
 2. Divider gradient ✅
 3. Linked Styles target expansion ✅
 4. Text effects: gradient fill / shadow / glow ✅
-5. Pointed Notes — numbered Canvas markers + Control reading ← NEXT
+5. Pointed Notes ✅
+6. Container delete preserving children under Root Definition — urgent fix ← NEXT
 
 Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 

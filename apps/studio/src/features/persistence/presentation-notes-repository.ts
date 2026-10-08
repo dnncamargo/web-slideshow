@@ -1,4 +1,4 @@
-import type { PresentationNotes } from "./presentation-notes";
+import type { PresentationNotes, SlideNotes } from "./presentation-notes";
 
 /**
  * Domain-facing speaker-note repository abstraction.
@@ -10,9 +10,9 @@ import type { PresentationNotes } from "./presentation-notes";
  */
 export interface PresentationNotesRepository {
   getNotes(presentationId: string): Promise<PresentationNotes>;
-  setSlideNote(
+  setSlideNotes(
     presentationId: string,
     slideId: string,
-    note: string,
+    slideNotes: SlideNotes,
   ): Promise<void>;
 }

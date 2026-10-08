@@ -1,3 +1,5 @@
+import type { SlideNotes } from "../../persistence/presentation-notes";
+
 /**
  * Pure, framework-independent autosave scheduler for editor notes.
  *
@@ -12,9 +14,8 @@
 export interface PendingNotesSave {
   presentationId: string;
   slideId: string;
-  note: string;
+  slideNotes: SlideNotes;
 }
-
 export interface NotesAutosaveOptions {
   delayMs: number;
   onSave: (save: PendingNotesSave) => void;
@@ -26,7 +27,7 @@ export interface NotesAutosaveController {
   schedule(
     presentationId: string,
     slideId: string,
-    note: string,
+    slideNotes: SlideNotes,
   ): void;
   hasPending(): boolean;
   flush(): void;
@@ -53,10 +54,7 @@ export function createNotesAutosave(
 
   const pendingByTarget = new Map<string, PendingEntry>();
 
-  function getTargetKey(
-    presentationId: string,
-    slideId: string,
-  ): string {
+  function getTargetKey(presentationId: string, slideId: string): string {
     return JSON.stringify([presentationId, slideId]);
   }
 
@@ -73,15 +71,8 @@ export function createNotesAutosave(
   }
 
   return {
-    schedule(
-      presentationId: string,
-      slideId: string,
-      note: string,
-    ) {
-      const targetKey = getTargetKey(
-        presentationId,
-        slideId,
-      );
+    schedule(presentationId: string, slideId: string, slideNotes: SlideNotes) {
+      const targetKey = getTargetKey(presentationId, slideId);
 
       const previous = pendingByTarget.get(targetKey);
 
@@ -92,7 +83,12 @@ export function createNotesAutosave(
       const save: PendingNotesSave = {
         presentationId,
         slideId,
-        note,
+        slideNotes: {
+          text: slideNotes.text,
+          pointed: slideNotes.pointed.map((pointedNote) => ({
+            ...pointedNote,
+          })),
+        },
       };
 
       const timer = scheduleTimer(() => {
@@ -110,9 +106,7 @@ export function createNotesAutosave(
     },
 
     flush() {
-      const entries = Array.from(
-        pendingByTarget.values(),
-      );
+      const entries = Array.from(pendingByTarget.values());
 
       pendingByTarget.clear();
 

@@ -2,11 +2,12 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import type { PresentationNotesRepository } from "../src/features/persistence/presentation-notes-repository";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -120,15 +121,22 @@ describe("EditorWorkspace slide geometry", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    vi.useRealTimers();
     globalThis.ResizeObserver = originalResizeObserver;
     document.body.innerHTML = "";
   });
 
-  async function mount(value = presentation()) {
+  async function mount(
+    value = presentation(),
+    notesRepository?: PresentationNotesRepository,
+  ) {
     await act(async () => {
       root.render(
         <StudioI18nProvider>
-          <EditorWorkspace initialPresentation={value} />
+          <EditorWorkspace
+            initialPresentation={value}
+            notesRepository={notesRepository}
+          />
         </StudioI18nProvider>,
       );
     });
@@ -252,5 +260,102 @@ describe("EditorWorkspace slide geometry", () => {
     });
     expect(container.textContent).toContain("Container · fit-container");
     expect(container.querySelector("[class*='ResizeOverlay']")).not.toBeNull();
+  });
+
+  it("renders private markers above the slide even when the Notes panel is closed", async () => {
+    const notesRepository: PresentationNotesRepository = {
+      getNotes: vi.fn(async () => ({
+        bySlideId: {
+          "slide-1": {
+            text: "ordinary",
+            pointed: [
+              { id: "pointed-a", text: "first", x: 480, y: 270 },
+              { id: "pointed-b", text: "second", x: 700, y: 400 },
+            ],
+          },
+        },
+      })),
+      setSlideNotes: vi.fn(async () => undefined),
+    };
+
+    const viewport = await mount(presentation(), notesRepository);
+    setViewportSize(viewport, 1024, 604);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const markers = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("[data-pointed-note-marker]"),
+    );
+    expect(markers.map((marker) => marker.textContent)).toEqual(["1", "2"]);
+    expect(markers.map((marker) => marker.dataset.pointedNoteId)).toEqual([
+      "pointed-a",
+      "pointed-b",
+    ]);
+    expect(container.querySelector("[data-pointed-note-layer]")).not.toBeNull();
+    expect(container.querySelector("[class*='notesWorkspace']")).toBeNull();
+    expect(markers[0]?.textContent).not.toContain("[");
+  });
+
+  it("previews marker movement in logical coordinates and saves once on pointerup", async () => {
+    vi.useFakeTimers();
+    const notesRepository: PresentationNotesRepository = {
+      getNotes: vi.fn(async () => ({
+        bySlideId: {
+          "slide-1": {
+            text: "ordinary",
+            pointed: [
+              { id: "pointed-a", text: "first", x: 480, y: 270 },
+              { id: "pointed-b", text: "second", x: 700, y: 400 },
+            ],
+          },
+        },
+      })),
+      setSlideNotes: vi.fn(async () => undefined),
+    };
+
+    const viewport = await mount(presentation(), notesRepository);
+    setViewportSize(viewport, 544, 334);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const marker = container.querySelector<HTMLButtonElement>(
+      '[data-pointed-note-id="pointed-a"]',
+    );
+    if (!marker) throw new Error("expected pointed marker");
+
+    await act(async () => {
+      marker.dispatchEvent(pointer("pointerdown", 100, 100));
+      marker.dispatchEvent(pointer("pointermove", 140, 120));
+    });
+
+    expect(marker.style.left).toBe("560px");
+    expect(marker.style.top).toBe("310px");
+    expect(notesRepository.setSlideNotes).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("No element selected");
+
+    await act(async () => {
+      marker.dispatchEvent(pointer("pointerup", 140, 120));
+    });
+
+    expect(notesRepository.setSlideNotes).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+
+    expect(notesRepository.setSlideNotes).toHaveBeenCalledTimes(1);
+    expect(notesRepository.setSlideNotes).toHaveBeenCalledWith(
+      "geometry-16:9",
+      "slide-1",
+      {
+        text: "ordinary",
+        pointed: [
+          { id: "pointed-a", text: "first", x: 560, y: 310 },
+          { id: "pointed-b", text: "second", x: 700, y: 400 },
+        ],
+      },
+    );
   });
 });

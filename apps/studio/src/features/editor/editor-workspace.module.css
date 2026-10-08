@@ -621,6 +621,42 @@
     rgba(0, 0, 0, 0.45);
 }
 
+.pointedNoteLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 8;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.pointedNoteMarker {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: #8b1e2d;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.pointedNoteMarker:active {
+  cursor: grabbing;
+}
+
 
 .slideCanvas
   > :global(.presentation-slide) {

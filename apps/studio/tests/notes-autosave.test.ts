@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createNotesAutosave } from "../src/features/editor/notes/notes-autosave";
+import type { PointedNote } from "../src/features/persistence/presentation-notes";
 
 const setTimeoutFn = (handler: () => void, delayMs: number) =>
   setTimeout(handler, delayMs) as unknown as number;
 const clearTimeoutFn = (handle: number) => clearTimeout(handle);
+const slideNotes = (text: string, pointed: PointedNote[] = []) => ({
+  text,
+  pointed,
+});
 
 describe("notes autosave lifecycle", () => {
   beforeEach(() => {
@@ -15,248 +20,129 @@ describe("notes autosave lifecycle", () => {
     vi.useRealTimers();
   });
 
-  const presentationId = "pres-1";
-
-  it("persists a scheduled edit after the debounce delay", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
+  it("persists a complete slide snapshot after the 500 ms debounce", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
+    const snapshot = slideNotes("hello", [
+      { id: "pointed-1", text: "marker", x: 10, y: 20 },
+    ]);
 
-    autosave.schedule(presentationId, "slide-1", "hello");
-
+    autosave.schedule("pres-1", "slide-1", snapshot);
     expect(saved).toEqual([]);
     expect(autosave.hasPending()).toBe(true);
 
     vi.advanceTimersByTime(500);
 
     expect(saved).toEqual([
-      {
-        presentationId,
-        slideId: "slide-1",
-        note: "hello",
-      },
+      { presentationId: "pres-1", slideId: "slide-1", slideNotes: snapshot },
     ]);
     expect(autosave.hasPending()).toBe(false);
   });
 
-  it("coalesces repeated edits into a single save", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
+  it("coalesces repeated edits into a single complete snapshot", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
 
-    autosave.schedule(presentationId, "slide-1", "a");
+    autosave.schedule("pres-1", "slide-1", slideNotes("a"));
     vi.advanceTimersByTime(200);
-    autosave.schedule(presentationId, "slide-1", "ab");
+    autosave.schedule("pres-1", "slide-1", slideNotes("ab"));
     vi.advanceTimersByTime(200);
-    autosave.schedule(presentationId, "slide-1", "abc");
+    autosave.schedule("pres-1", "slide-1", slideNotes("abc"));
     vi.advanceTimersByTime(500);
 
     expect(saved).toEqual([
       {
-        presentationId,
+        presentationId: "pres-1",
         slideId: "slide-1",
-        note: "abc",
+        slideNotes: slideNotes("abc"),
       },
     ]);
   });
 
-  it("keeps pending saves independent across different slides", () => {
-    const saved: Array<{
-      presentationId: string;
-      slideId: string;
-      note: string;
-    }> = [];
-
+  it("keeps pending saves independent across slides and presentations", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
 
-    autosave.schedule(presentationId, "slide-a", "note for a");
-
+    autosave.schedule("pres-a", "slide-a", slideNotes("a"));
     vi.advanceTimersByTime(300);
-
-    autosave.schedule(presentationId, "slide-b", "note for b");
-
-    // A reaches its own 500 ms deadline.
+    autosave.schedule("pres-b", "slide-a", slideNotes("b"));
+    autosave.schedule("pres-a", "slide-b", slideNotes("c"));
     vi.advanceTimersByTime(200);
 
     expect(saved).toEqual([
-      {
-        presentationId: "pres-1",
-        slideId: "slide-a",
-        note: "note for a",
-      },
+      { presentationId: "pres-a", slideId: "slide-a", slideNotes: slideNotes("a") },
     ]);
 
-    // B reaches its independent deadline.
     vi.advanceTimersByTime(300);
-
     expect(saved).toEqual([
-      {
-        presentationId: "pres-1",
-        slideId: "slide-a",
-        note: "note for a",
-      },
-      {
-        presentationId: "pres-1",
-        slideId: "slide-b",
-        note: "note for b",
-      },
+      { presentationId: "pres-a", slideId: "slide-a", slideNotes: slideNotes("a") },
+      { presentationId: "pres-b", slideId: "slide-a", slideNotes: slideNotes("b") },
+      { presentationId: "pres-a", slideId: "slide-b", slideNotes: slideNotes("c") },
     ]);
   });
 
-  it("keeps the presentation identity captured at schedule time", () => {
-    const saved: Array<{
-      presentationId: string;
-      slideId: string;
-      note: string;
-    }> = [];
-
+  it("flushes all pending complete snapshots immediately", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
 
-    autosave.schedule("pres-a", "slide-1", "note from A");
-
-    autosave.schedule("pres-b", "slide-1", "note from B");
-
-    vi.advanceTimersByTime(500);
-
-    expect(saved).toEqual([
-      {
-        presentationId: "pres-a",
-        slideId: "slide-1",
-        note: "note from A",
-      },
-      {
-        presentationId: "pres-b",
-        slideId: "slide-1",
-        note: "note from B",
-      },
-    ]);
-  });
-
-  it("never writes slide A's pending note into slide B", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
-    const autosave = createNotesAutosave({
-      delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
-      setTimeoutFn,
-      clearTimeoutFn,
-    });
-
-    autosave.schedule("pres-1", "slide-a", "note for a");
-    vi.advanceTimersByTime(300);
-
-    autosave.schedule("pres-1", "slide-b", "note for b");
-    vi.advanceTimersByTime(500);
-
-    expect(saved).toEqual([
-      {
-        presentationId,
-        slideId: "slide-a",
-        note: "note for a",
-      },
-      {
-        presentationId,
-        slideId: "slide-b",
-        note: "note for b",
-      },
-    ]);
-  });
-
-  it("flush persists the pending edit immediately", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
-    const autosave = createNotesAutosave({
-      delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
-      setTimeoutFn,
-      clearTimeoutFn,
-    });
-
-    autosave.schedule("pres-1", "slide-1", "pending");
+    autosave.schedule("pres-1", "slide-1", slideNotes("pending"));
     autosave.flush();
 
     expect(saved).toEqual([
       {
-        presentationId,
+        presentationId: "pres-1",
         slideId: "slide-1",
-        note: "pending",
+        slideNotes: slideNotes("pending"),
       },
     ]);
     expect(autosave.hasPending()).toBe(false);
   });
 
-  it("pending edit survives until flushed without saving early", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
+  it("does not save early or after dispose", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
 
-    autosave.schedule("pres-1", "slide-1", "still editing");
+    autosave.schedule("pres-1", "slide-1", slideNotes("pending"));
     vi.advanceTimersByTime(200);
-
     expect(saved).toEqual([]);
     expect(autosave.hasPending()).toBe(true);
-  });
 
-  it("dispose clears the pending timer without firing a save", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
-    const autosave = createNotesAutosave({
-      delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
-      setTimeoutFn,
-      clearTimeoutFn,
-    });
-
-    autosave.schedule("pres-1", "slide-1", "discarded");
     autosave.dispose();
     vi.advanceTimersByTime(1000);
-
     expect(saved).toEqual([]);
     expect(autosave.hasPending()).toBe(false);
   });
 
-  it("schedule with no prior edit and flush does nothing", () => {
-    const saved: Array<{ slideId: string; note: string }> = [];
+  it("does nothing when flushed without a pending edit", () => {
+    const saved: unknown[] = [];
     const autosave = createNotesAutosave({
       delayMs: 500,
-      onSave: (save) => {
-        saved.push(save);
-      },
+      onSave: (save) => saved.push(save),
       setTimeoutFn,
       clearTimeoutFn,
     });
