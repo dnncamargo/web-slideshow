@@ -65,19 +65,40 @@ describe("Control Player pairing", () => {
       ownerUid: "account-1",
     });
 
-    expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
-    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingCodes/123456" });
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
+    expect(mocks.ref).toHaveBeenNthCalledWith(2, {}, "playerPairingClaims/player-1");
+    expect(mocks.ref).toHaveBeenNthCalledWith(3, {}, "playerBindings/player-1");
+    expect(mocks.remove).toHaveBeenNthCalledWith(1, { path: "playerPairingCodes/123456" });
+    expect(mocks.remove).toHaveBeenNthCalledWith(2, { path: "playerPairingClaims/player-1" });
   });
 
-  it("rejects a second account when the binding transaction does not commit", async () => {
+  it("does not create a binding when the temporary claim cannot be reserved", async () => {
     mocks.runTransaction.mockResolvedValue({
       committed: false,
-      snapshot: { val: () => ({ ownerUid: "account-1" }) },
+      snapshot: { val: () => ({ ownerUid: "account-2" }) },
     });
+
+    await expect(claimPlayerByPin({} as never, "123456")).rejects.toThrow(
+      "currently being claimed",
+    );
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("does not report success when the durable binding transaction does not commit", async () => {
+    mocks.runTransaction
+      .mockResolvedValueOnce({
+        committed: true,
+        snapshot: { val: () => ({ pin: "123456", ownerUid: "account-1", expiresAt: Date.now() + 10_000 }) },
+      })
+      .mockResolvedValueOnce({
+        committed: false,
+        snapshot: { val: () => ({ ownerUid: "account-2" }) },
+      });
 
     await expect(claimPlayerByPin({} as never, "123456")).rejects.toThrow(
       "already paired",
     );
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingClaims/player-1" });
   });
 });

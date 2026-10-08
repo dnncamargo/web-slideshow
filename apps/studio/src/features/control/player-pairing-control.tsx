@@ -23,8 +23,27 @@ export function PlayerPairingControl() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [open, setOpen] = useState(false);
 
   if (!isRealtimeDatabaseConfigured() || connected) return null;
+
+  if (!open) {
+    return (
+      <section className={styles.pairing} aria-label={t("control.connectPlayer")}>
+        <Button
+          size="compact"
+          variant="ghost"
+          aria-expanded={false}
+          onClick={() => {
+            setError(null);
+            setOpen(true);
+          }}
+        >
+          {t("control.connectPlayer")}
+        </Button>
+      </section>
+    );
+  }
 
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -58,6 +77,16 @@ export function PlayerPairingControl() {
     <section className={styles.pairing} aria-label={t("control.connectPlayer")}>
       <form className={styles.pairingForm} onSubmit={onSubmit}>
         <span className={styles.pairingTitle}>{t("control.connectPlayer")}</span>
+        <Button
+          type="button"
+          size="compact"
+          variant="ghost"
+          aria-expanded={true}
+          aria-label={t("control.connectPlayer")}
+          onClick={() => setOpen(false)}
+        >
+          ×
+        </Button>
         <label className={styles.pairingField}>
           <span>{t("control.pin")}</span>
           <input
