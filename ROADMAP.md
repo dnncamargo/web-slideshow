@@ -860,8 +860,7 @@ P12   UX / Properties refinement                            ✅
        Structured source editor + Shape path/SVG authoring    ✅
 
 NEXT:
-  1. Pointed Notes ✅
-  2. Container delete preserving children under Root Definition — urgent fix ← NEXT
+  1. Container delete preserving children under Root Definition — urgent fix ← NEXT
 
 IMMEDIATE QUEUE:
   1. Container delete preserving children under Root Definition — urgent fix ← NEXT
