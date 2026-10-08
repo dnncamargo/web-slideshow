@@ -115,7 +115,7 @@ describe("published presentation reader", () => {
     ) => void;
     handler(
       snapshot(true, {
-        ownerUid: "ignored-by-domain-boundary",
+        ownerUid: "owner-1",
         currentVersionId: " version-9 ",
         publishedRevision: 7,
         publishedAt: "ignored-by-domain-boundary",
@@ -123,6 +123,7 @@ describe("published presentation reader", () => {
     );
 
     expect(onPointer).toHaveBeenCalledWith({
+      ownerUid: "owner-1",
       currentVersionId: "version-9",
       publishedRevision: 7,
     });
