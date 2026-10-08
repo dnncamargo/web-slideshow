@@ -46,7 +46,7 @@ describe("Player presence reporter", () => {
     mocks.disconnectSet.mockReturnValueOnce(registration.promise);
     mocks.set.mockReturnValueOnce(leasePublication.promise).mockResolvedValueOnce(undefined);
 
-    const starting = startPlayerPresence({} as never, "owner-a", 7, "version-1");
+    const starting = startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1");
 
     expect(mocks.disconnectSet).toHaveBeenCalledTimes(1);
     expect(mocks.set).not.toHaveBeenCalled();
@@ -71,6 +71,7 @@ describe("Player presence reporter", () => {
     expect(disconnect).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
+      playerUid: "player-a",
       bootId: lease.bootId,
       connected: false,
       transitionedAt: { ".sv": "timestamp" },
@@ -78,6 +79,7 @@ describe("Player presence reporter", () => {
     expect(lease).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
+      playerUid: "player-a",
       bootId: disconnect.bootId,
       connected: true,
       transitionedAt: { ".sv": "timestamp" },
@@ -85,6 +87,7 @@ describe("Player presence reporter", () => {
     expect(current).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
+      playerUid: "player-a",
       bootId: lease.bootId,
       stage: "starting",
       transitionedAt: { ".sv": "timestamp" },
@@ -92,7 +95,7 @@ describe("Player presence reporter", () => {
   });
 
   it("updates only current for ready and allowlisted failure", async () => {
-    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1");
+    const reporter = await startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1");
     const initial = mocks.set.mock.calls[1]?.[1] as { bootId: string };
 
     reporter.ready();
@@ -105,6 +108,7 @@ describe("Player presence reporter", () => {
     expect(mocks.set.mock.calls[3]?.[1]).toEqual({
       activationRevision: 7,
       currentVersionId: "version-1",
+      playerUid: "player-a",
       bootId: initial.bootId,
       stage: "load-failed",
       transitionedAt: { ".sv": "timestamp" },
@@ -116,7 +120,7 @@ describe("Player presence reporter", () => {
     const failure = new Error("registration denied");
     mocks.disconnectSet.mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).not.toHaveBeenCalled();
   });
 
@@ -124,7 +128,7 @@ describe("Player presence reporter", () => {
     const failure = new Error("lease denied");
     mocks.set.mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).toHaveBeenCalledTimes(1);
   });
 
@@ -132,13 +136,13 @@ describe("Player presence reporter", () => {
     const failure = new Error("current denied");
     mocks.set.mockResolvedValueOnce(undefined).mockRejectedValueOnce(failure);
 
-    await expect(startPlayerPresence({} as never, "owner-a", 7, "version-1")).rejects.toBe(failure);
+    await expect(startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1")).rejects.toBe(failure);
     expect(mocks.set).toHaveBeenCalledTimes(2);
   });
 
   it("sanitizes rejected ready and failed transitions", async () => {
     const onError = vi.fn();
-    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1", onError);
+    const reporter = await startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1", onError);
     const readyFailure = new Error("ready denied");
     const failedFailure = new Error("failure denied");
     mocks.set.mockRejectedValueOnce(readyFailure).mockRejectedValueOnce(failedFailure);
@@ -152,7 +156,7 @@ describe("Player presence reporter", () => {
   });
 
   it("stops transitions without canceling pagehide disconnect detection", async () => {
-    const reporter = await startPlayerPresence({} as never, "owner-a", 7, "version-1");
+    const reporter = await startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1");
 
     reporter.stop();
     reporter.stop();
