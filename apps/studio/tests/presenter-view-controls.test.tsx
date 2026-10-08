@@ -265,6 +265,7 @@ describe("PresenterView controls", () => {
         presence: {
           activationRevision: 1,
           currentVersionId: "version-1",
+          playerUid: "player-1",
           bootId: "boot-1",
           stage: "ready",
           transitionedAt: 1,
@@ -279,6 +280,7 @@ describe("PresenterView controls", () => {
         presence: {
           activationRevision: 1,
           currentVersionId: "version-1",
+          playerUid: "player-1",
           bootId: "boot-1",
           stage: "starting",
           transitionedAt: 1,
@@ -293,6 +295,7 @@ describe("PresenterView controls", () => {
         presence: {
           activationRevision: 1,
           currentVersionId: "version-1",
+          playerUid: "player-1",
           bootId: "boot-1",
           stage: "load-failed",
           transitionedAt: 1,
@@ -315,6 +318,7 @@ describe("PresenterView controls", () => {
         presence: {
           activationRevision: 1,
           currentVersionId: "version-1",
+          playerUid: "player-1",
           bootId: "boot-1",
           stage: "ready",
           transitionedAt: 1,

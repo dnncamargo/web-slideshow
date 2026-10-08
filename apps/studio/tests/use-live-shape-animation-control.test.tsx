@@ -14,7 +14,7 @@ import { discoverLiveShapeAnimationTargets, useLiveShapeAnimationControl, type U
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 7 };
-const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "version-1", bootId: "boot-a", stage: "ready" as const, transitionedAt: 1 } };
+const READY = { kind: "ready" as const, presence: { activationRevision: 7, currentVersionId: "version-1", playerUid: "player-a", bootId: "boot-a", stage: "ready" as const, transitionedAt: 1 } };
 const geometry = { mode: "path", viewBox: { x: 0, y: 0, width: 100, height: 100 }, commands: [{ type: "move", x: 0, y: 0 }, { type: "line", x: 100, y: 0 }, { type: "line", x: 100, y: 100 }, { type: "close" }] } as const;
 const shape = (id: string, animation = true) => ({ id, type: "shape", hidden: false, geometry, ...(animation ? { animation: { durationMs: 1000, autoplay: false, rotate: { fromDeg: 0, toDeg: 90 } } } : {}) });
 const presentation = (elements: unknown[]) => PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "page-a", elements }] });

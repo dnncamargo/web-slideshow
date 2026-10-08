@@ -25,7 +25,7 @@ import {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const LIVE = { publicationId: "publication", currentVersionId: "version-1", revision: 2 };
-const READY = { kind: "ready" as const, presence: { activationRevision: 2, currentVersionId: "version-1", bootId: "boot-1", stage: "ready" as const, transitionedAt: 1 } };
+const READY = { kind: "ready" as const, presence: { activationRevision: 2, currentVersionId: "version-1", playerUid: "player-1", bootId: "boot-1", stage: "ready" as const, transitionedAt: 1 } };
 
 function presentation(elements: unknown[] = [], pageBElements: unknown[] = []): Presentation {
   return PresentationSchema.parse({ schemaVersion: 1, id: "presentation", title: "Presentation", slides: [{ id: "page-a", title: "Page A", elements }, { id: "page-b", title: "Page B", elements: pageBElements }] });

@@ -97,6 +97,7 @@ const presence = (
     current: {
       activationRevision,
       currentVersionId,
+      playerUid: `player-${bootId}`,
       bootId,
       stage,
       transitionedAt: 100,
@@ -108,6 +109,7 @@ const presence = (
       [bootId]: {
         activationRevision,
         currentVersionId,
+        playerUid: `player-${bootId}`,
         bootId,
         connected,
         transitionedAt: 100,
@@ -287,7 +289,7 @@ describe("Maintenance page", () => {
     render();
     emitPresence({
       ...presence("boot-a"),
-      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", bootId: "boot-b", connected: true, transitionedAt: 100 } },
+      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", playerUid: "player-boot-b", bootId: "boot-b", connected: true, transitionedAt: 100 } },
     });
     expect(container.textContent).toContain("Player boot-a…");
     expect(container.textContent).toContain("Player boot-b…");
