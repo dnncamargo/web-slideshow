@@ -715,19 +715,57 @@
   font-size: 13px;
 }
 
-.note {
-  margin: 0;
-  padding: 12px 14px;
-  width: 100%;
-  min-height: 60px;
-  border: 1px solid #232a36;
-
+.pointedNotes {
+  min-width: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #232a36;
   background: #0b0f17;
+}
+
+.pointedNotesTitle {
+  margin: 0 0 8px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pointedNotesList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pointedNoteItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
   color: #cbd5e1;
   font-size: 14px;
-  text-align: left;
+  line-height: 1.4;
+}
+
+.pointedNoteNumber {
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pointedNoteText {
+  min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.mobileNotesRegion {
+  display: none;
+}
+
+.mobilePointedNotes {
+  display: none;
 }
 
 .liveStatus {
@@ -848,6 +886,26 @@
     background: #111620;
   }
 
+  .mobileNotesRegion {
+    display: block;
+    order: 5;
+    width: 100%;
+    flex: none;
+    border-bottom: 1px solid #232a36;
+    background: #111620;
+  }
+
+  .mobilePointedNotes {
+    display: block;
+    border-top: 0;
+    background: #111620;
+  }
+
+  .mobileNotesLoadError {
+    margin: 0;
+    padding: 10px 14px;
+  }
+
   .controlMeta {
     display: flex;
     align-items: center;
@@ -900,7 +958,7 @@
   }
 
   .mobilePlayerStatus {
-    order: 5;
+    order: 6;
 
     display: flex;
     align-items: center;
