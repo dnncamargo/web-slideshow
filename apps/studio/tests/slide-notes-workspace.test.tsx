@@ -23,10 +23,8 @@ function ControlledNotes({
     <StudioI18nProvider>
       <SlideNotesWorkspace
         slideNotes={slideNotes}
-        note={slideNotes.text}
         status={status}
         hasCurrentSaveError={false}
-        onChange={(text) => setSlideNotes((current) => ({ ...current, text }))}
         onAddPointedNote={() =>
           setSlideNotes((current) => ({
             ...current,
@@ -58,6 +56,7 @@ function ControlledNotes({
           }))
         }
       />
+      <output data-slide-notes>{JSON.stringify(slideNotes)}</output>
     </StudioI18nProvider>
   );
 }
@@ -77,26 +76,33 @@ describe("SlideNotesWorkspace", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders the ordinary note and authors ordered pointed entries", () => {
-    act(() => root.render(<ControlledNotes />));
-
-    expect(container.querySelector("textarea")?.placeholder).toBe(
-      "Write private notes for this slide…",
+  it("renders only the pointed-note workspace and authors ordered entries", () => {
+    act(() =>
+      root.render(
+        <ControlledNotes initialSlideNotes={{ text: "legacy", pointed: [] }} />,
+      ),
     );
+
+    expect(container.textContent).toContain("Pointed notes");
+    expect(container.textContent).not.toContain("General note");
+    expect(container.querySelectorAll("textarea")).toHaveLength(0);
     expect(container.textContent).toContain("No pointed notes.");
     expect(container.textContent).not.toContain("[1]");
 
     const addButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "+ Add pointed note",
+      (button) => button.textContent === "+",
     );
     if (!addButton) throw new Error("expected the Add pointed note button");
+    expect(addButton.getAttribute("aria-label")).toBe("Add pointed note");
 
     act(() => addButton.click());
     act(() => addButton.click());
 
     expect(container.textContent).toContain("[1]");
     expect(container.textContent).toContain("[2]");
-    expect(container.querySelectorAll("textarea")).toHaveLength(3);
+    expect(container.querySelectorAll("textarea")).toHaveLength(2);
+    expect(JSON.parse(container.querySelector("[data-slide-notes]")?.textContent ?? "{}"))
+      .toMatchObject({ text: "legacy" });
   });
 
   it("edits pointed text and renumbers survivors without changing their ids", () => {
@@ -104,7 +110,7 @@ describe("SlideNotesWorkspace", () => {
       root.render(
         <ControlledNotes
           initialSlideNotes={{
-            text: "ordinary",
+            text: "legacy",
             pointed: [
               { id: "pointed-note-1", text: "first", x: 480, y: 270 },
               { id: "pointed-note-2", text: "second", x: 480, y: 270 },
@@ -115,9 +121,7 @@ describe("SlideNotesWorkspace", () => {
     );
 
     const pointedTextareas = () =>
-      Array.from(
-        container.querySelectorAll<HTMLTextAreaElement>("textarea"),
-      ).slice(1);
+      Array.from(container.querySelectorAll<HTMLTextAreaElement>("textarea"));
     const secondTextarea = pointedTextareas()[1];
     if (!secondTextarea)
       throw new Error("expected the second pointed textarea");
@@ -146,15 +150,18 @@ describe("SlideNotesWorkspace", () => {
     expect(container.textContent).toContain("[1]");
     expect(container.textContent).not.toContain("[2]");
     expect(pointedTextareas()[0]?.value).toBe("edited second");
+    expect(JSON.parse(container.querySelector("[data-slide-notes]")?.textContent ?? "{}")).toMatchObject({
+      text: "legacy",
+    });
     expect(container.querySelector("[data-pointed-note-marker]")).toBeNull();
   });
 
   it("disables all notes controls while notes are not ready", () => {
     act(() => root.render(<ControlledNotes status="loading" />));
 
-    expect(container.querySelector("textarea")?.disabled).toBe(true);
+    expect(container.querySelector("textarea")).toBeNull();
     const addButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "+ Add pointed note",
+      (button) => button.textContent === "+",
     );
     expect(addButton?.disabled).toBe(true);
   });

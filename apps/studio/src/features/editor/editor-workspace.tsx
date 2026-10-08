@@ -7692,10 +7692,8 @@ export function EditorWorkspace({
         {rightPanelMode === "notes" ? (
           <SlideNotesWorkspace
             slideNotes={editorNotes.slideNotes}
-            note={editorNotes.note}
             status={editorNotes.status}
             hasCurrentSaveError={editorNotes.hasCurrentSaveError}
-            onChange={editorNotes.onChange}
             onAddPointedNote={editorNotes.onAddPointedNote}
             onPointedNoteChange={editorNotes.onPointedNoteChange}
             onRemovePointedNote={editorNotes.onRemovePointedNote}

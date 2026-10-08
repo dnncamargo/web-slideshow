@@ -37,6 +37,20 @@
   text-transform: uppercase;
 }
 
+.notesHeaderTitle {
+  margin: 0;
+
+  color: inherit;
+
+  font: inherit;
+}
+
+.notesHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .notesStatus {
   color: #7f8998;
 
@@ -64,31 +78,6 @@
   padding: 16px;
 }
 
-.notesSection {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.notesSectionHeading {
-  margin: 0;
-
-  color: #94a3b8;
-
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.pointedNotesHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .addPointedNoteButton,
 .removePointedNoteButton {
   border: 1px solid #303847;
@@ -102,9 +91,15 @@
 }
 
 .addPointedNoteButton {
-  padding: 5px 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
 
-  font-size: 11px;
+  display: grid;
+  place-items: center;
+
+  font-size: 16px;
+  line-height: 1;
 }
 
 .addPointedNoteButton:hover:not(:disabled),
@@ -180,31 +175,6 @@
 
   font-size: 18px;
   line-height: 1;
-}
-
-.notesTextarea {
-  width: 100%;
-  min-height: 120px;
-
-  resize: vertical;
-
-  border: 1px solid #303847;
-
-  border-radius: 6px;
-
-  background: #0b0f17;
-
-  color: #cbd5e1;
-
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.6;
-
-  padding: 12px;
-}
-
-.notesTextarea:disabled {
-  opacity: 0.6;
 }
 
 /* ==========================================================

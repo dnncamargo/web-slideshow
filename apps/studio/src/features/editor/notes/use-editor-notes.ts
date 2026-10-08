@@ -30,7 +30,6 @@ import {
   removePointedNote,
   updatePointedNotePosition,
   updatePointedNoteText,
-  updateSlideNoteText,
 } from "../../persistence/presentation-notes";
 import { createUniqueId } from "../preset-structure";
 import {
@@ -51,13 +50,11 @@ export interface UseEditorNotesOptions {
 
 export interface UseEditorNotesResult {
   slideNotes: SlideNotes;
-  note: string;
   status: EditorNotesStatus;
   isSaving: boolean;
   hasSaveError: boolean;
   hasCurrentSaveError: boolean;
   hasPending: boolean;
-  onChange: (note: string) => void;
   onAddPointedNote: () => void;
   onPointedNoteChange: (pointedNoteId: string, text: string) => void;
   onPointedNoteMove: (pointedNoteId: string, x: number, y: number) => void;
@@ -215,7 +212,7 @@ export function useEditorNotes({
     }
   }, [enabled, flush]);
 
-  const note = useMemo(
+  const slideNotes = useMemo(
     () => getSlideNotes(state.notes, selectedSlideId),
     [state.notes, selectedSlideId],
   );
@@ -239,28 +236,6 @@ export function useEditorNotes({
       setHasPending(autosaveRef.current?.hasPending() ?? false);
     },
     [presentationId, selectedSlideId, state.status],
-  );
-
-  const onChange = useCallback(
-    (value: string) => {
-      if (!selectedSlideId || state.status !== "ready") {
-        return;
-      }
-
-      const currentSlideNotes = getSlideNotes(state.notes, selectedSlideId);
-
-      if (value === currentSlideNotes.text) {
-        return;
-      }
-
-      const nextNotes = updateSlideNoteText(
-        state.notes,
-        selectedSlideId,
-        value,
-      );
-      commitSlideNotes(getSlideNotes(nextNotes, selectedSlideId));
-    },
-    [commitSlideNotes, selectedSlideId, state.notes, state.status],
   );
 
   const onAddPointedNote = useCallback(() => {
@@ -342,14 +317,12 @@ export function useEditorNotes({
   );
 
   return {
-    slideNotes: note,
-    note: note.text,
+    slideNotes,
     status: state.status,
     isSaving: state.isSaving,
     hasSaveError: state.failedSlideIds.length > 0,
     hasCurrentSaveError: state.failedSlideIds.includes(selectedSlideId),
     hasPending,
-    onChange,
     onAddPointedNote,
     onPointedNoteChange,
     onPointedNoteMove,
