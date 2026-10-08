@@ -45,6 +45,7 @@ function createBootId(): string {
 export async function startPlayerPresence(
   database: Database,
   ownerUid: string,
+  playerUid: string,
   activationRevision: number,
   currentVersionId: string,
   onError: PlayerPresenceErrorHandler = () => undefined,
@@ -59,6 +60,7 @@ export async function startPlayerPresence(
     set(currentRef, {
       activationRevision,
       currentVersionId,
+      playerUid,
       bootId,
       stage,
       transitionedAt: serverTimestamp(),
@@ -69,6 +71,7 @@ export async function startPlayerPresence(
   await disconnect.set({
     activationRevision,
     currentVersionId,
+    playerUid,
     bootId,
     connected: false,
     transitionedAt: serverTimestamp(),
@@ -76,6 +79,7 @@ export async function startPlayerPresence(
   await set(leaseRef, {
     activationRevision,
     currentVersionId,
+    playerUid,
     bootId,
     connected: true,
     transitionedAt: serverTimestamp(),
