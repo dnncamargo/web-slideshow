@@ -8225,10 +8225,11 @@ export function EditorWorkspace({
       </div>
 
       {pendingElementDeletion ? (() => {
-        const pendingElements = resolveAuthoringElements(
+        const pendingOwnedElements = resolveOwnedAuthoringTree(
           presentation,
           pendingElementDeletion.target,
-        );
+          pendingElementDeletion.elementId,
+        )?.elements ?? null;
         const rootPreserveResult = pendingElementDeletion.elementType === "container" &&
           pendingElementDeletion.target.kind === "root-definition"
           ? preserveRootDefinitionContainerDeletion(
@@ -8238,10 +8239,10 @@ export function EditorWorkspace({
           )
           : null;
         const preserveAvailable = pendingElementDeletion.elementType === "container" &&
-          pendingElements !== null &&
+          pendingOwnedElements !== null &&
           (rootPreserveResult?.ok === true ||
             (rootPreserveResult?.reason === "not-local-receiver" || rootPreserveResult === null) &&
-              unwrapContainerPreservingChildren(pendingElements, pendingElementDeletion.elementId).changed);
+              unwrapContainerPreservingChildren(pendingOwnedElements, pendingElementDeletion.elementId).changed);
         const preserveUnavailable = rootPreserveResult !== null &&
           !rootPreserveResult.ok &&
           rootPreserveResult.reason !== "not-local-receiver";

@@ -112,6 +112,51 @@ function rootBackedLocalReceiverPresentation(receiverIsLast = true): Presentatio
   });
 }
 
+function rootBackedLocalWrapperPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-backed-local-wrapper-deletion-workspace",
+    title: "Root-backed local wrapper deletion workspace",
+    defaultRootDefinitionId: "root-1",
+    slides: [{
+      id: "slide-1",
+      title: "First",
+      elements: [],
+      localRootChildren: [{
+        targetContainerId: "receiver-container",
+        children: [{
+          type: "container",
+          id: "local-wrapper",
+          hidden: false,
+          children: [{
+            type: "text",
+            id: "local-child",
+            hidden: false,
+            variant: "body",
+            content: "Local child",
+          }],
+        }],
+      }],
+    }],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Teaching master",
+      localChildTargetIds: ["receiver-container"],
+      root: {
+        type: "container",
+        id: "root-container",
+        hidden: false,
+        children: [{
+          type: "container",
+          id: "receiver-container",
+          hidden: false,
+          children: [],
+        }],
+      },
+    }],
+  });
+}
+
 function rootBackedPresentation(): Presentation {
   return PresentationSchema.parse({
     ...presentation(),
@@ -269,6 +314,53 @@ describe("EditorWorkspace element deletion", () => {
     expect(container.querySelector('[data-presentation-id="receiver-container"]')).not.toBeNull();
     await act(async () => preserve.click());
     expect(container.querySelector('[data-presentation-id="receiver-container"]')).toBeNull();
+  });
+
+  it("offers preserve-children for a local wrapper on a Root-backed Slide", async () => {
+    await act(async () => {
+      root.render(
+        <StudioI18nProvider>
+          <EditorWorkspace initialPresentation={rootBackedLocalWrapperPresentation()} />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const wrapper = container.querySelector<HTMLElement>('[data-presentation-id="local-wrapper"]');
+    expect(wrapper).not.toBeNull();
+    expect(container.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
+    await act(async () => wrapper!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+
+    const dialog = container.querySelector<HTMLDivElement>('[role="dialog"]')!;
+    expect(Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"), (button) => button.textContent?.trim())).toEqual([
+      "Cancel",
+      "Delete container and children",
+      "Delete container, keep children",
+    ]);
+
+    await act(async () => Array.from(dialog.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Delete container, keep children")!.click());
+    expect(container.querySelector('[data-presentation-id="local-wrapper"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    const restoredWrapper = container.querySelector('[data-presentation-id="local-wrapper"]');
+    expect(restoredWrapper).not.toBeNull();
+    expect(restoredWrapper?.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, shiftKey: true, bubbles: true })));
+    expect(container.querySelector('[data-presentation-id="local-wrapper"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="local-child"]')).not.toBeNull();
+
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+    const wrapperForDestructiveDelete = container.querySelector<HTMLElement>('[data-presentation-id="local-wrapper"]');
+    expect(wrapperForDestructiveDelete).not.toBeNull();
+    await act(async () => wrapperForDestructiveDelete!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true })));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+      .find((button) => button.textContent?.trim() === "Delete container and children")!.click());
+    expect(container.querySelector('[data-presentation-id="local-wrapper"]')).toBeNull();
+    expect(container.querySelector('[data-presentation-id="local-child"]')).toBeNull();
   });
 
   it("transfers Root Definition local content as one history action with exact undo and redo", async () => {
