@@ -51,6 +51,7 @@ describe("canonical demo presentation", () => {
     expect(demoPresentation.title).toBe(`${displayName} Component Showcase`);
     const image = findElement(demoPresentation.slides[6]!.elements[0]!, "image-contain");
     expect(image?.type).toBe("image");
-    expect(image?.type === "image" && image.src).toBe("/instance-demo.svg");
+    if (image?.type !== "image") throw new Error("Expected demo image.");
+    expect(image.src).toBe("/instance-demo.svg");
   });
 });
