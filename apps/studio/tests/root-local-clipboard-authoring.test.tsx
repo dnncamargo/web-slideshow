@@ -124,6 +124,45 @@ function presentation(): Presentation {
   });
 }
 
+function crossSlidePresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-local-clipboard-cross-slide",
+    title: "Root local Clipboard cross-Slide",
+    slides: [
+      {
+        id: "slide-a",
+        title: "Slide A",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-1",
+        localRootChildren: [{
+          targetContainerId: "receiver-container",
+          children: [container("local-wrapper", [text("child-a"), text("child-b")])],
+        }],
+      },
+      {
+        id: "slide-b",
+        title: "Slide B",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-1",
+      },
+    ],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Root 1",
+      localChildTargetIds: ["receiver-container"],
+      root: container("root-container", [
+        text("master-content", "Master"),
+        container("receiver-container"),
+      ]),
+    }],
+  });
+}
+
 function findElement(host: HTMLDivElement, id: string): HTMLElement {
   const element = host.querySelector<HTMLElement>(`[data-presentation-id="${id}"]`);
   if (!element) throw new Error(`Expected element ${id}`);
@@ -150,6 +189,13 @@ function save(host: HTMLDivElement): HTMLButtonElement {
 
 function select(host: HTMLDivElement, id: string): void {
   act(() => findElement(host, id).dispatchEvent(new Event("pointerdown", { bubbles: true })));
+}
+
+async function openClipboard(host: HTMLDivElement): Promise<void> {
+  await act(async () => {
+    Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.trim() === "Clipboard")?.click();
+  });
 }
 
 describe("Root-backed Slide local Clipboard authoring", () => {
@@ -340,5 +386,70 @@ describe("Root-backed Slide local Clipboard authoring", () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(host.querySelector('[data-presentation-id="local-topics-source"]')).not.toBeNull();
     expect(host.querySelector('[data-presentation-id="local-topics-target"]')).not.toBeNull();
+  });
+
+  it("moves a multi-child local Container from one Root-backed Slide to another in one history action", async () => {
+    const initial = crossSlidePresentation();
+    await mount(initial, async (value) => { saved.push(structuredClone(value)); });
+
+    select(host, "local-wrapper");
+    await pressKey("x", { ctrlKey: true });
+    await openClipboard(host);
+    expect(host.textContent).toContain("Pending Cut");
+
+    const slideB = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Slide B"));
+    expect(slideB).toBeDefined();
+    await act(async () => slideB?.click());
+    select(host, "receiver-container");
+    await pressKey("v", { ctrlKey: true });
+    await act(async () => save(host).click());
+
+    const moved = saved.at(-1);
+    expect(moved?.slides[0]?.localRootChildren).toBeUndefined();
+    const movedWrapper = moved?.slides[1]?.localRootChildren?.[0]?.children[0];
+    expect(moved?.slides[1]?.localRootChildren?.[0]?.targetContainerId).toBe("receiver-container");
+    expect(movedWrapper?.type).toBe("container");
+    if (movedWrapper?.type !== "container") throw new Error("Expected moved Container");
+    expect(movedWrapper.children.map((element) => element.type)).toEqual(["text", "text"]);
+    expect(movedWrapper.children.map((element) => element.id)).toEqual(["child-a-copy", "child-b-copy"]);
+    expect(movedWrapper.children.map((element) => element.type === "text" ? element.content : null)).toEqual(["child-a", "child-b"]);
+    expect(host.textContent).not.toContain("Pending Cut");
+
+    await pressKey("z", { ctrlKey: true });
+    await act(async () => save(host).click());
+    expect(saved.at(-1)).toEqual(initial);
+
+    await pressKey("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => save(host).click());
+    expect(saved.at(-1)?.slides[1]?.localRootChildren?.[0]?.children[0]?.id).toBe("local-wrapper-copy");
+    expect(saved.at(-1)?.slides[1]?.localRootChildren?.[0]?.children[0]?.type).toBe("container");
+  });
+
+  it("keeps a cross-Slide local Root Cut pending after an invalid destination", async () => {
+    await mount(crossSlidePresentation(), async (value) => { saved.push(structuredClone(value)); });
+
+    select(host, "local-wrapper");
+    await pressKey("x", { ctrlKey: true });
+    await openClipboard(host);
+    const slideB = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Slide B"));
+    expect(slideB).toBeDefined();
+    await act(async () => slideB?.click());
+    select(host, "master-content");
+    await pressKey("v", { ctrlKey: true });
+
+    expect(host.textContent).toContain("Pending Cut");
+    expect(saved).toHaveLength(0);
+
+    const slideA = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("Slide A"));
+    expect(slideA).toBeDefined();
+    await act(async () => slideA?.click());
+    expect(host.querySelector('[data-presentation-id="local-wrapper"]')).not.toBeNull();
+
+    select(host, "receiver-container");
+    await pressKey("v", { ctrlKey: true });
+    expect(host.textContent).not.toContain("Pending Cut");
   });
 });

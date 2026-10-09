@@ -367,7 +367,7 @@ import {
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 import { preserveRootDefinitionContainerDeletion } from "./root-local-content-deletion";
 import {
-  moveRootBackedClipboardElement,
+  moveClipboardElementAcrossSlideOwners,
   pasteRootBackedClipboardEntry,
 } from "./root-local-clipboard-operations";
 import {
@@ -2156,24 +2156,28 @@ export function EditorWorkspace({
       ? target.kind === "slide"
       : source.kind === "slide-local-root"
         ? target.kind === "slide"
-          && history.present.slides[target.slideIndex]?.id === source.slideId
         : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
     if (!sourceMatchesTarget) {
-      setPendingCut(null);
-      return false;
-    }
-    if (rootBackedSlide && source.kind === "slide") {
       return false;
     }
 
     const selectedElementAtPaste = selectedDocumentElement;
     const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
-    if (source.kind === "slide-local-root") {
-      if (!rootBackedSlide || target.kind !== "slide") return false;
-      const initialMove = moveRootBackedClipboardElement(
+    if (
+      target.kind === "slide" &&
+      (source.kind === "slide-local-root" || (source.kind === "slide" && rootBackedSlide))
+    ) {
+      const sourceSlideId = source.slideId;
+      const sourceSlideIndex = history.present.slides.findIndex((slide) => slide.id === sourceSlideId);
+      if (sourceSlideIndex < 0) {
+        setPendingCut(null);
+        return false;
+      }
+      const initialMove = moveClipboardElementAcrossSlideOwners(
         history.present,
+        sourceSlideIndex,
+        source.kind === "slide-local-root" ? source.targetContainerId : null,
         target.slideIndex,
-        source.targetContainerId,
         pendingCut.sourceElementId,
         selectedElementAtPaste,
         selectedContentSlotId,
@@ -2184,10 +2188,11 @@ export function EditorWorkspace({
         target,
         { kind: "element.move", labelKey: "history.element.move" },
         (current, authoringTarget) => authoringTarget.kind === "slide"
-          ? moveRootBackedClipboardElement(
+          ? moveClipboardElementAcrossSlideOwners(
               current,
+              current.slides.findIndex((slide) => slide.id === sourceSlideId),
+              source.kind === "slide-local-root" ? source.targetContainerId : null,
               authoringTarget.slideIndex,
-              source.targetContainerId,
               pendingCut.sourceElementId,
               selectedElementAtPaste,
               selectedContentSlotId,
@@ -2198,6 +2203,7 @@ export function EditorWorkspace({
       return true;
     }
 
+    if (source.kind === "slide-local-root") return false;
     const sourceTarget: AuthoringTarget = source.kind === "slide"
       ? {
           kind: "slide",
