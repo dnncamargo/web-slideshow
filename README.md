@@ -159,6 +159,8 @@ This is intentionally a shared authoring surface, not a generic persisted source
 
 Editor History is a current authoring capability. It provides session-only Undo/Redo over canonical Presentation snapshots; History is not persisted into the document or carried into a new Editor session.
 
+Clipboard authoring keeps Ctrl+C as a reusable snapshot. Ctrl+X creates an owner-aware pending move whose source remains intact until a valid destination is resolved; a successful move clears the pending Cut after validation, preserves Container descendants and payload, and records one Editor History action for Undo/Redo. Pending Cut survives Slide navigation across ordinary and Root-backed Slides, while Root Definition authoring keeps its explicit pending-Cut cancellation and root protections.
+
 Presentation-local systems include Palette references, FontResources, Text Styles and Linked Styles.
 
 Text property precedence:
@@ -547,6 +549,7 @@ Recent merged work includes:
 - Presentation FontResources exposed inside the Scripted sandbox with the existing renderer-owned security boundary (PR #216).
 - Editor History / Undo-Redo over canonical Presentation snapshots, with semantic actions and a 30-action session bound.
 - Root-backed Slide-local Container delete/preserve correction: compatible Containers authored in `localRootChildren` now use the existing owner-aware tree resolution; the preserve mutation path, child IDs/order/payload, destructive deletion and canonical Root Definition protection remain unchanged.
+- Clipboard cross-Slide Cut/Paste correction: Ctrl+C remains a reusable snapshot; Ctrl+X now keeps an owner-aware pending move across ordinary and Root-backed Slide navigation, preserves pending Cut on invalid destinations, preserves multi-child Container descendants/payload, and records one History action with Undo/Redo. Root authoring protections remain unchanged. Focused tests, Studio typecheck, local Studio production build, `git diff --check`, manual browser acceptance and Vercel Player verification passed; Studio Vercel deployment verification is deferred by a temporary provider 24-hour deployment quota/limit, classified as infrastructure/quota rather than a code, build or acceptance failure.
 - parameterized Container Background Patterns with Pattern-owned colors, Size, Rotation and an expanded 14-preset catalog;
 - Pattern Color / Palette / Linked Container Style support, with preset identity remaining Studio-only and canonical documents remaining referential/parameterized;
 - Background-owned masking for Dashed Paper and Cross, keeping Container Background independently authored;
@@ -644,6 +647,7 @@ Linked Styles target expansion                           ✅
 Text Effects ✅
 Pointed Notes ✅
 Root-backed Container preserve-children correction        ✅
+Clipboard cross-Slide Cut/Paste correction                ✅
 NEXT: not selected
 ```
 
@@ -655,6 +659,7 @@ Immediate execution order:
 4. Text effects: gradient fill / shadow / glow ✅
 5. Pointed Notes ✅
 6. Root-backed Container preserve-children correction ✅
+7. Clipboard cross-Slide Cut/Paste correction ✅
 
 Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 
