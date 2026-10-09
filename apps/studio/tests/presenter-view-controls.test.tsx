@@ -538,16 +538,26 @@ describe("PresenterView controls", () => {
     expect([...controls.querySelectorAll<HTMLButtonElement>("button")].slice(6).every((button) => button.disabled)).toBe(true);
   });
 
-  it("anchors Player pairing inside the current presentation column", () => {
+  it("places Player pairing in the control row below the current presentation", () => {
     render({
-      pairingControl: <div data-player-pairing>Connect Player</div>,
+      pairingControl: (
+        <div data-player-pairing>
+          <label>
+            PIN
+            <input aria-label="PIN" />
+          </label>
+        </div>
+      ),
     });
 
     const pairing = container.querySelector("[data-player-pairing]");
-    const anchor = pairing?.parentElement;
+    const area = pairing?.parentElement;
+    const controls = area?.parentElement;
     expect(pairing).not.toBeNull();
-    expect(anchor?.className).toContain("pairingAnchor");
-    expect(anchor?.parentElement?.className).toContain("currentColumn");
+    expect(area?.className).toContain("pairingControlArea");
+    expect(controls?.className).toContain("centerControls");
+    expect(container.querySelector('[class*="currentColumn"] [data-player-pairing]')).toBeNull();
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="PIN"]')).not.toBeNull();
   });
 
   it("renders Gallery commands and sends exact desired intents without fullscreen", () => {

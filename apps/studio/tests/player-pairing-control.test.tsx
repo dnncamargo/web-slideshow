@@ -91,4 +91,65 @@ describe("Player pairing Control", () => {
     expect(container.querySelector("input")).toBeNull();
     expect(container.textContent).not.toContain("Connect Player");
   });
+
+  it("closes the expanded form without pairing", () => {
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <PlayerPairingControl />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const openButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Connect Player",
+    );
+    act(() => openButton?.click());
+    expect(container.querySelector("input")).not.toBeNull();
+
+    const closeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Connect Player"]',
+    );
+    act(() => closeButton?.click());
+
+    expect(container.querySelector("input")).toBeNull();
+    expect(container.textContent).toContain("Connect Player");
+  });
+
+  it("keeps pairing errors visible", async () => {
+    mocks.claimPlayerByPin.mockRejectedValueOnce(new Error("Pairing failed"));
+
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <PlayerPairingControl />
+        </StudioI18nProvider>,
+      );
+    });
+
+    const openButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Connect Player",
+    );
+    act(() => openButton?.click());
+
+    const input = container.querySelector<HTMLInputElement>("input");
+    act(() => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      valueSetter?.call(input, "123456");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const connectButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Connect",
+    );
+    await act(async () => {
+      connectButton?.click();
+    });
+
+    expect(container.textContent).toContain("Pairing failed");
+    expect(container.querySelector("input")).not.toBeNull();
+  });
 });

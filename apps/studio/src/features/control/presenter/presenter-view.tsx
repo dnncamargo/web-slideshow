@@ -645,11 +645,6 @@ export function PresenterView({
         </aside>
 
         <section className={presenterStyles.currentColumn}>
-          {pairingControl !== null && (
-            <div className={presenterStyles.pairingAnchor}>
-              {pairingControl}
-            </div>
-          )}
           {fontResourcesCss && (
             <style data-presentation-font-resources>{fontResourcesCss}</style>
           )}
@@ -855,6 +850,12 @@ export function PresenterView({
             </span>
           )}
           </div>
+
+          {pairingControl !== null && (
+            <div className={presenterStyles.pairingControlArea}>
+              {pairingControl}
+            </div>
+          )}
 
           <div className={presenterStyles.controlMeta}>
             {isPlayerChanged && (
