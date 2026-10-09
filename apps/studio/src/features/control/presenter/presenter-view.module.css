@@ -98,13 +98,12 @@
   grid-row: 1;
 }
 
-.pairingAnchor {
-  position: absolute;
-  z-index: 3;
-  top: 12px;
-  left: 50%;
-  max-width: calc(100% - 24px);
-  transform: translateX(-50%);
+.pairingControlArea {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .nextColumn {
@@ -834,11 +833,6 @@
     display: none;
   }
 
-  .pairingAnchor {
-    top: 8px;
-    max-width: calc(100% - 16px);
-  }
-
   .currentColumn {
     order: 1;
     width: 100%;
@@ -888,6 +882,10 @@
 
     width: 100%;
     flex-wrap: nowrap;
+  }
+
+  .pairingControlArea {
+    width: 100%;
   }
 
   .mobileInteractiveElementsControls {
