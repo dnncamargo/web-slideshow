@@ -17,6 +17,7 @@ import {
 } from "firebase/database";
 
 import { getPlayerFirebaseApp } from "./realtime-db";
+import { recordPlayerDiagnostic } from "./player-diagnostics";
 
 export const PLAYER_BINDINGS_PATH = "playerBindings";
 export const PLAYER_PAIRING_CODES_PATH = "playerPairingCodes";
@@ -37,6 +38,76 @@ export interface PlayerPairingSession {
 interface PairingRecord {
   playerUid: string;
   expiresAt: number;
+}
+
+type PairingDiagnosticCode =
+  | "PLAYER_PAIRING_BINDING_READ_START"
+  | "PLAYER_PAIRING_BINDING_READ_OK"
+  | "PLAYER_PAIRING_BINDING_READ_ERROR"
+  | "PLAYER_PAIRING_PIN_TRANSACTION_START"
+  | "PLAYER_PAIRING_PIN_TRANSACTION_OK"
+  | "PLAYER_PAIRING_PIN_TRANSACTION_ERROR";
+
+function pairingNow(): number {
+  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+    return performance.now();
+  }
+
+  return Date.now();
+}
+
+function pairingErrorField(error: unknown, field: "name" | "code" | "message"): string | undefined {
+  if (error instanceof Error && field === "name") {
+    return error.name;
+  }
+
+  if (error instanceof Error && field === "message") {
+    return error.message;
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return typeof error === "string" && field === "message" ? error : undefined;
+  }
+
+  const value = (error as Record<string, unknown>)[field];
+
+  return typeof value === "string" ? value : undefined;
+}
+
+function sanitizePairingErrorText(value: string): string {
+  return value
+    .replace(/(playerBindings|playerPairingCodes)\/[^\s/?#]+/g, "$1/<redacted>")
+    .replace(/\b\d{6}\b/g, "<redacted>")
+    .replace(/([?&](?:token|access_token|auth|credential|key)=)[^&\s]+/gi, "$1<redacted>")
+    .replace(/\b(?:bearer|token)\s+\S+/gi, "<redacted-token>")
+    .slice(0, 240);
+}
+
+function sanitizePairingError(error: unknown): {
+  name: string;
+  code?: string;
+  message: string;
+} {
+  const name = pairingErrorField(error, "name");
+  const code = pairingErrorField(error, "code");
+  const message = pairingErrorField(error, "message");
+
+  return {
+    name: sanitizePairingErrorText(name ?? "Error"),
+    ...(code !== undefined ? { code: sanitizePairingErrorText(code) } : {}),
+    message: sanitizePairingErrorText(message ?? "Unknown error"),
+  };
+}
+
+function recordPairingDiagnostic(
+  code: PairingDiagnosticCode,
+  details: Record<string, unknown>,
+): void {
+  try {
+    recordPlayerDiagnostic(code, details);
+  } catch {
+    // Diagnostics are observational and must never affect pairing.
+  }
 }
 
 let cachedAuth: Auth | null = null;
@@ -114,6 +185,7 @@ function pairingCodePath(pin: string): string {
 
 async function reservePairingPin(
   database: Database,
+  auth: Auth,
   playerUid: string,
   preferredPin?: string,
 ): Promise<string> {
@@ -124,9 +196,20 @@ async function reservePairingPin(
     candidates.add(generatePairingPin());
   }
 
+  let transactionAttempt = 0;
+
   for (const pin of candidates) {
+    transactionAttempt += 1;
     const pairingRef = ref(database, pairingCodePath(pin));
     const expiresAt = Date.now() + PLAYER_PAIRING_PIN_TTL_MS;
+    const transactionStartedAt = pairingNow();
+
+    recordPairingDiagnostic("PLAYER_PAIRING_PIN_TRANSACTION_START", {
+      operation: "pinReservationTransaction",
+      attempt: transactionAttempt,
+      isAnonymous: auth.currentUser?.isAnonymous === true,
+    });
+
     const result = await runTransaction(
       pairingRef,
       (current) => {
@@ -142,6 +225,29 @@ async function reservePairingPin(
         return { playerUid, expiresAt };
       },
       { applyLocally: false },
+    ).then(
+      (transactionResult) => {
+        recordPairingDiagnostic("PLAYER_PAIRING_PIN_TRANSACTION_OK", {
+          operation: "pinReservationTransaction",
+          attempt: transactionAttempt,
+          committed: transactionResult.committed,
+          durationMs: Math.max(0, pairingNow() - transactionStartedAt),
+          isAnonymous: auth.currentUser?.isAnonymous === true,
+        });
+
+        return transactionResult;
+      },
+      (error: unknown) => {
+        recordPairingDiagnostic("PLAYER_PAIRING_PIN_TRANSACTION_ERROR", {
+          operation: "pinReservationTransaction",
+          attempt: transactionAttempt,
+          durationMs: Math.max(0, pairingNow() - transactionStartedAt),
+          error: sanitizePairingError(error),
+          isAnonymous: auth.currentUser?.isAnonymous === true,
+        });
+
+        throw error;
+      },
     );
 
     if (result.committed === true) return pin;
@@ -182,7 +288,34 @@ export async function startPlayerPairing(
   const user = currentAnonymousUser(auth, credentials?.user ?? restoredUser);
   const playerUid = user.uid;
   const bindingRef = ref(database, bindingPath(playerUid));
-  const bindingSnapshot = await get(bindingRef);
+  const bindingReadStartedAt = pairingNow();
+
+  recordPairingDiagnostic("PLAYER_PAIRING_BINDING_READ_START", {
+    operation: "bindingRead",
+    isAnonymous: auth.currentUser?.isAnonymous === true,
+  });
+
+  const bindingSnapshot = await get(bindingRef).then(
+    (snapshot) => {
+      recordPairingDiagnostic("PLAYER_PAIRING_BINDING_READ_OK", {
+        operation: "bindingRead",
+        durationMs: Math.max(0, pairingNow() - bindingReadStartedAt),
+        isAnonymous: auth.currentUser?.isAnonymous === true,
+      });
+
+      return snapshot;
+    },
+    (error: unknown) => {
+      recordPairingDiagnostic("PLAYER_PAIRING_BINDING_READ_ERROR", {
+        operation: "bindingRead",
+        durationMs: Math.max(0, pairingNow() - bindingReadStartedAt),
+        error: sanitizePairingError(error),
+        isAnonymous: auth.currentUser?.isAnonymous === true,
+      });
+
+      throw error;
+    },
+  );
   const existingOwnerUid = parseOwnerUid(bindingSnapshot.val());
 
   let destroyed = false;
@@ -226,7 +359,7 @@ export async function startPlayerPairing(
       return;
     }
 
-    const nextPin = await reservePairingPin(database, playerUid, pin);
+    const nextPin = await reservePairingPin(database, auth, playerUid, pin);
     if (nextPin !== pin) {
       pin = nextPin;
       publish({ kind: "pairing", pin });
@@ -242,7 +375,7 @@ export async function startPlayerPairing(
 
   const publishPairing = async (): Promise<void> => {
     if (destroyed || paired) return;
-    pin = await reservePairingPin(database, playerUid, pin);
+    pin = await reservePairingPin(database, auth, playerUid, pin);
     publish({ kind: "pairing", pin });
     startRenewal();
   };
