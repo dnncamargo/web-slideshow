@@ -23,6 +23,9 @@ export const PLAYER_BINDINGS_PATH = "playerBindings";
 export const PLAYER_PAIRING_CODES_PATH = "playerPairingCodes";
 export const PLAYER_PAIRING_PIN_TTL_MS = 60_000;
 export const PLAYER_PAIRING_PIN_RENEWAL_MS = 30_000;
+export const PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS = 5_000;
+
+const SERVER_TIME_OFFSET_PATH = ".info/serverTimeOffset";
 
 export type PlayerPairingState =
   | { kind: "pairing"; pin: string }
@@ -183,12 +186,20 @@ function pairingCodePath(pin: string): string {
   return `${PLAYER_PAIRING_CODES_PATH}/${pin}`;
 }
 
+async function readServerTimeOffset(database: Database): Promise<number> {
+  const snapshot = await get(ref(database, SERVER_TIME_OFFSET_PATH));
+  const value = snapshot.val();
+
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 async function reservePairingPin(
   database: Database,
   auth: Auth,
   playerUid: string,
   preferredPin?: string,
 ): Promise<string> {
+  const serverTimeOffset = await readServerTimeOffset(database);
   const candidates = new Set<string>();
   if (preferredPin !== undefined) candidates.add(preferredPin);
 
@@ -201,7 +212,9 @@ async function reservePairingPin(
   for (const pin of candidates) {
     transactionAttempt += 1;
     const pairingRef = ref(database, pairingCodePath(pin));
-    const expiresAt = Date.now() + PLAYER_PAIRING_PIN_TTL_MS;
+    const serverNow = Date.now() + serverTimeOffset;
+    const expiresAt =
+      serverNow + PLAYER_PAIRING_PIN_TTL_MS - PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS;
     const transactionStartedAt = pairingNow();
 
     recordPairingDiagnostic("PLAYER_PAIRING_PIN_TRANSACTION_START", {
@@ -216,7 +229,7 @@ async function reservePairingPin(
         const existing = parsePairingRecord(current);
         if (
           existing !== null &&
-          existing.expiresAt > Date.now() &&
+          existing.expiresAt > Date.now() + serverTimeOffset &&
           existing.playerUid !== playerUid
         ) {
           return;
