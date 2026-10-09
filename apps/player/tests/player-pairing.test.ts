@@ -41,6 +41,8 @@ vi.mock("../src/player-diagnostics", () => ({
 import {
   formatPairingPin,
   normalizePairingPin,
+  PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS,
+  PLAYER_PAIRING_PIN_TTL_MS,
   startPlayerPairing,
 } from "../src/player-pairing";
 
@@ -60,7 +62,11 @@ describe("Player pairing identity", () => {
       mocks.auth.currentUser = user;
       return { user };
     });
-    mocks.get.mockResolvedValue({ val: () => null });
+    mocks.get.mockImplementation((target: { path: string }) =>
+      Promise.resolve({
+        val: () => (target.path === ".info/serverTimeOffset" ? 0 : null),
+      }),
+    );
     mocks.bindingCallback = null;
     mocks.onValue.mockImplementation((_ref, callback) => {
       mocks.bindingCallback = callback;
@@ -108,6 +114,55 @@ describe("Player pairing identity", () => {
 
     session.destroy();
   });
+
+  it.each([
+    { clientClockOffsetMs: 0, serverTimeOffsetMs: 0 },
+    { clientClockOffsetMs: 5_000, serverTimeOffsetMs: -5_000 },
+    { clientClockOffsetMs: -5_000, serverTimeOffsetMs: 5_000 },
+  ])(
+    "uses the RTDB server time offset for a $clientClockOffsetMs ms client skew",
+    async ({ clientClockOffsetMs, serverTimeOffsetMs }) => {
+      const serverNow = 1_700_000_000_000;
+      const nowSpy = vi
+        .spyOn(Date, "now")
+        .mockReturnValue(serverNow + clientClockOffsetMs);
+      mocks.get
+        .mockResolvedValueOnce({ val: () => null })
+        .mockResolvedValueOnce({ val: () => serverTimeOffsetMs });
+
+      try {
+        const session = await startPlayerPairing({} as never, vi.fn());
+        const update = mocks.runTransaction.mock.calls[0]?.[1] as (
+          value: unknown,
+        ) => { playerUid: string; expiresAt: number };
+        const record = update(null);
+
+        expect(record.expiresAt).toBe(
+          serverNow + PLAYER_PAIRING_PIN_TTL_MS - PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS,
+        );
+        session.destroy();
+      } finally {
+        nowSpy.mockRestore();
+      }
+    },
+  );
+
+  it.each([null, "0", Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects an invalid RTDB server time offset (%s) before reserving a PIN",
+    async (offset) => {
+      mocks.get
+        .mockResolvedValueOnce({ val: () => null })
+        .mockResolvedValueOnce({ val: () => offset });
+
+      await expect(startPlayerPairing({} as never, vi.fn())).rejects.toThrow(
+        "Realtime Database server time offset is unavailable.",
+      );
+      expect(mocks.runTransaction).not.toHaveBeenCalled();
+      expect(JSON.stringify(mocks.recordPlayerDiagnostic.mock.calls)).not.toContain(
+        "player-anonymous",
+      );
+    },
+  );
 
   it("records a sanitized binding read failure without changing the rejection", async () => {
     const failure = Object.assign(

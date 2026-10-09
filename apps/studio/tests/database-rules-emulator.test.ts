@@ -40,6 +40,100 @@ afterAll(async () => {
 });
 
 describe("Realtime Database Player pairing rules", () => {
+  it("rejects the current Player expiration when the client clock is ahead", async () => {
+    const player = anonymous("player-clock-ahead");
+    const clientClockAheadMs = 5_000;
+    const clientNow = Date.now() + clientClockAheadMs;
+
+    await assertFails(
+      player.ref("playerPairingCodes/123450").transaction(() => ({
+        playerUid: "player-clock-ahead",
+        expiresAt: clientNow + 60_000,
+      })),
+    );
+  });
+
+  it("accepts server-time-compatible expirations for reasonable client clock offsets", async () => {
+    const clientClockOffsets = [5_000, -5_000];
+
+    for (const [index, clientClockOffsetMs] of clientClockOffsets.entries()) {
+      const playerUid = `player-clock-corrected-${index}`;
+      const player = anonymous(playerUid);
+      const pin = `12345${index + 1}`;
+      const serverNow = Date.now();
+      const clientNow = serverNow + clientClockOffsetMs;
+      const serverTimeOffset = -clientClockOffsetMs;
+      const expiresAt = clientNow + serverTimeOffset + 60_000 - 5_000;
+
+      const result = await player.ref(`playerPairingCodes/${pin}`).transaction(() => ({
+        playerUid,
+        expiresAt,
+      }));
+
+      expect(result.committed).toBe(true);
+    }
+  });
+
+  it("enforces expiration bounds, distinguishes collisions, and permits renewal", async () => {
+    const player = anonymous("player-pairing-lifecycle");
+    const otherPlayer = anonymous("player-pairing-collision");
+    const lowerBoundPin = "123461";
+    const upperBoundPin = "123462";
+    const occupiedPin = "123463";
+    const now = Date.now();
+
+    await assertFails(player.ref(`playerPairingCodes/${lowerBoundPin}`).set({
+      playerUid: "player-pairing-lifecycle",
+      expiresAt: now - 1,
+    }));
+    await assertFails(player.ref(`playerPairingCodes/${upperBoundPin}`).set({
+      playerUid: "player-pairing-lifecycle",
+      expiresAt: now + 65_000,
+    }));
+
+    await assertSucceeds(player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
+      playerUid: "player-pairing-lifecycle",
+      expiresAt: Date.now() + 55_000,
+    })));
+
+    const ordinaryCollision = await otherPlayer
+      .ref(`playerPairingCodes/${occupiedPin}`)
+      .transaction((current) => {
+        if (current !== null) return;
+        return {
+          playerUid: "player-pairing-collision",
+          expiresAt: Date.now() + 55_000,
+        };
+      });
+    expect(ordinaryCollision.committed).toBe(false);
+
+    await assertFails(
+      otherPlayer.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
+        playerUid: "player-pairing-collision",
+        expiresAt: Date.now() + 55_000,
+      })),
+    );
+
+    await assertSucceeds(player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
+      playerUid: "player-pairing-lifecycle",
+      expiresAt: Date.now() + 55_000,
+    })));
+  });
+
+  it("rejects unauthenticated and non-anonymous PIN reservations", async () => {
+    const unauthenticated = testEnv.unauthenticatedContext().database();
+    const accountClient = account("account-cannot-reserve");
+
+    await assertFails(unauthenticated.ref("playerPairingCodes/123464").set({
+      playerUid: "player-unauthenticated",
+      expiresAt: Date.now() + 55_000,
+    }));
+    await assertFails(accountClient.ref("playerPairingCodes/123465").set({
+      playerUid: "player-account",
+      expiresAt: Date.now() + 55_000,
+    }));
+  });
+
   it("requires a valid claim before creating exactly one durable binding", async () => {
     const player = anonymous("player-claim-1");
     const owner = account("account-claim-1");
