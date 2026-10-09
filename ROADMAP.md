@@ -667,7 +667,9 @@ The following current-state work is complete at its recorded closure point:
 - **Published Presentation deletion** — PR #170. Archived published Presentations can be permanently deleted. Historical published versions are removed in bounded batches, while the current version, publication pointer, private notes and private draft are removed in the final cleanup batch. Publication ownership is bound to immutable `ownerUid`; legacy ownerless records require trusted/Admin backfill rather than a normal client claim. A live publication must be stopped before the normal Archive → Delete lifecycle.
 - **Container delete preserving children** — PR #171. Compatible non-empty Containers can be removed while their direct children are promoted at the wrapper's former sibling position. Child IDs and payloads remain unchanged, the operation is one History action, and Undo/Redo restore and reapply the exact unwrap. Empty Containers, Structured Table ContentSlot-owned Containers, and incompatible TopicItem ContentSlot cases remain destructive-only.
 - **Root Definition preserve-children correction** — The dialog availability probe now resolves the actual persisted owner tree through `resolveOwnedAuthoringTree`, covering ordinary Slides, Root Definitions and Slide-local Root-backed ownership. Compatible Root-backed local Containers receive the same three-action choice; the existing `findLocalRootChildOwner → updateLocalRootChildren → unwrapContainerPreservingChildren` mutation remains unchanged, preserving child IDs/order/payload. Destructive deletion still removes wrapper plus children, Undo/Redo remains one History action, canonical Root protection and in-use receiver protections remain unchanged, and no schema/renderer/Player/publication changes were made. Manual product acceptance is complete.
-- **Player account pairing + account-scoped Live** — The Player uses a persistent anonymous technical identity, temporary PIN claim binds it to one authenticated account, and the complete RTDB Live protocol is scoped under `live/{ownerUid}/...`. Pairing state remains outside Live and outside the canonical Presentation. The owning account can explicitly disconnect its own binding from Maintenance; an online Player then returns to PIN setup while preserving its `playerUid`. Different accounts can run simultaneous isolated Lives; Players bound to the same account intentionally share that account's singleton Live. Watch/Cover/public root use publication context instead of a global Live. Production two-account/two-Player acceptance remains pending, and `schemaVersion` remains literally `1`.
+- **Player account pairing + account-scoped Live** — The Player uses a persistent anonymous technical identity, temporary PIN claim binds it to one authenticated account, and the complete RTDB Live protocol is scoped under `live/{ownerUid}/...`. Pairing state remains outside Live and outside the canonical Presentation. The owning account can explicitly disconnect its own binding from Maintenance; an online Player then returns to PIN setup while preserving its `playerUid`. Different accounts can run simultaneous isolated Lives; Players bound to the same account intentionally share that account's singleton Live. Watch/Cover/public root use publication context instead of a global Live. Production **two-account isolation** acceptance remains pending; `schemaVersion` remains literally `1`.
+
+  **Production pairing acceptance — 2026-10-09:** The user registered two Players, disconnected both and registered both again successfully, validating reversible multiple-Player pairing through the production domains. The Android Player produced a PIN and Control exposed an accessible PIN entry below the preview. PR #242 corrected PIN-expiration clock skew, PR #243 fixed the RTDB `/.info/serverTimeOffset` metadata access with a real-SDK regression test, and PR #244 corrected the Control form placement. These are merged and manually accepted for the exercised scenarios. This does not validate two different account owners, concurrent-Live isolation or the broader Android interactive-display performance gate.
 
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
 - **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy authoring is handled separately in Studio and now derives new duplicate IDs from a stable pre-copy family root without migrating existing IDs.
@@ -805,16 +807,35 @@ Watch already follows Player-applied state. Viewer presence/count/nickname and r
 
 ## Product / authoring backlog
 
-Deferred candidates include:
+The following **11 current candidates** are user-recorded backlog items. They remain unselected; their names do not yet constitute implementation specifications.
 
-- **complete audit** — cross-cutting integrity audit, including canonical/global ID uniqueness and other issues intentionally kept out of feature-specific checkpoints;
-- **AI Converter** — convert external/source content into the existing canonical Presentation rather than introducing a second document model;
-- **Player hardening with local history/continuity** — stronger local recovery/history behavior without replacing immutable publication and Live ownership;
+### Conceptualization
+
+1. **Integrated AI** (`IA integrada`).
+2. **HTML export** (`Export html`).
+3. **Forms**.
+
+### Enhancements
+
+1. **Consistent Inspector layout** (`Layout coerente do Inspector`).
+2. **Container content fit**.
+3. **Specific border radius** (`Border radius specific`).
+4. **Self alignment**.
+5. **Player hardening with local history** (`Player harder com histórico local`) — evaluate continuity/recovery without changing immutable publishing or Live ownership.
+6. **IDs for Watchers** (`ids para watchers`).
+7. **Player Legacy** — further improvement scope to be defined; the compatibility runtime remains separate.
+8. **Update demo presentation** (`Atualizar demo presentation`).
+
+### Other previously deferred candidates
+
+- **Complete audit** — cross-cutting integrity audit, including canonical/global ID uniqueness;
+- **AI Converter** — historical proposal to convert external/source content into the canonical Presentation; its relationship to broader Integrated AI is not decided;
 - direct This Presentation FontResource authoring;
 - Topics → Text Style consumption;
 - Custom Library portability refinements;
+- remaining WYSIWYG/Text refinements.
 
-Backlog items are not active checkpoints until evidence and an explicit product decision promote them.
+Backlog items are not active checkpoints until evidence and an explicit product decision promote them. In particular, neither HTML export nor Forms has an approved design yet.
 
 ---
 
@@ -862,6 +883,7 @@ P12   UX / Properties refinement                            ✅
        Library-thumbnail FontResource rendering              ✅
        Structured source editor + Shape path/SVG authoring    ✅
        Player account pairing + account-scoped Live            ✅
+       Two-Player pairing, disconnect and re-pair (#242–#244)   ✅
 
 NEXT:
   not selected
@@ -877,11 +899,13 @@ FUTURE / DEFERRED:
   P14 bounded Diagnostics expansion
   P15 Audience / Watch expansion
   complete audit
-  AI Converter
-  Player hardening with local history/continuity
+  Current conceptualization: Integrated AI / HTML export / Forms
+  Current enhancements: Inspector / Container fit / Border radius / Self alignment
+  Current enhancements: Player history / Watcher IDs / Player Legacy / Demo
+  AI Converter (historical proposal; not yet reconciled with Integrated AI)
   direct This Presentation FontResource authoring
   Topics → Text Style consumption
   Custom Library portability
 ```
 
-The Player account-pairing/account-scoped-Live implementation is complete but still awaits production two-account/two-Player acceptance. After merge and local-main closure, that production smoke is the immediate validation gate before selecting unrelated future work.
+The Player account-pairing/account-scoped-Live implementation is complete. Its production pairing flow has passed manual acceptance with two Players registered, disconnected and registered again (2026-10-09). Independent two-account Live isolation and target Android interactive-display performance remain untested release gates. No new implementation checkpoint has been selected.

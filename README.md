@@ -302,6 +302,8 @@ playerPairingClaims/{playerUid}
 
 The persistent Player identity, account binding and account-scoped Live do not change the Presentation contract; `schemaVersion` remains literally `1`.
 
+**Production pairing acceptance (2026-10-09):** The user registered two Players, disconnected both, and successfully registered both again through the production Control/Player flow. PIN generation on the Android Player and the Control PIN form were manually verified after the fixes in PRs #242–#244. PR #242 corrected server-clock skew at PIN reservation; PR #243 replaced an unsupported `get()` read of RTDB `/.info/serverTimeOffset` with a one-shot `onValue()` subscription, verified against the real Firebase SDK/emulator; PR #244 moved the Control PIN form below the slide preview. These corrections and the reversible two-Player pairing flow are accepted in production. They do **not** establish independent Live isolation between two different accounts, which remains a separate release acceptance gate.
+
 ## Blocks
 
 Blocks is a static didactic visual element inspired by mBlock/Tinkercad. Canonical state is a single `source` string; a handwritten parser produces a transient AST for shared static rendering.
@@ -371,7 +373,7 @@ Plot animation remains a bounded Plot capability rather than a generic scripting
 
 Do not persist AST, generated samples, meshes, camera state or arbitrary executable JavaScript. Three.js/WebGL/Canvas are not part of the current Plot architecture.
 
-Physical performance acceptance on the target Android interactive display with Firefox 116 remains pending because that hardware has not yet been available. This is a release gate, not negative compatibility evidence.
+Physical performance acceptance on the target Android interactive display with Firefox 116 remains pending because that hardware has not yet been available. The completed Android Player pairing smoke does not replace target-display performance acceptance. This is a release gate, not negative compatibility evidence.
 
 ## Shape
 
@@ -644,6 +646,7 @@ Linked Styles target expansion                           ✅
 Text Effects ✅
 Pointed Notes ✅
 Root-backed Container preserve-children correction        ✅
+Player pairing: two Players / disconnect / re-pair (#242–#244) ✅
 NEXT: not selected
 ```
 
@@ -658,4 +661,4 @@ Immediate execution order:
 
 Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. Deferred work includes a cross-cutting complete audit, AI Converter, Player hardening with local history/continuity, direct This Presentation FontResource authoring, Topics→Text Style consumption, Custom Library portability and remaining WYSIWYG/Text improvements.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. The current product backlog is organized in [`ROADMAP.md`](./ROADMAP.md) as **Conceptualization** (integrated AI, HTML export, Forms) and **Enhancements** (Inspector layout consistency, Container content fit, specific border radii, self alignment, Player hardening with local history, Watcher IDs, Player Legacy and demo presentation update). These are deferred candidates, not accepted specifications or a selected next checkpoint. Earlier deferred candidates, including a cross-cutting audit and direct This Presentation FontResource authoring, remain recorded in the roadmap.
