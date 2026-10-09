@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   onAuthStateChanged: vi.fn(),
   signInAnonymously: vi.fn(),
   getPlayerFirebaseApp: vi.fn(() => ({})),
+  recordPlayerDiagnostic: vi.fn(),
   get: vi.fn(),
   onValue: vi.fn(),
   bindingCallback: null as ((snapshot: { val(): unknown }) => void) | null,
@@ -33,6 +34,10 @@ vi.mock("../src/realtime-db", () => ({
   getPlayerFirebaseApp: mocks.getPlayerFirebaseApp,
 }));
 
+vi.mock("../src/player-diagnostics", () => ({
+  recordPlayerDiagnostic: mocks.recordPlayerDiagnostic,
+}));
+
 import {
   formatPairingPin,
   normalizePairingPin,
@@ -42,6 +47,7 @@ import {
 describe("Player pairing identity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.recordPlayerDiagnostic.mockReset();
     mocks.auth.currentUser = null;
     mocks.initializeAuth.mockReturnValue(mocks.auth);
     mocks.getAuth.mockReturnValue(mocks.auth);
@@ -87,7 +93,104 @@ describe("Player pairing identity", () => {
     expect(mocks.signInAnonymously).toHaveBeenCalledTimes(1);
     expect(session.playerUid).toBe("player-anonymous");
     expect(states).toContainEqual({ kind: "pairing", pin: expect.any(String) });
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_BINDING_READ_OK",
+      expect.objectContaining({ operation: "bindingRead", durationMs: expect.any(Number) }),
+    );
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_PIN_TRANSACTION_OK",
+      expect.objectContaining({
+        operation: "pinReservationTransaction",
+        committed: true,
+        durationMs: expect.any(Number),
+      }),
+    );
 
+    session.destroy();
+  });
+
+  it("records a sanitized binding read failure without changing the rejection", async () => {
+    const failure = Object.assign(
+      new Error(
+        "permission_denied at /playerBindings/player-secret?token=secret-token",
+      ),
+      { code: "PERMISSION_DENIED" },
+    );
+    mocks.get.mockRejectedValueOnce(failure);
+
+    await expect(startPlayerPairing({} as never, vi.fn())).rejects.toBe(failure);
+
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_BINDING_READ_START",
+      expect.objectContaining({
+        operation: "bindingRead",
+        isAnonymous: true,
+      }),
+    );
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_BINDING_READ_ERROR",
+      expect.objectContaining({
+        operation: "bindingRead",
+        durationMs: expect.any(Number),
+        isAnonymous: true,
+        error: {
+          name: "Error",
+          code: "PERMISSION_DENIED",
+          message: expect.not.stringContaining("player-secret"),
+        },
+      }),
+    );
+
+    const serializedDiagnostics = JSON.stringify(mocks.recordPlayerDiagnostic.mock.calls);
+    expect(serializedDiagnostics).not.toContain("123456");
+    expect(serializedDiagnostics).not.toContain("secret-token");
+  });
+
+  it("records a sanitized PIN transaction failure without changing the rejection", async () => {
+    const failure = Object.assign(
+      new Error("permission_denied at /playerPairingCodes/123456?token=secret-token"),
+      { code: "PERMISSION_DENIED" },
+    );
+    mocks.runTransaction.mockRejectedValueOnce(failure);
+
+    await expect(startPlayerPairing({} as never, vi.fn())).rejects.toBe(failure);
+
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_PIN_TRANSACTION_START",
+      expect.objectContaining({
+        operation: "pinReservationTransaction",
+        attempt: 1,
+        isAnonymous: true,
+      }),
+    );
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_PAIRING_PIN_TRANSACTION_ERROR",
+      expect.objectContaining({
+        operation: "pinReservationTransaction",
+        attempt: 1,
+        durationMs: expect.any(Number),
+        isAnonymous: true,
+        error: {
+          name: "Error",
+          code: "PERMISSION_DENIED",
+          message: expect.not.stringContaining("123456"),
+        },
+      }),
+    );
+
+    const serializedDiagnostics = JSON.stringify(mocks.recordPlayerDiagnostic.mock.calls);
+    expect(serializedDiagnostics).not.toContain("secret-token");
+  });
+
+  it("keeps pairing successful when the diagnostics sink throws", async () => {
+    mocks.recordPlayerDiagnostic.mockImplementation(() => {
+      throw new Error("diagnostics unavailable");
+    });
+
+    const session = await startPlayerPairing({} as never, vi.fn());
+
+    expect(session.state.kind).toBe("pairing");
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
     session.destroy();
   });
 
