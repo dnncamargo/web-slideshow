@@ -190,7 +190,11 @@ async function readServerTimeOffset(database: Database): Promise<number> {
   const snapshot = await get(ref(database, SERVER_TIME_OFFSET_PATH));
   const value = snapshot.val();
 
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error("Realtime Database server time offset is unavailable.");
+  }
+
+  return value;
 }
 
 async function reservePairingPin(
