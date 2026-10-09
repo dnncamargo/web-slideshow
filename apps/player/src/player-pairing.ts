@@ -26,6 +26,7 @@ export const PLAYER_PAIRING_PIN_RENEWAL_MS = 30_000;
 export const PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS = 5_000;
 
 const SERVER_TIME_OFFSET_PATH = ".info/serverTimeOffset";
+const SERVER_TIME_OFFSET_TIMEOUT_MS = 5_000;
 
 export type PlayerPairingState =
   | { kind: "pairing"; pin: string }
@@ -186,15 +187,70 @@ function pairingCodePath(pin: string): string {
   return `${PLAYER_PAIRING_CODES_PATH}/${pin}`;
 }
 
-async function readServerTimeOffset(database: Database): Promise<number> {
-  const snapshot = await get(ref(database, SERVER_TIME_OFFSET_PATH));
-  const value = snapshot.val();
+function readServerTimeOffset(database: Database): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let unsubscribe: Unsubscribe | undefined;
+    let cleanupPending = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error("Realtime Database server time offset is unavailable.");
-  }
+    const cleanup = (): void => {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+        timeout = undefined;
+      }
 
-  return value;
+      if (unsubscribe !== undefined) {
+        unsubscribe();
+        unsubscribe = undefined;
+        cleanupPending = false;
+        return;
+      }
+
+      cleanupPending = true;
+    };
+
+    const fail = (): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("Realtime Database server time offset is unavailable."));
+    };
+
+    const succeed = (value: number): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    timeout = setTimeout(fail, SERVER_TIME_OFFSET_TIMEOUT_MS);
+
+    try {
+      unsubscribe = onValue(
+        ref(database, SERVER_TIME_OFFSET_PATH),
+        (snapshot) => {
+          const value = snapshot.val();
+          if (typeof value !== "number" || !Number.isFinite(value)) {
+            fail();
+            return;
+          }
+
+          succeed(value);
+        },
+        () => fail(),
+      );
+
+      if (cleanupPending) {
+        const pendingUnsubscribe = unsubscribe;
+        unsubscribe = undefined;
+        cleanupPending = false;
+        pendingUnsubscribe?.();
+      }
+    } catch {
+      fail();
+    }
+  });
 }
 
 async function reservePairingPin(

@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   onValue: vi.fn(),
   bindingCallback: null as ((snapshot: { val(): unknown }) => void) | null,
+  serverTimeOffset: 0 as unknown,
+  offsetUnsubscribe: vi.fn(),
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   runTransaction: vi.fn(),
 }));
@@ -62,13 +64,16 @@ describe("Player pairing identity", () => {
       mocks.auth.currentUser = user;
       return { user };
     });
-    mocks.get.mockImplementation((target: { path: string }) =>
-      Promise.resolve({
-        val: () => (target.path === ".info/serverTimeOffset" ? 0 : null),
-      }),
-    );
+    mocks.get.mockResolvedValue({ val: () => null });
     mocks.bindingCallback = null;
-    mocks.onValue.mockImplementation((_ref, callback) => {
+    mocks.serverTimeOffset = 0;
+    mocks.offsetUnsubscribe = vi.fn();
+    mocks.onValue.mockImplementation((target: { path: string }, callback) => {
+      if (target.path === ".info/serverTimeOffset") {
+        callback({ val: () => mocks.serverTimeOffset });
+        return mocks.offsetUnsubscribe;
+      }
+
       mocks.bindingCallback = callback;
       return vi.fn();
     });
@@ -126,9 +131,7 @@ describe("Player pairing identity", () => {
       const nowSpy = vi
         .spyOn(Date, "now")
         .mockReturnValue(serverNow + clientClockOffsetMs);
-      mocks.get
-        .mockResolvedValueOnce({ val: () => null })
-        .mockResolvedValueOnce({ val: () => serverTimeOffsetMs });
+      mocks.serverTimeOffset = serverTimeOffsetMs;
 
       try {
         const session = await startPlayerPairing({} as never, vi.fn());
@@ -140,6 +143,7 @@ describe("Player pairing identity", () => {
         expect(record.expiresAt).toBe(
           serverNow + PLAYER_PAIRING_PIN_TTL_MS - PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS,
         );
+        expect(mocks.offsetUnsubscribe).toHaveBeenCalledOnce();
         session.destroy();
       } finally {
         nowSpy.mockRestore();
@@ -150,14 +154,13 @@ describe("Player pairing identity", () => {
   it.each([null, "0", Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
     "rejects an invalid RTDB server time offset (%s) before reserving a PIN",
     async (offset) => {
-      mocks.get
-        .mockResolvedValueOnce({ val: () => null })
-        .mockResolvedValueOnce({ val: () => offset });
+      mocks.serverTimeOffset = offset;
 
       await expect(startPlayerPairing({} as never, vi.fn())).rejects.toThrow(
         "Realtime Database server time offset is unavailable.",
       );
       expect(mocks.runTransaction).not.toHaveBeenCalled();
+      expect(mocks.offsetUnsubscribe).toHaveBeenCalledOnce();
       expect(JSON.stringify(mocks.recordPlayerDiagnostic.mock.calls)).not.toContain(
         "player-anonymous",
       );
