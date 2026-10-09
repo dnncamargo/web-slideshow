@@ -1715,9 +1715,6 @@ export function EditorWorkspace({
     ? getSlideRootDefinitionAssignmentBlocker(presentation, selectedSlide)
     : null;
 
-  useEffect(() => {
-    if (rootBackedSlide) setPendingCut(null);
-  }, [rootBackedSlide]);
   const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
     ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
     : undefined;
