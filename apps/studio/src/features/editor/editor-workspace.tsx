@@ -361,7 +361,9 @@ import {
 import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 import { preserveRootDefinitionContainerDeletion } from "./root-local-content-deletion";
 import {
-  moveRootBackedClipboardElement,
+  moveClipboardElementAcrossSlideOwners,
+  moveClipboardElementAcrossDefinitionOwners,
+  moveRootDefinitionElementToRootBackedSlide,
   pasteRootBackedClipboardEntry,
 } from "./root-local-clipboard-operations";
 import {
@@ -1688,9 +1690,6 @@ export function EditorWorkspace({
     ? getSlideRootDefinitionAssignmentBlocker(presentation, selectedSlide)
     : null;
 
-  useEffect(() => {
-    if (rootBackedSlide) setPendingCut(null);
-  }, [rootBackedSlide]);
   const rootDefinition = rootDefinitionMode && authoringTarget.kind === "root-definition"
     ? presentation.rootDefinitions?.find((definition) => definition.id === authoringTarget.rootDefinitionId)
     : undefined;
@@ -1761,7 +1760,6 @@ export function EditorWorkspace({
       setPendingElementDeletion(null);
       setPendingStyleDetach(null);
       setPendingTextStyleReset(null);
-      setPendingCut(null);
       closeCanvasMediaEditing();
       clearCanvasDragPreview();
       canvasResizeRef.current = null;
@@ -2126,27 +2124,31 @@ export function EditorWorkspace({
     const target = authoringTarget;
     const source = pendingCut.source;
     const sourceMatchesTarget = source.kind === "slide"
-      ? target.kind === "slide"
+      ? target.kind === "slide" || target.kind === "root-definition"
       : source.kind === "slide-local-root"
         ? target.kind === "slide"
-          && history.present.slides[target.slideIndex]?.id === source.slideId
-        : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
+        : target.kind === "slide" || (target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId);
     if (!sourceMatchesTarget) {
-      setPendingCut(null);
-      return false;
-    }
-    if (rootBackedSlide && source.kind === "slide") {
       return false;
     }
 
     const selectedElementAtPaste = selectedDocumentElement;
     const selectedContentSlotId = selectedElement?.contentSlotId ?? null;
-    if (source.kind === "slide-local-root") {
-      if (!rootBackedSlide || target.kind !== "slide") return false;
-      const initialMove = moveRootBackedClipboardElement(
+    if (
+      target.kind === "slide" &&
+      (source.kind === "slide-local-root" || (source.kind === "slide" && rootBackedSlide))
+    ) {
+      const sourceSlideId = source.slideId;
+      const sourceSlideIndex = history.present.slides.findIndex((slide) => slide.id === sourceSlideId);
+      if (sourceSlideIndex < 0) {
+        setPendingCut(null);
+        return false;
+      }
+      const initialMove = moveClipboardElementAcrossSlideOwners(
         history.present,
+        sourceSlideIndex,
+        source.kind === "slide-local-root" ? source.targetContainerId : null,
         target.slideIndex,
-        source.targetContainerId,
         pendingCut.sourceElementId,
         selectedElementAtPaste,
         selectedContentSlotId,
@@ -2157,10 +2159,11 @@ export function EditorWorkspace({
         target,
         { kind: "element.move", labelKey: "history.element.move" },
         (current, authoringTarget) => authoringTarget.kind === "slide"
-          ? moveRootBackedClipboardElement(
+          ? moveClipboardElementAcrossSlideOwners(
               current,
+              current.slides.findIndex((slide) => slide.id === sourceSlideId),
+              source.kind === "slide-local-root" ? source.targetContainerId : null,
               authoringTarget.slideIndex,
-              source.targetContainerId,
               pendingCut.sourceElementId,
               selectedElementAtPaste,
               selectedContentSlotId,
@@ -2171,6 +2174,55 @@ export function EditorWorkspace({
       return true;
     }
 
+    if (
+      (source.kind === "slide" && target.kind === "root-definition") ||
+      (source.kind === "root-definition" && target.kind === "slide")
+    ) {
+      const sourceTarget: AuthoringTarget = source.kind === "slide"
+        ? {
+            kind: "slide",
+            slideIndex: history.present.slides.findIndex((slide) => slide.id === source.slideId),
+          }
+        : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+      const moveBetweenOwners = (current: Presentation, currentSourceTarget: AuthoringTarget) =>
+        source.kind === "root-definition" && target.kind === "slide" && rootBackedSlide
+          ? moveRootDefinitionElementToRootBackedSlide(
+              current,
+              source.rootDefinitionId,
+              target.slideIndex,
+              pendingCut.sourceElementId,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            )
+          : moveClipboardElementAcrossDefinitionOwners(
+              current,
+              currentSourceTarget,
+              target,
+              pendingCut.sourceElementId,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            );
+      const initialMove = moveBetweenOwners(history.present, sourceTarget);
+      if (!initialMove) return false;
+
+      commitAuthoringAction(
+        target,
+        { kind: "element.move", labelKey: "history.element.move" },
+        (current) => {
+          const currentSourceTarget: AuthoringTarget = source.kind === "slide"
+            ? {
+                kind: "slide",
+                slideIndex: current.slides.findIndex((slide) => slide.id === source.slideId),
+              }
+            : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+          return moveBetweenOwners(current, currentSourceTarget) ?? current;
+        },
+      );
+      setPendingCut(null);
+      return true;
+    }
+
+    if (source.kind === "slide-local-root") return false;
     const sourceTarget: AuthoringTarget = source.kind === "slide"
       ? {
           kind: "slide",
@@ -2896,7 +2948,6 @@ export function EditorWorkspace({
     setPendingElementDeletion(null);
     setPendingStyleDetach(null);
     setPendingTextStyleReset(null);
-    setPendingCut(null);
     closeCanvasMediaEditing();
     clearCanvasDragPreview();
     canvasResizeRef.current = null;
@@ -2917,7 +2968,6 @@ export function EditorWorkspace({
     setPendingElementDeletion(null);
     setPendingStyleDetach(null);
     setPendingTextStyleReset(null);
-    setPendingCut(null);
     closeCanvasMediaEditing();
     clearCanvasDragPreview();
     canvasResizeRef.current = null;

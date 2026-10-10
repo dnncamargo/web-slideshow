@@ -23,8 +23,15 @@ import {
 } from "./slide-local-root-authoring";
 import {
   resolveClipboardPasteDestination,
+  moveClipboardElementInElements,
   type ClipboardPasteDestination,
 } from "./clipboard-operations";
+import {
+  replaceAuthoringElements,
+  resolveAuthoringElements,
+  resolveCanonicalRootContainerId,
+  type AuthoringTarget,
+} from "./authoring-target";
 
 export type RootBackedClipboardPasteDestination = Readonly<{
   targetContainerId: string;
@@ -247,6 +254,244 @@ export function pasteRootBackedClipboardEntry(
     : null;
 }
 
+/**
+ * Moves a live element between persisted Slide owners. A non-null source
+ * target identifies a local Root record; null identifies the ordinary Slide
+ * tree. The receiver is resolved through the existing Root-local or ordinary
+ * Clipboard destination rules before the source is removed.
+ */
+export function moveClipboardElementAcrossSlideOwners(
+  presentation: Presentation,
+  sourceSlideIndex: number,
+  sourceTargetContainerId: string | null,
+  receiverSlideIndex: number,
+  sourceElementId: string,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceSlide = resolveSlide(presentation, sourceSlideIndex);
+  const sourceRecordIndex = sourceSlide && sourceTargetContainerId !== null
+    ? resolveLocalRecordIndex(sourceSlide, sourceTargetContainerId)
+    : -1;
+  const sourceRecord = sourceTargetContainerId !== null && sourceRecordIndex >= 0
+    ? sourceSlide?.localRootChildren?.[sourceRecordIndex]
+    : undefined;
+  const sourceElements = sourceTargetContainerId === null
+    ? sourceSlide?.elements
+    : sourceRecord?.children;
+  const source = sourceElements
+    ? findElementById(sourceElements, sourceElementId)
+    : null;
+  const receiverSlide = resolveSlide(presentation, receiverSlideIndex);
+  if (!sourceSlide || !sourceElements || !source || !receiverSlide) return null;
+
+  const receiverRootBacked = (receiverSlide.rootDefinitionId ?? presentation.defaultRootDefinitionId) !== undefined;
+  const rootDestination = receiverRootBacked
+    ? resolveRootBackedClipboardPasteDestination(
+        presentation,
+        receiverSlideIndex,
+        sourceElementId,
+        selectedElement,
+        selectedContentSlotId,
+      )
+    : null;
+  const destination = rootDestination?.destination ?? (
+    receiverRootBacked
+      ? null
+      : resolveClipboardPasteDestination(
+          receiverSlide.elements,
+          sourceElementId,
+          selectedElement,
+          selectedContentSlotId,
+        )
+  );
+  if (!destination || containsDestinationInSource(source, destination)) {
+    return null;
+  }
+
+  const movedElement = duplicateElement(
+    source,
+    collectPresentationAuthoringIds(presentation),
+  );
+  const receiverElements = receiverRootBacked
+    ? (() => {
+        const targetContainerId = rootDestination?.targetContainerId;
+        if (!targetContainerId) return null;
+        const receiverRecord = receiverSlide.localRootChildren?.find(
+          (record) => record.targetContainerId === targetContainerId,
+        );
+        return receiverRecord?.children ?? [];
+      })()
+    : receiverSlide.elements;
+  if (receiverElements === null) return null;
+
+  const nextReceiverChildren = appendAtDestination(
+    receiverElements,
+    destination,
+    movedElement,
+  );
+  if (nextReceiverChildren === null) return null;
+
+  if (
+    sourceTargetContainerId !== null &&
+    receiverRootBacked &&
+    sourceSlideIndex === receiverSlideIndex &&
+    rootDestination?.targetContainerId === sourceTargetContainerId
+  ) {
+    const nextElements = removeElementById(nextReceiverChildren, sourceElementId);
+    const nextRecords = updateLocalRecordChildren(
+      sourceSlide.localRootChildren ?? [],
+      sourceTargetContainerId,
+      () => nextElements,
+    );
+    return nextRecords
+      ? replaceLocalRootChildren(presentation, sourceSlideIndex, nextRecords)
+      : null;
+  }
+
+  let nextPresentation = presentation;
+  if (sourceTargetContainerId !== null) {
+    const nextSourceElements = removeElementById(sourceElements, sourceElementId);
+    const nextSourceRecords = updateLocalRecordChildren(
+      sourceSlide.localRootChildren ?? [],
+      sourceTargetContainerId,
+      () => nextSourceElements,
+    );
+    if (!nextSourceRecords) return null;
+    const updatedSource = replaceLocalRootChildren(
+      nextPresentation,
+      sourceSlideIndex,
+      nextSourceRecords,
+    );
+    if (!updatedSource) return null;
+    nextPresentation = updatedSource;
+  } else {
+    const nextSourceElements = removeElementById(sourceElements, sourceElementId);
+    if (nextSourceElements === sourceElements) return null;
+    nextPresentation = {
+      ...nextPresentation,
+      slides: nextPresentation.slides.map((slide, index) =>
+        index === sourceSlideIndex ? { ...slide, elements: nextSourceElements } : slide,
+      ),
+    };
+  }
+
+  if (receiverRootBacked) {
+    const targetContainerId = rootDestination?.targetContainerId;
+    if (!targetContainerId) return null;
+    const receiverRecords = nextPresentation.slides[receiverSlideIndex]?.localRootChildren ?? [];
+    const nextRecords = updateLocalRecordChildren(
+      receiverRecords,
+      targetContainerId,
+      () => nextReceiverChildren,
+    );
+    if (!nextRecords) return null;
+    return replaceLocalRootChildren(nextPresentation, receiverSlideIndex, nextRecords);
+  }
+
+  return {
+    ...nextPresentation,
+    slides: nextPresentation.slides.map((slide, index) =>
+      index === receiverSlideIndex ? { ...slide, elements: nextReceiverChildren } : slide,
+    ),
+  };
+}
+
+/**
+ * Moves a live element between an ordinary Slide tree and a Root Definition.
+ * Both owner trees are updated together and the complete Presentation is
+ * validated before the result is returned to History.
+ */
+export function moveClipboardElementAcrossDefinitionOwners(
+  presentation: Presentation,
+  sourceTarget: AuthoringTarget,
+  receiverTarget: AuthoringTarget,
+  sourceElementId: string,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceElements = resolveAuthoringElements(presentation, sourceTarget);
+  const receiverElements = resolveAuthoringElements(presentation, receiverTarget);
+  if (!sourceElements || !receiverElements) return null;
+
+  const sameOwner = sourceTarget.kind === receiverTarget.kind && (
+    sourceTarget.kind === "slide"
+      ? receiverTarget.kind === "slide" && sourceTarget.slideIndex === receiverTarget.slideIndex
+      : receiverTarget.kind === "root-definition" && sourceTarget.rootDefinitionId === receiverTarget.rootDefinitionId
+  );
+  const move = moveClipboardElementInElements(
+    presentation,
+    sourceElements,
+    receiverElements,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+    sameOwner,
+    receiverTarget.kind === "root-definition"
+      ? resolveCanonicalRootContainerId(presentation, receiverTarget)
+      : null,
+  );
+  if (!move) return null;
+
+  let candidate: Presentation;
+  if (sameOwner) {
+    candidate = replaceAuthoringElements(presentation, sourceTarget, move.sourceElements);
+    if (candidate === presentation) return null;
+  } else {
+    candidate = replaceAuthoringElements(presentation, receiverTarget, move.receiverElements);
+    if (candidate === presentation) return null;
+    const afterSource = replaceAuthoringElements(candidate, sourceTarget, move.sourceElements);
+    if (afterSource === candidate) return null;
+    candidate = afterSource;
+  }
+
+  return PresentationSchema.safeParse(candidate).success ? candidate : null;
+}
+
+/** Moves Root-owned content into an authorized local area of a Root-backed Slide. */
+export function moveRootDefinitionElementToRootBackedSlide(
+  presentation: Presentation,
+  rootDefinitionId: string,
+  receiverSlideIndex: number,
+  sourceElementId: string,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceTarget: AuthoringTarget = { kind: "root-definition", rootDefinitionId };
+  const sourceElements = resolveAuthoringElements(presentation, sourceTarget);
+  const receiverSlide = resolveSlide(presentation, receiverSlideIndex);
+  const source = sourceElements ? findElementById(sourceElements, sourceElementId) : null;
+  if (!sourceElements || !receiverSlide || !source) return null;
+
+  const destination = resolveRootBackedClipboardPasteDestination(
+    presentation,
+    receiverSlideIndex,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+  );
+  if (!destination || containsDestinationInSource(source, destination.destination)) return null;
+
+  const movedElement = duplicateElement(source, collectPresentationAuthoringIds(presentation));
+  const records = receiverSlide.localRootChildren ?? [];
+  const nextRecords = updateLocalRecordChildren(
+    records,
+    destination.targetContainerId,
+    (children) => appendAtDestination(children, destination.destination, movedElement),
+  );
+  if (!nextRecords) return null;
+
+  const withReceiver = replaceLocalRootChildren(presentation, receiverSlideIndex, nextRecords);
+  if (!withReceiver) return null;
+  const afterSource = replaceAuthoringElements(
+    withReceiver,
+    sourceTarget,
+    removeElementById(sourceElements, sourceElementId),
+  );
+  if (afterSource === withReceiver) return null;
+  return PresentationSchema.safeParse(afterSource).success ? afterSource : null;
+}
+
 export function moveRootBackedClipboardElement(
   presentation: Presentation,
   slideIndex: number,
@@ -255,71 +500,13 @@ export function moveRootBackedClipboardElement(
   selectedElement: PresentationElement | null,
   selectedContentSlotId: string | null,
 ): Presentation | null {
-  const slide = resolveSlide(presentation, slideIndex);
-  const sourceRecordIndex = slide
-    ? resolveLocalRecordIndex(slide, sourceTargetContainerId)
-    : -1;
-  const sourceRecord = sourceRecordIndex >= 0
-    ? slide?.localRootChildren?.[sourceRecordIndex]
-    : undefined;
-  const source = sourceRecord
-    ? findElementById(sourceRecord.children, sourceElementId)
-    : null;
-  if (!slide || !sourceRecord || !source) return null;
-
-  const destination = resolveRootBackedClipboardPasteDestination(
+  return moveClipboardElementAcrossSlideOwners(
     presentation,
+    slideIndex,
+    sourceTargetContainerId,
     slideIndex,
     sourceElementId,
     selectedElement,
     selectedContentSlotId,
   );
-  if (!destination || containsDestinationInSource(source, destination.destination)) {
-    return null;
-  }
-
-  const movedElement = duplicateElement(
-    source,
-    collectPresentationAuthoringIds(presentation),
-  );
-  const records = slide.localRootChildren ?? [];
-  if (destination.targetContainerId === sourceTargetContainerId) {
-    const nextChildrenWithCopy = appendAtDestination(
-      sourceRecord.children,
-      destination.destination,
-      movedElement,
-    );
-    if (nextChildrenWithCopy === null) return null;
-    const nextChildren = removeElementById(nextChildrenWithCopy, sourceElementId);
-    const nextRecords = updateLocalRecordChildren(
-      records,
-      sourceTargetContainerId,
-      () => nextChildren,
-    );
-    return nextRecords ? replaceLocalRootChildren(presentation, slideIndex, nextRecords) : null;
-  }
-
-  const receiverRecordIndex = resolveLocalRecordIndex(slide, destination.targetContainerId);
-  const receiverRecord = receiverRecordIndex >= 0
-    ? records[receiverRecordIndex]
-    : undefined;
-  const nextReceiverChildren = appendAtDestination(
-    receiverRecord?.children ?? [],
-    destination.destination,
-    movedElement,
-  );
-  if (nextReceiverChildren === null) return null;
-  const nextSourceChildren = removeElementById(sourceRecord.children, sourceElementId);
-  let nextRecords = updateLocalRecordChildren(
-    records,
-    sourceTargetContainerId,
-    () => nextSourceChildren,
-  );
-  if (!nextRecords) return null;
-  nextRecords = updateLocalRecordChildren(
-    nextRecords,
-    destination.targetContainerId,
-    () => nextReceiverChildren,
-  );
-  return nextRecords ? replaceLocalRootChildren(presentation, slideIndex, nextRecords) : null;
 }

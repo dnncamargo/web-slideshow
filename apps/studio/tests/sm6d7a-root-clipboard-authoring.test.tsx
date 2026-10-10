@@ -431,7 +431,8 @@ describe("SM6D7A Root clipboard authoring", () => {
     expect(rootDefinition(redone).root).toEqual(rootDefinition(initial).root);
   });
 
-  it("cancels Root Cut on exit and never moves it into the retained Slide", async () => {
+  it("preserves Root Cut on exit and moves it into the retained Slide atomically", async () => {
+    const initial = rootPresentation();
     await act(async () => findPresentationElement(host, "root-source").dispatchEvent(new Event("pointerdown", { bubbles: true })));
     await pressKey("x", { ctrlKey: true });
     expect(findPresentationElement(host, "root-source").classList.contains("studio-editor-pending-cut")).toBe(true);
@@ -439,17 +440,39 @@ describe("SM6D7A Root clipboard authoring", () => {
     const exit = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Exit master editing");
     if (!exit) throw new Error("expected Root exit control");
-    act(() => exit.click());
-    expect(host.querySelector(".studio-editor-pending-cut")).toBeNull();
-    await pressKey("v", { ctrlKey: true });
+    await act(async () => exit.click());
+    await act(async () => clickButton(host, "Clipboard").click());
+    expect(host.textContent).toContain("Pending Cut");
+    expect(saveButton(host).disabled).toBe(true);
 
-    const ids = renderIds(host);
-    expect(ids).toContain("slide-element");
-    expect(ids).not.toContain("root-source-copy");
-    expect(ids).not.toContain("root-source-moved");
-    expect(ids).toEqual(["slide-element"]);
+    await act(async () => findPresentationElement(host, "slide-element").dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    await pressKey("v", { ctrlKey: true });
+    await act(async () => saveButton(host).click());
+
+    const moved = saved.at(-1);
+    if (!moved) throw new Error("expected saved Root-to-Slide move");
+    expect(renderIds(host)).toEqual(["slide-element", "root-source-copy"]);
+    expect(moved.slides[0]?.elements.map((element) => element.id)).toEqual(["slide-element", "root-source-copy"]);
+    expect(rootDefinition(moved).root.children.map((element) => element.id)).toEqual(["root-receiver"]);
+    expect(rootDefinition(moved).root.id).toBe("root-container");
+
     await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "History")?.click());
-    expect(host.textContent).not.toContain("Move element");
+    expect(host.textContent?.match(/Move element/g)).toHaveLength(1);
+
+    await pressKey("z", { ctrlKey: true });
+    await act(async () => saveButton(host).click());
+    const undone = saved.at(-1);
+    if (!undone) throw new Error("expected saved Undo");
+    expect(undone).toEqual(initial);
+    expect(rootDefinition(undone).root.id).toBe("root-container");
+
+    await pressKey("z", { ctrlKey: true, shiftKey: true });
+    await act(async () => saveButton(host).click());
+    const redone = saved.at(-1);
+    if (!redone) throw new Error("expected saved Redo");
+    expect(redone.slides[0]?.elements).toEqual(moved.slides[0]?.elements);
+    expect(rootDefinition(redone).root).toEqual(rootDefinition(moved).root);
+    expect(rootDefinition(redone).root.id).toBe("root-container");
   });
 });
