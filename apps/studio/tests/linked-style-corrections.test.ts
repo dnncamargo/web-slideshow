@@ -118,7 +118,7 @@ describe("Linked Style correction contracts", () => {
   it("reuses create-from-container semantics and never transfers className", () => {
     const document = presentation([{ id: "c", type: "container", hidden: false, style: { className: "local", color: "#fff" }, children: [] }]);
     const next = createLinkedStyleFromContainer(document, 0, "c", " Card ");
-    expect(next.linkedStyles?.[1]?.style).toEqual({ color: "#ffffff" });
+    expect(next.linkedStyles?.[1]?.style).toEqual({ color: "#ffffff", borderRadius: 0 });
     expect(next.slides[0]!.elements[0]).toMatchObject({ linkedStyleId: "card-2", style: { className: "local" } });
   });
 

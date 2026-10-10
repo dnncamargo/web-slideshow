@@ -18,9 +18,23 @@ const repositories = {
 
 function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-  setter?.call(input, value);
+  if (!setter) throw new Error("expected HTMLInputElement.value setter");
+  setter.call(input, value);
   input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function requiredElement<T extends Element>(container: ParentNode, selector: string): T {
+  const element = container.querySelector<T>(selector);
+  if (!element) throw new Error(`missing required element ${selector}`);
+  return element;
+}
+
+function requiredButton(container: ParentNode, label: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+    .find((candidate) => candidate.textContent?.trim() === label);
+  if (!button) throw new Error(`missing required button ${label}`);
+  return button;
 }
 
 function makePresentation(): Presentation {
@@ -91,28 +105,24 @@ describe("EditorWorkspace Text Styles rendering", () => {
     expect(canvasText()?.getAttribute("style") ?? "").not.toContain("Fira Code");
     expect(container.querySelector("[data-presentation-font-resources]")?.textContent).toContain("Fira Code");
 
-    const resourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
-    await act(async () => resourcesButton?.click());
-    const editBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
-    await act(async () => editBodyButton?.click());
+    const resourcesButton = requiredButton(container, "Custom Resources");
+    await act(async () => resourcesButton.click());
+    const editBodyButton = requiredElement<HTMLButtonElement>(container, "[data-text-style-id='body'] button");
+    await act(async () => editBodyButton.click());
 
-    const addProperty = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-text-style-id='body'] button")).find((button) => button.textContent?.trim() === "+ Add property");
-    await act(async () => addProperty?.click());
-    const addFontFamily = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-text-style-id='body'] button")).find((button) => button.textContent?.trim() === "Font family");
-    await act(async () => addFontFamily?.click());
-    const fontInput = container.querySelector<HTMLInputElement>("#text-style-body-font-family");
-    expect(fontInput).not.toBeNull();
+    const bodyRow = () => requiredElement<HTMLElement>(container, "[data-text-style-id='body']");
+    await act(async () => requiredButton(bodyRow(), "+ Add property").click());
+    await act(async () => requiredButton(bodyRow(), "Font family").click());
+    const fontInput = requiredElement<HTMLInputElement>(container, "#text-style-body-font-family");
     await act(async () => {
-      if (!fontInput) return;
       fontInput.focus();
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-      setter?.call(fontInput, "Fira Code");
+      if (!setter) throw new Error("expected HTMLInputElement.value setter");
+      setter.call(fontInput, "Fira Code");
       fontInput.dispatchEvent(new Event("input", { bubbles: true }));
       fontInput.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    await act(async () => {
-      fontInput?.blur();
-    });
+    await act(async () => fontInput.blur());
 
     expect(canvasText()?.getAttribute("style")).toContain('font-family:"Fira Code"');
     expect(container.querySelectorAll("[data-presentation-font-resources]")).toHaveLength(1);
@@ -135,31 +145,33 @@ describe("EditorWorkspace Text Styles rendering", () => {
     root = createRoot(container);
 
     await act(async () => root?.render(<StudioI18nProvider><EditorWorkspace initialPresentation={initial} onSave={async (presentation) => { saved.push(presentation); }} customLibraryPaletteRepository={repositories} customLibraryFontRepository={repositories} /></StudioI18nProvider>));
-    const resourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
-    await act(async () => resourcesButton?.click());
-    await act(async () => container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button")?.click());
-    const row = () => container.querySelector<HTMLElement>("[data-text-style-id='body']");
-    const addProperty = () => Array.from(row()?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent?.trim() === "+ Add property");
+    const resourcesButton = requiredButton(container, "Custom Resources");
+    await act(async () => resourcesButton.click());
+    await act(async () => requiredElement<HTMLButtonElement>(container, "[data-text-style-id='body'] button").click());
+    const row = () => requiredElement<HTMLElement>(container, "[data-text-style-id='body']");
+    const addProperty = () => requiredButton(row(), "+ Add property");
 
-    await act(async () => addProperty()?.click());
-    await act(async () => Array.from(row()?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent?.trim() === "Text color")?.click());
+    await act(async () => addProperty().click());
+    await act(async () => requiredButton(row(), "Fill").click());
     expect(initial.textStyles).toBeUndefined();
-    const colorProperty = () => row()?.querySelector<HTMLElement>("[data-text-style-property='color']");
-    await act(async () => colorProperty()?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
-    await act(async () => Array.from(colorProperty()?.querySelectorAll<HTMLButtonElement>("button[aria-pressed]") ?? []).find((button) => button.getAttribute("aria-label")?.includes("Primary"))?.click());
+    const fillProperty = () => requiredElement<HTMLElement>(row(), "[data-text-style-property='fill']");
+    await act(async () => requiredElement<HTMLButtonElement>(fillProperty(), "button[aria-expanded]").click());
+    const primaryColor = Array.from(fillProperty().querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Primary"));
+    if (!primaryColor) throw new Error("missing required Primary palette color");
+    await act(async () => primaryColor.click());
 
-    await act(async () => addProperty()?.click());
-    await act(async () => Array.from(row()?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent?.trim() === "Text stroke")?.click());
-    const width = row()?.querySelector<HTMLInputElement>("#text-style-body-stroke-width");
-    expect(width).not.toBeNull();
-    await act(async () => {
-      if (!width) return;
-      setInputValue(width, "3");
-    });
+    await act(async () => addProperty().click());
+    await act(async () => requiredButton(row(), "Text stroke").click());
+    const width = requiredElement<HTMLInputElement>(row(), "#text-style-body-stroke-width");
+    await act(async () => setInputValue(width, "3"));
     expect(initial.textStyles).toBeUndefined();
-    const strokeProperty = () => row()?.querySelector<HTMLElement>("[data-text-style-property='textStroke']");
-    await act(async () => strokeProperty()?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click());
-    await act(async () => Array.from(strokeProperty()?.querySelectorAll<HTMLButtonElement>("button[aria-pressed]") ?? []).find((button) => button.getAttribute("aria-label")?.includes("Outline"))?.click());
+    const strokeProperty = () => requiredElement<HTMLElement>(row(), "[data-text-style-property='textStroke']");
+    await act(async () => requiredElement<HTMLButtonElement>(strokeProperty(), "button[aria-expanded]").click());
+    const outlineColor = Array.from(strokeProperty().querySelectorAll<HTMLButtonElement>("button[aria-pressed]"))
+      .find((button) => button.getAttribute("aria-label")?.includes("Outline"));
+    if (!outlineColor) throw new Error("missing required Outline palette color");
+    await act(async () => outlineColor.click());
 
     const canvasText = container.querySelector<HTMLElement>("[data-presentation-id='body-text']");
     expect(canvasText?.getAttribute("style")).toContain("var(--ps-palette-");
@@ -181,11 +193,11 @@ describe("EditorWorkspace Text Styles rendering", () => {
     expect(reloadedCanvasText).not.toHaveProperty("typography");
     expect(container.querySelector("[data-presentation-font-resources]")).not.toBeNull();
 
-    const reloadedResourcesButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "Custom Resources");
-    await act(async () => reloadedResourcesButton?.click());
-    const reloadedEditBodyButton = container.querySelector<HTMLButtonElement>("[data-text-style-id='body'] button");
-    await act(async () => reloadedEditBodyButton?.click());
-    const reloadedPreview = container.querySelector<HTMLElement>("[data-text-style-preview='body'] .presentation-text");
+    const reloadedResourcesButton = requiredButton(container, "Custom Resources");
+    await act(async () => reloadedResourcesButton.click());
+    const reloadedEditBodyButton = requiredElement<HTMLButtonElement>(container, "[data-text-style-id='body'] button");
+    await act(async () => reloadedEditBodyButton.click());
+    const reloadedPreview = requiredElement<HTMLElement>(container, "[data-text-style-preview='body'] .presentation-text");
     expect(reloadedPreview?.getAttribute("style")).toContain("var(--ps-palette-");
     expect(reloadedPreview?.getAttribute("style")).toContain("-webkit-text-stroke:3px var(--ps-palette-");
   });
