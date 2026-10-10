@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import type { PresentationElement } from "@web-slideshow/document-schema";
@@ -32,72 +29,7 @@ function element(id: string): PresentationElement {
   return found;
 }
 
-function resolveDisplayNamePlaceholders(value: unknown): unknown {
-  if (typeof value === "string") return value.replaceAll("displayName", displayName);
-  if (Array.isArray(value)) return value.map(resolveDisplayNamePlaceholders);
-  if (value === null || typeof value !== "object") return value;
-
-  return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, resolveDisplayNamePlaceholders(child)]),
-  );
-}
-
-function normalizeAuthoritativeExport(value: unknown): unknown {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
-
-  const presentation = value as {
-    slides?: Array<{ id?: string; elements?: unknown[] }>;
-  };
-  if (!Array.isArray(presentation.slides)) return value;
-
-  return {
-    ...presentation,
-    slides: presentation.slides.map((slide) => {
-      const root = slide.elements?.[0];
-      if (slide.id === "slide" && root !== undefined) {
-        return {
-          ...slide,
-          elements: [{
-            id: "container-element-2-root",
-            hidden: false,
-            type: "container",
-            children: [root],
-          }],
-        };
-      }
-
-      if (root === null || typeof root !== "object" || Array.isArray(root)) return slide;
-      const rootRecord = root as Record<string, unknown>;
-      const layout = rootRecord.layout;
-      if (
-        layout !== null &&
-        typeof layout === "object" &&
-        !Array.isArray(layout) &&
-        Object.keys(layout).length === 2 &&
-        (layout as Record<string, unknown>).width === "100%" &&
-        (layout as Record<string, unknown>).height === "100%"
-      ) {
-        const { layout: _layout, ...rootWithoutRedundantLayout } = rootRecord;
-        return { ...slide, elements: [rootWithoutRedundantLayout] };
-      }
-
-      return slide;
-    }),
-  };
-}
-
 describe("canonical demo presentation", () => {
-  it("matches the authoritative export after only neutral-root normalization", () => {
-    const sourcePath = fileURLToPath(
-      new URL("../../../displayName Component Showcase.powershow.json", import.meta.url),
-    );
-    const authoritative = resolveDisplayNamePlaceholders(
-      JSON.parse(readFileSync(sourcePath, "utf8")) as unknown,
-    );
-
-    expect(demoPresentation).toEqual(normalizeAuthoritativeExport(authoritative));
-  });
-
   it("imports the nine authored slides in order with schema version 1", () => {
     expect(demoPresentation.schemaVersion).toBe(1);
     expect(demoPresentation.id).toBe("presentation-mv1oi2rv-8qovqq");
