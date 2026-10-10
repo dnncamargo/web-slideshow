@@ -23,8 +23,15 @@ import {
 } from "./slide-local-root-authoring";
 import {
   resolveClipboardPasteDestination,
+  moveClipboardElementInElements,
   type ClipboardPasteDestination,
 } from "./clipboard-operations";
+import {
+  replaceAuthoringElements,
+  resolveAuthoringElements,
+  resolveCanonicalRootContainerId,
+  type AuthoringTarget,
+} from "./authoring-target";
 
 export type RootBackedClipboardPasteDestination = Readonly<{
   targetContainerId: string;
@@ -388,6 +395,101 @@ export function moveClipboardElementAcrossSlideOwners(
       index === receiverSlideIndex ? { ...slide, elements: nextReceiverChildren } : slide,
     ),
   };
+}
+
+/**
+ * Moves a live element between an ordinary Slide tree and a Root Definition.
+ * Both owner trees are updated together and the complete Presentation is
+ * validated before the result is returned to History.
+ */
+export function moveClipboardElementAcrossDefinitionOwners(
+  presentation: Presentation,
+  sourceTarget: AuthoringTarget,
+  receiverTarget: AuthoringTarget,
+  sourceElementId: string,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceElements = resolveAuthoringElements(presentation, sourceTarget);
+  const receiverElements = resolveAuthoringElements(presentation, receiverTarget);
+  if (!sourceElements || !receiverElements) return null;
+
+  const sameOwner = sourceTarget.kind === receiverTarget.kind && (
+    sourceTarget.kind === "slide"
+      ? receiverTarget.kind === "slide" && sourceTarget.slideIndex === receiverTarget.slideIndex
+      : receiverTarget.kind === "root-definition" && sourceTarget.rootDefinitionId === receiverTarget.rootDefinitionId
+  );
+  const move = moveClipboardElementInElements(
+    presentation,
+    sourceElements,
+    receiverElements,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+    sameOwner,
+    receiverTarget.kind === "root-definition"
+      ? resolveCanonicalRootContainerId(presentation, receiverTarget)
+      : null,
+  );
+  if (!move) return null;
+
+  let candidate: Presentation;
+  if (sameOwner) {
+    candidate = replaceAuthoringElements(presentation, sourceTarget, move.sourceElements);
+    if (candidate === presentation) return null;
+  } else {
+    candidate = replaceAuthoringElements(presentation, receiverTarget, move.receiverElements);
+    if (candidate === presentation) return null;
+    const afterSource = replaceAuthoringElements(candidate, sourceTarget, move.sourceElements);
+    if (afterSource === candidate) return null;
+    candidate = afterSource;
+  }
+
+  return PresentationSchema.safeParse(candidate).success ? candidate : null;
+}
+
+/** Moves Root-owned content into an authorized local area of a Root-backed Slide. */
+export function moveRootDefinitionElementToRootBackedSlide(
+  presentation: Presentation,
+  rootDefinitionId: string,
+  receiverSlideIndex: number,
+  sourceElementId: string,
+  selectedElement: PresentationElement | null,
+  selectedContentSlotId: string | null,
+): Presentation | null {
+  const sourceTarget: AuthoringTarget = { kind: "root-definition", rootDefinitionId };
+  const sourceElements = resolveAuthoringElements(presentation, sourceTarget);
+  const receiverSlide = resolveSlide(presentation, receiverSlideIndex);
+  const source = sourceElements ? findElementById(sourceElements, sourceElementId) : null;
+  if (!sourceElements || !receiverSlide || !source) return null;
+
+  const destination = resolveRootBackedClipboardPasteDestination(
+    presentation,
+    receiverSlideIndex,
+    sourceElementId,
+    selectedElement,
+    selectedContentSlotId,
+  );
+  if (!destination || containsDestinationInSource(source, destination.destination)) return null;
+
+  const movedElement = duplicateElement(source, collectPresentationAuthoringIds(presentation));
+  const records = receiverSlide.localRootChildren ?? [];
+  const nextRecords = updateLocalRecordChildren(
+    records,
+    destination.targetContainerId,
+    (children) => appendAtDestination(children, destination.destination, movedElement),
+  );
+  if (!nextRecords) return null;
+
+  const withReceiver = replaceLocalRootChildren(presentation, receiverSlideIndex, nextRecords);
+  if (!withReceiver) return null;
+  const afterSource = replaceAuthoringElements(
+    withReceiver,
+    sourceTarget,
+    removeElementById(sourceElements, sourceElementId),
+  );
+  if (afterSource === withReceiver) return null;
+  return PresentationSchema.safeParse(afterSource).success ? afterSource : null;
 }
 
 export function moveRootBackedClipboardElement(

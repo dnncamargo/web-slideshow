@@ -362,6 +362,8 @@ import { setRootDefinitionLocalChildTarget } from "./root-definition-lifecycle";
 import { preserveRootDefinitionContainerDeletion } from "./root-local-content-deletion";
 import {
   moveClipboardElementAcrossSlideOwners,
+  moveClipboardElementAcrossDefinitionOwners,
+  moveRootDefinitionElementToRootBackedSlide,
   pasteRootBackedClipboardEntry,
 } from "./root-local-clipboard-operations";
 import {
@@ -1758,7 +1760,6 @@ export function EditorWorkspace({
       setPendingElementDeletion(null);
       setPendingStyleDetach(null);
       setPendingTextStyleReset(null);
-      setPendingCut(null);
       closeCanvasMediaEditing();
       clearCanvasDragPreview();
       canvasResizeRef.current = null;
@@ -2123,10 +2124,10 @@ export function EditorWorkspace({
     const target = authoringTarget;
     const source = pendingCut.source;
     const sourceMatchesTarget = source.kind === "slide"
-      ? target.kind === "slide"
+      ? target.kind === "slide" || target.kind === "root-definition"
       : source.kind === "slide-local-root"
         ? target.kind === "slide"
-        : target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId;
+        : target.kind === "slide" || (target.kind === "root-definition" && target.rootDefinitionId === source.rootDefinitionId);
     if (!sourceMatchesTarget) {
       return false;
     }
@@ -2168,6 +2169,54 @@ export function EditorWorkspace({
               selectedContentSlotId,
             ) ?? current
           : current,
+      );
+      setPendingCut(null);
+      return true;
+    }
+
+    if (
+      (source.kind === "slide" && target.kind === "root-definition") ||
+      (source.kind === "root-definition" && target.kind === "slide")
+    ) {
+      const sourceTarget: AuthoringTarget = source.kind === "slide"
+        ? {
+            kind: "slide",
+            slideIndex: history.present.slides.findIndex((slide) => slide.id === source.slideId),
+          }
+        : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+      const moveBetweenOwners = (current: Presentation, currentSourceTarget: AuthoringTarget) =>
+        source.kind === "root-definition" && target.kind === "slide" && rootBackedSlide
+          ? moveRootDefinitionElementToRootBackedSlide(
+              current,
+              source.rootDefinitionId,
+              target.slideIndex,
+              pendingCut.sourceElementId,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            )
+          : moveClipboardElementAcrossDefinitionOwners(
+              current,
+              currentSourceTarget,
+              target,
+              pendingCut.sourceElementId,
+              selectedElementAtPaste,
+              selectedContentSlotId,
+            );
+      const initialMove = moveBetweenOwners(history.present, sourceTarget);
+      if (!initialMove) return false;
+
+      commitAuthoringAction(
+        target,
+        { kind: "element.move", labelKey: "history.element.move" },
+        (current) => {
+          const currentSourceTarget: AuthoringTarget = source.kind === "slide"
+            ? {
+                kind: "slide",
+                slideIndex: current.slides.findIndex((slide) => slide.id === source.slideId),
+              }
+            : { kind: "root-definition", rootDefinitionId: source.rootDefinitionId };
+          return moveBetweenOwners(current, currentSourceTarget) ?? current;
+        },
       );
       setPendingCut(null);
       return true;
@@ -2899,7 +2948,6 @@ export function EditorWorkspace({
     setPendingElementDeletion(null);
     setPendingStyleDetach(null);
     setPendingTextStyleReset(null);
-    setPendingCut(null);
     closeCanvasMediaEditing();
     clearCanvasDragPreview();
     canvasResizeRef.current = null;
@@ -2920,7 +2968,6 @@ export function EditorWorkspace({
     setPendingElementDeletion(null);
     setPendingStyleDetach(null);
     setPendingTextStyleReset(null);
-    setPendingCut(null);
     closeCanvasMediaEditing();
     clearCanvasDragPreview();
     canvasResizeRef.current = null;
