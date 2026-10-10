@@ -430,7 +430,7 @@ describe("CP4F4 Text Style definition history", () => {
     expect(row("quote").querySelector<HTMLInputElement>("input")?.value).toBe("Quote");
   });
 
-  it("uses shared color history and focused stroke-width history without leaking pending state", async () => {
+  it("uses shared Fill history and focused stroke-width history without leaking pending state", async () => {
     await renderWorkspace(basePresentation({
       palette: { colors: [{ id: "primary", name: "Primary", value: "#336699" }] },
       textStyles: [{ id: "quote", name: "Quote", role: "body", typography: { textStroke: { width: 1, color: "#111111" } } }],
@@ -458,8 +458,8 @@ describe("CP4F4 Text Style definition history", () => {
       textStyles: [{ id: "quote", name: "Quote", role: "body" }],
     }));
     quote = await openRow("quote");
-    await addProperty(quote, "Text color");
-    expect(row("quote").querySelector("[data-text-style-property='color']")).not.toBeNull();
+    await addProperty(quote, "Fill");
+    expect(row("quote").querySelector("[data-text-style-property='fill']")).not.toBeNull();
     const usePalette = Array.from(row("quote").querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent?.trim() === "Use palette");
     if (!usePalette) throw new Error("color palette button was not rendered");
@@ -468,9 +468,9 @@ describe("CP4F4 Text Style definition history", () => {
     if (!primary) throw new Error("palette color was not rendered");
     await act(async () => primary.click());
     await undo();
-    expect(row("quote").querySelector("[data-text-style-property='color']")).toBeNull();
+    expect(row("quote").querySelector("[data-text-style-property='fill']")).toBeNull();
     await redo();
-    expect(row("quote").querySelector("[data-text-style-property='color']")).not.toBeNull();
+    expect(row("quote").querySelector("[data-text-style-property='fill']")).not.toBeNull();
   });
 
   it("commits Text Style propagation across Slide, Root, and local-root-child owners in Root mode", async () => {
