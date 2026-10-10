@@ -7,6 +7,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 import {
+  moveClipboardElementAcrossSlideOwners,
   moveRootBackedClipboardElement,
   pasteRootBackedClipboardEntry,
   resolveRootBackedClipboardPasteDestination,
@@ -84,7 +85,101 @@ function masterContainer(presentation: Presentation, id: string): PresentationEl
   return found;
 }
 
+function mixedOwnerPresentation(): Presentation {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "root-local-clipboard-mixed-owners",
+    title: "Root local Clipboard mixed owners",
+    slides: [
+      {
+        id: "root-source",
+        title: "Root source",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-1",
+        localRootChildren: [{
+          targetContainerId: "receiver-a",
+          children: [container("local-source", [text("local-child")])],
+        }],
+      },
+      {
+        id: "ordinary-source",
+        title: "Ordinary source",
+        summary: "",
+        speakerNotes: "",
+        elements: [container("ordinary-source-container", [text("ordinary-child")])],
+      },
+      {
+        id: "ordinary-receiver",
+        title: "Ordinary receiver",
+        summary: "",
+        speakerNotes: "",
+        elements: [container("ordinary-receiver-container")],
+      },
+      {
+        id: "root-receiver",
+        title: "Root receiver",
+        summary: "",
+        speakerNotes: "",
+        elements: [],
+        rootDefinitionId: "root-1",
+      },
+    ],
+    rootDefinitions: [{
+      id: "root-1",
+      name: "Root 1",
+      localChildTargetIds: ["receiver-a", "receiver-b"],
+      root: container("root", [container("receiver-a"), container("receiver-b")]),
+    }],
+  });
+}
+
 describe("Root-backed Slide Clipboard ownership", () => {
+  it("moves Slide-local content to an ordinary Slide through the same owner-aware operation", () => {
+    const source = mixedOwnerPresentation();
+    const ordinaryReceiver = source.slides[2]?.elements[0];
+    expect(ordinaryReceiver?.type).toBe("container");
+
+    const result = moveClipboardElementAcrossSlideOwners(
+      source,
+      0,
+      "receiver-a",
+      2,
+      "local-source",
+      ordinaryReceiver ?? null,
+      null,
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.slides[0]?.localRootChildren).toBeUndefined();
+    expect(result?.slides[2]?.elements[0]?.type).toBe("container");
+    if (result?.slides[2]?.elements[0]?.type !== "container") throw new Error("Expected receiver Container");
+    expect(result.slides[2].elements[0].children[0]?.id).toBe("local-source-copy");
+    expect(result?.rootDefinitions).toEqual(source.rootDefinitions);
+  });
+
+  it("moves ordinary Slide content into an authorized Root-backed receiver", () => {
+    const source = mixedOwnerPresentation();
+    const receiver = masterContainer(source, "receiver-b");
+
+    const result = moveClipboardElementAcrossSlideOwners(
+      source,
+      1,
+      null,
+      3,
+      "ordinary-source-container",
+      receiver,
+      null,
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.slides[1]?.elements).toEqual([]);
+    expect(result?.slides[3]?.localRootChildren?.[0]?.targetContainerId).toBe("receiver-b");
+    expect(result?.slides[3]?.localRootChildren?.[0]?.children[0]?.id).toBe("ordinary-source-container-copy");
+    expect(result?.rootDefinitions).toEqual(source.rootDefinitions);
+  });
+
   it("resolves an authorized projected master Container to its local record root", () => {
     const source = rootBackedPresentation();
 
