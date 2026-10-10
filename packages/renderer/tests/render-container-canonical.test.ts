@@ -93,7 +93,8 @@ describe("production canonical Container renderer", () => {
     }));
 
     expect(rootTag(fittedHtml)).toContain("flex-shrink:0");
-    expect(fittedHtml).toContain('class="presentation-container-fit-viewport"');
+    expect(fittedHtml).not.toContain('class="presentation-container-fit-viewport"');
+    expect(fittedHtml).toContain("display:flex");
     expect(tagForId(fittedHtml, "fit-child")).not.toContain("flex-shrink:");
   });
 

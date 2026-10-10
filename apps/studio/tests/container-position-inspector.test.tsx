@@ -57,7 +57,6 @@ describe("Container canonical position inspector", () => {
         <ContainerInspector
           element={state as ContainerElement}
           presentation={linkedPresentation}
-          onContainerFitModeChange={() => true}
           parent={parent}
           layerControls={{
             index: 1,

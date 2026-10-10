@@ -141,7 +141,7 @@ function removeLinkedEffectProperties(localEffect: ElementEffect | undefined, li
 /** Clears one canonical linked-container property while preserving all other local fields. */
 export function clearLinkedContainerStyleProperty(
   container: ContainerElement,
-  property: Exclude<LinkedStyleProperty, "fit">,
+  property: LinkedStyleProperty,
 ): ContainerElement {
   const layout = container.layout === undefined
     ? undefined

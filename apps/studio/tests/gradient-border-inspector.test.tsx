@@ -65,7 +65,6 @@ describe("Gradient Border authoring", () => {
       <StudioI18nProvider>
         <ContainerInspector
           element={state as ContainerElement}
-          onContainerFitModeChange={() => true}
           onUpdate={(update) => {
             const next = update(state);
             if (next.type !== "container") return;

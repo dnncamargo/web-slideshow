@@ -27,7 +27,7 @@ export type ContainerShareableProperty =
   | "layout.margin" | "layout.marginTop" | "layout.marginRight" | "layout.marginBottom" | "layout.marginLeft"
   | "layout.padding" | "layout.paddingTop" | "layout.paddingRight" | "layout.paddingBottom" | "layout.paddingLeft"
   | "layout.flexShrink" | "layout.children.mode" | "layout.children.direction" | "layout.children.gap"
-  | "layout.children.distribution" | "layout.children.horizontalAlign" | "layout.children.verticalAlign" | "layout.children.fit" | "layout.overflow"
+  | "layout.children.distribution" | "layout.children.horizontalAlign" | "layout.children.verticalAlign" | "layout.overflow"
   | "style.color" | "style.background.color" | "style.background.gradient" | "style.background.pattern" | "style.border" | "style.borderRadius"
   | "effect.opacity" | "effect.shadow";
 
@@ -151,7 +151,6 @@ export function getContainerShareablePropertySource(
       case "layout.children.distribution": return bag?.layout?.children?.distribution;
       case "layout.children.horizontalAlign": return bag?.layout?.children?.horizontalAlign;
       case "layout.children.verticalAlign": return bag?.layout?.children?.verticalAlign;
-      case "layout.children.fit": return bag?.layout?.children?.fit;
       case "layout.overflow": return bag?.layout?.overflow;
       case "style.color": return bag?.style?.color;
       case "style.background.color": return bag?.style?.background?.color;

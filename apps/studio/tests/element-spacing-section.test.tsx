@@ -67,7 +67,6 @@ describe("shared element spacing section", () => {
         <ElementInspector
           element={element}
           onUpdate={(update) => { element = update(element); renderInspector(); }}
-          onContainerFitModeChange={() => true}
           fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}
@@ -218,7 +217,6 @@ describe("shared Embed size and viewport authoring", () => {
               renderInspector();
             }
           }}
-          onContainerFitModeChange={() => true}
           fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}

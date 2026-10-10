@@ -1,6 +1,5 @@
 import type { ContainerElement } from "@web-slideshow/document-schema";
 import type { Presentation } from "@web-slideshow/document-schema";
-import { useEffect, useState } from "react";
 
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import { useAuthoringHistory } from "../../authoring-history-context";
@@ -11,8 +10,6 @@ import {
   type UpdateContainer,
   updateContainerLayoutMode,
 } from "../container-inspector-helpers";
-import type { ContainerFitMode } from "../../container-fit-authoring";
-
 import { InspectorSection } from "../inspector-section";
 import { getContainerShareablePropertySource, linkedStyleForContainer } from "../linked-style-inspector";
 import { ContainerLinkedPropertyMeta } from "./container-linked-property-meta";
@@ -35,8 +32,6 @@ interface ContainerLayoutSectionProps {
   presentation?: Pick<Presentation, "linkedStyles">;
 
   onUpdate: UpdateContainer;
-
-  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 }
 
 // ============================================================
@@ -48,11 +43,9 @@ export function ContainerLayoutSection({
   localElement = element,
   presentation,
   onUpdate,
-  onContainerFitModeChange,
 }: ContainerLayoutSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
-  const [fitError, setFitError] = useState(false);
 
   function runDiscrete(setting: string, callback: () => void): void {
     const meta = {
@@ -63,10 +56,6 @@ export function ContainerLayoutSection({
     if (authoringHistory) authoringHistory.discrete(meta, callback);
     else callback();
   }
-
-  useEffect(() => {
-    setFitError(false);
-  }, [element.id]);
 
   const hasDistributedMainAxis =
     (element.layout?.children?.distribution ?? "packed") !== "packed";
@@ -79,8 +68,6 @@ export function ContainerLayoutSection({
   const linkedHorizontalAlign = linked?.layout?.children?.horizontalAlign;
   const linkedVerticalAlign = linked?.layout?.children?.verticalAlign;
   const source = (property: Parameters<typeof getContainerShareablePropertySource>[2]) => getContainerShareablePropertySource(presentation, localElement, property);
-  const linkedFit = linked?.layout?.children?.fit;
-
   const isHorizontalAlignmentDisabled =
     element.layout?.children?.direction === "row" && hasDistributedMainAxis;
 
@@ -114,34 +101,6 @@ export function ContainerLayoutSection({
         </select>
       </label>
       <ContainerLinkedPropertyMeta source={source("layout.children.mode").source} onReset={source("layout.children.mode").source === "local" && source("layout.children.mode").linkedValue !== undefined ? () => onUpdate((container) => ({ ...container, layout: { ...container.layout, children: { ...container.layout?.children, mode: undefined } } })) : undefined} />
-
-      <label className={styles.field}>
-        <span title={t("inspector.childrenFitHelp")}>{t("inspector.childrenFit")}</span>
-        <select
-          id="container-children-fit"
-          name="containerChildrenFit"
-          value={element.layout?.children?.fit?.mode ?? ""}
-          onChange={(event) => {
-            const value = event.target.value;
-            const mode = value === "" ? null : (value as ContainerFitMode);
-            const accepted = onContainerFitModeChange(mode);
-            setFitError(!accepted && mode !== null);
-            if (accepted || mode === null) return;
-          }}
-        >
-          {linkedFit === undefined && <option value="">{t("inspector.childrenFit.none")}</option>}
-          <option value="contain">{t("inspector.childrenFit.contain")}</option>
-          <option value="cover">{t("inspector.childrenFit.cover")}</option>
-          <option value="fill">{t("inspector.childrenFit.fill")}</option>
-        </select>
-      </label>
-      <ContainerLinkedPropertyMeta source={source("layout.children.fit").source} onReset={source("layout.children.fit").source === "local" && source("layout.children.fit").linkedValue !== undefined ? () => onContainerFitModeChange(null) : undefined} />
-      <p className={styles.inspectorHint}>{t("inspector.childrenFitHelp")}</p>
-      {fitError && (
-        <p className={styles.inspectorError} role="status">
-          {t("inspector.childrenFitMeasurementError")}
-        </p>
-      )}
 
       <label className={styles.field}>
         <span title={t("inspector.overflowHelp")}>{t("inspector.overflow")}</span>

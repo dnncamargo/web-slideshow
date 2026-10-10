@@ -319,68 +319,22 @@ describe("SM6D5 Root specialized authoring", () => {
     expect(saved.slides).toEqual(source.slides);
   });
 
-  it("routes Root Container Fit, including measured activation and failure, without crossing owners", async () => {
+  it("does not expose the retired Root Container Fit authoring control", async () => {
     const source = presentation();
     const onSave = await mount(source);
     await selectElement("shared-container");
-    const rendered = host.querySelector<HTMLElement>('[data-presentation-id="shared-container"]');
-    if (!rendered) throw new Error("Expected rendered shared Container");
-    Object.defineProperties(rendered, {
-      clientWidth: { configurable: true, value: 840 },
-      clientHeight: { configurable: true, value: 440 },
-    });
-    const fit = host.querySelector<HTMLSelectElement>("#container-children-fit");
-    if (!fit) throw new Error("Expected Container Fit control");
-    await act(async () => changeSelect(fit, "contain"));
-    let saved = await save(onSave);
-    const shared = rootElement(saved, "shared-container");
-    expect(shared.type === "container" ? shared.layout?.children?.fit : undefined).toEqual({
-      mode: "contain",
-      sourceWidth: 840,
-      sourceHeight: 440,
-    });
-    expect(saved.slides).toEqual(source.slides);
-
-    await replay("z");
-    saved = await save(onSave);
-    const undoneShared = rootElement(saved, "shared-container");
-    expect(undoneShared.type === "container" ? undoneShared.layout?.children?.fit : undefined).toBeUndefined();
-    await replay("z", true);
-    saved = await save(onSave);
-    const redoneShared = rootElement(saved, "shared-container");
-    expect(redoneShared.type === "container" ? redoneShared.layout?.children?.fit?.mode : undefined).toBe("contain");
-
-    await act(async () => root.unmount());
-    root = createRoot(host);
-    const failedSource = presentation();
-    const failedSave = await mount(failedSource);
-    await selectElement("shared-container");
-    const failedFit = host.querySelector<HTMLSelectElement>("#container-children-fit");
-    if (!failedFit) throw new Error("Expected Container Fit control after remount");
-    await act(async () => changeSelect(failedFit, "cover"));
-    const failedSaveButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.trim() === "Save");
-    expect(failedSaveButton?.disabled).toBe(true);
-    expect(failedSave).not.toHaveBeenCalled();
+    expect(host.querySelector("#container-children-fit")).toBeNull();
+    expect(host.querySelector("#container-layout-mode")).not.toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
-  it("materializes an effective linked Container Fit before changing the Root owner", async () => {
+  it("ignores historical linked Container Fit data in Root authoring", async () => {
     const source = presentation({ effectiveContainerFit: true });
     const onSave = await mount(source);
     await selectElement("shared-container");
-    const fit = host.querySelector<HTMLSelectElement>("#container-children-fit");
-    if (!fit) throw new Error("Expected Container Fit control");
-
-    await act(async () => changeSelect(fit, "cover"));
-    const saved = await save(onSave);
-    const shared = rootElement(saved, "shared-container");
-    expect(shared.type === "container" ? shared.layout?.children?.fit : undefined).toEqual({
-      mode: "cover",
-      sourceWidth: 800,
-      sourceHeight: 600,
-    });
-    expect(shared.type === "container" ? shared.linkedStyleId : undefined).toBe("container-style");
-    expect(saved.slides).toEqual(source.slides);
+    expect(host.querySelector("#container-children-fit")).toBeNull();
+    expect(host.querySelector("#container-layout-mode")).not.toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("creates Root QR Shapes after editable sources, preserves selection/history, and blocks the canonical Root Container boundary", async () => {

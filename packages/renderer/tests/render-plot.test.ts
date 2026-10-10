@@ -200,7 +200,14 @@ describe("Plot renderer", () => {
     expect(html).toContain("presentation-plot-svg");
     expect(html).toContain("presentation-plot-surface-svg");
     expect(html).toContain("presentation-plot-surface-wireframe");
+    expect(html).toContain('<svg class="presentation-plot-svg presentation-plot-surface-svg" viewBox=');
+    expect(html).toContain('style="display:block"');
     expect(html).not.toContain("[plot]");
+  });
+
+  it("renders 2D Plot SVGs as block-level allocated surfaces", () => {
+    expect(renderPlot("y = sin(x)")).toContain('<svg class="presentation-plot-svg" viewBox=');
+    expect(renderPlot("y = sin(x)")).toContain('style="display:block"');
   });
 
   it.each([undefined, true] as const)("shows explicit-z axes by default or when showAxes=%s", (showAxes) => {

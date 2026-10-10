@@ -35,7 +35,6 @@ import type {
   TableAuthoringControls,
   TopicsAuthoringControls,
 } from "./inspector/inspector-types";
-import type { ContainerFitMode } from "./container-fit-authoring";
 import { CanonicalElementPositionSection } from "./inspector/sections/canonical-text-position-section";
 import { ElementInteractionSection } from "./inspector/sections/element-interaction-section";
 import { shouldShowElementPositioning } from "./inspector/sections/element-positioning-helpers";
@@ -54,8 +53,6 @@ interface ElementInspectorProps {
   shapePreviewControls?: ShapePreviewControls;
 
   onImportSvgComposition?: ShapeSvgImportCompositionHandler;
-
-  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
   fontResources: readonly FontResource[];
 
@@ -148,7 +145,6 @@ function ElementTypeInspector({
   plotPreviewControls,
   shapePreviewControls,
   onImportSvgComposition,
-  onContainerFitModeChange,
   fontResources,
   presentation,
   onAttachLinkedStyle = () => {},
@@ -191,7 +187,6 @@ function ElementTypeInspector({
         <ContainerInspector
           element={element}
           onUpdate={onUpdate}
-          onContainerFitModeChange={onContainerFitModeChange}
           presentation={presentation}
           onAttachLinkedStyle={onAttachLinkedStyle}
           onDetachLinkedStyle={onDetachLinkedStyle}
@@ -341,7 +336,6 @@ export function ElementInspector({
   plotPreviewControls,
   shapePreviewControls,
   onImportSvgComposition,
-  onContainerFitModeChange,
   fontResources,
   presentation,
   onAttachLinkedStyle,
@@ -437,7 +431,6 @@ export function ElementInspector({
         plotPreviewControls={plotPreviewControls}
         shapePreviewControls={shapePreviewControls}
         onImportSvgComposition={onImportSvgComposition}
-        onContainerFitModeChange={onContainerFitModeChange}
         fontResources={fontResources}
         presentation={presentation}
         onAttachLinkedStyle={onAttachLinkedStyle}

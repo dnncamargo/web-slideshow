@@ -1650,7 +1650,6 @@ describe("Topics inspector section hierarchy", () => {
         <ElementInspector
           element={element}
           onUpdate={(update) => { element = update(element); renderInspector(); }}
-          onContainerFitModeChange={() => true}
           fontResources={[]}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}

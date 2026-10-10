@@ -399,23 +399,15 @@ export function renderContainer(
     ...renderEffect(renderedElement),
   ];
   const childrenLayout = renderedElement.layout?.children;
-  const fit = childrenLayout?.fit;
   const mode = childrenLayout?.mode ?? "flow";
   const isStack = mode === "stack";
   const containsAbsoluteChild = hasAbsoluteChild(element, presentation);
-  const isFitted = fit !== undefined;
   const isLinked = element.link !== undefined;
   const hasPattern = renderedElement.style?.background?.pattern !== undefined;
-  const needsContainingBlock = isFitted
-    ? isLinked || hasPattern || hasGradientBorder
-    : containsAbsoluteChild || isLinked || hasPattern || hasGradientBorder;
+  const needsContainingBlock = containsAbsoluteChild || isLinked || hasPattern || hasGradientBorder;
   const hasAuthoredAbsolute = renderedElement.layout?.position === "absolute";
 
-  if (isFitted) {
-    styles.push("display:block");
-  } else {
-    renderChildLayout(renderedElement, styles);
-  }
+  renderChildLayout(renderedElement, styles);
 
   if (needsContainingBlock && !hasAuthoredAbsolute) {
     styles.push("position:relative");
@@ -431,7 +423,6 @@ export function renderContainer(
 
   const classes = ["presentation-element", "presentation-container"];
   if (isStack) classes.push("presentation-container-stack");
-  if (isFitted) classes.push("presentation-container-fit");
   if (element.role) classes.push(`presentation-container-${element.role}`);
   if (hasGradientBorder) classes.push("presentation-gradient-border");
   if (element.style?.className?.trim()) classes.push(element.style.className.trim());
@@ -451,26 +442,13 @@ export function renderContainer(
     ? ` data-presentation-role="${escapeHtml(element.role)}"`
     : "";
 
-  const childrenMarkup = isFitted
-    ? (() => {
-        const surfaceStyles = [
-          "position:relative",
-          `width:${fit.sourceWidth}px`,
-          `height:${fit.sourceHeight}px`,
-          "transform-origin:0 0",
-        ];
-        renderChildLayout(renderedElement, surfaceStyles);
-        return `<div class="presentation-container-fit-viewport" data-presentation-container-fit="true" data-presentation-container-fit-mode="${fit.mode}" data-presentation-container-fit-source-width="${fit.sourceWidth}" data-presentation-container-fit-source-height="${fit.sourceHeight}" style="position:relative;width:100%;height:100%;${fit.mode === "cover" ? "overflow:hidden;" : "overflow:visible;"}"><div class="presentation-container-fit-surface" style="${escapeHtml(surfaceStyles.join(";"))}">${children}</div></div>`;
-      })()
-    : children;
-
   return (
     `<${tag} class="${escapeHtml(classes.join(" "))}"` +
     ` data-presentation-id="${escapeHtml(element.id)}"` +
     ` data-presentation-type="container"${role}` +
     ` style="${escapeHtml(styles.join(";"))}">` +
     patternLayer +
-    childrenMarkup +
+    children +
     (element.link ? renderLinkSurface(element.link) : "") +
     `</${tag}>`
   );

@@ -91,7 +91,6 @@ function matchesLinkedContainerStyle(container: ContainerElement, linked: Linked
   if (container.linkedStyleId !== undefined) return false;
   return matchesAuthoredShallowProperties(container.layout, linked.layout, LAYOUT_DIRECT_PROPERTIES) &&
     matchesAuthoredShallowProperties(container.layout?.children, linked.layout?.children, CHILDREN_PROPERTIES) &&
-    (linked.layout?.children?.fit === undefined || (container.layout?.children?.fit !== undefined && valuesEqual(container.layout.children.fit, linked.layout.children.fit))) &&
     matchesAuthoredShallowProperties(container.style, linked.style, STYLE_DIRECT_PROPERTIES) &&
     matchesAuthoredShallowProperties(container.style?.background, linked.style?.background, ["color"]) &&
     (linked.style?.background?.gradient === undefined || (container.style?.background?.gradient !== undefined && valuesEqual(container.style.background.gradient, linked.style.background.gradient))) &&

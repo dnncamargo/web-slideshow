@@ -95,6 +95,36 @@ function animatedPlotAndShapePresentation() {
   });
 }
 
+function neutralRootPresentation() {
+  return PresentationSchema.parse({
+    schemaVersion: 1,
+    id: "neutral-root-presentation",
+    title: "Neutral root",
+    aspectRatio: "16:9",
+    slides: [{
+      id: "neutral-root-slide",
+      elements: [{
+        id: "neutral-root",
+        type: "container",
+        hidden: false,
+        children: [{
+          id: "neutral-root-child",
+          type: "container",
+          hidden: false,
+          layout: { width: "100%", height: "100%" },
+          children: [{
+            id: "neutral-root-text",
+            type: "text",
+            hidden: false,
+            variant: "body",
+            content: "Viewport content",
+          }],
+        }],
+      }],
+    }],
+  });
+}
+
 function stubPlotRaf(): {
   callbacks: Map<number, FrameRequestCallback>;
   request: ReturnType<typeof vi.fn>;
@@ -331,6 +361,18 @@ describe("Projection surface", () => {
     expect(root.innerHTML).toContain("Slide One");
     expect(projection.getCurrentIndex()).toBe(0);
 
+    projection.destroy();
+  });
+
+  it("fills a neutral single-container root to the logical slide viewport", () => {
+    const projection = mountProjectionSurface(root, neutralRootPresentation(), { transition: "none" });
+    const rootNode = root.querySelector<HTMLElement>('[data-presentation-id="neutral-root"]');
+
+    expect(rootNode?.style.width).toBe("100%");
+    expect(rootNode?.style.height).toBe("100%");
+    expect(rootNode?.style.minWidth).toBe("0");
+    expect(rootNode?.style.minHeight).toBe("0");
+    expect(rootNode?.style.flexShrink).toBe("0");
     projection.destroy();
   });
 
@@ -708,12 +750,6 @@ describe("Projection surface", () => {
     const surface = root.querySelector<HTMLElement>(
       ".player-slide-surface",
     );
-    const fitSurface = root.querySelector<HTMLElement>(
-      ".presentation-container-fit-surface",
-    );
-    const fitViewport = root.querySelector<HTMLElement>(
-      "[data-presentation-container-fit]",
-    );
 
     expect(root.querySelector("style[data-presentation-font-resources]")).not.toBeNull();
     expect(root.querySelector("style[data-presentation-font-resources]")?.textContent).toContain(
@@ -725,22 +761,7 @@ describe("Projection surface", () => {
     expect(surface?.style.width).toBe("960px");
     expect(surface?.style.height).toBe("720px");
     expect(surface?.style.transform).toBe("scale(1.25)");
-    expect(fitSurface).not.toBeNull();
-    expect(fitViewport).not.toBeNull();
-
-    Object.defineProperty(fitViewport, "clientWidth", {
-      configurable: true,
-      value: 800,
-    });
-    Object.defineProperty(fitViewport, "clientHeight", {
-      configurable: true,
-      value: 400,
-    });
-    window.dispatchEvent(new Event("resize"));
-
-    expect(fitSurface?.style.transform).toBe(
-      "translate(0px,0px) scale(1,1)",
-    );
+    expect(root.querySelector("[data-presentation-container-fit]")).toBeNull();
     expect(root.innerHTML).toContain("Runtime hydration");
 
     projection.destroy();

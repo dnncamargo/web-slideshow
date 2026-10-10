@@ -233,7 +233,6 @@ describe("ShapeInspector appearance, effects, and interaction", () => {
               state = next;
               render();
             }}
-            onContainerFitModeChange={() => true}
             fontResources={[]}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

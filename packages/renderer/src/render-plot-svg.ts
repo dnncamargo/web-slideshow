@@ -88,5 +88,5 @@ export function renderMathGeometrySvg(
   }
 
   const presentationWidth = hasXAxisLabel ? width + X_AXIS_LABEL_GUTTER : width;
-  return `<svg class="presentation-plot-svg" viewBox="0 0 ${presentationWidth} ${height}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axes.join("")}${labels.join("")}<path fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
+  return `<svg class="presentation-plot-svg" viewBox="0 0 ${presentationWidth} ${height}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style="display:block" aria-hidden="true" focusable="false">${axes.join("")}${labels.join("")}<path fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path></svg>`;
 }

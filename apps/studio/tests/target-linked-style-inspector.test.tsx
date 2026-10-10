@@ -82,7 +82,7 @@ describe("target Linked Style Inspector relationships", () => {
 
   it("keeps target styles out of the Container dropdown", async () => {
     const element = { id: "container", type: "container" as const, hidden: false, children: [] };
-    await act(async () => root.render(<StudioI18nProvider><ContainerInspector element={element} onUpdate={() => {}} onContainerFitModeChange={() => true} presentation={{ linkedStyles: styles }} /></StudioI18nProvider>));
+    await act(async () => root.render(<StudioI18nProvider><ContainerInspector element={element} onUpdate={() => {}} presentation={{ linkedStyles: styles }} /></StudioI18nProvider>));
     expect(Array.from(host.querySelector<HTMLSelectElement>("#container-linked-style")!.options, (option) => option.text)).toEqual(["None", "Container"]);
   });
 

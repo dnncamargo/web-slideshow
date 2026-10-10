@@ -369,17 +369,15 @@ describe("Linked Styles Resources contract", () => {
     expect(host.querySelector<HTMLElement>("[data-linked-style-preview='gap'] .presentation-container")?.getAttribute("style")).toContain("padding:40px");
   });
 
-  it("preserves canonical absolute positioning and Fit data in the preview", async () => {
+  it("preserves canonical absolute positioning and ignores retired Fit data in the preview", async () => {
     const value = PresentationSchema.parse({ ...makePresentation(), linkedStyles: [{ id: "gap", name: "Positioned", layout: { position: "absolute", top: 10, children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
     await openStyle(value);
     const preview = host.querySelector<HTMLElement>("[data-linked-style-preview='gap']")!;
     const root = preview.querySelector<HTMLElement>(".presentation-container")!;
     expect(root.getAttribute("style")).toContain("position:absolute");
     expect(root.getAttribute("style")).toContain("top:10px");
-    const viewport = preview.querySelector<HTMLElement>("[data-presentation-container-fit='true']")!;
-    expect(viewport.dataset.presentationContainerFitMode).toBe("contain");
-    expect(viewport.dataset.presentationContainerFitSourceWidth).toBe("800");
-    expect(viewport.dataset.presentationContainerFitSourceHeight).toBe("600");
+    expect(preview.querySelector("[data-presentation-container-fit='true']")).toBeNull();
+    expect(preview.querySelector(".presentation-container-fit-surface")).toBeNull();
   });
 
   it("keeps preview rendering transient and does not mutate the canonical Presentation", async () => {

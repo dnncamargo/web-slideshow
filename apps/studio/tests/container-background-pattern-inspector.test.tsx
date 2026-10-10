@@ -64,7 +64,6 @@ describe("Container canonical background pattern inspector", () => {
               updates.push(state);
               renderInspector();
             }}
-            onContainerFitModeChange={() => true}
           />
         ) : (
           <TextInspector
