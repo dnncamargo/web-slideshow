@@ -85,7 +85,7 @@ function sharedAppearancePresentation(): Presentation {
   });
 }
 
-function effectsHistoryPresentation(): Presentation {
+function effectsHistoryPresentation(legacyTextShadow = false): Presentation {
   return PresentationSchema.parse({
     schemaVersion: 1,
     id: "effects-history",
@@ -101,7 +101,7 @@ function effectsHistoryPresentation(): Presentation {
           variant: "body",
           content: "Effects",
           typography: { fontFamily: "Arial", fontSize: "16px", lineHeight: 1.2, textAlign: "left" },
-          effect: { shadow: { x: 17, y: -9, blur: 23, spread: 4, color: "#123456" } },
+          effect: { shadow: { x: 17, y: -9, blur: 23, color: "#123456", ...(legacyTextShadow ? { inset: true } : {}) } },
         },
         {
           type: "image",
@@ -505,28 +505,51 @@ describe("EditorWorkspace history integration", () => {
     expect(container.querySelector<HTMLSelectElement>("#image-border-gradient-type")?.value).toBe("radial");
   });
 
-  it("preserves text shadow parameters across outer and inset history", async () => {
+  it("preserves text shadow parameters across history and reads legacy inset as outer", async () => {
     await act(async () => root.unmount());
     root = createRoot(container);
     await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={effectsHistoryPresentation()} /></StudioI18nProvider>));
     await act(async () => container.querySelector<HTMLElement>('[data-presentation-id="text-effects-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
 
     const mode = container.querySelector<HTMLSelectElement>("#text-shadow-mode")!;
-    await act(async () => changeSelect(mode, "inset"));
-    expect(mode.value).toBe("inset");
-    const shadowInputs = () => Array.from(container.querySelectorAll<HTMLInputElement>('input[type="number"]')).slice(-4);
-    expect(shadowInputs().map((input) => input.value)).toEqual(["17", "-9", "23", "4"]);
+    const shadowBlurInput = () => {
+      const field = Array.from(container.querySelectorAll<HTMLLabelElement>("label"))
+        .find((label) => label.textContent?.trim() === "Blur");
+      const input = field?.querySelector<HTMLInputElement>("input[type='number']");
+      if (!input) throw new Error("text shadow blur input was not rendered");
+      return input;
+    };
+    const shadowValues = () => [
+      container.querySelector<HTMLInputElement>("#text-shadow-x")!.value,
+      container.querySelector<HTMLInputElement>("#text-shadow-y")!.value,
+      shadowBlurInput().value,
+    ];
+    expect(Array.from(mode.options, (option) => option.value)).toEqual(["none", "outer"]);
+    expect(mode.value).toBe("outer");
+    expect(shadowValues()).toEqual(["17", "-9", "23"]);
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")!.value).toBe("#123456");
 
+    await act(async () => changeSelect(mode, "none"));
+    expect(mode.value).toBe("none");
+    expect(container.querySelector("#text-shadow-x")).toBeNull();
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true })));
     expect(mode.value).toBe("outer");
-    expect(shadowInputs().map((input) => input.value)).toEqual(["17", "-9", "23", "4"]);
-    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")?.value).toBe("#123456");
+    expect(shadowValues()).toEqual(["17", "-9", "23"]);
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")!.value).toBe("#123456");
     await act(async () => window.dispatchEvent(key("z", { ctrlKey: true, shiftKey: true })));
-    expect(mode.value).toBe("inset");
-    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")?.value).toBe("#123456");
+    expect(mode.value).toBe("none");
 
-    await act(async () => changeSelect(mode, "outer"));
-    expect(mode.value).toBe("outer");
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<StudioI18nProvider><EditorWorkspace initialPresentation={effectsHistoryPresentation(true)} /></StudioI18nProvider>));
+    await act(async () => container.querySelector<HTMLElement>('[data-presentation-id="text-effects-1"]')!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const legacyMode = container.querySelector<HTMLSelectElement>("#text-shadow-mode")!;
+    expect(Array.from(legacyMode.options, (option) => option.value)).toEqual(["none", "outer"]);
+    expect(legacyMode.value).toBe("outer");
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-x")!.value).toBe("17");
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-y")!.value).toBe("-9");
+    expect(shadowBlurInput().value).toBe("23");
+    expect(container.querySelector<HTMLInputElement>("#text-shadow-color-value")!.value).toBe("#123456");
   });
 
   it("tracks image shadow enable/remove and text stroke mode as discrete actions", async () => {
