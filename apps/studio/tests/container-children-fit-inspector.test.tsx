@@ -2,15 +2,12 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PresentationSchema, type ContainerElement } from "@web-slideshow/document-schema";
-import { containerLinkedStyle } from "./linked-style-test-helpers";
+import type { ContainerElement } from "@web-slideshow/document-schema";
 
 import { ContainerInspector } from "../src/features/editor/inspector/container-inspector";
-import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { updateContainerFit } from "../src/features/editor/container-fit-authoring";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -24,12 +21,7 @@ function container(layout?: ContainerElement["layout"]): ContainerElement {
   };
 }
 
-function changeSelect(select: HTMLSelectElement, value: string): void {
-  select.value = value;
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-describe("Container children fit Inspector", () => {
+describe("retired Container children fit Inspector", () => {
   let host: HTMLDivElement;
   let root: Root;
 
@@ -44,102 +36,31 @@ describe("Container children fit Inspector", () => {
     document.body.innerHTML = "";
   });
 
-  function mount(
-    element: ContainerElement,
-    callback = vi.fn(() => true),
-  ): { select: HTMLSelectElement; callback: ReturnType<typeof vi.fn> } {
+  function mount(element: ContainerElement): void {
     act(() => {
       root.render(
         <StudioI18nProvider>
           <ContainerInspector
             element={element}
             onUpdate={(update) => update(element)}
-            onContainerFitModeChange={callback}
           />
         </StudioI18nProvider>,
       );
     });
-    const select = host.querySelector<HTMLSelectElement>("#container-children-fit");
-    if (!select) throw new Error("Children fit select not found");
-    return { select, callback };
   }
 
-  it("renders localized options and reflects the canonical mode", () => {
-    expect(mount(container()).select.value).toBe("");
-    expect(Array.from(host.querySelectorAll("#container-children-fit option"), (option) => option.textContent)).toEqual([
-      "None", "Contain", "Cover", "Fill",
-    ]);
-    expect(mount(container({ children: { fit: { mode: "cover", sourceWidth: 800, sourceHeight: 400 } } })).select.value).toBe("cover");
+  it("does not expose a Container children fit control", () => {
+    mount(container({ children: { fit: { mode: "cover", sourceWidth: 800, sourceHeight: 400 } } }));
+
+    expect(host.querySelector("#container-children-fit")).toBeNull();
+    expect(host.textContent).not.toContain("Children fit");
   });
 
-  it("reports mode changes and None through the authoring callback", () => {
-    const callback = vi.fn(() => true);
-    const { select } = mount(container(), callback);
-    act(() => changeSelect(select, "contain"));
-    act(() => changeSelect(select, ""));
+  it("keeps ordinary Container layout controls available for historical data", () => {
+    mount(container({ children: { direction: "row", gap: 16, fit: { mode: "contain", sourceWidth: 800, sourceHeight: 400 } } }));
 
-    expect(callback).toHaveBeenNthCalledWith(1, "contain");
-    expect(callback).toHaveBeenNthCalledWith(2, null);
-  });
-
-  it("shows non-blocking feedback when activation is rejected and clears it on success/None", () => {
-    const callback = vi.fn()
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(true);
-    const { select } = mount(container(), callback);
-    act(() => changeSelect(select, "contain"));
-    expect(host.textContent).toContain("Container must have a measurable content size");
-    act(() => changeSelect(select, "fill"));
-    expect(host.textContent).not.toContain("Container must have a measurable content size");
-    act(() => changeSelect(select, ""));
-    expect(host.textContent).not.toContain("Container must have a measurable content size");
-  });
-
-  it("clears a rejected activation error when the selected Container changes", () => {
-    const callback = vi.fn(() => false);
-    const { select } = mount(container(), callback);
-    act(() => changeSelect(select, "contain"));
-    expect(host.textContent).toContain("Container must have a measurable content size");
-
-    act(() => {
-      root.render(
-        <StudioI18nProvider>
-          <ContainerInspector
-            element={{ ...container(), id: "container-b" }}
-            onUpdate={(update) => update({ ...container(), id: "container-b" })}
-            onContainerFitModeChange={callback}
-          />
-        </StudioI18nProvider>,
-      );
-    });
-
-    expect(host.textContent).not.toContain("Container must have a measurable content size");
-  });
-
-  it("provides Portuguese translations for the fit controls", () => {
-    expect(translateStudioMessage("pt-BR", "inspector.childrenFit")).toBe(
-      "Ajuste dos filhos",
-    );
-    expect(translateStudioMessage("pt-BR", "inspector.childrenFit.cover")).toBe(
-      "Cobrir",
-    );
-  });
-
-  it("clones Linked Fit geometry, exposes Reset, and hides suppression", () => {
-    const linkedPresentation = PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", title: "S", elements: [] }], linkedStyles: [{ id: "linked", name: "Linked", layout: { children: { fit: { mode: "contain", sourceWidth: 800, sourceHeight: 600 } } } }] });
-    let state = container({ children: {} });
-    state = { ...state, linkedStyleId: "linked" };
-const rerender = () => root.render(<StudioI18nProvider><ContainerInspector element={state} presentation={linkedPresentation} onUpdate={(update) => { state = update(state) as ContainerElement; rerender(); }} onContainerFitModeChange={(mode) => { const linkedFit = containerLinkedStyle(linkedPresentation.linkedStyles?.[0])?.layout?.children?.fit; const base = state.layout?.children?.fit === undefined && linkedFit !== undefined ? { ...state, layout: { ...state.layout, children: { ...state.layout?.children, fit: { ...linkedFit } } } } : state; const next = updateContainerFit(base, mode); if (next === null) return false; state = next; rerender(); return true; }} /></StudioI18nProvider>);
-    act(rerender);
-    const select = host.querySelector<HTMLSelectElement>("#container-children-fit")!;
-    expect(select.querySelector("option[value='']")).toBeNull();
-    act(() => changeSelect(select, "cover"));
-    expect(state.layout?.children?.fit).toEqual({ mode: "cover", sourceWidth: 800, sourceHeight: 600 });
-    expect(containerLinkedStyle(linkedPresentation.linkedStyles?.[0])?.layout?.children?.fit?.mode).toBe("contain");
-    const reset = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Reset");
-    expect(reset).toBeDefined();
-    act(() => reset?.click());
-    expect(state.layout?.children?.fit).toBeUndefined();
+    expect(host.querySelector("#container-direction")).not.toBeNull();
+    expect(host.querySelector("#container-distribution")).not.toBeNull();
+    expect(host.querySelector("#container-overflow")).not.toBeNull();
   });
 });

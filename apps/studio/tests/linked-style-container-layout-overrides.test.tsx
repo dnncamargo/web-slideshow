@@ -32,7 +32,7 @@ describe("Linked Container layout override UI", () => {
   });
 
   function render() {
-    root.render(<StudioI18nProvider><ContainerInspector element={state} presentation={presentation} onUpdate={(update) => { state = update(state) as ContainerElement; render(); }} onContainerFitModeChange={() => true} /></StudioI18nProvider>);
+    root.render(<StudioI18nProvider><ContainerInspector element={state} presentation={presentation} onUpdate={(update) => { state = update(state) as ContainerElement; render(); }} /></StudioI18nProvider>);
   }
 
   function resetFor(id: string) {

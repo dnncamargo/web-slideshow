@@ -31,7 +31,6 @@ describe("canonical semantic element inspector", () => {
         <ElementInspector
           element={element}
           onUpdate={(update) => { element = update(element); renderInspector(); }}
-          onContainerFitModeChange={() => true}
           fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}
@@ -94,7 +93,6 @@ describe("canonical semantic element inspector", () => {
         <ElementInspector
           element={table}
           onUpdate={() => {}}
-          onContainerFitModeChange={() => true}
           fontResources={fonts}
           preserveImageProportion={false}
           onPreserveImageProportionChange={() => {}}

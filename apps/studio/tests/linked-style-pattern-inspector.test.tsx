@@ -57,7 +57,6 @@ describe("Linked Container Pattern inspector", () => {
             state = update(state) as ContainerElement;
             render();
           }}
-          onContainerFitModeChange={() => true}
         />
       </StudioI18nProvider>,
     );

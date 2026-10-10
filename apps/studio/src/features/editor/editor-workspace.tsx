@@ -139,12 +139,6 @@ import {
 import { isAuthoredPresentationLink } from "./canvas-link-interception";
 import { inspectTargetLinkedStyle } from "./inspector/linked-style-inspector";
 import {
-  isInsideContainerFitSurface,
-  measureContainerFitSourceSize,
-  updateContainerFit,
-  type ContainerFitMode,
-} from "./container-fit-authoring";
-import {
   getEffectiveImageFocalPoint,
   getImageFocalPointFromClientPosition,
   type ImageFocalPoint,
@@ -622,10 +616,7 @@ function areLinkedStyleLayoutValuesEqual(
   if (left.children === undefined || right.children === undefined) return left.children === right.children;
   const childFields = ["mode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign"] as const;
   if (!childFields.every((field) => left.children?.[field] === right.children?.[field])) return false;
-  if (left.children.fit === undefined || right.children.fit === undefined) return left.children.fit === right.children.fit;
-  return left.children.fit.mode === right.children.fit.mode
-    && left.children.fit.sourceWidth === right.children.fit.sourceWidth
-    && left.children.fit.sourceHeight === right.children.fit.sourceHeight;
+  return true;
 }
 
 function areLinkedStyleVisualValuesEqual(
@@ -673,7 +664,6 @@ function getLinkedContainerStylePropertyValue(style: LinkedContainerStyle | unde
     case "horizontalAlign": return style?.layout?.children?.horizontalAlign;
     case "verticalAlign": return style?.layout?.children?.verticalAlign;
     case "overflow": return style?.layout?.overflow;
-    case "fit": return undefined;
     case "position": return style?.layout?.position;
     case "top": return style?.layout?.top;
     case "right": return style?.layout?.right;
@@ -729,9 +719,8 @@ function areLinkedContainerStylePropertyValuesEqual(
 function changedLinkedContainerStyleProperties(
   before: LinkedContainerStyle | undefined,
   after: LinkedContainerStyle | undefined,
-): Exclude<LinkedStyleProperty, "fit">[] {
+): LinkedStyleProperty[] {
   return LINKED_STYLE_PROPERTY_ORDER
-    .filter((property): property is Exclude<LinkedStyleProperty, "fit"> => property !== "fit")
     .filter((property) => !areLinkedContainerStylePropertyValuesEqual(
       property,
       getLinkedContainerStylePropertyValue(before, property),
@@ -885,22 +874,6 @@ function findCanvasGalleryItem(
   return Array.from(
     gallery.querySelectorAll<HTMLElement>("[data-presentation-gallery-index]"),
   ).find((candidate) => Number(candidate.dataset.presentationGalleryIndex) === itemIndex) ?? null;
-}
-
-type AuthoredContainerFit = {
-  mode: ContainerFitMode;
-  sourceWidth: number;
-  sourceHeight: number;
-};
-
-function areAuthoredContainerFitsEqual(
-  left: AuthoredContainerFit | undefined,
-  right: AuthoredContainerFit | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return left === right;
-  return left.mode === right.mode &&
-    left.sourceWidth === right.sourceWidth &&
-    left.sourceHeight === right.sourceHeight;
 }
 
 interface PendingElementDeletion {
@@ -2669,8 +2642,7 @@ export function EditorWorkspace({
 
         if (
           draggable &&
-          !isProtectedRootContainer(presentation, authoringTarget, id ?? "") &&
-          !isInsideContainerFitSurface(candidate)
+          !isProtectedRootContainer(presentation, authoringTarget, id ?? "")
         ) {
           candidate.classList.add("studio-editor-draggable");
         }
@@ -2692,8 +2664,7 @@ export function EditorWorkspace({
       !target ||
       !selectedDocumentElement ||
       isProtectedRootContainer(presentation, authoringTarget, selectedDocumentElement.id) ||
-      !isCanvasResizable(selectedDocumentElement) ||
-      isInsideContainerFitSurface(target)
+      !isCanvasResizable(selectedDocumentElement)
     ) {
       setCanvasResizeOverlay(null);
       return;
@@ -3392,10 +3363,6 @@ export function EditorWorkspace({
             ? selection.documentElement.layout?.position === "absolute"
             : false;
 
-    if (elementTarget && isInsideContainerFitSurface(elementTarget)) {
-      return;
-    }
-
     if (isProtectedRootContainer(presentation, authoringTarget, selection.id)) {
       return;
     }
@@ -3780,10 +3747,6 @@ export function EditorWorkspace({
     );
 
     if (!target || !layoutParent) {
-      return;
-    }
-
-    if (isInsideContainerFitSurface(target)) {
       return;
     }
 
@@ -4275,11 +4238,6 @@ export function EditorWorkspace({
             ...currentShape.layout,
             children: {
               mode: "stack",
-              fit: {
-                mode: "contain",
-                sourceWidth: composition.viewBox.width,
-                sourceHeight: composition.viewBox.height,
-              },
             },
           },
           ...(currentShape.effect === undefined ? {} : { effect: currentShape.effect }),
@@ -4479,79 +4437,6 @@ export function EditorWorkspace({
       if (nextElement === null) return current;
       return replaceOwnedAuthoringTree(current, currentTarget, elementId, updateElementById(elements, elementId, () => nextElement));
     });
-  }
-
-  function handleContainerFitModeChange(mode: ContainerFitMode | null): boolean {
-    if (selectedDocumentElement?.type !== "container") return false;
-
-    const target = authoringTarget;
-    const containerId = selectedDocumentElement.id;
-    const renderTimeLocalFit = selectedDocumentElement.layout?.children?.fit;
-    const renderTimeEffectiveFit = resolveLinkedContainerStyle(presentation, selectedDocumentElement).layout?.children?.fit;
-    const requiresMeasurement = mode !== null &&
-      renderTimeLocalFit === undefined &&
-      renderTimeEffectiveFit === undefined;
-    let measuredSourceSize: { sourceWidth: number; sourceHeight: number } | undefined;
-
-    if (requiresMeasurement) {
-      const target = slideCanvasRef.current === null
-        ? null
-        : findCanvasElementById(slideCanvasRef.current, containerId);
-      const measured = target === null ? null : measureContainerFitSourceSize(target);
-      if (measured === null) return false;
-      measuredSourceSize = measured;
-    }
-
-    commitAuthoringAction(
-      target,
-      {
-        kind: "element.setting",
-        labelKey: "history.element.setting",
-        labelParams: { setting: "container.childrenFit" },
-      },
-      (current, authoringTarget) => {
-        const elements = resolveOwnedAuthoringTree(current, authoringTarget, containerId)?.elements ?? null;
-        if (!elements) return current;
-        const currentElement = findElementById(elements, containerId);
-        if (currentElement?.type !== "container") return current;
-
-        const currentLocalFit = currentElement.layout?.children?.fit;
-        const currentEffectiveFit = resolveLinkedContainerStyle(current, currentElement).layout?.children?.fit;
-        const base = currentLocalFit === undefined && currentEffectiveFit !== undefined
-          ? {
-              ...currentElement,
-              layout: {
-                ...currentElement.layout,
-                children: {
-                  ...currentElement.layout?.children,
-                  fit: { ...currentEffectiveFit },
-                },
-              },
-            }
-          : currentElement;
-        const currentRequiresMeasurement = mode !== null &&
-          currentLocalFit === undefined &&
-          currentEffectiveFit === undefined;
-
-        if (currentRequiresMeasurement && measuredSourceSize === undefined) return current;
-
-        const updated = updateContainerFit(
-          base,
-          mode,
-          currentRequiresMeasurement ? measuredSourceSize : undefined,
-        );
-        if (updated === null) return current;
-
-        const updatedLocalFit = updated.layout?.children?.fit;
-        if (areAuthoredContainerFitsEqual(currentLocalFit, updatedLocalFit)) return current;
-
-        const nextElements = updateElementById(elements, containerId, () => updated);
-        return nextElements === elements
-          ? current
-          : replaceOwnedAuthoringTree(current, authoringTarget, containerId, nextElements);
-      },
-    );
-    return true;
   }
 
   // ==========================================================
@@ -8030,7 +7915,6 @@ export function EditorWorkspace({
                           onImportSvgComposition={importSelectedShapeSvgComposition}
                           plotPreviewControls={plotPreviewControls}
                           shapePreviewControls={shapePreviewControls}
-                          onContainerFitModeChange={handleContainerFitModeChange}
                           preserveImageProportion={preserveImageProportion}
                           onPreserveImageProportionChange={
                             setPreserveImageProportion

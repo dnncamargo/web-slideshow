@@ -1144,7 +1144,6 @@ describe("shared Interaction control in inspectors", () => {
           <ElementInspector
             element={element}
             onUpdate={() => {}}
-            onContainerFitModeChange={() => true}
             fontResources={FONT_RESOURCES}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

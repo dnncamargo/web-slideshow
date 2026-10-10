@@ -349,5 +349,5 @@ export function renderMathSurfaceGeometrySvg(
     ? `<path class="presentation-plot-surface-wireframe" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" d="${subpaths.join(" ")}"></path>`
     : gradientBands.map((band, index) => band.length === 0 ? "" : `<path class="presentation-plot-surface-wireframe presentation-plot-surface-wireframe-z-gradient" fill="none" stroke="color-mix(in srgb,${escapeHtml(options.zGradient!.minColor)} ${100 - (index / (Z_GRADIENT_BAND_COUNT - 1)) * 100}%,${escapeHtml(options.zGradient!.maxColor)} ${(index / (Z_GRADIENT_BAND_COUNT - 1)) * 100}%)" stroke-width="1" vector-effect="non-scaling-stroke" d="${band.join(" ")}"></path>`).join("");
 
-  return `<svg class="presentation-plot-svg presentation-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" aria-hidden="true" focusable="false">${axisMarkup}${wireframeMarkup}</svg>`;
+  return `<svg class="presentation-plot-svg presentation-plot-surface-svg" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style="display:block" aria-hidden="true" focusable="false">${axisMarkup}${wireframeMarkup}</svg>`;
 }

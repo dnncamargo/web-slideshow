@@ -109,7 +109,7 @@ describe("Linked Container Style rendering", () => {
     expect(html).toContain("box-shadow:1px 2px 3px #000000");
   });
 
-  it("uses linked absolute child layout consistently for positioning and fit", () => {
+  it("uses linked absolute child layout consistently for positioning", () => {
     const html = renderPresentation(presentation([{
       id: "parent",
       type: "container",
@@ -124,12 +124,11 @@ describe("Linked Container Style rendering", () => {
       }],
     }]));
 
-    const surfaceStart = html.indexOf("presentation-container-fit-surface");
     const childStart = html.indexOf('data-presentation-id="child"');
 
-    expect(surfaceStart).toBeGreaterThan(-1);
-    expect(html.slice(surfaceStart)).toContain("position:relative");
-    expect(childStart).toBeGreaterThan(surfaceStart);
+    expect(html).not.toContain("presentation-container-fit");
+    expect(childStart).toBeGreaterThan(-1);
+    expect(tagForId(html, "parent")).toContain("position:relative");
     expect(tagForId(html, "child")).toContain("position:absolute");
     expect(tagForId(html, "child")).toContain("top:10px");
     expect(tagForId(html, "child")).toContain("right:20px");

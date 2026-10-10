@@ -650,6 +650,8 @@ Player pairing: two Players / disconnect / re-pair (#242–#244) ✅
 NEXT: not selected
 ```
 
+The current close checkpoint retires the obsolete Container Children Fit runtime and authoring machinery while retaining historical `layout.children.fit` documents as loadable/renderable compatibility input. It also modernizes the self-contained `/demo` from the accepted presentation JSON without making that JSON a production runtime dependency, and keeps neutral demo roots at the logical slide viewport. The close remains subject to the documented Player PIN lifecycle and target-display acceptance gates.
+
 Immediate execution order:
 
 1. Table Size ✅
@@ -661,4 +663,4 @@ Immediate execution order:
 
 Text Effects are complete: canonical Text Fill supports Color or Gradient; Shadow remains glyph-based; Glow is an external glyph halo; palette references, publication and the shared renderer preserve canonical meaning across authoring and playback.
 
-Broader Diagnostics and Audience/Watch expansion remain evidence-driven. The current product backlog is organized in [`ROADMAP.md`](./ROADMAP.md) as **Conceptualization** (integrated AI, HTML export, Forms) and **Enhancements** (Inspector layout consistency, Container content fit, specific border radii, self alignment, Player hardening with local history, Watcher IDs, Player Legacy and demo presentation update). These are deferred candidates, not accepted specifications or a selected next checkpoint. Earlier deferred candidates, including a cross-cutting audit and direct This Presentation FontResource authoring, remain recorded in the roadmap.
+Broader Diagnostics and Audience/Watch expansion remain evidence-driven. The current product backlog is organized in [`ROADMAP.md`](./ROADMAP.md) as **Conceptualization** (integrated AI, HTML export, Forms) and **Enhancements** (Inspector layout consistency, specific border radii, self alignment, Player hardening with local history, Watcher IDs and Player Legacy). These are deferred candidates, not accepted specifications or a selected next checkpoint. Earlier deferred candidates, including a cross-cutting audit and direct This Presentation FontResource authoring, remain recorded in the roadmap.

@@ -260,6 +260,8 @@ export function mountProjectionSurface(
     const effectiveSlide = materializeSlide(presentation, slide).slide;
     currentEffectiveSlide = effectiveSlide;
     slideSurface.innerHTML = renderSlide(effectiveSlide, { presentation });
+    constrainNeutralSlideRoot(effectiveSlide);
+    enhanceGalleryAccessibility();
     hydrateCurrentSlideRuntime();
     for (const frame of slideSurface.querySelectorAll<HTMLIFrameElement>(
       'iframe[data-presentation-type="scripted"][data-presentation-id]',
@@ -274,6 +276,26 @@ export function mountProjectionSurface(
       }
     }
     animateSlide(direction);
+  }
+
+  function constrainNeutralSlideRoot(slide: MaterializedSlide): void {
+    const rootElement = slide.elements[0];
+    if (slide.elements.length !== 1 || rootElement?.type !== "container" || rootElement.layout !== undefined) {
+      return;
+    }
+
+    const rootNode = slideSurface.querySelector<HTMLElement>(
+      ".presentation-slide-content > .presentation-container",
+    );
+    if (!rootNode) return;
+
+    // A neutral root has no authored dimensions, but it still owns the logical
+    // slide viewport. Keep content height from becoming the slide height.
+    rootNode.style.width = "100%";
+    rootNode.style.height = "100%";
+    rootNode.style.minWidth = "0";
+    rootNode.style.minHeight = "0";
+    rootNode.style.flexShrink = "0";
   }
 
   function goTo(index: number): void {
@@ -321,6 +343,20 @@ export function mountProjectionSurface(
 
     if (report) {
       options.onScriptedReport?.(report);
+    }
+  }
+
+  function enhanceGalleryAccessibility(): void {
+    for (const gallery of slideSurface.querySelectorAll<HTMLElement>(
+      '[data-presentation-type="gallery"][data-presentation-id]',
+    )) {
+      const activeImage = gallery.querySelector<HTMLImageElement>(
+        ".presentation-gallery-item-active img",
+      );
+      const accessibleName = activeImage?.alt?.trim() || "Gallery";
+      gallery.setAttribute("role", "button");
+      gallery.setAttribute("tabindex", "0");
+      gallery.setAttribute("aria-label", `Gallery: ${accessibleName}`);
     }
   }
 
@@ -469,6 +505,31 @@ export function mountProjectionSurface(
       return;
     }
 
+    // Keyboard activation is handled on keydown so Space never scrolls and
+    // the browser's follow-up detail=0 click cannot advance twice.
+    if (event.detail === 0 && document.activeElement === galleryRoot) {
+      return;
+    }
+
+    advanceGallery(galleryRoot);
+  }
+
+  function handleGalleryKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const galleryRoot = event.target.closest<HTMLElement>(".presentation-gallery");
+
+    if (!galleryRoot || !slideSurface.contains(galleryRoot) || event.repeat) {
+      return;
+    }
+
+    event.preventDefault();
     advanceGallery(galleryRoot);
   }
 
@@ -515,6 +576,7 @@ export function mountProjectionSurface(
   window.addEventListener("resize", handleResize);
   window.addEventListener("message", handleScriptedMessage);
   slideSurface.addEventListener("click", handleGalleryClick);
+  slideSurface.addEventListener("keydown", handleGalleryKeyDown);
 
   updateStageSize();
   renderCurrentSlide();
@@ -599,6 +661,7 @@ export function mountProjectionSurface(
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("message", handleScriptedMessage);
       slideSurface.removeEventListener("click", handleGalleryClick);
+      slideSurface.removeEventListener("keydown", handleGalleryKeyDown);
       clearExpandedGallery();
       disposeRendererRuntime(slideSurface);
       currentEffectiveSlide = undefined;

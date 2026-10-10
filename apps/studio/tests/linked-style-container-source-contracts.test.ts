@@ -7,7 +7,7 @@ const properties: readonly ContainerShareableProperty[] = [
   "layout.width", "layout.height", "layout.margin", "layout.marginTop", "layout.marginRight", "layout.marginBottom", "layout.marginLeft",
   "layout.padding", "layout.paddingTop", "layout.paddingRight", "layout.paddingBottom", "layout.paddingLeft", "layout.flexShrink",
   "layout.children.mode", "layout.children.direction", "layout.children.gap", "layout.children.distribution",
-  "layout.children.horizontalAlign", "layout.children.verticalAlign", "layout.children.fit", "layout.overflow",
+  "layout.children.horizontalAlign", "layout.children.verticalAlign", "layout.overflow",
   "style.color", "style.background.color", "style.background.gradient", "style.background.pattern", "style.border", "style.borderRadius",
   "effect.opacity", "effect.shadow",
 ];

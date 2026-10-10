@@ -35,7 +35,6 @@ describe("Container linked style Inspector section", () => {
         <ContainerInspector
           element={element}
           onUpdate={() => {}}
-          onContainerFitModeChange={() => true}
           presentation={{ linkedStyles: [{ id: "card", name: "Card", layout: { children: { gap: 8 } } }, { id: "hero", name: "Hero", style: { borderRadius: 8 } }] }}
           onAttachLinkedStyle={attach}
           onDetachLinkedStyle={detach}

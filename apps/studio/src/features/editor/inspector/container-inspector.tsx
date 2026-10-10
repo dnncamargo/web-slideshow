@@ -4,7 +4,6 @@ import type {
   Presentation,
 } from "@web-slideshow/document-schema";
 import { resolveLinkedContainerStyle } from "@web-slideshow/document-schema";
-import type { ContainerFitMode } from "../container-fit-authoring";
 
 import styles from "../editor-workspace.module.css";
 
@@ -27,8 +26,6 @@ interface ContainerInspectorProps {
   element: ContainerElement;
 
   onUpdate: (update: (element: PresentationElement) => PresentationElement) => void;
-
-  onContainerFitModeChange: (mode: ContainerFitMode | null) => boolean;
 
   presentation?: Presentation | Pick<Presentation, "linkedStyles">;
 
@@ -58,7 +55,6 @@ interface ContainerInspectorProps {
 export function ContainerInspector({
   element,
   onUpdate,
-  onContainerFitModeChange,
   presentation,
   onAttachLinkedStyle = () => {},
   onDetachLinkedStyle = () => {},
@@ -121,7 +117,6 @@ export function ContainerInspector({
         localElement={element}
         presentation={presentation}
         onUpdate={updateContainer}
-        onContainerFitModeChange={onContainerFitModeChange}
       />
 
       <ContainerSizeSection element={effective} localElement={element} presentation={presentation} onUpdate={updateContainer} />

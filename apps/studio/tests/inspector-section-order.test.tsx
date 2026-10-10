@@ -106,7 +106,6 @@ describe("canonical Inspector section order", () => {
           <ElementInspector
             element={element}
             onUpdate={() => {}}
-            onContainerFitModeChange={() => true}
             fontResources={[]}
             preserveImageProportion={false}
             onPreserveImageProportionChange={() => {}}

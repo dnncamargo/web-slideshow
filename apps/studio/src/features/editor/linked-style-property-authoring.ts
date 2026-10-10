@@ -7,24 +7,24 @@ import { createDefaultShadow } from "./inspector/sections/container-effects-sect
 import { createLinkedStyleId } from "./linked-style-authoring";
 
 export type LinkedStyleProperty =
-  | "layoutMode" | "direction" | "gap" | "distribution" | "horizontalAlign" | "verticalAlign" | "overflow" | "fit"
+  | "layoutMode" | "direction" | "gap" | "distribution" | "horizontalAlign" | "verticalAlign" | "overflow"
   | "position" | "top" | "right" | "bottom" | "left" | "width" | "height" | "preserveSize"
   | "padding" | "paddingTop" | "paddingRight" | "paddingBottom" | "paddingLeft"
   | "margin" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft"
   | "color" | "backgroundColor" | "gradient" | "pattern" | "border" | "borderRadius" | "opacity" | "shadow";
 
-export type LinkedStyleAuthorableProperty = Exclude<LinkedStyleProperty, "fit">;
+export type LinkedStyleAuthorableProperty = LinkedStyleProperty;
 export type LinkedStyleCreationProperty = Exclude<LinkedStyleAuthorableProperty, "top" | "right" | "bottom" | "left">;
 
 export const LINKED_STYLE_PROPERTY_ORDER: readonly LinkedStyleProperty[] = [
-  "layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow", "fit",
+  "layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow",
   "position", "top", "right", "bottom", "left", "width", "height", "preserveSize",
   "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
   "color", "backgroundColor", "gradient", "pattern", "border", "borderRadius", "opacity", "shadow",
 ];
 
 export const LINKED_STYLE_PROPERTY_GROUPS = {
-  layout: ["layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow", "fit"],
+  layout: ["layoutMode", "direction", "gap", "distribution", "horizontalAlign", "verticalAlign", "overflow"],
   position: ["position", "top", "right", "bottom", "left"],
   size: ["width", "height", "preserveSize"],
   spacing: ["padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "margin", "marginTop", "marginRight", "marginBottom", "marginLeft"],
@@ -45,7 +45,6 @@ export function hasLinkedStyleProperty(style: LinkedContainerStyle, property: Li
     case "horizontalAlign": return has(style.layout?.children?.horizontalAlign);
     case "verticalAlign": return has(style.layout?.children?.verticalAlign);
     case "overflow": return has(style.layout?.overflow);
-    case "fit": return has(style.layout?.children?.fit);
     case "position": return has(style.layout?.position);
     case "top": return has(style.layout?.top);
     case "right": return has(style.layout?.right);
@@ -80,7 +79,7 @@ export function listLinkedStyleAuthoredProperties(style: LinkedContainerStyle): 
 }
 
 export function listAvailableLinkedStyleProperties(style: LinkedContainerStyle): LinkedStyleAuthorableProperty[] {
-  return LINKED_STYLE_PROPERTY_ORDER.filter((property): property is LinkedStyleAuthorableProperty => property !== "fit" && !hasLinkedStyleProperty(style, property))
+  return LINKED_STYLE_PROPERTY_ORDER.filter((property): property is LinkedStyleAuthorableProperty => !hasLinkedStyleProperty(style, property))
     .filter((property) => !(property === "top" || property === "right" || property === "bottom" || property === "left") || style.layout?.position === "absolute");
 }
 

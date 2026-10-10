@@ -630,7 +630,7 @@ Delivered:
 - a read-only History panel driven by action metadata, with applied actions newest first and the next Redo action first;
 - `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z`, while native editable-control undo remains native.
 
-The high-signal manual acceptance areas were completed by the user. The remaining Canvas browser/device smoke (drag, resize, crop, focal point and Container Fit) does not block this milestone and remains a future post-merge verification item. Automated coverage and implementation are present, but this checkpoint does not claim that physical/manual Canvas acceptance is complete.
+The high-signal manual acceptance areas were completed by the user. The remaining Canvas browser/device smoke (drag, resize, crop and focal point) does not block this milestone and remains a future post-merge verification item. Automated coverage and implementation are present, but this checkpoint does not claim that physical/manual Canvas acceptance is complete.
 
 At this close checkpoint (`75ca782630ee3742f887e531a389e485a1fb03a6`), Studio and Player Vercel results were green. That evidence does not establish the user-facing production deployment identity, so production deployment is not claimed as verified here.
 
@@ -674,6 +674,7 @@ The following current-state work is complete at its recorded closure point:
 - **Historical identity cleanup** — PR #172. Repository, package, route, storage, documentation and instance-branding surfaces use the neutral current identity contract. The production display name remains configurable through `WEB_SLIDESHOW_DISPLAY_NAME`.
 - **Import-time ID normalization** — PR #173. Import regenerates deterministic type-aware structural IDs and remaps typed Text Style and Linked Style references. Scripted port identities and authored strings remain stable. Duplicate/copy authoring is handled separately in Studio and now derives new duplicate IDs from a stable pre-copy family root without migrating existing IDs.
 - **Root Definitions / structural normalization** — SM6E1–SM6E3. The canonical `rootDefinitions` collection, shared preset structural primitive, same-workspace lifecycle, This Presentation browser/management, explicit/default Slide association, receiver authorization, owner-aware master and Slide-local authoring, state-aware assignment safety, Element Style compatibility, resource composition, History, persistence, import/export, publish, Player, Control, Library-thumbnail and renderer acceptance are complete. `schemaVersion` remains literally `1`; V1 intentionally keeps one effective Root per Slide, disallows nested Roots and per-Slide master property overrides, and blocks destructive reassignment instead of migrating content automatically.
+- **Children Fit retirement + Demo modernization** — The obsolete Children Fit authoring/runtime machinery is removed while historical `layout.children.fit` input remains accepted for schema compatibility and is ignored by current rendering. The self-contained `/demo` is authored from the accepted nine-slide presentation contract with dynamic display-name substitution, Scripted circuit content, Image/Gallery/Plot demonstrations and neutral-root viewport sizing; production playback uses the inline presentation module rather than the root JSON fixture. This checkpoint also covers stable 3D Plot sizing and Gallery accessibility/autoplay regressions.
 
 These completions do not change `schemaVersion`, the Presentation schema, persistence format, publication model, or Player/Studio boundaries.
 
@@ -818,13 +819,11 @@ The following **11 current candidates** are user-recorded backlog items. They re
 ### Enhancements
 
 1. **Consistent Inspector layout** (`Layout coerente do Inspector`).
-2. **Container content fit**.
-3. **Specific border radius** (`Border radius specific`).
-4. **Self alignment**.
-5. **Player hardening with local history** (`Player harder com histórico local`) — evaluate continuity/recovery without changing immutable publishing or Live ownership.
-6. **IDs for Watchers** (`ids para watchers`).
-7. **Player Legacy** — further improvement scope to be defined; the compatibility runtime remains separate.
-8. **Update demo presentation** (`Atualizar demo presentation`).
+2. **Specific border radius** (`Border radius specific`).
+3. **Self alignment**.
+4. **Player hardening with local history** (`Player harder com histórico local`) — evaluate continuity/recovery without changing immutable publishing or Live ownership.
+5. **IDs for Watchers** (`ids para watchers`).
+6. **Player Legacy** — further improvement scope to be defined; the compatibility runtime remains separate.
 
 ### Other previously deferred candidates
 
@@ -900,8 +899,8 @@ FUTURE / DEFERRED:
   P15 Audience / Watch expansion
   complete audit
   Current conceptualization: Integrated AI / HTML export / Forms
-  Current enhancements: Inspector / Container fit / Border radius / Self alignment
-  Current enhancements: Player history / Watcher IDs / Player Legacy / Demo
+  Current enhancements: Inspector / Border radius / Self alignment
+  Current enhancements: Player history / Watcher IDs / Player Legacy
   AI Converter (historical proposal; not yet reconciled with Integrated AI)
   direct This Presentation FontResource authoring
   Topics → Text Style consumption

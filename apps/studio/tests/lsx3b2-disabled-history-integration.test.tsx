@@ -114,7 +114,6 @@ describe("LSX3B2 exact disabled History integration", () => {
           <ElementInspector
             element={element}
             onUpdate={update}
-            onContainerFitModeChange={() => true}
             fontResources={[]}
             presentation={initial}
             preserveImageProportion={false}
