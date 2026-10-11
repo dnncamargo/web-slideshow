@@ -105,6 +105,7 @@ import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-
 import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
 import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
 import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
+import { StorageUsageIndicator } from "./storage-usage-indicator";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
 import {
@@ -243,6 +244,7 @@ export function PresentationLibrary({
   const [customLibraryFileDeleteTargetId, setCustomLibraryFileDeleteTargetId] = useState<string | null>(null);
   const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
   const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
+  const [storageUsageRefreshKey, setStorageUsageRefreshKey] = useState(0);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -654,6 +656,7 @@ export function PresentationLibrary({
             sizeBytes: upload.sizeBytes,
           },
         } satisfies CustomLibraryFileRecord["file"];
+        if (mountedRef.current) setStorageUsageRefreshKey((value) => value + 1);
         setCustomLibraryFileUploadState("saving");
         try {
           await saveCustomLibraryFileDraft(draft);
@@ -1597,6 +1600,10 @@ export function PresentationLibrary({
                   )}
                 </h1>
               )}
+              <StorageUsageIndicator
+                enabled={filesDestination || fontsDestination}
+                refreshKey={storageUsageRefreshKey}
+              />
             </div>
             {presentationDestination ? (
               <PresentationToolbar

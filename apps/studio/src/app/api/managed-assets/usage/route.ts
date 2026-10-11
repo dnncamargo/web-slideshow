@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+
+import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
+import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
+import { getOwnerBlobUsage } from "../../../../features/persistence/managed-asset-usage";
+
+export const dynamic = "force-dynamic";
+
+function response(body: { error: "authentication" | "unavailable" }, status: number): NextResponse {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "private, no-store",
+      Vary: "Authorization",
+    },
+  });
+}
+
+export async function GET(request: Request): Promise<NextResponse> {
+  const authorization = request.headers.get("authorization");
+  const match = authorization?.match(/^Bearer\s+(.+)$/i);
+  if (!match || !match[1]?.trim()) return response({ error: "authentication" }, 401);
+
+  try {
+    const user = await verifyFirebaseIdToken(match[1]);
+    const usage = await getOwnerBlobUsage(user.uid);
+    return NextResponse.json(usage, {
+      headers: {
+        "Cache-Control": "private, no-store",
+        Vary: "Authorization",
+      },
+    });
+  } catch (error) {
+    if (error instanceof FirebaseAuthenticationError) {
+      return response({ error: "authentication" }, 401);
+    }
+    return response({ error: "unavailable" }, 503);
+  }
+}
