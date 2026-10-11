@@ -7,6 +7,7 @@ import {
   isFolderDestination,
   isPresentationDestination,
   isCustomLibraryDestination,
+  isStorageDestination,
   isSameLibraryDestination,
   isSummaryVisibleInDestination,
   resolveFolderName,
@@ -42,11 +43,14 @@ describe("library destination model", () => {
     expect(isPresentationDestination("archived")).toBe(true);
     expect(isPresentationDestination({ kind: "folder", folderId: "f1" })).toBe(true);
     expect(isPresentationDestination("styles")).toBe(false);
+    expect(isPresentationDestination("storage")).toBe(false);
+    expect(isStorageDestination("storage")).toBe(true);
 
     expect(isCustomLibraryDestination("styles")).toBe(true);
     expect(isCustomLibraryDestination("palettes")).toBe(true);
     expect(isCustomLibraryDestination("fonts")).toBe(true);
     expect(isCustomLibraryDestination("files")).toBe(true);
+    expect(isCustomLibraryDestination("storage")).toBe(false);
     expect(isCustomLibraryDestination("all")).toBe(false);
   });
 

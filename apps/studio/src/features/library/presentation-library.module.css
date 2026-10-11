@@ -583,6 +583,51 @@
   background: rgb(34 211 238 / 8%);
 }
 
+.storageRow {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.storageSelect {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.storageRow[data-selected="true"] .storageSelect {
+  border-radius: var(--ps-ui-radius-6);
+  background: rgb(34 211 238 / 8%);
+}
+
+.storageSelect:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
+.storagePagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px;
+}
+
+.storagePagination p,
+.storageCopyError {
+  margin: 0;
+  color: var(--ps-ui-semantic-danger);
+  font-size: 12px;
+}
+
+.storageIdentifier {
+  overflow-wrap: anywhere;
+}
+
 .thumbnail {
   position: relative;
   display: flex;

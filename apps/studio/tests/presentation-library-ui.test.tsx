@@ -29,7 +29,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("../src/features/auth/studio-auth-provider", () => ({
   useStudioAuth: () => ({
-    user: { displayName: "Test user", email: "test@example.com" },
+    user: {
+      uid: "owner-1",
+      displayName: "Test user",
+      email: "test@example.com",
+      getIdToken: vi.fn(async () => "firebase-token"),
+    },
     signOut: testDependencies.signOut,
   }),
 }));
@@ -1919,6 +1924,51 @@ describe("presentation library workspace controls", () => {
         (button) => button.textContent?.trim() === "Folders",
       ),
     ).toBe(false);
+  });
+
+  it("opens Storage as a separate Library destination and loads the authenticated owner's objects", async () => {
+    const { repository } = repositoryFor([]);
+    const files = customLibraryFileRepositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/usage")) {
+        return {
+          ok: true,
+          json: async () => ({ scope: "owner", objectCount: 1, bytesUsed: 42, measuredAt: "2026-02-03T04:05:06.000Z", quotaStatus: "unknown" }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          scope: "owner",
+          items: [{
+            pathname: "users/owner-1/assets/physical-object",
+            url: "https://blob.example/physical-object",
+            size: 42,
+            uploadedAt: "2026-02-03T04:05:06.000Z",
+            etag: "etag-1",
+          }],
+          hasMore: false,
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository, files.repository)));
+    await flushWorkspaceEffects();
+    await act(async () => {
+      findButton(container, "Objects").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector("h1")?.textContent).toBe("Storage");
+    expect(container.querySelector("[data-storage-object='users/owner-1/assets/physical-object']")).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/inventory"))).toBe(true);
+    expect(files.listFiles).not.toHaveBeenCalled();
+    expect(fonts.listFonts).not.toHaveBeenCalled();
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(1);
   });
 
   it("shows the empty Details state when nothing is selected", async () => {

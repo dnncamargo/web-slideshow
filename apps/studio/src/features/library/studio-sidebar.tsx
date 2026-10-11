@@ -127,6 +127,7 @@ function InlineFolderEditor({
  *   real navigation destination keyed by its stable folderId; the display
  *   name is never used as identity.
  * - Custom Library: Styles, Palettes, Fonts, Files (fixed navigation)
+ * - Storage: physical managed Blob inventory (separate from Custom Library)
  */
 export function StudioSidebar({
   destination,
@@ -238,6 +239,11 @@ export function StudioSidebar({
           {item("palettes", t("library.palettes"))}
           {item("fonts", t("library.fonts"))}
           {item("files", t("library.files"))}
+        </section>
+
+        <section className={styles.sidebarSection}>
+          <h2>{t("library.storage.title")}</h2>
+          {item("storage", t("library.storage.objectsLabel"))}
         </section>
       </nav>
     </aside>

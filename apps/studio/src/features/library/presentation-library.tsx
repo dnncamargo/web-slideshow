@@ -84,6 +84,7 @@ import {
   isFolderDestination,
   isPresentationDestination,
   isCustomLibraryDestination,
+  isStorageDestination,
   isSummaryVisibleInDestination,
   resolveFolderName,
   type LibraryDestination,
@@ -106,6 +107,7 @@ import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-
 import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
 import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
 import { StorageUsageIndicator } from "./storage-usage-indicator";
+import { ManagedAssetInventory } from "./managed-asset-inventory";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
 import {
@@ -151,6 +153,8 @@ function destinationTitle(
       return t("library.all");
     case "archived":
       return t("library.archived");
+    case "storage":
+      return t("library.storage.title");
     case "styles":
       return t("library.styles");
     case "palettes":
@@ -172,6 +176,10 @@ function destinationSectionTitle(
 
   if (isCustomLibraryDestination(destination)) {
     return t("library.customLibrary");
+  }
+
+  if (isStorageDestination(destination)) {
+    return t("library.storage.title");
   }
 
   return t("library.presentations");
@@ -1464,6 +1472,7 @@ export function PresentationLibrary({
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
   const filesDestination = destination === "files";
+  const storageDestination = isStorageDestination(destination);
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
   const fileMutationPending = customLibraryFileUploadState !== null || pendingCustomLibraryFilePersistence !== null || customLibraryFileRenamePending || deletingCustomLibraryFileId !== null;
@@ -1601,7 +1610,7 @@ export function PresentationLibrary({
                 </h1>
               )}
               <StorageUsageIndicator
-                enabled={filesDestination || fontsDestination}
+                enabled={filesDestination || fontsDestination || storageDestination}
                 refreshKey={storageUsageRefreshKey}
               />
             </div>
@@ -1674,6 +1683,8 @@ export function PresentationLibrary({
           </div>
 
           <div className={styles.workspaceBody}>
+            {storageDestination ? <ManagedAssetInventory /> : (
+              <>
             <section
               className={styles.browserPane}
               aria-live="polite"
@@ -1909,6 +1920,8 @@ export function PresentationLibrary({
                   if (selected) void handleMoveFolder(selected.id, folderId);
                 }}
               />
+            )}
+              </>
             )}
           </div>
         </main>
