@@ -11,7 +11,7 @@ import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 
 import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
-import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
+import { fontFaceWasSaved, type FontFamilyFaces, type OnAddFontFace } from "../font-acquisition-types";
 
 interface ManualFontControlProps {
   fontFamilies: readonly FontFamilyFaces[];
@@ -85,7 +85,7 @@ export function ManualFontControl({
 
     const added = await onAddFontFace(resourceFamily, result.data);
 
-    if (!added) {
+    if (!fontFaceWasSaved(added)) {
       return;
     }
 

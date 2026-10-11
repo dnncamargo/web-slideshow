@@ -22,7 +22,7 @@ import type {
 
 import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
-import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
+import { fontFaceWasSaved, type FontFamilyFaces, type OnAddFontFace } from "../font-acquisition-types";
 
 interface WebFontSearchControlProps {
   provider: WebFontProviderId;
@@ -372,7 +372,7 @@ export function WebFontSearchControl({
 
     const added = await onAddFontFace(canonicalFamily, parsedFace.data);
 
-    if (!added) {
+    if (!fontFaceWasSaved(added)) {
       return false;
     }
 

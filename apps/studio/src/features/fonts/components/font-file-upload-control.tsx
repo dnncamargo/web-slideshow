@@ -8,16 +8,26 @@ import {
 import { uploadManagedAsset } from "@/features/persistence/managed-asset-storage";
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
+import {
+  FirebaseAuthenticationError,
+  ManagedAssetUploadError,
+} from "@/features/persistence/persistence-errors";
 
 import { normalizeFontFamily } from "../font-face-helpers";
 import styles from "./font-acquisition.module.css";
-import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
+import {
+  fontFacePersistenceFailed,
+  fontFaceWasSaved,
+  type FontFamilyFaces,
+  type OnAddFontFace,
+} from "../font-acquisition-types";
 
 interface FontFileUploadControlProps {
   fontFamilies: readonly FontFamilyFaces[];
   onAddFontFace: OnAddFontFace;
   onFontAdded: (family: string) => void;
   onUploadingChange?: (uploading: boolean) => void;
+  onRetryFontFacePersistence?: OnAddFontFace;
   controlPrefix: string;
 }
 
@@ -27,7 +37,13 @@ type FontFaceSlot = Pick<
   "weight" | "style" | "subset" | "unicodeRange"
 >;
 type UploadableFontFormat = "truetype" | "opentype" | "woff2";
-type UploadState = "idle" | "uploading";
+type UploadState = "idle" | "uploading" | "saving";
+
+interface PendingFontPersistence {
+  family: string;
+  face: FontFaceResource;
+  persistenceId: string;
+}
 
 const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
 
@@ -69,6 +85,7 @@ export function FontFileUploadControl({
   onAddFontFace,
   onFontAdded,
   onUploadingChange,
+  onRetryFontFacePersistence,
   controlPrefix,
 }: FontFileUploadControlProps) {
   const { t } = useStudioI18n();
@@ -80,8 +97,65 @@ export function FontFileUploadControl({
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<UploadState>("idle");
   const [error, setError] = useState<StudioMessageKey | null>(null);
+  const [pendingPersistence, setPendingPersistence] = useState<PendingFontPersistence | null>(null);
+
+  function uploadErrorMessage(error: unknown): StudioMessageKey {
+    if (error instanceof FirebaseAuthenticationError) return "customLibrary.uploadError.authentication";
+    if (error instanceof ManagedAssetUploadError) {
+      switch (error.category) {
+        case "unsupported_type": return "customLibrary.uploadError.unsupportedType";
+        case "file_too_large": return "customLibrary.uploadError.fileTooLarge";
+        case "store_suspended": return "customLibrary.uploadError.storeSuspended";
+        case "authorization": return "customLibrary.uploadError.authorization";
+        case "rate_limited": return "customLibrary.uploadError.rateLimited";
+        case "service_unavailable": return "customLibrary.uploadError.serviceUnavailable";
+        case "network": return "customLibrary.uploadError.network";
+        case "uncertain_completion": return "customLibrary.uploadError.uncertainCompletion";
+        case "quota_exceeded": return "customLibrary.uploadError.quotaExceeded";
+        case "unknown": return "customLibrary.uploadError.unknown";
+      }
+    }
+    return "customLibrary.uploadError.unknown";
+  }
 
   async function addFontFace() {
+    if (pendingPersistence) {
+      if (!onRetryFontFacePersistence) {
+        setError("customLibrary.uploadError.unknown");
+        return;
+      }
+      setError(null);
+      setState("saving");
+      onUploadingChange?.(true);
+      try {
+        const result = await onRetryFontFacePersistence(
+          pendingPersistence.family,
+          pendingPersistence.face,
+          pendingPersistence.persistenceId,
+        );
+        if (fontFaceWasSaved(result)) {
+          onFontAdded(pendingPersistence.family);
+          setPendingPersistence(null);
+          setFamily("");
+          setWeight(400);
+          setFontStyle("normal");
+          setSubset("");
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setError(null);
+        } else if (fontFacePersistenceFailed(result)) {
+          setError("customLibrary.uploadError.persistenceFailed");
+        } else {
+          setPendingPersistence(null);
+          setError("inspector.fontFaceExists");
+        }
+      } finally {
+        setState("idle");
+        onUploadingChange?.(false);
+      }
+      return;
+    }
+
     const trimmedFamily = family.trim();
     const trimmedSubset = subset.trim();
 
@@ -131,8 +205,8 @@ export function FontFileUploadControl({
         upload = await uploadManagedAsset(file, {
           contentType: resolvedFile.contentType,
         });
-      } catch {
-        setError("customLibrary.fontManagement.uploadFailed");
+      } catch (error) {
+        setError(uploadErrorMessage(error));
         return;
       }
 
@@ -151,9 +225,19 @@ export function FontFileUploadControl({
       }
 
       const resourceFamily = existingResource?.family ?? trimmedFamily;
-      const added = await onAddFontFace(resourceFamily, result.data);
+      const added = await onAddFontFace(resourceFamily, result.data, upload.assetId);
 
-      if (!added) {
+      if (fontFacePersistenceFailed(added)) {
+        setPendingPersistence({
+          family: resourceFamily,
+          face: result.data,
+          persistenceId: upload.assetId,
+        });
+        setError("customLibrary.uploadError.persistenceFailed");
+        return;
+      }
+
+      if (!fontFaceWasSaved(added)) {
         return;
       }
 
@@ -173,7 +257,7 @@ export function FontFileUploadControl({
     }
   }
 
-  const uploading = state === "uploading";
+  const uploading = state !== "idle";
 
   return (
     <div className={styles.fontSourcePanel}>
@@ -280,8 +364,16 @@ export function FontFileUploadControl({
         }}
       >
         {uploading
-          ? t("customLibrary.fontManagement.uploading")
-          : t("customLibrary.fontManagement.uploadFace")}
+          ? t(
+              pendingPersistence
+                ? "customLibrary.uploadError.retryingPersistence"
+                : "customLibrary.fontManagement.uploading",
+            )
+          : t(
+              pendingPersistence
+                ? "customLibrary.uploadError.retryPersistence"
+                : "customLibrary.fontManagement.uploadFace",
+            )}
       </button>
 
       {error ? (

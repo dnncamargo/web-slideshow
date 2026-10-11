@@ -1,3 +1,15 @@
+import {
+  BlobAccessError,
+  BlobClientTokenExpiredError,
+  BlobContentTypeNotAllowedError,
+  BlobFileTooLargeError,
+  BlobPathnameMismatchError,
+  BlobRequestAbortedError,
+  BlobServiceNotAvailable,
+  BlobServiceRateLimited,
+  BlobStoreSuspendedError,
+  BlobStoreNotFoundError,
+} from "@vercel/blob";
 import type { FirebaseError } from "firebase/app";
 export { PresentationTooLargeError } from "@web-slideshow/firebase";
 
@@ -36,10 +48,48 @@ export class FirestoreOperationError extends PersistenceError {
 }
 
 export class ManagedAssetUploadError extends PersistenceError {
+  readonly category: ManagedAssetUploadErrorCategory;
+
   constructor(message: string, cause?: unknown) {
     super(message, cause);
     this.name = "ManagedAssetUploadError";
+    this.category = classifyManagedAssetUploadError(cause);
   }
+}
+
+export type ManagedAssetUploadErrorCategory =
+  | "unsupported_type"
+  | "file_too_large"
+  | "quota_exceeded"
+  | "store_suspended"
+  | "authentication"
+  | "authorization"
+  | "rate_limited"
+  | "network"
+  | "service_unavailable"
+  | "uncertain_completion"
+  | "unknown";
+
+export function classifyManagedAssetUploadError(
+  error: unknown,
+): ManagedAssetUploadErrorCategory {
+  if (error instanceof BlobContentTypeNotAllowedError) return "unsupported_type";
+  if (error instanceof BlobFileTooLargeError) return "file_too_large";
+  if (error instanceof BlobStoreSuspendedError) return "store_suspended";
+  if (error instanceof BlobAccessError) return "authorization";
+  if (error instanceof BlobPathnameMismatchError) return "authorization";
+  if (error instanceof BlobStoreNotFoundError) return "service_unavailable";
+  if (error instanceof BlobClientTokenExpiredError) return "authentication";
+  if (error instanceof BlobServiceRateLimited) return "rate_limited";
+  if (error instanceof BlobServiceNotAvailable) return "service_unavailable";
+  if (error instanceof BlobRequestAbortedError) return "uncertain_completion";
+  if (error instanceof TypeError) return "uncertain_completion";
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) return "uncertain_completion";
+  return "unknown";
 }
 
 export class InvalidPersistedPresentationError extends PersistenceError {}

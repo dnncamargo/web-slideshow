@@ -15,6 +15,7 @@ import styles from "../library/presentation-library.module.css";
 export interface CustomLibraryFontAcquisitionProps {
   fontFamilies: readonly FontFamilyFaces[];
   onAddFontFace: OnAddFontFace;
+  onRetryFontFacePersistence?: OnAddFontFace;
   saving?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -25,6 +26,7 @@ type FontSource = "fontsource" | "google-fonts" | "upload" | "manual";
 export function CustomLibraryFontAcquisition({
   fontFamilies,
   onAddFontFace,
+  onRetryFontFacePersistence,
   saving = false,
   error = null,
   onClose,
@@ -104,6 +106,7 @@ export function CustomLibraryFontAcquisition({
           onAddFontFace={onAddFontFace}
           onFontAdded={setLastAddedFamily}
           onUploadingChange={setUploading}
+          onRetryFontFacePersistence={onRetryFontFacePersistence}
           controlPrefix="custom-library-font"
         />
       ) : null}

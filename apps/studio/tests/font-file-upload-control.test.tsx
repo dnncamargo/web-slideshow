@@ -121,6 +121,7 @@ describe("FontFileUploadControl", () => {
           format: "truetype",
         },
       }),
+      expect.any(String),
     );
   });
 
@@ -165,6 +166,7 @@ describe("FontFileUploadControl", () => {
           format: "opentype",
         },
       }),
+      expect.any(String),
     );
   });
 
@@ -254,12 +256,48 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
 
-    expect(container.textContent).toContain("Could not upload the font file.");
+    expect(container.textContent).toContain("The upload failed. Check the file and try again.");
     expect(container.textContent).not.toContain("raw Firebase secret");
     expect(onAddFontFace).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLInputElement>("#font-upload-family")?.value).toBe(
       "My Font",
     );
+  });
+
+  it("retries persistence with the same uploaded URL without uploading twice", async () => {
+    const onAddFontFace = vi.fn().mockResolvedValueOnce({ status: "persistence-failed" });
+    const onRetryFontFacePersistence = vi.fn().mockResolvedValue({ status: "saved" });
+    const onFontAdded = vi.fn();
+
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <FontFileUploadControl
+            fontFamilies={[]}
+            onAddFontFace={onAddFontFace}
+            onRetryFontFacePersistence={onRetryFontFacePersistence}
+            onFontAdded={onFontAdded}
+            controlPrefix="font-upload"
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    setInputValue(container, "font-upload-family", "My Font");
+    setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
+    await act(async () => click(container, "font-upload-submit"));
+    expect(container.textContent).toContain("Retry saving");
+    const initialPersistenceId = onAddFontFace.mock.calls[0]?.[2];
+    expect(initialPersistenceId).toEqual(expect.any(String));
+
+    await act(async () => click(container, "font-upload-submit"));
+    expect(uploadManagedAssetMock).toHaveBeenCalledOnce();
+    expect(onRetryFontFacePersistence).toHaveBeenCalledWith(
+      "My Font",
+      expect.objectContaining({ source: expect.objectContaining({ url: uploadResult.downloadUrl }) }),
+      initialPersistenceId,
+    );
+    expect(onFontAdded).toHaveBeenCalledWith("My Font");
   });
 });
 
@@ -318,6 +356,7 @@ describe("Custom Library font upload integration", () => {
       expect.objectContaining({
         source: expect.objectContaining({ format: "truetype" }),
       }),
+      expect.any(String),
     );
     expect(container.textContent).toContain("Added My Font.");
   });

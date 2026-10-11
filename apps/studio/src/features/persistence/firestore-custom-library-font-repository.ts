@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  runTransaction,
   setDoc,
 } from "firebase/firestore";
 
@@ -14,6 +15,11 @@ import type {
 } from "../custom-library/custom-library-font";
 import { parseCustomLibraryFontDraft } from "../custom-library/custom-library-font-schema";
 import type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
+import {
+  assertStableAssetDocumentId,
+  canonicalValuesEqual,
+  type StablePersistenceOptions,
+} from "./firestore-idempotency";
 import { requireAuthenticatedFirebaseUser } from "./authenticated-user";
 import { getFirebaseFirestore } from "./firebase-client";
 import {
@@ -41,7 +47,10 @@ export class FirestoreCustomLibraryFontRepository implements CustomLibraryFontRe
     return requireAuthenticatedFirebaseUser(getCurrentNonAnonymousUser);
   }
 
-  async saveFont(font: CustomLibraryFontDraft): Promise<string> {
+  async saveFont(
+    font: CustomLibraryFontDraft,
+    options: StablePersistenceOptions = {},
+  ): Promise<string> {
     const user = this.requireAuthenticatedUser();
     let validatedFont: CustomLibraryFontDraft;
 
@@ -54,11 +63,55 @@ export class FirestoreCustomLibraryFontRepository implements CustomLibraryFontRe
       );
     }
 
-    const documentRef = doc(customLibraryFontsCollection(user.uid));
+    if (options.documentId !== undefined) assertStableAssetDocumentId(options.documentId);
+
+    const documentRef = options.documentId
+      ? customLibraryFontDocumentRef(user.uid, options.documentId)
+      : doc(customLibraryFontsCollection(user.uid));
+
+    if (options.documentId === undefined) {
+      try {
+        await setDoc(documentRef, validatedFont);
+      } catch (error) {
+        console.error("Failed to save Custom Library font.", error);
+        throw new FirestoreOperationError("Failed to save Custom Library font.", error);
+      }
+
+      return documentRef.id;
+    }
 
     try {
-      await setDoc(documentRef, validatedFont);
+      await runTransaction(getFirebaseFirestore(), async (transaction) => {
+        const snapshot = await transaction.get(documentRef);
+        if (snapshot.exists()) {
+          let existingFont: CustomLibraryFontDraft;
+          try {
+            existingFont = parseCustomLibraryFontDraft(snapshot.data());
+          } catch (error) {
+            throw new InvalidPersistedCustomLibraryFontError(
+              `Persisted Custom Library font "${documentRef.id}" is invalid.`,
+              error,
+            );
+          }
+
+          if (!canonicalValuesEqual(existingFont, validatedFont)) {
+            throw new FirestoreOperationError(
+              "Stable Custom Library font identity conflicts with existing data.",
+            );
+          }
+
+          return;
+        }
+
+        transaction.set(documentRef, validatedFont);
+      });
     } catch (error) {
+      if (
+        error instanceof InvalidPersistedCustomLibraryFontError ||
+        error instanceof FirestoreOperationError
+      ) {
+        throw error;
+      }
       console.error("Failed to save Custom Library font.", error);
       throw new FirestoreOperationError("Failed to save Custom Library font.", error);
     }
