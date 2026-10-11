@@ -276,6 +276,39 @@
   font-weight: 600;
 }
 
+.storageUsage {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  color: var(--ps-ui-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.storageUsageTitle {
+  color: var(--ps-ui-text-secondary);
+  font-weight: 600;
+}
+
+.storageUsageMeasured,
+.storageUsageStatus {
+  color: var(--ps-ui-text-muted);
+  font-size: 10px;
+}
+
+.storageUsage[data-state="loading"] {
+  opacity: 0.75;
+}
+
+.storageUsage[data-state="unavailable"] .storageUsageStatus {
+  color: var(--ps-ui-semantic-warning);
+}
+
 .workspaceFolderTitle {
   margin: 0;
   padding: 0;
@@ -1074,6 +1107,17 @@
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     padding: 22px 18px 0;
   }
+  .workspaceHeading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .storageUsage {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
   .workspaceHeading {
     display: contents;
   }
