@@ -6,6 +6,7 @@ vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  runTransaction: vi.fn(),
   setDoc: vi.fn(),
 }));
 
@@ -17,7 +18,15 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
   getCurrentNonAnonymousUser: vi.fn(() => ({ uid: "user-1", isAnonymous: false })),
 }));
 
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  runTransaction,
+  setDoc,
+} from "firebase/firestore";
 import { getCurrentNonAnonymousUser } from "../src/features/auth/firebase-auth";
 import { FirestoreCustomLibraryFileRepository } from "../src/features/persistence/firestore-custom-library-file-repository";
 import {
@@ -32,6 +41,7 @@ const mockedDeleteDoc = vi.mocked(deleteDoc);
 const mockedDoc = vi.mocked(doc);
 const mockedGetDoc = vi.mocked(getDoc);
 const mockedGetDocs = vi.mocked(getDocs);
+const mockedRunTransaction = vi.mocked(runTransaction);
 const mockedSetDoc = vi.mocked(setDoc);
 const mockedGetCurrentUser = vi.mocked(getCurrentNonAnonymousUser);
 const repository = new FirestoreCustomLibraryFileRepository();
@@ -72,6 +82,78 @@ describe("FirestoreCustomLibraryFileRepository", () => {
     await expect(repository.saveFile(file)).resolves.toBe("generated-file-id");
     expect(mockedCollection).toHaveBeenCalledWith(expect.anything(), "users", "user-1", "customLibraryFiles");
     expect(mockedSetDoc).toHaveBeenCalledWith({ id: "generated-file-id" }, file);
+  });
+
+  it("uses the stable managed-asset identity for idempotent saves", async () => {
+    const transaction = {
+      get: vi.fn(async () => ({ exists: () => false })),
+      set: vi.fn(),
+    };
+    mockedRunTransaction.mockImplementation(async (_db, callback) => {
+      await callback(transaction as never);
+    });
+
+    await expect(repository.saveFile(file, { documentId: file.source.assetId })).resolves.toBe(
+      file.source.assetId,
+    );
+    expect(mockedDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      "users",
+      "user-1",
+      "customLibraryFiles",
+      file.source.assetId,
+    );
+    expect(transaction.set).toHaveBeenCalledWith(
+      { id: file.source.assetId },
+      file,
+    );
+  });
+
+  it("recognizes an equivalent document after a lost commit response", async () => {
+    const persisted = new Map<string, typeof file>();
+    let firstAttempt = true;
+    mockedRunTransaction.mockImplementation(async (_db, callback) => {
+      const transaction = {
+        get: vi.fn(async (reference: { id: string }) => ({
+          exists: () => persisted.has(reference.id),
+          data: () => persisted.get(reference.id),
+        })),
+        set: vi.fn((reference: { id: string }, value: typeof file) => {
+          persisted.set(reference.id, value);
+        }),
+      };
+      await callback(transaction as never);
+      if (firstAttempt) {
+        firstAttempt = false;
+        throw new Error("commit succeeded but response was lost");
+      }
+    });
+
+    await expect(repository.saveFile(file, { documentId: file.source.assetId })).rejects.toBeInstanceOf(
+      FirestoreOperationError,
+    );
+    await expect(repository.saveFile(file, { documentId: file.source.assetId })).resolves.toBe(
+      file.source.assetId,
+    );
+    await expect(repository.saveFile(file, { documentId: file.source.assetId })).resolves.toBe(
+      file.source.assetId,
+    );
+    expect(persisted.size).toBe(1);
+    expect([...persisted.keys()]).toEqual([file.source.assetId]);
+  });
+
+  it("does not overwrite conflicting stable identity data", async () => {
+    const conflictingFile = { ...file, name: "Different file" };
+    mockedRunTransaction.mockImplementation(async (_db, callback) => {
+      await callback({
+        get: vi.fn(async () => ({ exists: () => true, data: () => conflictingFile })),
+        set: vi.fn(),
+      } as never);
+    });
+
+    await expect(repository.saveFile(file, { documentId: file.source.assetId })).rejects.toMatchObject({
+      message: expect.stringContaining("conflicts"),
+    });
   });
 
   it("rejects invalid data before Firestore access", async () => {

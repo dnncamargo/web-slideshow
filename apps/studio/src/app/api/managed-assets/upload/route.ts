@@ -3,13 +3,26 @@ import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
 import { isManagedAssetContentType } from "../../../../features/persistence/managed-asset-content-types";
-import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
+import {
+  classifyManagedAssetUploadError,
+  FirebaseAuthenticationError,
+  FirebaseConfigurationError,
+  type ManagedAssetUploadErrorCategory,
+} from "../../../../features/persistence/persistence-errors";
 
 const ASSET_PATH_PATTERN =
   /^users\/([^/]+)\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
 const MAX_CONTENT_TYPE_LENGTH = 256;
 
-class ManagedAssetAuthorizationError extends Error {}
+class ManagedAssetRequestError extends Error {
+  constructor(
+    message: string,
+    readonly category: ManagedAssetUploadErrorCategory,
+  ) {
+    super(message);
+    this.name = "ManagedAssetRequestError";
+  }
+}
 
 interface ManagedAssetClientPayload {
   idToken: string;
@@ -24,7 +37,7 @@ function parseClientPayload(
   clientPayload: string | null,
 ): ManagedAssetClientPayload {
   if (clientPayload === null) {
-    throw new ManagedAssetAuthorizationError("Missing upload authorization.");
+    throw new ManagedAssetRequestError("Missing upload authorization.", "authentication");
   }
 
   let parsed: unknown;
@@ -32,11 +45,11 @@ function parseClientPayload(
   try {
     parsed = JSON.parse(clientPayload);
   } catch {
-    throw new ManagedAssetAuthorizationError("Malformed upload authorization.");
+    throw new ManagedAssetRequestError("Malformed upload authorization.", "authentication");
   }
 
   if (!isRecord(parsed)) {
-    throw new ManagedAssetAuthorizationError("Malformed upload authorization.");
+    throw new ManagedAssetRequestError("Malformed upload authorization.", "authentication");
   }
 
   const keys = Object.keys(parsed).sort();
@@ -52,7 +65,12 @@ function parseClientPayload(
     parsed.contentType.length > MAX_CONTENT_TYPE_LENGTH ||
     !/^[\x20-\x7e]*$/.test(parsed.contentType)
   ) {
-    throw new ManagedAssetAuthorizationError("Malformed upload authorization.");
+    throw new ManagedAssetRequestError(
+      "Unsupported upload content type.",
+      typeof parsed.contentType === "string" && !isManagedAssetContentType(parsed.contentType)
+        ? "unsupported_type"
+        : "authentication",
+    );
   }
 
   return {
@@ -65,12 +83,25 @@ function assertAuthorizedAssetPath(pathname: string, uid: string): void {
   const match = ASSET_PATH_PATTERN.exec(pathname);
 
   if (!match || match[1] !== uid) {
-    throw new ManagedAssetAuthorizationError("Unauthorized asset path.");
+    throw new ManagedAssetRequestError("Unauthorized asset path.", "authorization");
   }
 }
 
-function errorResponse(status: number, message: string): NextResponse {
-  return NextResponse.json({ error: message }, { status });
+function errorResponse(status: number, category: ManagedAssetUploadErrorCategory): NextResponse {
+  return NextResponse.json({ error: category }, { status });
+}
+
+function statusForCategory(category: ManagedAssetUploadErrorCategory): number {
+  switch (category) {
+    case "authentication":
+    case "authorization": return 401;
+    case "unsupported_type": return 415;
+    case "file_too_large": return 413;
+    case "rate_limited": return 429;
+    case "service_unavailable":
+    case "store_suspended": return 503;
+    default: return 500;
+  }
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -79,11 +110,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch {
-    return errorResponse(400, "Invalid upload request.");
+    return errorResponse(400, "unknown");
   }
 
   if (!isRecord(body) || typeof body.type !== "string") {
-    return errorResponse(400, "Invalid upload request.");
+    return errorResponse(400, "unknown");
   }
 
   try {
@@ -110,13 +141,19 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(response);
   } catch (error) {
-    if (
-      error instanceof ManagedAssetAuthorizationError ||
-      error instanceof FirebaseAuthenticationError
-    ) {
-      return errorResponse(401, "Unauthorized upload request.");
+    if (error instanceof ManagedAssetRequestError) {
+      return errorResponse(error.category === "unsupported_type" ? 415 : 401, error.category);
     }
 
-    return errorResponse(500, "Managed asset upload is unavailable.");
+    if (error instanceof FirebaseAuthenticationError) {
+      return errorResponse(401, "authentication");
+    }
+
+    if (error instanceof FirebaseConfigurationError) {
+      return errorResponse(503, "service_unavailable");
+    }
+
+    const category = classifyManagedAssetUploadError(error);
+    return errorResponse(statusForCategory(category), category);
   }
 }

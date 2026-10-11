@@ -68,6 +68,7 @@ import type { CustomLibraryFontRecord } from "../src/features/custom-library/cus
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
 import type { CustomLibraryFileRepository } from "../src/features/custom-library/custom-library-file-repository";
+import type { StablePersistenceOptions } from "../src/features/persistence/firestore-idempotency";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -253,7 +254,7 @@ function customLibraryPaletteRepositoryFor(initialPalettes: CustomLibraryPalette
 function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[]) {
   let current = initialFonts;
   const listFonts = vi.fn(async () => current);
-  const saveFont = vi.fn(async (font: CustomLibraryFontRecord["font"]) => {
+  const saveFont = vi.fn(async (font: CustomLibraryFontRecord["font"], _options?: StablePersistenceOptions) => {
     const id = `font-${current.length + 1}`;
     current = [...current, { id, font }];
     return id;
@@ -292,7 +293,7 @@ function customLibraryFile(id: string, name: string): CustomLibraryFileRecord {
 function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[]) {
   let current = initialFiles;
   const listFiles = vi.fn(async () => current);
-  const saveFile = vi.fn(async (file: CustomLibraryFileRecord["file"]) => {
+  const saveFile = vi.fn(async (file: CustomLibraryFileRecord["file"], _options?: StablePersistenceOptions) => {
     const id = `file-${current.length + 1}`;
     current = [...current, { id, file }];
     return id;
@@ -1311,7 +1312,10 @@ describe("presentation library workspace controls", () => {
       source: { type: "url", url: downloadUrl, format: "truetype" },
     };
     expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "font/ttf" });
-    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Uploaded Sans", faces: [expectedFace] });
+    expect(fonts.saveFont).toHaveBeenCalledWith(
+      { family: "Uploaded Sans", faces: [expectedFace] },
+      { documentId: "asset-uploaded-sans-regular" },
+    );
     expect(fonts.getCurrent()).toEqual([{ id: "font-1", font: { family: "Uploaded Sans", faces: [expectedFace] } }]);
     expect(container.textContent).toContain("Uploaded Sans");
     expect(container.textContent).toContain("1 face");
@@ -2311,18 +2315,21 @@ describe("presentation library workspace controls", () => {
       contentType: "image/png",
     });
     expect(files.saveFile).toHaveBeenCalledTimes(1);
-    expect(files.saveFile).toHaveBeenCalledWith({
-      name: "photo.png",
-      kind: "image",
-      representation: "binary",
-      source: {
-        assetId: uploadResult.assetId,
-        storagePath: uploadResult.storagePath,
-        downloadUrl: uploadResult.downloadUrl,
-        contentType: "image/png",
-        sizeBytes: uploadResult.sizeBytes,
+    expect(files.saveFile).toHaveBeenCalledWith(
+      {
+        name: "photo.png",
+        kind: "image",
+        representation: "binary",
+        source: {
+          assetId: uploadResult.assetId,
+          storagePath: uploadResult.storagePath,
+          downloadUrl: uploadResult.downloadUrl,
+          contentType: "image/png",
+          sizeBytes: uploadResult.sizeBytes,
+        },
       },
-    });
+      { documentId: uploadResult.assetId },
+    );
     expect(container.textContent).toContain("photo.png");
   });
 
@@ -2345,6 +2352,46 @@ describe("presentation library workspace controls", () => {
     expect(testDependencies.uploadManagedAsset).not.toHaveBeenCalled();
     expect(files.saveFile).not.toHaveBeenCalled();
     expect(container.textContent).toContain("This file type is not supported.");
+  });
+
+  it("keeps a completed Blob upload pending and retries only Firestore persistence", async () => {
+    const { repository } = repositoryFor([]);
+    const files = customLibraryFileRepositoryFor([]);
+    const uploadResult = {
+      assetId: "00000000-0000-4000-8000-000000000003",
+      storagePath: "users/test/assets/image-3",
+      downloadUrl: "https://cdn.example.test/image-3",
+      contentType: "image/png",
+      sizeBytes: 5,
+    };
+    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
+    files.saveFile
+      .mockRejectedValueOnce(new Error("persistence unavailable"))
+      .mockResolvedValueOnce("file-retried");
+    const localFile = new File(["hello"], "photo.png", { type: "image/png" });
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Files").click());
+    await flushWorkspaceEffects();
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
+    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
+    await act(async () => {
+      input?.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
+    expect(files.saveFile).toHaveBeenCalledTimes(1);
+    expect(files.saveFile.mock.calls[0]?.[1]).toEqual({ documentId: uploadResult.assetId });
+    expect(container.textContent).toContain("Retry saving");
+    await act(async () => findButton(container, "Retry saving").click());
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
+    expect(files.saveFile).toHaveBeenCalledTimes(2);
+    expect(files.saveFile.mock.calls[1]?.[0]).toEqual(files.saveFile.mock.calls[0]?.[0]);
+    expect(files.saveFile.mock.calls[1]?.[1]).toEqual(files.saveFile.mock.calls[0]?.[1]);
+    expect(container.querySelectorAll("[data-custom-library-file-row]")).toHaveLength(1);
   });
 
   it("renames metadata without replacing source and preserves selection", async () => {

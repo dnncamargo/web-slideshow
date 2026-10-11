@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BlobUnknownError } from "@vercel/blob";
 
 const blobMocks = vi.hoisted(() => ({
   handleUpload: vi.fn(),
@@ -143,7 +144,7 @@ describe("managed asset upload route", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Unauthorized upload request." });
+    expect(await response.json()).toEqual({ error: "authentication" });
   });
 
   it("rejects unexpected client payload fields", async () => {
@@ -176,7 +177,8 @@ describe("managed asset upload route", () => {
         ),
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error: "unsupported_type" });
       expect(authMocks.verifyFirebaseIdToken).not.toHaveBeenCalled();
     },
   );
@@ -223,6 +225,23 @@ describe("managed asset upload route", () => {
     expect(authMocks.verifyFirebaseIdToken).toHaveBeenCalledWith(
       "firebase-id-token",
     );
+  });
+
+  it("returns an opaque unknown category for an unclassified service failure", async () => {
+    blobMocks.handleUpload.mockRejectedValueOnce(new BlobUnknownError());
+    const response = await POST(
+      request(
+        payload(
+          "users/owner/assets/123e4567-e89b-12d3-a456-426614174000",
+          clientPayload(),
+        ),
+      ),
+    );
+
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toEqual({ error: "unknown" });
+    expect(JSON.stringify(body)).not.toContain("quota");
   });
 
   it.each([

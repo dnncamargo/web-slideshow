@@ -18,6 +18,19 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
 
 import { uploadManagedAsset } from "../src/features/persistence/managed-asset-storage";
 import {
+  BlobAccessError,
+  BlobClientTokenExpiredError,
+  BlobContentTypeNotAllowedError,
+  BlobFileTooLargeError,
+  BlobPathnameMismatchError,
+  BlobRequestAbortedError,
+  BlobServiceNotAvailable,
+  BlobServiceRateLimited,
+  BlobStoreNotFoundError,
+  BlobStoreSuspendedError,
+  BlobUnknownError,
+} from "@vercel/blob";
+import {
   FirebaseAuthenticationError,
   ManagedAssetUploadError,
 } from "../src/features/persistence/persistence-errors";
@@ -139,6 +152,36 @@ describe("uploadManagedAsset", () => {
 
     expect(error).toBeInstanceOf(ManagedAssetUploadError);
     expect((error as ManagedAssetUploadError).cause).toBe(cause);
+  });
+
+  it.each([
+    [new BlobAccessError(), "authorization"],
+    [new BlobClientTokenExpiredError(), "authentication"],
+    [new BlobContentTypeNotAllowedError("type"), "unsupported_type"],
+    [new BlobFileTooLargeError("size"), "file_too_large"],
+    [new BlobPathnameMismatchError("path"), "authorization"],
+    [new BlobStoreSuspendedError(), "store_suspended"],
+    [new BlobStoreNotFoundError(), "service_unavailable"],
+    [new BlobServiceRateLimited(), "rate_limited"],
+    [new BlobServiceNotAvailable(), "service_unavailable"],
+    [new BlobRequestAbortedError(), "uncertain_completion"],
+    [new BlobUnknownError(), "unknown"],
+  ] as const)("classifies Blob SDK failures", async (cause, category) => {
+    uploadMocks.upload.mockRejectedValueOnce(cause);
+    const error = await uploadManagedAsset(file()).catch((value: unknown) => value);
+    expect((error as ManagedAssetUploadError).category).toBe(category);
+  });
+
+  it("never infers quota exhaustion from a generic error", async () => {
+    uploadMocks.upload.mockRejectedValueOnce(new Error("HTTP 500"));
+    const error = await uploadManagedAsset(file()).catch((value: unknown) => value);
+    expect((error as ManagedAssetUploadError).category).toBe("unknown");
+  });
+
+  it("treats an unclassified TypeError as uncertain completion", async () => {
+    uploadMocks.upload.mockRejectedValueOnce(new TypeError("request failed"));
+    const error = await uploadManagedAsset(file()).catch((value: unknown) => value);
+    expect((error as ManagedAssetUploadError).category).toBe("uncertain_completion");
   });
 
   it("preserves authentication failures before calling Blob", async () => {

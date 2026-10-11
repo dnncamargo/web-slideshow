@@ -14,7 +14,7 @@ import type {
 
 import { areFontFacesEquivalent, normalizeFontFamily } from "@/features/fonts/font-face-helpers";
 import styles from "./font-acquisition.module.css";
-import type { FontFamilyFaces, OnAddFontFace } from "../font-acquisition-types";
+import { fontFaceWasSaved, type FontFamilyFaces, type OnAddFontFace } from "../font-acquisition-types";
 
 interface GoogleFontImportControlProps {
   fontFamilies: readonly FontFamilyFaces[];
@@ -208,7 +208,7 @@ export function GoogleFontImportControl({
 
           const added = await onAddFontFace(canonicalFamily, face);
 
-          if (!added) {
+          if (!fontFaceWasSaved(added)) {
             sawRejectedFace = true;
             continue;
           }

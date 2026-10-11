@@ -35,6 +35,10 @@ import { getDefaultCustomLibraryPaletteRepository } from "../persistence/custom-
 import { getDefaultCustomLibraryFontRepository } from "../persistence/custom-library-font-repository-instance";
 import { getDefaultCustomLibraryFileRepository } from "../persistence/custom-library-file-repository-instance";
 import { uploadManagedAsset } from "../persistence/managed-asset-storage";
+import {
+  FirebaseAuthenticationError,
+  ManagedAssetUploadError,
+} from "../persistence/persistence-errors";
 import type { PresentationRepository } from "../persistence/presentation-repository";
 import type { PresentationFolderRepository } from "../persistence/presentation-folder-repository";
 import {
@@ -63,7 +67,10 @@ import {
 } from "../custom-library/custom-library-file-classification";
 import { CustomLibraryFontAcquisition } from "../custom-library/custom-library-font-acquisition";
 import { areFontFacesEquivalent, normalizeFontFamily } from "../fonts/font-face-helpers";
-import type { FontFamilyFaces } from "../fonts/font-acquisition-types";
+import type {
+  FontFamilyFaces,
+  FontFaceAddResult,
+} from "../fonts/font-acquisition-types";
 import type { FontFaceResource } from "@web-slideshow/document-schema";
 import {
   subscribeLiveCurrent,
@@ -169,6 +176,37 @@ function destinationSectionTitle(
   return t("library.presentations");
 }
 
+function customLibraryUploadErrorKey(error: unknown):
+  | "customLibrary.uploadError.unsupportedType"
+  | "customLibrary.uploadError.fileTooLarge"
+  | "customLibrary.uploadError.storeSuspended"
+  | "customLibrary.uploadError.authentication"
+  | "customLibrary.uploadError.authorization"
+  | "customLibrary.uploadError.rateLimited"
+  | "customLibrary.uploadError.network"
+  | "customLibrary.uploadError.serviceUnavailable"
+  | "customLibrary.uploadError.uncertainCompletion"
+  | "customLibrary.uploadError.quotaExceeded"
+  | "customLibrary.uploadError.unknown" {
+  if (error instanceof FirebaseAuthenticationError) return "customLibrary.uploadError.authentication";
+  if (error instanceof ManagedAssetUploadError) {
+    switch (error.category) {
+      case "unsupported_type": return "customLibrary.uploadError.unsupportedType";
+      case "file_too_large": return "customLibrary.uploadError.fileTooLarge";
+      case "store_suspended": return "customLibrary.uploadError.storeSuspended";
+      case "authentication": return "customLibrary.uploadError.authentication";
+      case "authorization": return "customLibrary.uploadError.authorization";
+      case "rate_limited": return "customLibrary.uploadError.rateLimited";
+      case "network": return "customLibrary.uploadError.network";
+      case "service_unavailable": return "customLibrary.uploadError.serviceUnavailable";
+      case "uncertain_completion": return "customLibrary.uploadError.uncertainCompletion";
+      case "quota_exceeded": return "customLibrary.uploadError.quotaExceeded";
+      case "unknown": return "customLibrary.uploadError.unknown";
+    }
+  }
+  return "customLibrary.uploadError.unknown";
+}
+
 export function PresentationLibrary({
   repository = getDefaultPresentationRepository(),
   folderRepository = getDefaultPresentationFolderRepository(),
@@ -197,8 +235,9 @@ export function PresentationLibrary({
   const [customLibraryFileStatus, setCustomLibraryFileStatus] = useState<"idle" | LibraryStatus>("idle");
   const [customLibraryFiles, setCustomLibraryFiles] = useState<CustomLibraryFileRecord[]>([]);
   const [selectedCustomLibraryFileId, setSelectedCustomLibraryFileId] = useState<string | null>(null);
-  const [customLibraryFileUploadState, setCustomLibraryFileUploadState] = useState<"uploading" | null>(null);
+  const [customLibraryFileUploadState, setCustomLibraryFileUploadState] = useState<"uploading" | "saving" | null>(null);
   const [customLibraryFileError, setCustomLibraryFileError] = useState<string | null>(null);
+  const [pendingCustomLibraryFilePersistence, setPendingCustomLibraryFilePersistence] = useState<CustomLibraryFileRecord["file"] | null>(null);
   const [customLibraryFileRenamePending, setCustomLibraryFileRenamePending] = useState(false);
   const [customLibraryFileRenameError, setCustomLibraryFileRenameError] = useState<string | null>(null);
   const [customLibraryFileDeleteTargetId, setCustomLibraryFileDeleteTargetId] = useState<string | null>(null);
@@ -261,6 +300,7 @@ export function PresentationLibrary({
   const customLibraryFontDeleteRef = useRef(false);
   const customLibraryFileDeleteRef = useRef(false);
   const customLibraryFileRenameRef = useRef(false);
+  const customLibraryFilePersistenceRetryRef = useRef(false);
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const customLibraryFileInputRef = useRef<HTMLInputElement>(null);
@@ -558,19 +598,50 @@ export function PresentationLibrary({
   const selectedCustomLibraryFile =
     customLibraryFiles.find((record) => record.id === selectedCustomLibraryFileId) ?? null;
 
+  const saveCustomLibraryFileDraft = useCallback(
+    async (draft: CustomLibraryFileRecord["file"]) => {
+      const id = await customLibraryFileRepository.saveFile(draft, {
+        documentId: draft.source.assetId,
+      });
+      if (!mountedRef.current) return;
+      setCustomLibraryFiles((files) => [...files, { id, file: draft }]);
+      setSelectedCustomLibraryFileId(id);
+      setPendingCustomLibraryFilePersistence(null);
+      setCustomLibraryFileError(null);
+    },
+    [customLibraryFileRepository],
+  );
+
   const handleUploadCustomLibraryFile = useCallback(
     async (event: ReactChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file || customLibraryFileUploadState !== null) return;
+      if (!file || customLibraryFileUploadState !== null || pendingCustomLibraryFilePersistence !== null) return;
 
       setCustomLibraryFileUploadState("uploading");
       setCustomLibraryFileError(null);
 
       try {
-        const classification = classifyCustomLibraryFile(file);
-        const upload = await uploadManagedAsset(file, {
-          contentType: classification.contentType,
-        });
+        let classification: ReturnType<typeof classifyCustomLibraryFile>;
+        try {
+          classification = classifyCustomLibraryFile(file);
+        } catch (error) {
+          if (mountedRef.current) {
+            setCustomLibraryFileError(
+              error instanceof UnsupportedCustomLibraryFileError
+                ? t("customLibrary.uploadError.unsupportedType")
+                : t(customLibraryUploadErrorKey(error)),
+            );
+          }
+          return;
+        }
+
+        let upload: Awaited<ReturnType<typeof uploadManagedAsset>>;
+        try {
+          upload = await uploadManagedAsset(file, { contentType: classification.contentType });
+        } catch (error) {
+          if (mountedRef.current) setCustomLibraryFileError(t(customLibraryUploadErrorKey(error)));
+          return;
+        }
         const draft = {
           name: file.name.trim(),
           kind: classification.kind,
@@ -583,27 +654,45 @@ export function PresentationLibrary({
             sizeBytes: upload.sizeBytes,
           },
         } satisfies CustomLibraryFileRecord["file"];
-        const id = await customLibraryFileRepository.saveFile(draft);
-
-        if (!mountedRef.current) return;
-        setCustomLibraryFiles((files) => [...files, { id, file: draft }]);
-        setSelectedCustomLibraryFileId(id);
+        setCustomLibraryFileUploadState("saving");
+        try {
+          await saveCustomLibraryFileDraft(draft);
+        } catch {
+          console.error("Library: could not save Custom Library file");
+          if (mountedRef.current) {
+            setPendingCustomLibraryFilePersistence(draft);
+            setCustomLibraryFileError(t("customLibrary.uploadError.persistenceFailed"));
+          }
+        }
       } catch (error) {
-        console.error("Library: could not upload Custom Library file", error);
+        console.error("Library: could not prepare Custom Library file upload");
         if (mountedRef.current) {
-          setCustomLibraryFileError(
-            error instanceof UnsupportedCustomLibraryFileError
-              ? t("customLibrary.fileBrowser.unsupported")
-              : t("customLibrary.fileBrowser.uploadFailed"),
-          );
+          setCustomLibraryFileError(t(customLibraryUploadErrorKey(error)));
         }
       } finally {
         event.target.value = "";
         if (mountedRef.current) setCustomLibraryFileUploadState(null);
       }
     },
-    [customLibraryFileRepository, customLibraryFileUploadState, t],
+    [customLibraryFileUploadState, pendingCustomLibraryFilePersistence, saveCustomLibraryFileDraft, t],
   );
+
+  const handleRetryCustomLibraryFilePersistence = useCallback(async () => {
+    const draft = pendingCustomLibraryFilePersistence;
+    if (!draft || customLibraryFilePersistenceRetryRef.current) return;
+    customLibraryFilePersistenceRetryRef.current = true;
+    setCustomLibraryFileUploadState("saving");
+    setCustomLibraryFileError(null);
+    try {
+      await saveCustomLibraryFileDraft(draft);
+    } catch {
+      console.error("Library: could not retry saving Custom Library file");
+      if (mountedRef.current) setCustomLibraryFileError(t("customLibrary.uploadError.persistenceFailed"));
+    } finally {
+      customLibraryFilePersistenceRetryRef.current = false;
+      if (mountedRef.current) setCustomLibraryFileUploadState(null);
+    }
+  }, [pendingCustomLibraryFilePersistence, saveCustomLibraryFileDraft, t]);
 
   const handleRenameCustomLibraryFile = useCallback(
     (name: string) => {
@@ -687,7 +776,11 @@ export function PresentationLibrary({
   );
 
   const handleAddCustomLibraryFontFace = useCallback(
-    (family: string, face: FontFaceResource): Promise<boolean> => {
+    (
+      family: string,
+      face: FontFaceResource,
+      persistenceId?: string,
+    ): Promise<FontFaceAddResult> => {
       customLibraryFontPendingWritesRef.current += 1;
       setCustomLibraryFontWriteState("saving");
 
@@ -699,7 +792,7 @@ export function PresentationLibrary({
         );
 
         if (existing && existing.font.faces.some((storedFace) => areFontFacesEquivalent(storedFace, face))) {
-          return false;
+          return { status: "duplicate" as const };
         }
 
         setCustomLibraryFontError(null);
@@ -719,19 +812,23 @@ export function PresentationLibrary({
             if (mountedRef.current) setCustomLibraryFonts(nextFonts);
           } else {
             const nextFont = { family, faces: [face] };
-            const id = await customLibraryFontRepository.saveFont(nextFont);
+            const id = persistenceId
+              ? await customLibraryFontRepository.saveFont(nextFont, {
+                  documentId: persistenceId,
+                })
+              : await customLibraryFontRepository.saveFont(nextFont);
             const nextFonts = [...currentFonts, { id, font: nextFont }];
             customLibraryFontsRef.current = nextFonts;
             if (mountedRef.current) setCustomLibraryFonts(nextFonts);
           }
 
-          return true;
-        } catch (error) {
-          console.error("Library: could not save Custom Library font", error);
+          return { status: "saved" as const };
+        } catch {
+          console.error("Library: could not save Custom Library font");
           if (mountedRef.current) {
             setCustomLibraryFontError(t("customLibrary.fontManagement.saveFailed"));
           }
-          return false;
+          return { status: "persistence-failed" as const };
         }
       });
 
@@ -1366,7 +1463,7 @@ export function PresentationLibrary({
   const filesDestination = destination === "files";
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
-  const fileMutationPending = customLibraryFileUploadState !== null || customLibraryFileRenamePending || deletingCustomLibraryFileId !== null;
+  const fileMutationPending = customLibraryFileUploadState !== null || pendingCustomLibraryFilePersistence !== null || customLibraryFileRenamePending || deletingCustomLibraryFileId !== null;
   const activeFolder = isFolderDestination(destination)
     ? folders.find((folder) => folder.id === destination.folderId) ?? null
     : null;
@@ -1562,7 +1659,9 @@ export function PresentationLibrary({
               >
                 {customLibraryFileUploadState === "uploading"
                   ? t("customLibrary.fileBrowser.uploading")
-                  : t("customLibrary.fileBrowser.upload")}
+                  : customLibraryFileUploadState === "saving"
+                    ? t("customLibrary.uploadError.retryingPersistence")
+                    : t("customLibrary.fileBrowser.upload")}
               </Button>
             ) : null}
           </div>
@@ -1683,7 +1782,18 @@ export function PresentationLibrary({
               ) : filesDestination ? (
                 <>
                   {customLibraryFileError && customLibraryFileStatus === "ready" ? (
-                    <p className={styles.errorText} role="alert">{customLibraryFileError}</p>
+                    <div>
+                      <p className={styles.errorText} role="alert">{customLibraryFileError}</p>
+                      {pendingCustomLibraryFilePersistence ? (
+                        <Button
+                          size="compact"
+                          disabled={customLibraryFileUploadState !== null}
+                          onClick={() => void handleRetryCustomLibraryFilePersistence()}
+                        >
+                          {t("customLibrary.uploadError.retryPersistence")}
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                   {customLibraryFileStatus === "loading" ? (
                     <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.loading")}</p>
@@ -1752,6 +1862,7 @@ export function PresentationLibrary({
                   <CustomLibraryFontAcquisition
                     fontFamilies={customLibraryFontFamilies}
                     onAddFontFace={handleAddCustomLibraryFontFace}
+                    onRetryFontFacePersistence={handleAddCustomLibraryFontFace}
                     saving={customLibraryFontWriteState === "saving"}
                     error={customLibraryFontError}
                     onClose={() => {
