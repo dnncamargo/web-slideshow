@@ -82,6 +82,7 @@ describe("FontFileUploadControl", () => {
   function mount(
     fontFamilies: readonly FontFamilyFaces[] = [],
     onAddFontFace = vi.fn().mockResolvedValue(true),
+    onPhysicalUpload = vi.fn(),
   ) {
     act(() => {
       root.render(
@@ -90,17 +91,19 @@ describe("FontFileUploadControl", () => {
             fontFamilies={fontFamilies}
             onAddFontFace={onAddFontFace}
             onFontAdded={vi.fn()}
+            onPhysicalUpload={onPhysicalUpload}
             controlPrefix="font-upload"
           />
         </StudioI18nProvider>,
       );
     });
-    return { onAddFontFace };
+    return { onAddFontFace, onPhysicalUpload };
   }
 
   it("uploads TTF with the canonical type and creates a truetype face", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
-    mount([], onAddFontFace);
+    const onPhysicalUpload = vi.fn();
+    mount([], onAddFontFace, onPhysicalUpload);
     setInputValue(container, "font-upload-family", "My Font");
     setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
 
@@ -123,6 +126,25 @@ describe("FontFileUploadControl", () => {
       }),
       expect.any(String),
     );
+    expect(onPhysicalUpload).toHaveBeenCalledOnce();
+  });
+
+  it("notifies immediately after physical upload even when persistence fails", async () => {
+    const events: string[] = [];
+    const onAddFontFace = vi.fn().mockImplementation(async () => {
+      events.push("persist");
+      return { status: "persistence-failed" } as const;
+    });
+    const onPhysicalUpload = vi.fn(() => events.push("upload"));
+    mount([], onAddFontFace, onPhysicalUpload);
+    setInputValue(container, "font-upload-family", "My Font");
+    setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
+
+    await act(async () => click(container, "font-upload-submit"));
+
+    expect(onPhysicalUpload).toHaveBeenCalledOnce();
+    expect(events).toEqual(["upload", "persist"]);
+    expect(container.textContent).toContain("Retry saving");
   });
 
   it("accepts WOFF2 filenames case-insensitively", async () => {
@@ -195,7 +217,8 @@ describe("FontFileUploadControl", () => {
     "rejects unsupported extension %s before upload",
     async (name) => {
       const onAddFontFace = vi.fn().mockResolvedValue(true);
-      mount([], onAddFontFace);
+      const onPhysicalUpload = vi.fn();
+      mount([], onAddFontFace, onPhysicalUpload);
       setInputValue(container, "font-upload-family", "My Font");
       setFileValue(container, "font-upload-file", makeFile(name));
 
@@ -205,26 +228,31 @@ describe("FontFileUploadControl", () => {
         "Only .ttf, .otf and .woff2 files are supported.",
       );
       expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+      expect(onPhysicalUpload).not.toHaveBeenCalled();
       expect(onAddFontFace).not.toHaveBeenCalled();
     },
   );
 
   it("requires family and file before upload", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
-    mount([], onAddFontFace);
+    const onPhysicalUpload = vi.fn();
+    mount([], onAddFontFace, onPhysicalUpload);
 
     await act(async () => click(container, "font-upload-submit"));
     expect(container.textContent).toContain("Enter a font family.");
     expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(onPhysicalUpload).not.toHaveBeenCalled();
 
     setInputValue(container, "font-upload-family", "My Font");
     await act(async () => click(container, "font-upload-submit"));
     expect(container.textContent).toContain("Choose a font file.");
     expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(onPhysicalUpload).not.toHaveBeenCalled();
   });
 
   it("preflights an occupied family face slot before upload", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
+    const onPhysicalUpload = vi.fn();
     mount([
       {
         family: "  my font ",
@@ -236,7 +264,7 @@ describe("FontFileUploadControl", () => {
           },
         ],
       },
-    ], onAddFontFace);
+    ], onAddFontFace, onPhysicalUpload);
     setInputValue(container, "font-upload-family", "My Font");
     setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
 
@@ -244,13 +272,15 @@ describe("FontFileUploadControl", () => {
 
     expect(container.textContent).toContain("This font face already exists.");
     expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(onPhysicalUpload).not.toHaveBeenCalled();
     expect(onAddFontFace).not.toHaveBeenCalled();
   });
 
   it("shows a safe retryable error when managed storage fails", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
+    const onPhysicalUpload = vi.fn();
     uploadManagedAssetMock.mockRejectedValueOnce(new Error("raw Firebase secret"));
-    mount([], onAddFontFace);
+    mount([], onAddFontFace, onPhysicalUpload);
     setInputValue(container, "font-upload-family", "My Font");
     setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
 
@@ -259,6 +289,7 @@ describe("FontFileUploadControl", () => {
     expect(container.textContent).toContain("The upload failed. Check the file and try again.");
     expect(container.textContent).not.toContain("raw Firebase secret");
     expect(onAddFontFace).not.toHaveBeenCalled();
+    expect(onPhysicalUpload).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLInputElement>("#font-upload-family")?.value).toBe(
       "My Font",
     );
@@ -268,6 +299,7 @@ describe("FontFileUploadControl", () => {
     const onAddFontFace = vi.fn().mockResolvedValueOnce({ status: "persistence-failed" });
     const onRetryFontFacePersistence = vi.fn().mockResolvedValue({ status: "saved" });
     const onFontAdded = vi.fn();
+    const onPhysicalUpload = vi.fn();
 
     act(() => {
       root.render(
@@ -277,6 +309,7 @@ describe("FontFileUploadControl", () => {
             onAddFontFace={onAddFontFace}
             onRetryFontFacePersistence={onRetryFontFacePersistence}
             onFontAdded={onFontAdded}
+            onPhysicalUpload={onPhysicalUpload}
             controlPrefix="font-upload"
           />
         </StudioI18nProvider>,
@@ -292,6 +325,7 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
     expect(uploadManagedAssetMock).toHaveBeenCalledOnce();
+    expect(onPhysicalUpload).toHaveBeenCalledOnce();
     expect(onRetryFontFacePersistence).toHaveBeenCalledWith(
       "My Font",
       expect.objectContaining({ source: expect.objectContaining({ url: uploadResult.downloadUrl }) }),
@@ -320,6 +354,7 @@ describe("Custom Library font upload integration", () => {
 
   it("routes Upload file through the existing onAddFontFace writer", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
+    const onPhysicalUpload = vi.fn();
 
     act(() => {
       root.render(
@@ -327,6 +362,7 @@ describe("Custom Library font upload integration", () => {
           <CustomLibraryFontAcquisition
             fontFamilies={[]}
             onAddFontFace={onAddFontFace}
+            onPhysicalUpload={onPhysicalUpload}
             onClose={vi.fn()}
           />
         </StudioI18nProvider>,
@@ -359,5 +395,27 @@ describe("Custom Library font upload integration", () => {
       expect.any(String),
     );
     expect(container.textContent).toContain("Added My Font.");
+    expect(onPhysicalUpload).toHaveBeenCalledOnce();
+  });
+
+  it("does not notify for non-physical font registrations", async () => {
+    const onPhysicalUpload = vi.fn();
+    const onAddFontFace = vi.fn().mockResolvedValue(true);
+
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <CustomLibraryFontAcquisition
+            fontFamilies={[]}
+            onAddFontFace={onAddFontFace}
+            onPhysicalUpload={onPhysicalUpload}
+            onClose={vi.fn()}
+          />
+        </StudioI18nProvider>,
+      );
+    });
+
+    expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(onPhysicalUpload).not.toHaveBeenCalled();
   });
 });

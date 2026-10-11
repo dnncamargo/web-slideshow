@@ -28,6 +28,7 @@ interface FontFileUploadControlProps {
   onFontAdded: (family: string) => void;
   onUploadingChange?: (uploading: boolean) => void;
   onRetryFontFacePersistence?: OnAddFontFace;
+  onPhysicalUpload?: () => void;
   controlPrefix: string;
 }
 
@@ -86,6 +87,7 @@ export function FontFileUploadControl({
   onFontAdded,
   onUploadingChange,
   onRetryFontFacePersistence,
+  onPhysicalUpload,
   controlPrefix,
 }: FontFileUploadControlProps) {
   const { t } = useStudioI18n();
@@ -209,6 +211,7 @@ export function FontFileUploadControl({
         setError(uploadErrorMessage(error));
         return;
       }
+      onPhysicalUpload?.();
 
       const result = FontFaceResourceSchema.safeParse({
         ...candidateFace,

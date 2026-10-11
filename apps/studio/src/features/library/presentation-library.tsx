@@ -1870,6 +1870,9 @@ export function PresentationLibrary({
                     fontFamilies={customLibraryFontFamilies}
                     onAddFontFace={handleAddCustomLibraryFontFace}
                     onRetryFontFacePersistence={handleAddCustomLibraryFontFace}
+                    onPhysicalUpload={() => {
+                      if (mountedRef.current) setStorageUsageRefreshKey((value) => value + 1);
+                    }}
                     saving={customLibraryFontWriteState === "saving"}
                     error={customLibraryFontError}
                     onClose={() => {

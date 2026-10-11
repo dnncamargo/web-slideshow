@@ -23,7 +23,7 @@ function LocaleSetter({ locale }: { locale: "en" | "pt-BR" }) {
   return null;
 }
 
-function renderIndicator(locale: "en" | "pt-BR" = "en") {
+function renderIndicator(locale: "en" | "pt-BR" = "en", refreshKey = 0) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -31,7 +31,7 @@ function renderIndicator(locale: "en" | "pt-BR" = "en") {
     root.render(
       <StudioI18nProvider>
         <LocaleSetter locale={locale} />
-        <StorageUsageIndicator enabled />
+        <StorageUsageIndicator enabled refreshKey={refreshKey} />
       </StudioI18nProvider>,
     );
   });
@@ -77,6 +77,52 @@ describe("StorageUsageIndicator", () => {
     await act(async () => {});
     expect(host.textContent).toContain("Uso do armazenamento indisponível");
     expect(host.querySelector("aside")?.getAttribute("data-state")).toBe("unavailable");
+    act(() => root.unmount());
+  });
+
+  it("marks a cached measurement stale while a physical-upload refresh is pending", async () => {
+    let resolveInitial!: (value: Response) => void;
+    let resolveRefresh!: (value: Response) => void;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveInitial = resolve; }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveRefresh = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root } = renderIndicator();
+    await act(async () => {});
+
+    await act(async () => {
+      resolveInitial(new Response(JSON.stringify({
+        scope: "owner",
+        objectCount: 1,
+        bytesUsed: 1024,
+        measuredAt: "2026-01-01T00:00:00.000Z",
+        quotaStatus: "unknown",
+      }), { status: 200 }));
+    });
+    expect(host.querySelector("aside")?.getAttribute("data-state")).toBe("ready");
+
+    act(() => {
+      root.render(
+        <StudioI18nProvider>
+          <LocaleSetter locale="en" />
+          <StorageUsageIndicator enabled refreshKey={1} />
+        </StudioI18nProvider>,
+      );
+    });
+    await act(async () => {});
+    expect(host.querySelector("aside")?.getAttribute("data-state")).toBe("stale");
+    expect(host.textContent).toContain("Previous measurement");
+
+    await act(async () => {
+      resolveRefresh(new Response(JSON.stringify({
+        scope: "owner",
+        objectCount: 2,
+        bytesUsed: 2048,
+        measuredAt: "2026-01-01T00:01:00.000Z",
+        quotaStatus: "unknown",
+      }), { status: 200 }));
+    });
+    expect(host.textContent).toContain("2 KB used");
     act(() => root.unmount());
   });
 });

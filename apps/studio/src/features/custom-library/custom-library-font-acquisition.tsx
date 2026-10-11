@@ -16,6 +16,7 @@ export interface CustomLibraryFontAcquisitionProps {
   fontFamilies: readonly FontFamilyFaces[];
   onAddFontFace: OnAddFontFace;
   onRetryFontFacePersistence?: OnAddFontFace;
+  onPhysicalUpload?: () => void;
   saving?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function CustomLibraryFontAcquisition({
   fontFamilies,
   onAddFontFace,
   onRetryFontFacePersistence,
+  onPhysicalUpload,
   saving = false,
   error = null,
   onClose,
@@ -107,6 +109,7 @@ export function CustomLibraryFontAcquisition({
           onFontAdded={setLastAddedFamily}
           onUploadingChange={setUploading}
           onRetryFontFacePersistence={onRetryFontFacePersistence}
+          onPhysicalUpload={onPhysicalUpload}
           controlPrefix="custom-library-font"
         />
       ) : null}
