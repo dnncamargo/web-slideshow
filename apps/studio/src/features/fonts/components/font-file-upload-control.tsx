@@ -6,6 +6,10 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { uploadManagedAsset } from "@/features/persistence/managed-asset-storage";
+import {
+  classifyManagedAssetFilename,
+  type ManagedAssetContentType,
+} from "@/features/persistence/managed-asset-content-types";
 import type { StudioMessageKey } from "@/features/i18n/studio-i18n";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
 import {
@@ -33,11 +37,11 @@ interface FontFileUploadControlProps {
 }
 
 type FontFaceStyle = NonNullable<FontFaceResource["style"]>;
+type FontFaceFormat = NonNullable<FontFaceResource["source"]["format"]>;
 type FontFaceSlot = Pick<
   FontFaceResource,
   "weight" | "style" | "subset" | "unicodeRange"
 >;
-type UploadableFontFormat = "truetype" | "opentype" | "woff2";
 type UploadState = "idle" | "uploading" | "saving";
 
 interface PendingFontPersistence {
@@ -49,24 +53,22 @@ interface PendingFontPersistence {
 const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
 
 function resolveFontFile(file: File): {
-  format: UploadableFontFormat;
-  contentType: "font/ttf" | "font/otf" | "font/woff2";
+  format: FontFaceFormat;
+  contentType: ManagedAssetContentType;
 } | null {
-  const name = file.name.toLowerCase();
+  const classification = classifyManagedAssetFilename(file.name);
+  if (
+    classification?.category !== "font" ||
+    classification.fontFormat === undefined ||
+    (classification.extension !== ".ttf" &&
+      classification.extension !== ".otf" &&
+      classification.extension !== ".woff2")
+  ) return null;
 
-  if (name.endsWith(".ttf")) {
-    return { format: "truetype", contentType: "font/ttf" };
-  }
-
-  if (name.endsWith(".otf")) {
-    return { format: "opentype", contentType: "font/otf" };
-  }
-
-  if (name.endsWith(".woff2")) {
-    return { format: "woff2", contentType: "font/woff2" };
-  }
-
-  return null;
+  return {
+    format: classification.fontFormat,
+    contentType: classification.contentType,
+  };
 }
 
 function areFontFaceSlotsEquivalent(

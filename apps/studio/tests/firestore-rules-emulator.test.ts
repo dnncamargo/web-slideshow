@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { beforeAll, afterAll, describe, it } from "vitest";
 import {
   assertFails,
   assertSucceeds,
@@ -86,6 +86,28 @@ describe("Firestore deletion authorization", () => {
     await assertFails(setDoc(doc(other, "users", "file-owner", "customLibraryFiles", "file-2"), file));
     await assertFails(getDocs(collection(anonymous, "users", "file-owner", "customLibraryFiles")));
     await assertFails(getDocs(collection(unauthenticated, "users", "file-owner", "customLibraryFiles")));
+  });
+
+  it("denies client reads and every client state change for managed upload intents", async () => {
+    const owner = testEnv.authenticatedContext("intent-owner").firestore();
+    const other = testEnv.authenticatedContext("intent-other").firestore();
+    const anonymous = testEnv.authenticatedContext("intent-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
+    const unauthenticated = testEnv.unauthenticatedContext().firestore();
+    const ownerRef = doc(owner, "users", "intent-owner", "managedAssets", "123e4567-e89b-12d3-a456-426614174000");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "intent-owner", "managedAssets", "existing-intent"), {
+        state: "pending",
+      });
+    });
+
+    await assertFails(setDoc(ownerRef, { state: "pending" }));
+    await assertFails(getDoc(ownerRef));
+    await assertFails(getDocs(collection(owner, "users", "intent-owner", "managedAssets")));
+    await assertFails(updateDoc(doc(owner, "users", "intent-owner", "managedAssets", "existing-intent"), { state: "complete" }));
+    await assertFails(setDoc(doc(other, "users", "intent-owner", "managedAssets", "other"), { state: "complete" }));
+    await assertFails(getDoc(doc(anonymous, "users", "intent-owner", "managedAssets", "asset")));
+    await assertFails(getDoc(doc(unauthenticated, "users", "intent-owner", "managedAssets", "asset")));
   });
 
   it("binds pointer create and update to an immutable ownerUid", async () => {

@@ -280,6 +280,12 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    // Managed asset lifecycle is server verified against physical Blob
+    // metadata. Browsers must use the authenticated API, not write state.
+    match /users/{userId}/managedAssets/{assetId} {
+      allow read, write: if false;
+    }
+
     // ------------------------------------------------------------
     // PRIVATE PRESENTATION NOTES
     // users/{userId}/presentations/{presentationId}/private/notes
