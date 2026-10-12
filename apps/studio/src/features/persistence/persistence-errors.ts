@@ -117,6 +117,8 @@ export class InvalidCustomLibraryFontForPersistenceError extends PersistenceErro
 
 export class InvalidPersistedCustomLibraryFontError extends PersistenceError {}
 
+export class CustomLibraryFontRemovalDeniedError extends PersistenceError {}
+
 export class InvalidCustomLibraryFileForPersistenceError extends PersistenceError {}
 
 export class InvalidPersistedCustomLibraryFileError extends PersistenceError {}

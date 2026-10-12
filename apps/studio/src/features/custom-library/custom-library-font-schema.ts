@@ -5,7 +5,7 @@ import {
   type FontFaceResource,
 } from "@web-slideshow/document-schema";
 
-import type { CustomLibraryFontDraft } from "./custom-library-font";
+import type { CustomLibraryFontDraft, CustomLibraryFontFaceProvenance } from "./custom-library-font";
 
 const trimmedNonEmptyString = z
   .string()
@@ -15,7 +15,13 @@ const trimmedNonEmptyString = z
 export const CustomLibraryFontDraftSchema: z.ZodType<CustomLibraryFontDraft> = z
   .object({
     family: trimmedNonEmptyString,
-    faces: z.array(FontFaceResourceSchema).min(1),
+    faces: z.array(FontFaceResourceSchema.extend({
+      provenance: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("managed-upload"), assetId: z.string().uuid() }).strict(),
+        z.object({ kind: z.literal("cdn"), provider: z.enum(["fontsource", "google-fonts"]) }).strict(),
+        z.object({ kind: z.literal("external-url") }).strict(),
+      ]).optional(),
+    })).min(1),
   })
   .strict();
 
@@ -26,3 +32,4 @@ export function parseCustomLibraryFontDraft(
 }
 
 export type { FontFaceResource };
+export type { CustomLibraryFontFaceProvenance };

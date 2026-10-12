@@ -61,6 +61,28 @@ afterAll(async () => {
 });
 
 describe("Firestore deletion authorization", () => {
+  it("allows owner reads but denies every client write to Custom Library fonts", async () => {
+    const owner = testEnv.authenticatedContext("font-owner").firestore();
+    const other = testEnv.authenticatedContext("font-other").firestore();
+    const anonymous = testEnv.authenticatedContext("font-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
+    const fontRef = doc(owner, "users", "font-owner", "customLibraryFonts", "uploaded-font");
+    const managedFont = {
+      family: "Managed Sans",
+      faces: [{ source: { type: "url", url: "https://store.public.blob.vercel-storage.com/users/font-owner/assets/123e4567-e89b-42d3-a456-426614174000.woff2", format: "woff2" }, provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" } }],
+    };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "font-owner", "customLibraryFonts", "uploaded-font"), managedFont);
+    });
+
+    await assertSucceeds(getDoc(fontRef));
+    await assertSucceeds(getDocs(collection(owner, "users", "font-owner", "customLibraryFonts")));
+    await assertFails(getDoc(doc(other, "users", "font-owner", "customLibraryFonts", "uploaded-font")));
+    await assertFails(getDocs(collection(anonymous, "users", "font-owner", "customLibraryFonts")));
+    await assertFails(setDoc(doc(owner, "users", "font-owner", "customLibraryFonts", "new-font"), managedFont));
+    await assertFails(updateDoc(fontRef, { faces: [] }));
+    await assertFails(writeBatch(owner).delete(fontRef).commit());
+  });
+
   it("allows only the non-anonymous owner to access Custom Library files", async () => {
     const file = {
       name: "Workshop audio",

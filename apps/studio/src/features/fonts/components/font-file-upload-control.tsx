@@ -48,6 +48,7 @@ interface PendingFontPersistence {
   family: string;
   face: FontFaceResource;
   persistenceId: string;
+  assetId: string;
 }
 
 const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
@@ -136,6 +137,7 @@ export function FontFileUploadControl({
           pendingPersistence.family,
           pendingPersistence.face,
           pendingPersistence.persistenceId,
+          { kind: "managed-upload", assetId: pendingPersistence.assetId },
         );
         if (fontFaceWasSaved(result)) {
           onFontAdded(pendingPersistence.family);
@@ -230,13 +232,14 @@ export function FontFileUploadControl({
       }
 
       const resourceFamily = existingResource?.family ?? trimmedFamily;
-      const added = await onAddFontFace(resourceFamily, result.data, upload.assetId);
+      const added = await onAddFontFace(resourceFamily, result.data, upload.assetId, { kind: "managed-upload", assetId: upload.assetId });
 
       if (fontFacePersistenceFailed(added)) {
         setPendingPersistence({
           family: resourceFamily,
           face: result.data,
           persistenceId: upload.assetId,
+          assetId: upload.assetId,
         });
         setError("customLibrary.uploadError.persistenceFailed");
         return;

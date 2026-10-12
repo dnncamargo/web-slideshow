@@ -58,6 +58,7 @@ import type { CustomLibraryPaletteDraft } from "../custom-library/custom-library
 import { CustomLibraryPaletteEditor } from "../custom-library/custom-library-palette-editor";
 import type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
+import type { CustomLibraryFontFaceProvenance } from "../custom-library/custom-library-font";
 import type { CustomLibraryFileRepository } from "../custom-library/custom-library-file-repository";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import {
@@ -820,6 +821,7 @@ export function PresentationLibrary({
       family: string,
       face: FontFaceResource,
       persistenceId?: string,
+      provenance?: CustomLibraryFontFaceProvenance,
     ): Promise<FontFaceAddResult> => {
       customLibraryFontPendingWritesRef.current += 1;
       setCustomLibraryFontWriteState("saving");
@@ -830,6 +832,7 @@ export function PresentationLibrary({
         const existing = currentFonts.find(
           (record) => normalizeFontFamily(record.font.family) === normalizedFamily,
         );
+        const persistedFace = provenance ? { ...face, provenance } : face;
 
         if (existing && existing.font.faces.some((storedFace) => areFontFacesEquivalent(storedFace, face))) {
           return { status: "duplicate" as const };
@@ -841,7 +844,7 @@ export function PresentationLibrary({
           if (existing) {
             const nextFont = {
               family: existing.font.family,
-              faces: [...existing.font.faces, face],
+              faces: [...existing.font.faces, persistedFace],
             };
             await customLibraryFontRepository.updateFont(existing.id, nextFont);
             const nextRecord = { id: existing.id, font: nextFont };
@@ -851,7 +854,7 @@ export function PresentationLibrary({
             customLibraryFontsRef.current = nextFonts;
             if (mountedRef.current) setCustomLibraryFonts(nextFonts);
           } else {
-            const nextFont = { family, faces: [face] };
+            const nextFont = { family, faces: [persistedFace] };
             const id = persistenceId
               ? await customLibraryFontRepository.saveFont(nextFont, {
                   documentId: persistenceId,

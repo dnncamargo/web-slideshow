@@ -5,8 +5,8 @@ import { Button } from "@web-slideshow/ui";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import styles from "../library/presentation-library.module.css";
 import type { StudioMessageKey } from "../i18n/studio-i18n";
-import type { CustomLibraryFontRecord } from "./custom-library-font";
-import type { FontFaceResource } from "@web-slideshow/document-schema";
+import type { CustomLibraryFontFace, CustomLibraryFontFaceProvenance, CustomLibraryFontRecord } from "./custom-library-font";
+import { fontFaceRemovalSafety, managedFontPathFromUrl } from "./custom-library-font-provenance";
 
 interface CustomLibraryFontDetailsProps {
   record: CustomLibraryFontRecord | null;
@@ -28,24 +28,16 @@ function weightLabel(weight: number | undefined, t: ReturnType<typeof useStudioI
   return weight === undefined ? t("inspector.default") : String(weight);
 }
 
-const UUID_FILE_PATH = /^\/users\/([^/]+)\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.(ttf|otf|woff|woff2)$/i;
-
-export function resolveManagedFontStoragePath(face: FontFaceResource, ownerId: string | null | undefined): string | null {
+export function resolveManagedFontStoragePath(face: CustomLibraryFontFace, ownerId: string | null | undefined): string | null {
   if (!ownerId) return null;
-  try {
-    const url = new URL(face.source.url);
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
-    const match = UUID_FILE_PATH.exec(url.pathname);
-    if (!match || decodeURIComponent(match[1] ?? "") !== ownerId) return null;
-    const extension = match[3]?.toLowerCase();
-    const expectedFormat = extension === "ttf" ? "truetype"
-      : extension === "otf" ? "opentype"
-        : extension;
-    if (face.source.format !== expectedFormat) return null;
-    return url.pathname.slice(1);
-  } catch {
-    return null;
-  }
+  const identity = managedFontPathFromUrl(face.source.url, ownerId);
+  if (!identity) return null;
+  const extension = identity.pathname.slice(identity.pathname.lastIndexOf(".")).toLowerCase();
+  const expectedFormat = extension === ".ttf" ? "truetype" : extension === ".otf" ? "opentype" : extension.slice(1);
+  if (face.source.format !== expectedFormat) return null;
+  const provenance = face.provenance as CustomLibraryFontFaceProvenance | undefined;
+  if (provenance && (provenance.kind !== "managed-upload" || provenance.assetId.toLowerCase() !== identity.assetId.toLowerCase())) return null;
+  return identity.pathname;
 }
 
 export function CustomLibraryFontDetails({ record, pending = false, onDelete, ownerId = null, onViewInStorage }: CustomLibraryFontDetailsProps) {
@@ -66,6 +58,7 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete, ow
   const stylesInUse = [...new Set(record.font.faces.map((face) => face.style))]
     .sort((first, second) => (first === undefined ? -1 : second === undefined ? 1 : styleOrder[first] - styleOrder[second]))
     .map((style) => styleLabel(style, t));
+  const removalBlocked = record.font.faces.some((face) => fontFaceRemovalSafety(face, ownerId ?? "") !== "removable");
 
   return (
     <aside className={`${styles.detailsPane} ${styles.fontDetailsPane}`} aria-label={t("library.details")}>
@@ -85,7 +78,10 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete, ow
                     .filter((value): value is string => value !== undefined)
                     .join(" · ")}
                 {resolveManagedFontStoragePath(face, ownerId) && onViewInStorage ? (
-                  <Button size="compact" onClick={() => onViewInStorage(resolveManagedFontStoragePath(face, ownerId) as string)}>
+                  <Button size="compact" onClick={() => {
+                    const pathname = resolveManagedFontStoragePath(face, ownerId);
+                    if (pathname) onViewInStorage(pathname);
+                  }}>
                     {t("customLibrary.fontDetails.viewInStorage" as StudioMessageKey)}
                   </Button>
                 ) : (
@@ -100,10 +96,11 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete, ow
         </div>
       </dl>
       <div className={styles.paletteDetailsActions}>
-        <Button variant="danger" size="compact" disabled={pending} onClick={onDelete}>
+        <Button variant="danger" size="compact" disabled={pending || removalBlocked} onClick={onDelete}>
           {t("customLibrary.fontDetails.delete")}
         </Button>
       </div>
+      {removalBlocked ? <p className={styles.stateBlock} role="status">{t("customLibrary.fontDetails.managedRemovalBlocked")}</p> : null}
     </aside>
   );
 }

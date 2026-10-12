@@ -267,8 +267,11 @@ service cloud.firestore {
     // users/{userId}/customLibraryFonts/{fontId}
     // ------------------------------------------------------------
     match /users/{userId}/customLibraryFonts/{fontId} {
-      allow read, write: if isPrivatePresentationOwner(userId)
+      // Font writes go through the authenticated Admin SDK endpoint, which
+      // verifies persisted face provenance and protects managed Storage faces.
+      allow read: if isPrivatePresentationOwner(userId)
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow write: if false;
     }
 
     // ------------------------------------------------------------

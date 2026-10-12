@@ -1,4 +1,5 @@
 import type { FontFaceResource } from "@web-slideshow/document-schema";
+import type { CustomLibraryFontFaceProvenance } from "../custom-library/custom-library-font";
 
 export interface FontFamilyFaces {
   family: string;
@@ -13,6 +14,7 @@ export type OnAddFontFace = (
   family: string,
   face: FontFaceResource,
   persistenceId?: string,
+  provenance?: CustomLibraryFontFaceProvenance,
 ) => FontFaceAddResult | Promise<FontFaceAddResult>;
 
 export function fontFaceWasSaved(result: FontFaceAddResult): boolean {

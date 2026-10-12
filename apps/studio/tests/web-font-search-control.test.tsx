@@ -308,6 +308,10 @@ describe("WebFontSearchControl multi-weight customizer", () => {
     await act(async () => chip400.click());
     await act(async () => clickButton(container, "Add selected variants"));
     expect(onAddFontFace.mock.calls.map((call) => call[1].weight)).toEqual([400, 700]);
+    expect(onAddFontFace.mock.calls.map((call) => call[3])).toEqual([
+      { kind: "cdn", provider: "fontsource" },
+      { kind: "cdn", provider: "fontsource" },
+    ]);
     expect(container.querySelector("[data-web-font-customizer]")).not.toBeNull();
     expect(container.textContent).not.toContain("Add font");
     expect(container.textContent).not.toContain("Add variant");

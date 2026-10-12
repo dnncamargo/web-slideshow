@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FontFaceResource } from "@web-slideshow/document-schema";
+import type { CustomLibraryFontFaceProvenance } from "../src/features/custom-library/custom-library-font";
 import { GoogleFontImportControl } from "../src/features/fonts/components/google-font-import-control";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
@@ -41,7 +42,7 @@ describe("GoogleFontImportControl selected variants", () => {
 
   it("continues past an unselected middle variant", async () => {
     const onAddFontFace = vi.fn(
-      async (...args: [string, FontFaceResource]) => {
+      async (...args: [string, FontFaceResource, string | undefined, CustomLibraryFontFaceProvenance | undefined]) => {
         void args;
         return true;
       },
@@ -119,6 +120,10 @@ describe("GoogleFontImportControl selected variants", () => {
     expect(onAddFontFace.mock.calls.map(([, face]) => face.weight)).toEqual([
       400,
       700,
+    ]);
+    expect(onAddFontFace.mock.calls.map((call) => call[3])).toEqual([
+      { kind: "cdn", provider: "google-fonts" },
+      { kind: "cdn", provider: "google-fonts" },
     ]);
     expect(onFontAdded).toHaveBeenCalledWith("Example");
   });

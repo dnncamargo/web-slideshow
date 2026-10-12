@@ -4,6 +4,7 @@ import {
   CustomLibraryFontDraftSchema,
   parseCustomLibraryFontDraft,
 } from "../src/features/custom-library/custom-library-font-schema";
+import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
 
 const face = {
   weight: 400,
@@ -29,6 +30,27 @@ describe("Custom Library Font persisted contract", () => {
       family: "Source Sans 3",
       faces: [face, { ...face, weight: 700, style: "italic", subset: "cyrillic" }],
     }).faces).toHaveLength(2);
+  });
+
+  it.each([
+    { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" },
+    { kind: "cdn", provider: "fontsource" },
+    { kind: "cdn", provider: "google-fonts" },
+    { kind: "external-url" },
+  ])("accepts persisted font source provenance %j", (provenance) => {
+    expect(parseCustomLibraryFontDraft({
+      family: "Inter",
+      faces: [{ ...face, provenance }],
+    }).faces[0]?.provenance).toEqual(provenance);
+  });
+
+  it("continues to accept legacy faces without provenance", () => {
+    expect(parseCustomLibraryFontDraft(validDraft).faces[0]?.provenance).toBeUndefined();
+  });
+
+  it("provides the managed-removal explanation in English and Portuguese", () => {
+    expect(translateStudioMessage("en", "customLibrary.fontDetails.managedRemovalBlocked")).toContain("cannot be removed from Fonts");
+    expect(translateStudioMessage("pt-BR", "customLibrary.fontDetails.managedRemovalBlocked")).toContain("não podem ser removidas");
   });
 
   it.each([" Inter", "Inter ", ""]) ("rejects an untrimmed or empty family: %j", (family) => {

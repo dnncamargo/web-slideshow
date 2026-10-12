@@ -83,7 +83,7 @@ export function ManualFontControl({
 
     const resourceFamily = existingResource?.family ?? trimmedFamily;
 
-    const added = await onAddFontFace(resourceFamily, result.data);
+    const added = await onAddFontFace(resourceFamily, result.data, undefined, { kind: "external-url" });
 
     if (!fontFaceWasSaved(added)) {
       return;
