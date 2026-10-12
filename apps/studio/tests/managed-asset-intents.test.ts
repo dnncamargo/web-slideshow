@@ -16,7 +16,7 @@ function ref(path: string) {
     path,
     async get() {
       const data = state.documents.get(path);
-      return { exists: Boolean(data), data: () => data };
+      return { exists: Boolean(data), data: () => data ? { ...data } : undefined };
     },
     async update(values: Record<string, unknown>) {
       const prior = state.documents.get(path);
@@ -91,6 +91,7 @@ import {
   authorizeManagedAssetUpload,
   createManagedAssetIntent,
   getManagedAssetIntent,
+  ManagedAssetPhysicalCheckError,
   reconcileManagedAssetIntent,
 } from "../src/features/persistence/managed-asset-intents";
 
@@ -187,6 +188,62 @@ describe("managed asset durable intents", () => {
     expect(document.state).toBe("uncertain");
     expect(document.leaseExpiresAt).toBeInstanceOf(Timestamp);
     expect(state.head).toHaveBeenCalledWith(`users/owner/assets/${intentInput.assetId}.ttf`);
+  });
+
+  it("preserves a pending intent after a transient provider check failure and retries the same identity", async () => {
+    await createManagedAssetIntent("owner", intentInput);
+    state.head.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).rejects.toBeInstanceOf(ManagedAssetPhysicalCheckError);
+    expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.state).toBe("pending");
+
+    await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "absent" });
+    await expect(authorizeManagedAssetUpload(
+      "owner",
+      intentInput.assetId,
+      `users/owner/assets/${intentInput.assetId}.ttf`,
+      "font/ttf",
+      23,
+    )).resolves.toBe("authorized");
+    expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.state).toBe("uploading");
+  });
+
+  it("does not let stale transient reconciliation overwrite concurrent authorization", async () => {
+    await createManagedAssetIntent("owner", intentInput);
+    let rejectStaleHead!: (reason: unknown) => void;
+    let signalHeadStarted!: () => void;
+    const headStarted = new Promise<void>((resolve) => { signalHeadStarted = resolve; });
+    state.head.mockImplementationOnce(() => {
+      signalHeadStarted();
+      return new Promise((_resolve, reject) => { rejectStaleHead = reject; });
+    });
+
+    const staleReconciliation = reconcileManagedAssetIntent("owner", intentInput.assetId);
+    await headStarted;
+    state.head.mockRejectedValueOnce(new BlobNotFoundError());
+    await expect(authorizeManagedAssetUpload(
+      "owner",
+      intentInput.assetId,
+      `users/owner/assets/${intentInput.assetId}.ttf`,
+      "font/ttf",
+      23,
+    )).resolves.toBe("authorized");
+
+    rejectStaleHead(new Error("stale provider failure"));
+    await expect(staleReconciliation).resolves.toEqual({ status: "in_progress" });
+    expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.state).toBe("uploading");
+  });
+
+  it("keeps an expired upload lease uncertain after a provider error", async () => {
+    await createManagedAssetIntent("owner", intentInput);
+    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23);
+    const document = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    document.leaseExpiresAt = Timestamp.fromMillis(Date.now() - 1);
+    state.head.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("uncertain");
+    expect(document.state).toBe("uncertain");
   });
 
   it("keeps active operations from issuing a repeated token and persists provider uncertainty", async () => {

@@ -11,6 +11,7 @@ const authMocks = vi.hoisted(() => ({
 const intentMocks = vi.hoisted(() => ({
   authorizeManagedAssetUpload: vi.fn(),
   reconcileManagedAssetIntent: vi.fn(),
+  ManagedAssetPhysicalCheckError: class ManagedAssetPhysicalCheckError extends Error {},
 }));
 
 vi.mock("@vercel/blob/client", () => ({
@@ -168,6 +169,17 @@ describe("managed asset upload route", () => {
     )));
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "authorization" });
+  });
+
+  it("returns a retryable service error when pending intent verification is unavailable", async () => {
+    intentMocks.authorizeManagedAssetUpload.mockRejectedValueOnce(new intentMocks.ManagedAssetPhysicalCheckError());
+    const response = await POST(request(payload(
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
+      clientPayload(),
+    )));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "service_unavailable" });
   });
 
   it.each(["in_progress", "uncertain"] as const)("does not issue a second token for an operation in state %s", async (state) => {

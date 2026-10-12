@@ -39,6 +39,13 @@ export interface ReconciledManagedAsset {
   };
 }
 
+export class ManagedAssetPhysicalCheckError extends Error {
+  constructor() {
+    super("Managed asset physical state could not be checked. Retry the same upload operation.");
+    this.name = "ManagedAssetPhysicalCheckError";
+  }
+}
+
 function firestore() {
   return getFirestore(getFirebaseAdminApp());
 }
@@ -132,8 +139,26 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
       if (!currentSnapshot.exists) return { status: "conflict" };
       const current = currentSnapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
       if (current.state === "complete" || current.state === "conflict") return { status: "conflict" };
+
+      // The Blob check ran outside the transaction. If authorization advanced
+      // the intent while that check was pending, this reconciliation is stale
+      // and must not change the newly authorized operation's state.
+      if (current.state !== intent.state) {
+        if (current.state === "uploading") {
+          return current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()
+            ? { status: "in_progress" }
+            : { status: "uncertain" };
+        }
+        return { status: "uncertain" };
+      }
+
       if (current.state === "pending" && blobIsAbsent) {
         return { status: "absent" };
+      }
+      if (current.state === "pending") {
+        // No upload token has been issued for a pending intent. Preserve that
+        // fact on provider failure and let a later request retry reconciliation.
+        throw new ManagedAssetPhysicalCheckError();
       }
       if (current.state === "uploading" && blobIsAbsent && current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()) {
         return { status: "in_progress" };
@@ -146,8 +171,26 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
   }
 
   if (!metadataMatches(intent, physical)) {
-    await intentRef(uid, assetId).update({ state: "conflict", updatedAt: FieldValue.serverTimestamp() });
-    return { status: "conflict" };
+    const ref = intentRef(uid, assetId);
+    return firestore().runTransaction(async (transaction) => {
+      const currentSnapshot = await transaction.get(ref);
+      if (!currentSnapshot.exists) return { status: "conflict" };
+      const current = currentSnapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
+      if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath)) {
+        return { status: "conflict" };
+      }
+      if (current.state !== intent.state) {
+        if (current.state === "uploading") {
+          return current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()
+            ? { status: "in_progress" }
+            : { status: "uncertain" };
+        }
+        return { status: current.state === "uncertain" ? "uncertain" : "conflict" };
+      }
+      if (current.state === "complete" || current.state === "conflict") return { status: "conflict" };
+      transaction.update(ref, { state: "conflict", updatedAt: FieldValue.serverTimestamp() });
+      return { status: "conflict" };
+    });
   }
 
   const result = {

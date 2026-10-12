@@ -8,6 +8,7 @@ import {
 } from "../../../../features/persistence/managed-asset-content-types";
 import {
   authorizeManagedAssetUpload,
+  ManagedAssetPhysicalCheckError,
   reconcileManagedAssetIntent,
 } from "../../../../features/persistence/managed-asset-intents";
 import {
@@ -224,6 +225,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         ? 415
         : error.category === "uncertain_completion" ? 409 : 401;
       return errorResponse(status, error.category);
+    }
+
+    if (error instanceof ManagedAssetPhysicalCheckError) {
+      return errorResponse(503, "service_unavailable");
     }
 
     if (error instanceof FirebaseAuthenticationError) {
