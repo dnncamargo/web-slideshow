@@ -17,6 +17,7 @@ import {
 } from "../persistence/managed-asset-content-types";
 import { listManagedAssetUploadIntents } from "../persistence/managed-asset-storage";
 import type { ManagedAssetUploadIntent } from "../persistence/managed-asset-storage";
+import { isManagedAssetControlPath } from "../persistence/managed-asset-control-path";
 import { StorageUsageIndicator } from "./storage-usage-indicator";
 import styles from "./presentation-library.module.css";
 
@@ -470,7 +471,7 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
   };
 
   const beginRename = () => {
-    if (!selected || renameBusy || protectionLoading || protectionState !== "active") return;
+    if (!selected || !canRename || renameBusy || protectionLoading || protectionState !== "active") return;
     setRenameDraft(selectedName);
     setRenameError(null);
     setEditingPathname(selected.pathname);
@@ -483,7 +484,7 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
   };
 
   const saveRename = async () => {
-    if (!selectedPathname || !user || !editingSelected || renameBusy) return;
+    if (!selectedPathname || !user || !canRename || !editingSelected || renameBusy) return;
     const displayName = renameDraft.trim();
     if (!displayName) { setRenameError("required"); return; }
     if (Array.from(displayName).length > 512 || /[\\/\p{Cc}]/u.test(displayName)) { setRenameError("invalid"); return; }
@@ -557,6 +558,7 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
   };
 
   const selectedName = selected ? logicalName(selected, intents, files, fonts) ?? shortId(selected) : "";
+  const canRename = Boolean(selected && ownerId && isManagedAssetControlPath(ownerId, selected.pathname));
   const selectedCategory = selected ? categoryFor(selected, metadata?.contentType) : "other";
   const selectedExtension = selected ? extensionFor(selected) : null;
   const canOpen = selected && metadata && (
@@ -642,7 +644,7 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
               <Button size="compact" variant="primary" disabled={renameBusy} onClick={() => void saveRename()}>{renameBusy ? t("customLibrary.fileDetails.saving" as StudioMessageKey) : t("library.storage.save")}</Button>
               <Button size="compact" disabled={renameBusy} onClick={cancelRename}>{t("library.storage.cancel")}</Button>
             </> : <>
-              <Button size="compact" disabled={renameBusy || protectionLoading || protectionState !== "active"} onClick={beginRename}>{t("library.storage.rename")}</Button>
+              <Button size="compact" disabled={!canRename || renameBusy || protectionLoading || protectionState !== "active"} onClick={beginRename}>{t("library.storage.rename")}</Button>
               <Button size="compact" disabled={protectionLoading || protectionBusy || protectionState !== "active"} onClick={() => void updateProtection()}>
                 {protectionBusy ? t("library.storage.protectionSaving") : isProtected ? t("library.storage.unprotect") : t("library.storage.protect")}
               </Button>

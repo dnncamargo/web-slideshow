@@ -72,6 +72,7 @@ describe("Storage manager", () => {
     expect(second?.textContent).toContain("Rename");
     expect(second?.textContent).toContain("Protect file");
     expect(second?.textContent).toContain("Delete file");
+    expect(Array.from(second?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) => button.textContent === "Rename")?.disabled).toBe(true);
     const open = first?.querySelector("a");
     expect(open?.getAttribute("href")).toBe("https://blob.example/readme.txt");
     expect(open?.getAttribute("target")).toBe("_blank");
@@ -114,11 +115,11 @@ describe("Storage manager", () => {
   });
 
   it("renames in place, updates search and type-name sorting, and preserves the selected pathname", async () => {
-    const left = "users/owner-1/assets/zebra.png";
-    const right = "users/owner-1/assets/alpha.png";
+    const left = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png";
+    const right = "users/owner-1/assets/223e4567-e89b-42d3-a456-426614174000.png";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(left), blob(right)], hasMore: false });
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [{ ...blob(left), displayName: "zebra" }, { ...blob(right), displayName: "alpha" }], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
       if (url === "/api/managed-assets/rename" && init?.method === "PATCH") return response({ displayName: "Aardvark image", protected: false, state: "active" });
       if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
@@ -152,10 +153,10 @@ describe("Storage manager", () => {
   });
 
   it("keeps an invalid or failed rename draft and supports Enter and Escape", async () => {
-    const pathname = "users/owner-1/assets/notes.txt";
+    const pathname = "users/owner-1/assets/323e4567-e89b-42d3-a456-426614174000.txt";
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [{ ...blob(pathname), displayName: "notes.txt" }], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
       if (url === "/api/managed-assets/rename" && init?.method === "PATCH") return response({ error: "unavailable" }, 503);
       if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
@@ -175,6 +176,29 @@ describe("Storage manager", () => {
     await act(async () => { input = host.querySelector<HTMLInputElement>("[data-storage-details] h2 input"); input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await Promise.resolve(); });
     expect(host.querySelector("[data-storage-details] h2 input")).toBeNull();
     expect(host.querySelector("[data-storage-action-row='controls']")?.textContent).toContain("Delete file");
+    act(() => root.unmount());
+  });
+
+  it("keeps non-eligible legacy files visible with their fallback name and disables Rename", async () => {
+    const pathname = "users/owner-1/assets/arquivo-antigo.png";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return response({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root } = renderManager();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    const rename = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button"))
+      .find((button) => button.textContent === "Rename");
+    expect(host.querySelector("[data-storage-details]")?.textContent).toContain("arquivo-antigo");
+    expect(rename?.disabled).toBe(true);
+    await act(async () => { rename?.click(); await Promise.resolve(); });
+    expect(host.querySelector("[data-storage-details] h2 input")).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === "/api/managed-assets/rename")).toBe(false);
     act(() => root.unmount());
   });
 

@@ -40,11 +40,13 @@ describe("managed asset inventory", () => {
   });
 
   it("annotates only the current Blob page in one owner-scoped lookup", async () => {
-    blob.list.mockResolvedValueOnce({ blobs: [item(), item("users/owner-1/assets/asset-2.png")], hasMore: true, cursor: "next" });
-    controls.readNames.mockResolvedValueOnce(new Map([["users/owner-1/assets/asset-2.png", "Renamed 📘"]]));
+    const firstPath = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png";
+    const secondPath = "users/owner-1/assets/223e4567-e89b-42d3-a456-426614174000.png";
+    blob.list.mockResolvedValueOnce({ blobs: [item(firstPath), item(secondPath)], hasMore: true, cursor: "next" });
+    controls.readNames.mockResolvedValueOnce(new Map([[secondPath, "Renamed 📘"]]));
     const page = await listManagedAssetInventoryPage("owner-1", null);
     expect(page.items.map((entry) => entry.displayName)).toEqual([undefined, "Renamed 📘"]);
-    expect(controls.readNames).toHaveBeenCalledWith("owner-1", ["users/owner-1/assets/asset-1.png", "users/owner-1/assets/asset-2.png"]);
+    expect(controls.readNames).toHaveBeenCalledWith("owner-1", [firstPath, secondPath]);
   });
 
   it("passes opaque pagination cursors and validates returned boundaries", async () => {
@@ -67,7 +69,7 @@ describe("managed asset inventory", () => {
   });
 
   it("loads a focused object's display name outside the inventory page", async () => {
-    const path = "users/owner-1/assets/focused.woff2";
+    const path = "users/owner-1/assets/323e4567-e89b-42d3-a456-426614174000.woff2";
     blob.list.mockResolvedValueOnce({ blobs: [item(path)], hasMore: false });
     controls.readNames.mockResolvedValueOnce(new Map([[path, "Focused font"]]));
     await expect(getManagedAssetInventoryObject("owner-1", path)).resolves.toMatchObject({ displayName: "Focused font" });
@@ -75,7 +77,7 @@ describe("managed asset inventory", () => {
   });
 
   it("fails recognizably when display-name annotations cannot be read", async () => {
-    blob.list.mockResolvedValueOnce({ blobs: [item()], hasMore: false });
+    blob.list.mockResolvedValueOnce({ blobs: [item("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png")], hasMore: false });
     controls.readNames.mockRejectedValueOnce(new Error("Firestore unavailable"));
     await expect(listManagedAssetInventoryPage("owner-1", null)).rejects.toMatchObject({ name: "ManagedAssetInventoryAnnotationError" });
   });

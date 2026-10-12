@@ -1,5 +1,6 @@
 import { list, type ListBlobResult } from "@vercel/blob";
 
+import { isManagedAssetControlPath } from "./managed-asset-control-path";
 import { readManagedAssetDisplayNames } from "./managed-asset-controls";
 
 export const MANAGED_ASSET_INVENTORY_PAGE_SIZE = 100;
@@ -82,10 +83,15 @@ function validateBlob(value: unknown, prefix: string, seen: Set<string>): Manage
 
 async function annotateItems(uid: string, items: ManagedAssetInventoryItem[]): Promise<ManagedAssetInventoryItem[]> {
   let names: Map<string, string>;
-  try {
-    names = await readManagedAssetDisplayNames(uid, items.map((item) => item.pathname));
-  } catch {
-    throw new ManagedAssetInventoryAnnotationError();
+  const eligiblePaths = items.map((item) => item.pathname).filter((pathname) => isManagedAssetControlPath(uid, pathname));
+  if (eligiblePaths.length === 0) {
+    names = new Map();
+  } else {
+    try {
+      names = await readManagedAssetDisplayNames(uid, eligiblePaths);
+    } catch {
+      throw new ManagedAssetInventoryAnnotationError();
+    }
   }
   return items.map((item) => {
     const displayName = names.get(item.pathname);
