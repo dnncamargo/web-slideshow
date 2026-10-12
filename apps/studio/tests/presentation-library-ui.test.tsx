@@ -49,7 +49,7 @@ vi.mock("@/features/persistence/managed-asset-storage", () => ({
 }));
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
-import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
+import { STUDIO_LOCALE_STORAGE_KEY, translateStudioMessage } from "../src/features/i18n/studio-i18n";
 import { PresentationLibrary } from "../src/features/library/presentation-library";
 import { PresentationList } from "../src/features/library/presentation-list";
 import { PresentationToolbar } from "../src/features/library/presentation-toolbar";
@@ -66,7 +66,7 @@ import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "../src/features/custom-library/custom-library-palette-repository";
-import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
+import type { CustomLibraryFontFace, CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
 import type { CustomLibraryFileRepository } from "../src/features/custom-library/custom-library-file-repository";
@@ -306,6 +306,14 @@ function fontFace(weight: number): FontFaceResource {
   };
 }
 
+function externalFontFace(weight: number): CustomLibraryFontFace {
+  return { ...fontFace(weight), provenance: { kind: "external-url" } };
+}
+
+function googleFontFace(weight: number): CustomLibraryFontFace {
+  return { ...fontFace(weight), provenance: { kind: "cdn", provider: "google-fonts" } };
+}
+
 function findButton(container: HTMLDivElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
     .find((candidate) => candidate.textContent?.trim() === text);
@@ -441,15 +449,18 @@ describe("presentation library workspace controls", () => {
   let root: Root;
 
   beforeEach(() => {
+    window.localStorage.removeItem(STUDIO_LOCALE_STORAGE_KEY);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     testDependencies.liveState = { kind: "none" };
+    testDependencies.push.mockReset();
     testDependencies.uploadManagedAsset.mockReset();
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    window.localStorage.removeItem(STUDIO_LOCALE_STORAGE_KEY);
     document.body.innerHTML = "";
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -1237,7 +1248,7 @@ describe("presentation library workspace controls", () => {
     if (!addFace) throw new Error("expected manual Add font face");
     await act(async () => { addFace.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
-    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [externalFontFace(400)] });
 
     setLibraryInputValue(container.querySelector("#custom-library-font-family"), "inter");
     setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(700).source.url);
@@ -1248,7 +1259,7 @@ describe("presentation library workspace controls", () => {
     act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => { addSecond.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
-    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [externalFontFace(400), externalFontFace(700)] });
     expect(container.textContent).toContain("Inter");
     expect(container.textContent).toContain("2 faces");
     expect(container.textContent).toContain("Fontsource");
@@ -1290,10 +1301,11 @@ describe("presentation library workspace controls", () => {
     });
     await flushWorkspaceEffects();
 
-    const expectedFace: FontFaceResource = {
+    const expectedFace: CustomLibraryFontFace = {
       weight: 400,
       style: "normal",
       source: { type: "url", url: downloadUrl, format: "truetype" },
+      provenance: { kind: "managed-upload", assetId: "asset-uploaded-sans-regular" },
     };
     expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "font/ttf" });
     expect(fonts.saveFont).toHaveBeenCalledWith(
@@ -1322,10 +1334,11 @@ describe("presentation library workspace controls", () => {
       style: "normal",
       source: { type: "url", url: "https://cdn.example.test/uploaded-sans-regular.woff2", format: "woff2" },
     };
-    const newFace: FontFaceResource = {
+    const newFace: CustomLibraryFontFace = {
       weight: 700,
       style: "italic",
       source: { type: "url", url: "https://cdn.example.test/uploaded-sans-bold-italic.woff2", format: "woff2" },
+      provenance: { kind: "managed-upload", assetId: "asset-uploaded-sans-bold-italic" },
     };
     const existing = { id: "uploaded-sans", font: { family: "Uploaded Sans", faces: [existingFace] } };
     const fonts = customLibraryFontRepositoryFor([existing]);
@@ -1490,7 +1503,7 @@ describe("presentation library workspace controls", () => {
       findButton(container, "Add face").click();
       await Promise.resolve();
     });
-    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [externalFontFace(400)] });
     expect(container.textContent).not.toContain("Added Inter.");
     expect(container.textContent).not.toContain("1 fonts in Custom Library.");
 
@@ -1550,13 +1563,13 @@ describe("presentation library workspace controls", () => {
     if (!weight) throw new Error("expected weight selector");
     act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
-    expect(fonts.updateFont).toHaveBeenCalledWith("inter-master", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenCalledWith("inter-master", { family: "Inter", faces: [fontFace(400), externalFontFace(700)] });
     expect(fonts.getCurrent()).toEqual([existing]);
     expect(container.textContent).toContain("Could not save the font to Custom Library.");
 
     await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
     expect(fonts.updateFont).toHaveBeenCalledTimes(2);
-    expect(fonts.getCurrent()).toEqual([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400), fontFace(700)] } }]);
+    expect(fonts.getCurrent()).toEqual([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400), externalFontFace(700)] } }]);
   });
 
   it("serializes Google multi-face imports against the current master ref", async () => {
@@ -1592,8 +1605,8 @@ describe("presentation library workspace controls", () => {
     resolveSave?.("inter-master");
     await flushWorkspaceEffects();
     await flushWorkspaceEffects();
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "inter-master", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "inter-master", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500), googleFontFace(700)] });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
   });
 
@@ -1624,9 +1637,9 @@ describe("presentation library workspace controls", () => {
     await flushWorkspaceEffects();
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
     expect(fonts.updateFont).toHaveBeenCalledTimes(2);
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
-    expect(fonts.getCurrent()[0]?.font.faces).toEqual([fontFace(400), fontFace(700)]);
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "font-1", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "font-1", { family: "Inter", faces: [googleFontFace(400), googleFontFace(700)] });
+    expect(fonts.getCurrent()[0]?.font.faces).toEqual([googleFontFace(400), googleFontFace(700)]);
   });
 
   it("loads, selects, inspects, and deletes a Custom Library Palette independently", async () => {
@@ -2241,12 +2254,89 @@ describe("presentation library workspace controls", () => {
     expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
   });
 
-  it("replaces the Custom Library Files destination with Storage", async () => {
+  it("labels the Storage destination Uploaded Files while preserving its section heading and destination", async () => {
     const { repository } = repositoryFor([]);
     act(() => root.render(renderLibrary(repository)));
     await flushWorkspaceEffects();
     expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent?.trim() === "Files")).toBe(false);
-    expect(findButton(container, "Storage")).toBeTruthy();
+    const storageSection = Array.from(container.querySelectorAll("nav section")).find((section) => section.querySelector("h2")?.textContent === "Storage");
+    const storageItem = findButton(container, "Uploaded Files");
+    expect(storageSection?.contains(storageItem)).toBe(true);
+    expect(storageItem.getAttribute("aria-current")).toBeNull();
+
+    act(() => storageItem.click());
+    await flushWorkspaceEffects();
+    expect(storageItem.getAttribute("aria-current")).toBe("page");
+    const header = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(header?.querySelector("p")?.textContent).toBe("Storage");
+    expect(header?.querySelector("h1")?.textContent).toBe("Uploaded Files");
+    expect(testDependencies.push).not.toHaveBeenCalled();
+  });
+
+  it("renders the Storage navigation item and page heading in Portuguese", async () => {
+    window.localStorage.setItem(STUDIO_LOCALE_STORAGE_KEY, "pt-BR");
+    const { repository } = repositoryFor([]);
+    act(() => root.render(renderLibrary(repository)));
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+
+    const section = Array.from(container.querySelectorAll("nav section")).find((candidate) => candidate.querySelector("h2")?.textContent === "Armazenamento");
+    const storageItem = findButton(container, "Arquivos enviados");
+    expect(section?.contains(storageItem)).toBe(true);
+    act(() => storageItem.click());
+    await flushWorkspaceEffects();
+    expect(storageItem.getAttribute("aria-current")).toBe("page");
+    const header = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(header?.querySelector("p")?.textContent).toBe("Armazenamento");
+    expect(header?.querySelector("h1")?.textContent).toBe("Arquivos enviados");
+  });
+
+  it("opens the exact managed font object from Fonts in Storage", async () => {
+    const pathname = "users/test/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
+    const blobUrl = `https://abc.public.blob.vercel-storage.com/${pathname}`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/metadata?pathname=")) {
+        return new Response(JSON.stringify({
+          pathname,
+          url: blobUrl,
+          size: 120,
+          uploadedAt: "2026-01-01T00:00:00.000Z",
+          etag: "verified-etag",
+          contentType: "font/woff2",
+        }), { status: 200 });
+      }
+      if (url.includes("/usage")) {
+        return new Response(JSON.stringify({ scope: "owner", objectCount: 1, bytesUsed: 120, measuredAt: "2026-01-01T00:00:00.000Z", quotaStatus: "unknown" }), { status: 200 });
+      }
+      if (url.includes("/inventory")) {
+        return new Response(JSON.stringify({ scope: "owner", items: [], hasMore: false }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ pathname, url: blobUrl, size: 120, uploadedAt: "2026-01-01T00:00:00.000Z", etag: "verified-etag", contentType: "font/woff2" }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([{
+      id: "managed-font",
+      font: { family: "Managed Sans", faces: [{
+        source: { type: "url", url: blobUrl, format: "woff2" },
+        provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" },
+      }] },
+    }]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+    const fontRow = container.querySelector<HTMLButtonElement>('[data-custom-library-font-row][aria-label="Managed Sans"]');
+    expect(fontRow).toBeTruthy();
+    act(() => fontRow?.click());
+    act(() => findButton(container, "View in Storage").click());
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+
+    expect(findButton(container, "Uploaded Files").getAttribute("aria-current")).toBe("page");
+    expect(container.querySelector('[data-storage-manager]')?.textContent).toContain(pathname);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(`/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`);
   });
 
   it("keeps Fonts free of Storage requests and places acquisition and upload beside their headings", async () => {
@@ -2274,7 +2364,7 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).not.toContain("Your storage");
     expect(fetchMock).not.toHaveBeenCalled();
 
-    act(() => findButton(container, "Storage").click());
+    act(() => findButton(container, "Uploaded Files").click());
     await flushWorkspaceEffects();
     const storageHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
     expect(storageHeader?.querySelector("p")?.textContent).toBe("Storage");

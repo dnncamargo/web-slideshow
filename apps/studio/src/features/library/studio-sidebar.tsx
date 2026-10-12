@@ -235,7 +235,7 @@ export function StudioSidebar({
 
         <section className={styles.sidebarSection}>
           <h2>{t("library.storage.title")}</h2>
-          {item("storage", t("library.storage.title"))}
+          {item("storage", t("library.storage.uploadedFiles"))}
         </section>
 
         <section className={styles.sidebarSection}>
