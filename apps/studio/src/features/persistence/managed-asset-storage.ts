@@ -24,13 +24,11 @@ export interface ManagedAssetUploadResult {
 }
 
 export interface ManagedAssetUploadOptions {
-  /** Reuse this ID when retrying the same authorized upload operation. */
-  assetId?: string;
   /** Kept for callers that already pass classification; it must match the filename. */
   contentType?: ManagedAssetContentType;
 }
 
-interface ManagedAssetIntentResponse {
+export interface ManagedAssetUploadIntent {
   assetId: string;
   storagePath: string;
   originalFilename: string;
@@ -38,17 +36,13 @@ interface ManagedAssetIntentResponse {
   contentType: string;
   expectedSizeBytes: number;
   sourceLastModified: number;
-  state: "pending" | "uploading" | "complete" | "conflict";
+  state: "pending" | "uploading" | "uncertain" | "complete" | "conflict";
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function createManagedAssetId(): string {
   return crypto.randomUUID();
-}
-
-function browserIntentKey(uid: string, file: File, contentType: string): string {
-  return `managed-asset-intent:${encodeURIComponent(uid)}:${encodeURIComponent(file.name)}:${file.size}:${file.lastModified}:${contentType}`;
 }
 
 async function authorizedRequest<T>(url: string, idToken: string, init?: RequestInit): Promise<T> {
@@ -109,9 +103,53 @@ async function recoverIntent(idToken: string, assetId: string): Promise<{
   return { status: body.status, ...(completeResult(body.result) ? { result: completeResult(body.result)! } : {}) };
 }
 
-export async function uploadManagedAsset(
+async function listIntents(idToken: string): Promise<ManagedAssetUploadIntent[]> {
+  const body = await authorizedRequest<{ intents: ManagedAssetUploadIntent[] }>(
+    "/api/managed-assets/intents",
+    idToken,
+  );
+  return body.intents;
+}
+
+function intentMatchesFile(
+  intent: ManagedAssetUploadIntent,
   file: File,
-  options: ManagedAssetUploadOptions = {},
+  extension: string,
+  contentType: string,
+): boolean {
+  return intent.originalFilename === file.name
+    && intent.extension === extension
+    && intent.contentType === contentType
+    && intent.expectedSizeBytes === file.size
+    && intent.sourceLastModified === file.lastModified;
+}
+
+function recoveryRequired(message: string): ManagedAssetUploadError {
+  return new ManagedAssetUploadError(message, new TypeError("Explicit upload-intent recovery is required."));
+}
+
+export async function listManagedAssetUploadIntents(): Promise<ManagedAssetUploadIntent[]> {
+  const user = requireAuthenticatedFirebaseUser(
+    () => getFirebaseAuth().currentUser,
+  );
+  let idToken: string;
+  try {
+    idToken = await user.getIdToken();
+  } catch (error) {
+    throw new FirebaseAuthenticationError("Failed to acquire a Firebase authentication token.", error);
+  }
+  try {
+    return await listIntents(idToken);
+  } catch (error) {
+    if (error instanceof ManagedAssetUploadError) throw error;
+    throw new ManagedAssetUploadError("Could not list managed asset upload intents.", error);
+  }
+}
+
+async function runManagedAssetUpload(
+  file: File,
+  options: ManagedAssetUploadOptions,
+  resumeAssetId?: string,
 ): Promise<ManagedAssetUploadResult> {
   const user = requireAuthenticatedFirebaseUser(
     () => getFirebaseAuth().currentUser,
@@ -123,15 +161,13 @@ export async function uploadManagedAsset(
       new BlobContentTypeNotAllowedError("Unsupported or mismatched file extension and content type."),
     );
   }
-  let resolvedAssetId = options.assetId;
-  if (resolvedAssetId !== undefined && !UUID_PATTERN.test(resolvedAssetId)) {
+  if (resumeAssetId !== undefined && !UUID_PATTERN.test(resumeAssetId)) {
     throw new ManagedAssetUploadError(
       "Invalid managed asset identity.",
       new Error("Managed asset ID must be a valid UUID."),
     );
   }
   const contentType = classification.contentType;
-  const intentKey = browserIntentKey(user.uid, file, contentType);
   const storagePathFor = (id: string) => `users/${user.uid}/assets/${id}${classification.extension}`;
 
   let idToken: string;
@@ -146,33 +182,30 @@ export async function uploadManagedAsset(
   }
 
   try {
-    if (resolvedAssetId === undefined) {
-      try { resolvedAssetId = window.localStorage.getItem(intentKey) ?? undefined; } catch { /* Server intent discovery remains available. */ }
-    }
-    const existing = await authorizedRequest<{ intents: ManagedAssetIntentResponse[] }>(
-      "/api/managed-assets/intents",
-      idToken,
-    );
-    const matching = existing.intents.filter((intent) =>
-      intent.originalFilename === file.name
-      && intent.extension === classification.extension
-      && intent.contentType === contentType
-      && intent.expectedSizeBytes === file.size
-      && intent.sourceLastModified === file.lastModified,
-    );
-    if (resolvedAssetId === undefined) {
-      const resumable = matching.filter((intent) => intent.state !== "conflict");
-      if (resumable.length > 1) {
-        throw new ManagedAssetUploadError("More than one matching upload intent needs recovery.", new TypeError("Ambiguous managed asset intent."));
+    const existingIntents = await listIntents(idToken);
+    let selectedId = resumeAssetId;
+    if (selectedId !== undefined) {
+      const selectedIntent = existingIntents.find((intent) => intent.assetId === selectedId);
+      if (!selectedIntent) throw recoveryRequired("The selected upload operation no longer exists. Start a new upload instead.");
+      if (!intentMatchesFile(selectedIntent, file, classification.extension, contentType)) {
+        throw recoveryRequired("The selected file does not match this upload operation.");
       }
-      resolvedAssetId = resumable[0]?.assetId;
+    } else {
+      const unresolvedMatches = existingIntents.filter((intent) =>
+        intentMatchesFile(intent, file, classification.extension, contentType)
+        && (intent.state === "uploading" || intent.state === "uncertain"),
+      );
+      if (unresolvedMatches.length > 1) {
+        throw recoveryRequired("Several matching upload operations need explicit recovery selection before starting another upload.");
+      }
+      if (unresolvedMatches.length === 1) {
+        throw recoveryRequired("A matching upload operation may still be transferring. Select that operation to recover it before starting a new upload.");
+      }
+      selectedId = createManagedAssetId();
     }
-    const selectedId = resolvedAssetId ?? createManagedAssetId();
     if (!UUID_PATTERN.test(selectedId)) {
       throw new ManagedAssetUploadError("Invalid managed asset identity.", new Error("Managed asset ID must be a valid UUID."));
     }
-    resolvedAssetId = selectedId;
-    try { window.localStorage.setItem(intentKey, selectedId); } catch { /* The server intent remains durable. */ }
 
     const intentInput = {
       assetId: selectedId,
@@ -182,7 +215,7 @@ export async function uploadManagedAsset(
       expectedSizeBytes: file.size,
       sourceLastModified: file.lastModified,
     };
-    await authorizedRequest<{ intent: ManagedAssetIntentResponse }>(
+    await authorizedRequest<{ intent: ManagedAssetUploadIntent }>(
       "/api/managed-assets/intents",
       idToken,
       { method: "POST", body: JSON.stringify(intentInput) },
@@ -191,12 +224,10 @@ export async function uploadManagedAsset(
     const storagePath = storagePathFor(selectedId);
     const prior = await recoverIntent(idToken, selectedId);
     if (prior.status === "complete" && prior.result) {
-      const result = assertRecoveredResult(prior.result, selectedId, storagePath, contentType, file.size);
-      try { window.localStorage.removeItem(intentKey); } catch { /* Ignore unavailable local storage. */ }
-      return result;
+      return assertRecoveredResult(prior.result, selectedId, storagePath, contentType, file.size);
     }
     if (prior.status !== "absent") {
-      throw new ManagedAssetUploadError("Managed asset upload needs recovery before retrying.", new TypeError(`Upload intent status: ${prior.status}.`));
+      throw recoveryRequired(`Upload operation status is ${prior.status}; it cannot start another physical transfer automatically.`);
     }
 
     try {
@@ -209,9 +240,7 @@ export async function uploadManagedAsset(
     } catch (uploadError) {
       const recovered = await recoverIntent(idToken, selectedId).catch(() => null);
       if (recovered?.status === "complete" && recovered.result) {
-        const result = assertRecoveredResult(recovered.result, selectedId, storagePath, contentType, file.size);
-        try { window.localStorage.removeItem(intentKey); } catch { /* Ignore unavailable local storage. */ }
-        return result;
+        return assertRecoveredResult(recovered.result, selectedId, storagePath, contentType, file.size);
       }
       throw uploadError;
     }
@@ -223,10 +252,26 @@ export async function uploadManagedAsset(
       throw new TypeError(`Physical upload could not be verified (${completed.status}).`);
     }
     const result = assertRecoveredResult(completed.result, selectedId, storagePath, contentType, file.size);
-    try { window.localStorage.removeItem(intentKey); } catch { /* Ignore unavailable local storage. */ }
     return result;
   } catch (error) {
     if (error instanceof ManagedAssetUploadError) throw error;
     throw new ManagedAssetUploadError("Failed to upload managed asset.", error);
   }
+}
+
+/** Starts a distinct upload operation. Matching file descriptors never reuse an earlier asset ID. */
+export function uploadManagedAsset(
+  file: File,
+  options: ManagedAssetUploadOptions = {},
+): Promise<ManagedAssetUploadResult> {
+  return runManagedAssetUpload(file, options);
+}
+
+/** Explicitly resumes or reconciles one previously selected server-side upload operation. */
+export function resumeManagedAssetUpload(
+  file: File,
+  assetId: string,
+  options: ManagedAssetUploadOptions = {},
+): Promise<ManagedAssetUploadResult> {
+  return runManagedAssetUpload(file, options, assetId);
 }

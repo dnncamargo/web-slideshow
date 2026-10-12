@@ -32,8 +32,11 @@ type BeforeGenerateToken = (
   clientPayload: string | null,
   multipart: boolean,
 ) => Promise<unknown>;
+type UploadCompleted = (input: { tokenPayload: string | null }) => Promise<void>;
 
 let beforeGenerateToken: BeforeGenerateToken | undefined;
+let onUploadCompleted: UploadCompleted | undefined;
+let issuedTokenPayload: string | undefined;
 
 function payload(
   pathname: string,
@@ -72,12 +75,15 @@ function clientPayload(
 beforeEach(() => {
   vi.clearAllMocks();
   beforeGenerateToken = undefined;
+  onUploadCompleted = undefined;
+  issuedTokenPayload = undefined;
   authMocks.verifyFirebaseIdToken.mockResolvedValue({ uid: "owner" });
   intentMocks.authorizeManagedAssetUpload.mockResolvedValue("authorized");
   intentMocks.reconcileManagedAssetIntent.mockResolvedValue({ status: "complete" });
   blobMocks.handleUpload.mockImplementation(
-    async (options: { body: unknown; onBeforeGenerateToken: BeforeGenerateToken }) => {
+    async (options: { body: unknown; onBeforeGenerateToken: BeforeGenerateToken; onUploadCompleted: UploadCompleted }) => {
       beforeGenerateToken = options.onBeforeGenerateToken;
+      onUploadCompleted = options.onUploadCompleted;
       const body = options.body as {
         payload?: {
           clientPayload?: string | null;
@@ -87,11 +93,14 @@ beforeEach(() => {
       };
 
       if (body.payload?.pathname && "clientPayload" in (body.payload ?? {})) {
-        await options.onBeforeGenerateToken(
+        const policy = await options.onBeforeGenerateToken(
           body.payload.pathname,
           body.payload.clientPayload ?? null,
           body.payload.multipart ?? false,
         );
+        if (typeof policy === "object" && policy !== null && "tokenPayload" in policy && typeof policy.tokenPayload === "string") {
+          issuedTokenPayload = policy.tokenPayload;
+        }
       }
 
       return { clientToken: "opaque-token", type: "blob.generate-client-token" };
@@ -161,14 +170,27 @@ describe("managed asset upload route", () => {
     expect(await response.json()).toEqual({ error: "authorization" });
   });
 
-  it("does not issue a second token while the same upload operation is in progress", async () => {
-    intentMocks.authorizeManagedAssetUpload.mockResolvedValueOnce("in_progress");
+  it.each(["in_progress", "uncertain"] as const)("does not issue a second token for an operation in state %s", async (state) => {
+    intentMocks.authorizeManagedAssetUpload.mockResolvedValueOnce(state);
     const response = await POST(request(payload(
       "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
       clientPayload(),
     )));
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ error: "uncertain_completion" });
+  });
+
+  it("allows a delayed completion callback to reconcile the original uncertain operation", async () => {
+    const response = await POST(request(payload(
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
+      clientPayload(),
+    )));
+    expect(response.status).toBe(200);
+    intentMocks.reconcileManagedAssetIntent.mockResolvedValueOnce({ status: "complete" });
+
+    await onUploadCompleted?.({ tokenPayload: issuedTokenPayload ?? null });
+
+    expect(intentMocks.reconcileManagedAssetIntent).toHaveBeenCalledWith("owner", "123e4567-e89b-12d3-a456-426614174000");
   });
 
   it.each([

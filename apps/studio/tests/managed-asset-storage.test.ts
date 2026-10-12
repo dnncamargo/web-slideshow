@@ -6,10 +6,10 @@ const uploadMocks = vi.hoisted(() => ({
 
 const authMocks = vi.hoisted(() => ({
   getFirebaseAuth: vi.fn(),
-  uploadSucceeded: false,
   intents: [] as Record<string, unknown>[],
+  uploadSucceeded: new Set<string>(),
+  recoveryStatuses: new Map<string, string>(),
   events: [] as string[],
-  localStorage: new Map<string, string>(),
 }));
 
 vi.mock("@vercel/blob/client", () => ({
@@ -20,7 +20,11 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
   getFirebaseAuth: authMocks.getFirebaseAuth,
 }));
 
-import { uploadManagedAsset } from "../src/features/persistence/managed-asset-storage";
+import {
+  listManagedAssetUploadIntents,
+  resumeManagedAssetUpload,
+  uploadManagedAsset,
+} from "../src/features/persistence/managed-asset-storage";
 import {
   BlobAccessError,
   BlobClientTokenExpiredError,
@@ -41,6 +45,7 @@ import {
 } from "../src/features/persistence/persistence-errors";
 
 const assetId = "123e4567-e89b-12d3-a456-426614174000";
+const secondAssetId = "123e4567-e89b-12d3-a456-426614174001";
 const user = {
   getIdToken: vi.fn(),
   isAnonymous: false,
@@ -53,52 +58,52 @@ function file(name = "font.ttf", type = "font/ttf", contents = "font-data") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => assetId) });
+  let uuidIndex = 0;
+  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => [assetId, secondAssetId][uuidIndex++] ?? "123e4567-e89b-12d3-a456-426614174002") });
   user.getIdToken.mockResolvedValue("firebase-id-token");
   authMocks.getFirebaseAuth.mockReturnValue({ currentUser: user });
-  let recoveryCount = 0;
-  let lastIntent: Record<string, unknown> | undefined;
-  authMocks.uploadSucceeded = false;
+  authMocks.uploadSucceeded.clear();
+  authMocks.recoveryStatuses.clear();
   authMocks.intents.length = 0;
   authMocks.events.length = 0;
-  authMocks.localStorage.clear();
-  vi.stubGlobal("window", {
-    localStorage: {
-      getItem: (key: string) => authMocks.localStorage.get(key) ?? null,
-      setItem: (key: string, value: string) => authMocks.localStorage.set(key, value),
-      removeItem: (key: string) => authMocks.localStorage.delete(key),
-    },
-  });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/managed-assets/intents") && init?.method !== "POST") {
       return new Response(JSON.stringify({ intents: authMocks.intents }), { status: 200 });
     }
     if (url.endsWith("/api/managed-assets/intents")) {
-      lastIntent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const lastIntent = JSON.parse(String(init?.body)) as Record<string, unknown>;
       authMocks.events.push("persist-intent");
-      if (!authMocks.intents.some((intent) => intent.assetId === lastIntent?.assetId)) authMocks.intents.push(lastIntent);
+      if (!authMocks.intents.some((intent) => intent.assetId === lastIntent?.assetId)) authMocks.intents.push({ ...lastIntent, state: "pending" });
       return new Response(JSON.stringify({ intent: lastIntent }), { status: 201 });
     }
-    recoveryCount += 1;
-    if (recoveryCount === 1) return new Response(JSON.stringify({ status: "absent" }), { status: 200 });
-    if (!authMocks.uploadSucceeded) return new Response(JSON.stringify({ status: "absent" }), { status: 200 });
-    const path = `users/user-1/assets/${String(lastIntent?.assetId)}${String(lastIntent?.extension)}`;
+    const recovery = JSON.parse(String(init?.body)) as { assetId: string };
+    const intent = authMocks.intents.find((candidate) => candidate.assetId === recovery.assetId);
+    const forcedStatus = authMocks.recoveryStatuses.get(recovery.assetId);
+    if (forcedStatus) return new Response(JSON.stringify({ status: forcedStatus }), { status: 200 });
+    if (!authMocks.uploadSucceeded.has(recovery.assetId)) {
+      return new Response(JSON.stringify({ status: intent?.state === "uploading" ? "in_progress" : "absent" }), { status: 200 });
+    }
+    const path = `users/user-1/assets/${String(intent?.assetId)}${String(intent?.extension)}`;
     return new Response(JSON.stringify({
       status: "complete",
       result: {
-        assetId: lastIntent?.assetId,
+        assetId: intent?.assetId,
         storagePath: path,
         downloadUrl: `https://blob.vercel-storage.com/${path}?download=1`,
-        contentType: lastIntent?.contentType,
-        sizeBytes: lastIntent?.expectedSizeBytes,
+        contentType: intent?.contentType,
+        sizeBytes: intent?.expectedSizeBytes,
         etag: "0123456789abcdef0123456789abcdef",
       },
     }), { status: 200 });
   }));
   uploadMocks.upload.mockImplementation(async (pathname: string, _file: File, options: { contentType: string }) => {
     authMocks.events.push("transfer-bytes");
-    authMocks.uploadSucceeded = true;
+    const operationId = pathname.match(/[0-9a-f-]{36}/i)?.[0];
+    const intent = authMocks.intents.find((candidate) => candidate.assetId === operationId);
+    if (intent) intent.state = "uploading";
+    if (operationId) authMocks.uploadSucceeded.add(operationId);
+    if (intent) intent.state = "complete";
     return {
       url: `https://blob.vercel-storage.com/${pathname}`,
       downloadUrl: `https://blob.vercel-storage.com/${pathname}?download=1`,
@@ -143,6 +148,102 @@ describe("uploadManagedAsset", () => {
         handleUploadUrl: "/api/managed-assets/upload",
       }),
     );
+  });
+
+  it("creates different physical identities for distinct uploads with identical file descriptors", async () => {
+    const sameFile = file("same-name.ttf");
+    const first = await uploadManagedAsset(sameFile);
+    const second = await uploadManagedAsset(sameFile);
+
+    expect(first.assetId).toBe(assetId);
+    expect(second.assetId).toBe(secondAssetId);
+    expect(first.storagePath).not.toBe(second.storagePath);
+    expect(uploadMocks.upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not reuse a prior completed intent when the browser identity is missing", async () => {
+    const sameFile = file("completed-before-reload.ttf");
+    authMocks.intents.push({
+      assetId: secondAssetId,
+      storagePath: `users/user-1/assets/${secondAssetId}.ttf`,
+      originalFilename: sameFile.name,
+      extension: ".ttf",
+      contentType: "font/ttf",
+      expectedSizeBytes: sameFile.size,
+      sourceLastModified: sameFile.lastModified,
+      state: "complete",
+    });
+    authMocks.uploadSucceeded.add(secondAssetId);
+
+    const result = await uploadManagedAsset(sameFile);
+
+    expect(result.assetId).toBe(assetId);
+    expect(uploadMocks.upload).toHaveBeenCalledWith(
+      `users/user-1/assets/${assetId}.ttf`,
+      sameFile,
+      expect.any(Object),
+    );
+  });
+
+  it("requires explicit asset selection when matching pending intents are ambiguous", async () => {
+    const sameFile = file("ambiguous.ttf");
+    for (const candidateId of [assetId, secondAssetId]) {
+      authMocks.intents.push({
+        assetId: candidateId,
+        storagePath: `users/user-1/assets/${candidateId}.ttf`,
+        originalFilename: sameFile.name,
+        extension: ".ttf",
+        contentType: "font/ttf",
+        expectedSizeBytes: sameFile.size,
+        sourceLastModified: sameFile.lastModified,
+        state: "pending",
+      });
+    }
+
+    expect(await listManagedAssetUploadIntents()).toHaveLength(2);
+    const resumed = await resumeManagedAssetUpload(sameFile, secondAssetId);
+    expect(resumed.assetId).toBe(secondAssetId);
+    expect(uploadMocks.upload.mock.calls[0]?.[0]).toBe(`users/user-1/assets/${secondAssetId}.ttf`);
+  });
+
+  it.each([
+    ["font-face.ttf", "font/ttf", ".ttf"],
+    ["library-image.png", "image/png", ".png"],
+  ])("resumes a selected %s operation using the shared uploader", async (filename, contentType, extension) => {
+    const selectedFile = file(filename, contentType);
+    authMocks.intents.push({
+      assetId: secondAssetId,
+      storagePath: `users/user-1/assets/${secondAssetId}${extension}`,
+      originalFilename: selectedFile.name,
+      extension,
+      contentType,
+      expectedSizeBytes: selectedFile.size,
+      sourceLastModified: selectedFile.lastModified,
+      state: "pending",
+    });
+
+    const result = await resumeManagedAssetUpload(selectedFile, secondAssetId);
+
+    expect(result.assetId).toBe(secondAssetId);
+    expect(result.storagePath).toBe(`users/user-1/assets/${secondAssetId}${extension}`);
+    expect(uploadMocks.upload).toHaveBeenCalledOnce();
+  });
+
+  it("blocks a new upload when an identical prior operation remains uncertain", async () => {
+    const sameFile = file("uncertain.ttf");
+    authMocks.intents.push({
+      assetId,
+      storagePath: `users/user-1/assets/${assetId}.ttf`,
+      originalFilename: sameFile.name,
+      extension: ".ttf",
+      contentType: "font/ttf",
+      expectedSizeBytes: sameFile.size,
+      sourceLastModified: sameFile.lastModified,
+      state: "uncertain",
+    });
+
+    await expect(uploadManagedAsset(sameFile)).rejects.toMatchObject({ category: "uncertain_completion" });
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
   it("uses the File MIME when no content type override is supplied", async () => {
@@ -216,34 +317,37 @@ describe("uploadManagedAsset", () => {
     expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
-  it("reuses an explicit UUID identity for retries of one upload operation", async () => {
-    await uploadManagedAsset(file("font.ttf"), { assetId });
-    await uploadManagedAsset(file("font.ttf"), { assetId });
+  it("resumes a selected UUID operation without issuing another transfer after completion", async () => {
+    const selectedFile = file("font.ttf");
+    await uploadManagedAsset(selectedFile);
+    await resumeManagedAssetUpload(selectedFile, assetId);
 
     expect(uploadMocks.upload.mock.calls.map(([pathname]) => pathname)).toEqual([
       `users/user-1/assets/${assetId}.ttf`,
     ]);
   });
 
-  it("persists the intent before transferring bytes and discovers it after a browser restart", async () => {
+  it("lists a persisted operation after reload and requires explicit selection to recover it", async () => {
     const sameFile = file("restart.ttf");
     uploadMocks.upload.mockImplementationOnce(async () => {
       authMocks.events.push("transfer-bytes");
+      const intent = authMocks.intents[0];
+      if (intent) intent.state = "uploading";
       throw new TypeError("connection ended after request");
     });
     await expect(uploadManagedAsset(sameFile)).rejects.toBeInstanceOf(ManagedAssetUploadError);
     expect(authMocks.events.indexOf("persist-intent")).toBeLessThan(authMocks.events.indexOf("transfer-bytes"));
-    const firstPath = uploadMocks.upload.mock.calls[0]?.[0];
-
-    authMocks.localStorage.clear();
-    await uploadManagedAsset(sameFile);
-    expect(uploadMocks.upload.mock.calls[1]?.[0]).toBe(firstPath);
-    expect(authMocks.intents).toHaveLength(1);
+    const operations = await listManagedAssetUploadIntents();
+    expect(operations).toHaveLength(1);
+    expect(operations[0]).toMatchObject({ assetId, state: "uploading" });
+    authMocks.recoveryStatuses.set(assetId, "uncertain");
+    await expect(resumeManagedAssetUpload(sameFile, assetId)).rejects.toMatchObject({ category: "uncertain_completion" });
+    expect(uploadMocks.upload).toHaveBeenCalledOnce();
   });
 
   it("recovers a completed physical upload when the client loses its upload response", async () => {
     uploadMocks.upload.mockImplementationOnce(async () => {
-      authMocks.uploadSucceeded = true;
+      authMocks.uploadSucceeded.add(assetId);
       throw new TypeError("response lost after physical completion");
     });
 
@@ -271,7 +375,7 @@ describe("uploadManagedAsset", () => {
     { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.ttf`, contentType: "application/octet-stream", etag: "0123456789abcdef0123456789abcdef" },
   ])("uses verified server metadata even when the client upload response is incomplete", async (response) => {
     uploadMocks.upload.mockImplementationOnce(async () => {
-      authMocks.uploadSucceeded = true;
+      authMocks.uploadSucceeded.add(assetId);
       return response;
     });
 

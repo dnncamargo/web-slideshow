@@ -168,7 +168,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (!match || match[2] !== payload.assetId) {
           throw new ManagedAssetRequestError("Upload identity does not match its intent.", "authorization");
         }
-        let authorization: "authorized" | "complete" | "in_progress";
+        let authorization: "authorized" | "complete" | "in_progress" | "uncertain";
         try {
           authorization = await authorizeManagedAssetUpload(
             user.uid,
@@ -188,7 +188,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
         if (authorization !== "authorized") {
           throw new ManagedAssetRequestError(
-            authorization === "complete" ? "Upload already completed." : "Upload is still in progress.",
+            authorization === "complete"
+              ? "Upload already completed."
+              : authorization === "in_progress"
+                ? "Upload is still in progress."
+                : "Upload completion is uncertain and requires reconciliation.",
             "uncertain_completion",
           );
         }

@@ -8,7 +8,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 const ETAG_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,512}$/;
 const ACTIVE_UPLOAD_LEASE_MS = 2 * 60 * 1000;
 
-export type ManagedAssetIntentState = "pending" | "uploading" | "complete" | "conflict";
+export type ManagedAssetIntentState = "pending" | "uploading" | "uncertain" | "complete" | "conflict";
 
 export interface ManagedAssetIntentInput {
   assetId: string;
@@ -125,18 +125,23 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
   try {
     physical = await head(intent.storagePath);
   } catch (error) {
-    if (!(error instanceof BlobNotFoundError)) return { status: "uncertain" };
+    const blobIsAbsent = error instanceof BlobNotFoundError;
     const ref = intentRef(uid, assetId);
     return firestore().runTransaction(async (transaction) => {
       const currentSnapshot = await transaction.get(ref);
       if (!currentSnapshot.exists) return { status: "conflict" };
       const current = currentSnapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
       if (current.state === "complete" || current.state === "conflict") return { status: "conflict" };
-      if (current.state === "uploading" && current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()) {
+      if (current.state === "pending" && blobIsAbsent) {
+        return { status: "absent" };
+      }
+      if (current.state === "uploading" && blobIsAbsent && current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()) {
         return { status: "in_progress" };
       }
-      transaction.update(ref, { state: "pending", updatedAt: FieldValue.serverTimestamp(), leaseExpiresAt: FieldValue.delete() });
-      return { status: "absent" };
+      if (current.state !== "uncertain") {
+        transaction.update(ref, { state: "uncertain", updatedAt: FieldValue.serverTimestamp() });
+      }
+      return { status: "uncertain" };
     });
   }
 
@@ -183,7 +188,7 @@ export async function authorizeManagedAssetUpload(
   storagePath: string,
   contentType: string,
   sizeBytes: number,
-): Promise<"authorized" | "complete" | "in_progress"> {
+): Promise<"authorized" | "complete" | "in_progress" | "uncertain"> {
   const intent = await getManagedAssetIntent(uid, assetId);
   if (!intent || intent.storagePath !== storagePath || intent.contentType !== contentType || intent.expectedSizeBytes !== sizeBytes) {
     throw new Error("intent_mismatch");
@@ -191,6 +196,7 @@ export async function authorizeManagedAssetUpload(
   const reconciled = await reconcileManagedAssetIntent(uid, assetId);
   if (reconciled.status === "complete") return "complete";
   if (reconciled.status === "in_progress") return "in_progress";
+  if (reconciled.status === "uncertain") return "uncertain";
   if (reconciled.status !== "absent") throw new Error(reconciled.status === "conflict" ? "intent_conflict" : "physical_uncertain");
 
   const ref = intentRef(uid, assetId);
@@ -201,7 +207,9 @@ export async function authorizeManagedAssetUpload(
     if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, storagePath)) throw new Error("intent_mismatch");
     if (current.state === "complete") return "complete";
     if (current.state === "conflict") throw new Error("intent_conflict");
-    if (current.state === "uploading" && current.leaseExpiresAt instanceof Timestamp && current.leaseExpiresAt.toMillis() > Date.now()) return "in_progress";
+    if (current.state === "uncertain") return "uncertain";
+    if (current.state === "uploading") return "in_progress";
+    if (current.state !== "pending") throw new Error("intent_conflict");
     transaction.update(ref, {
       state: "uploading",
       leaseExpiresAt: Timestamp.fromMillis(Date.now() + ACTIVE_UPLOAD_LEASE_MS),
