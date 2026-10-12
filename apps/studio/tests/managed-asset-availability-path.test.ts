@@ -10,7 +10,11 @@ import {
   managedFontFaceAvailabilityPath,
   presentationFileAvailabilityPath,
 } from "../src/features/custom-library/managed-asset-availability-path";
-import { configuredManagedAssetStoreId } from "../src/features/persistence/managed-asset-blob-identity";
+import {
+  configuredManagedAssetStoreId,
+  managedAssetBlobIdentityFromUrl,
+  normalizeManagedAssetStoreId,
+} from "../src/features/persistence/managed-asset-blob-identity";
 
 const uid = "owner-1";
 const assetId = "123e4567-e89b-42d3-a456-426614174000";
@@ -45,6 +49,26 @@ describe("managed asset availability identity", () => {
     expect(configuredManagedAssetStoreId("store-a", "vercel_blob_rw_store-b_secret")).toBeNull();
     expect(configuredManagedAssetStoreId("store-a", "malformed-token")).toBeNull();
     expect(configuredManagedAssetStoreId("store-a", undefined)).toBe("store-a");
+  });
+
+  it("preserves provider Store ID case and strips only the SDK's optional prefix", () => {
+    expect(normalizeManagedAssetStoreId("store_lower-store")).toBe("lower-store");
+    expect(normalizeManagedAssetStoreId("Mixed-Store")).toBe("Mixed-Store");
+    expect(normalizeManagedAssetStoreId("store_Mixed-Store")).toBe("Mixed-Store");
+    expect(configuredManagedAssetStoreId("store_Mixed-Store", "vercel_blob_rw_Mixed-Store_secret")).toBe("Mixed-Store");
+    expect(configuredManagedAssetStoreId("store_Mixed-Store", "vercel_blob_rw_mixed-store_secret")).toBeNull();
+  });
+
+  it("preserves the raw Blob hostname label because URL.hostname lowercases DNS names", () => {
+    const mixedCaseUrl = `https://Mixed-Store.public.blob.vercel-storage.com/${storagePath}`;
+    expect(new URL(mixedCaseUrl).hostname).toBe("mixed-store.public.blob.vercel-storage.com");
+    expect(managedAssetBlobIdentityFromUrl(mixedCaseUrl)).toEqual({ storeId: "Mixed-Store", storagePath });
+    expect(managedAssetBlobIdentityFromUrl(`https://store.public.blob.vercel-storage.com/${storagePath}`)).toEqual({
+      storeId: "store",
+      storagePath,
+    });
+    expect(managedAssetBlobIdentityFromUrl(`https://a.b.public.blob.vercel-storage.com/${storagePath}`)).toBeNull();
+    expect(managedAssetBlobIdentityFromUrl(`https://store_Mixed-Store.public.blob.vercel-storage.com/${storagePath}`)).toBeNull();
   });
 
   it("accepts an exact managed File association and rejects path or asset identity mismatches", () => {

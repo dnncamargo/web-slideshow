@@ -283,6 +283,17 @@ describe("managed asset controls", () => {
     expect(state.del).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves a mixed-case OIDC Store ID during normal physical deletion", async () => {
+    process.env.BLOB_STORE_ID = "store_Mixed-Store";
+    process.env.BLOB_READ_WRITE_TOKEN = "";
+    process.env.VERCEL_OIDC_TOKEN = "test-oidc-token";
+
+    await expect(deleteManagedAsset(owner, path)).resolves.toEqual({ alreadyMissing: false });
+
+    expect(state.head).toHaveBeenCalledWith(path, { storeId: "Mixed-Store" });
+    expect(state.del).toHaveBeenCalledWith(path, { storeId: "Mixed-Store" });
+  });
+
   it("keeps provider failures recoverable and allows retry after an uncertain delete", async () => {
     seedLogicalAssociations();
     state.del.mockRejectedValueOnce(new Error("provider unavailable"));
@@ -481,6 +492,23 @@ describe("managed asset controls", () => {
       cdnUrl,
     ]);
     expect(state.documents.get(intentPath)?.state).toBe("deleted");
+  });
+
+  it("reconciles mixed-case URL identity only against the exact configured Store ID", async () => {
+    seedActiveControl();
+    state.hasPhysical = false;
+    process.env.BLOB_STORE_ID = "store_Mixed-Store";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_Mixed-Store_test-token";
+    const mixedCaseUrl = `https://Mixed-Store.public.blob.vercel-storage.com/${path}`;
+    state.documents.set(intentPath, { state: "complete", storagePath: path, downloadUrl: mixedCaseUrl });
+    state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: mixedCaseUrl } } });
+
+    await expect(reconcileMissingManagedAsset(owner, path, "Mixed-Store")).resolves.toEqual({ alreadyReconciled: false });
+
+    expect(state.head).toHaveBeenCalledWith(path, { storeId: "Mixed-Store" });
+    expect(state.documents.has(filePath)).toBe(false);
+    expect(state.documents.get(intentPath)?.state).toBe("deleted");
+    expect((await readManagedAssetControl(owner, path))?.state).toBe("deleted");
   });
 
   it("resumes an expired reconciliation reservation only after fresh absence checks", async () => {

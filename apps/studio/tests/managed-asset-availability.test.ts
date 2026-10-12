@@ -79,4 +79,25 @@ describe("checkManagedAssetAvailability", () => {
     await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({ state: "unknown" });
     expect(mocks.head).not.toHaveBeenCalled();
   });
+
+  it("returns unknown without a provider request when the source Store identity is ambiguous", async () => {
+    await expect(checkManagedAssetAvailability(uid, pathname, null)).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
+
+  it("uses the exact mixed-case Store for OIDC and fails closed on a case-mismatched source identity", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_Mixed-Store");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "test-oidc-token");
+
+    await expect(checkManagedAssetAvailability(uid, pathname, "Mixed-Store")).resolves.toEqual({
+      state: "available",
+      storeId: "Mixed-Store",
+    });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "Mixed-Store" });
+
+    vi.clearAllMocks();
+    await expect(checkManagedAssetAvailability(uid, pathname, "mixed-store")).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
 });
