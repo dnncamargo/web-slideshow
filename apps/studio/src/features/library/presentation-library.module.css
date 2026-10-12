@@ -261,6 +261,9 @@
   border-bottom: 1px solid var(--ps-ui-border-subtle);
 }
 
+.workspaceHeadingWithAction { min-height: 0; }
+.workspaceHeadingWithAction > div:first-child { min-width: 0; }
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--ps-ui-text-muted);
@@ -1021,6 +1024,9 @@
 .storageControl input,.storageControl select { min-width: 0; max-width: 220px; padding: 7px 9px; border: 1px solid var(--ps-ui-border-default); border-radius: var(--ps-ui-radius-6); background: var(--ps-ui-background-control); color: var(--ps-ui-text-primary); font: inherit; font-size: 12px; }
 .storageControl:first-child { flex: 1 1 170px; }
 .storageLoadedCount { padding: 0 2px 8px; color: var(--ps-ui-text-muted); font-size: 11px; }
+.storageStatusRow { display: flex; min-height: 24px; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; }
+.storageStatusRow .storageUsage { justify-content: flex-start; text-align: left; }
+.storageStatusRow .storagePreviewFallback { margin: 0; }
 .storageFileInput { display: none; }
 .storageRows { display: grid; margin: 0; padding: 0; gap: 4px; list-style: none; }
 .storageRow { display: grid; width: 100%; min-width: 0; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--ps-ui-radius-8); background: transparent; color: var(--ps-ui-text-primary); font: inherit; text-align: left; cursor: pointer; }
@@ -1170,6 +1176,20 @@
     padding-bottom: 18px;
     border-bottom: 1px solid var(--ps-ui-border-subtle);
   }
+  .workspaceHeadingWithAction {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ps-ui-border-subtle);
+  }
+  .workspaceHeadingWithAction > div:first-child {
+    flex: 1 1 auto;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .workspaceHeadingWithAction > button { flex: 0 0 auto; }
   .toolbar {
     display: contents;
   }

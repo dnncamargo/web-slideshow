@@ -7,10 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   user: { uid: "owner-1", getIdToken: vi.fn(async () => "owner-token") },
   listIntents: vi.fn(async () => []),
-  upload: vi.fn(async () => ({ assetId: "asset-id", storagePath: "users/owner-1/assets/asset-id.txt", downloadUrl: "https://blob.example/asset-id.txt", contentType: "text/plain", sizeBytes: 8, etag: "provider-etag" })),
 }));
 vi.mock("../src/features/auth/studio-auth-provider", () => ({ useStudioAuth: () => ({ user: mocks.user }) }));
-vi.mock("../src/features/persistence/managed-asset-storage", () => ({ listManagedAssetUploadIntents: mocks.listIntents, uploadManagedAsset: mocks.upload }));
+vi.mock("../src/features/persistence/managed-asset-storage", () => ({ listManagedAssetUploadIntents: mocks.listIntents }));
+vi.mock("../src/features/library/storage-usage-indicator", () => ({ StorageUsageIndicator: () => <div data-storage-usage-indicator /> }));
 
 import { StudioI18nProvider, useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 import { StorageManager } from "../src/features/library/storage-manager";
@@ -26,15 +26,16 @@ function LocaleSetter({ locale }: { locale: "en" | "pt-BR" }) {
 
 function renderManager(
   locale: "en" | "pt-BR" = "en",
-  onUploaded = vi.fn(),
+  focusPathname: string | null = null,
   files: React.ComponentProps<typeof StorageManager>["files"] = [],
   fonts: React.ComponentProps<typeof StorageManager>["fonts"] = [],
 ) {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} onUploaded={onUploaded} /></StudioI18nProvider>));
-  return { host, root, onUploaded };
+  const onFocusResolved = vi.fn();
+  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} /></StudioI18nProvider>));
+  return { host, root, onFocusResolved };
 }
 
 const blob = (pathname: string, uploadedAt = "2026-01-02T03:04:05.000Z") => ({ pathname, url: `https://blob.example/${pathname.split("/").at(-1)}`, size: 8, uploadedAt, etag: "provider-etag" });
@@ -43,7 +44,6 @@ const response = (body: unknown, status = 200) => new Response(JSON.stringify(bo
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.listIntents.mockResolvedValue([]);
-  mocks.upload.mockResolvedValue({ assetId: "asset-id", storagePath: "users/owner-1/assets/asset-id.txt", downloadUrl: "https://blob.example/asset-id.txt", contentType: "text/plain", sizeBytes: 8, etag: "provider-etag" });
 });
 afterEach(() => { document.body.innerHTML = ""; vi.restoreAllMocks(); });
 
@@ -186,7 +186,7 @@ describe("Storage manager", () => {
       items: [blob("users/owner-1/assets/extensionless-file"), blob("users/owner-1/assets/extensionless-font")],
       hasMore: false,
     })));
-    const { host, root } = renderManager("en", vi.fn(), [legacyFile], [libraryFont]);
+    const { host, root } = renderManager("en", null, [legacyFile], [libraryFont]);
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(host.textContent).toContain("legacy-notes.txt");
     expect(host.textContent).toContain("Fixture Sans");
@@ -213,35 +213,42 @@ describe("Storage manager", () => {
     act(() => root.unmount());
   });
 
-  it("routes Storage uploads through the shared durable upload helper and refreshes", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({ scope: "owner", items: [], hasMore: false })));
-    const { host, root, onUploaded } = renderManager();
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    const fileInput = host.querySelector<HTMLInputElement>("input[type=file]");
-    const file = new File(["hello"], "hello.txt", { type: "text/plain", lastModified: 10 });
-    await act(async () => {
-      Object.defineProperty(fileInput, "files", { configurable: true, value: [file] });
-      fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve(); await Promise.resolve();
+  it("locates and selects an exact physical object outside the loaded inventory page", async () => {
+    const pathname = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
+    const physical = { ...blob(pathname), url: "https://blob.example/exact.woff2", etag: "exact-etag", contentType: "font/woff2" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") {
+        return response({ scope: "owner", items: [blob("users/owner-1/assets/other.png")], hasMore: false });
+      }
+      if (url === `/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`) {
+        return response(physical);
+      }
+      return response({ contentType: "font/woff2", size: 8 });
     });
-    expect(mocks.upload).toHaveBeenCalledWith(file, { contentType: "text/plain" });
-    expect(onUploaded).toHaveBeenCalledTimes(1);
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root, onFocusResolved } = renderManager("en", pathname);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(expect.arrayContaining([
+      "/api/managed-assets/inventory",
+      `/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`,
+    ]));
+    expect(onFocusResolved).toHaveBeenCalledWith(pathname);
+    expect(host.querySelector("[data-storage-details]")?.textContent).toContain(pathname);
+    expect(host.querySelector("[data-storage-details]")?.textContent).toContain("exact-etag");
+    expect(host.textContent).toContain("Fonts");
+    expect(fetchMock).toHaveBeenCalledWith(`/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`, expect.objectContaining({ cache: "no-store" }));
+    expect(onFocusResolved).toHaveBeenCalledWith(pathname);
     act(() => root.unmount());
   });
 
-  it("rejects unsupported extensions before invoking the shared uploader", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({ scope: "owner", items: [], hasMore: false })));
+  it("keeps inventory failure distinct from an empty inventory", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({ error: "unavailable" }, 503)));
     const { host, root } = renderManager();
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    const fileInput = host.querySelector<HTMLInputElement>("input[type=file]");
-    const file = new File(["bad"], "program.exe", { type: "text/plain" });
-    await act(async () => {
-      Object.defineProperty(fileInput, "files", { configurable: true, value: [file] });
-      fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-    });
-    expect(mocks.upload).not.toHaveBeenCalled();
-    expect(host.textContent).toContain("This file type is not supported.");
+    expect(host.textContent).toContain("Could not load files.");
+    expect(host.textContent).not.toContain("No files uploaded yet.");
+    expect(host.querySelector("[data-storage-usage-indicator]")).toBeTruthy();
     act(() => root.unmount());
   });
 });

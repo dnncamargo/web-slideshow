@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ verify: vi.fn(), head: vi.fn() }));
+const mocks = vi.hoisted(() => ({ verify: vi.fn(), head: vi.fn(), listObject: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ BlobNotFoundError: class BlobNotFoundError extends Error {}, head: mocks.head }));
 vi.mock("../src/features/auth/firebase-admin-auth", () => ({ verifyFirebaseIdToken: mocks.verify }));
+vi.mock("../src/features/persistence/managed-asset-inventory", () => ({ getManagedAssetInventoryObject: mocks.listObject }));
 
 import { GET } from "../src/app/api/managed-assets/metadata/route";
 
@@ -11,6 +12,7 @@ beforeEach(() => {
   vi.stubEnv("BLOB_STORE_ID", "mock-store");
   mocks.verify.mockResolvedValue({ uid: "owner-1" });
   mocks.head.mockResolvedValue({ pathname: "users/owner-1/assets/legacy", contentType: "text/plain", size: 12 });
+  mocks.listObject.mockResolvedValue({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag" });
 });
 
 describe("managed asset selected metadata route", () => {
@@ -19,7 +21,8 @@ describe("managed asset selected metadata route", () => {
     expect(response.status).toBe(200);
     expect(mocks.head).toHaveBeenCalledWith("users/owner-1/assets/legacy", { storeId: "mock-store" });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(await response.json()).toEqual({ contentType: "text/plain", size: 12 });
+    expect(mocks.listObject).toHaveBeenCalledWith("owner-1", "users/owner-1/assets/legacy");
+    expect(await response.json()).toEqual({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag", contentType: "text/plain" });
   });
   it("rejects cross-owner paths before calling Blob and bounds pathname input", async () => {
     const response = await GET(new Request("https://studio.example/api/managed-assets/metadata?pathname=users%2Fowner-2%2Fassets%2Flegacy", { headers: { Authorization: "Bearer id-token" } }));

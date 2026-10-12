@@ -2247,4 +2247,48 @@ describe("presentation library workspace controls", () => {
     expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent?.trim() === "Files")).toBe(false);
     expect(findButton(container, "Storage")).toBeTruthy();
   });
+
+  it("keeps Fonts free of Storage requests and places acquisition and upload beside their headings", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/usage")) return new Response(JSON.stringify({ scope: "owner", objectCount: 0, bytesUsed: 0, measuredAt: "2026-01-01T00:00:00.000Z", quotaStatus: "unknown" }), { status: 200 });
+      return new Response(JSON.stringify({ scope: "owner", items: [], hasMore: false }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+    const fontHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    const addFont = findButton(container, "+ Add font");
+    expect(fontHeader?.contains(addFont)).toBe(true);
+    expect(container.textContent).not.toContain("Your storage");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    act(() => findButton(container, "Storage").click());
+    await flushWorkspaceEffects();
+    const storageHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    const upload = findButton(container, "Upload file");
+    expect(storageHeader?.contains(upload)).toBe(true);
+    expect(container.querySelector("[data-storage-manager]")?.contains(upload)).toBe(false);
+    await flushWorkspaceEffects();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(expect.arrayContaining([
+      expect.stringContaining("/api/managed-assets/inventory"),
+      expect.stringContaining("/api/managed-assets/usage"),
+    ]));
+
+    const file = new File(["hello"], "hello.txt", { type: "text/plain", lastModified: 10 });
+    const uploadInputs = container.querySelectorAll<HTMLInputElement>('input[aria-label="Upload file"][hidden]');
+    const input = uploadInputs.item(uploadInputs.length - 1);
+    expect(input).toBeTruthy();
+    await act(async () => {
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
+      input?.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "text/plain" });
+  });
 });

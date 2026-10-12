@@ -105,7 +105,6 @@ import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-
 import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
 import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
 import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
-import { StorageUsageIndicator } from "./storage-usage-indicator";
 import { StorageManager } from "./storage-manager";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
@@ -250,6 +249,9 @@ export function PresentationLibrary({
   const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
   const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
   const [storageUsageRefreshKey, setStorageUsageRefreshKey] = useState(0);
+  const [storageUploadError, setStorageUploadError] = useState<string | null>(null);
+  const [storageUploading, setStorageUploading] = useState(false);
+  const [storageFocusPathname, setStorageFocusPathname] = useState<string | null>(null);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -311,6 +313,7 @@ export function PresentationLibrary({
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const customLibraryFileInputRef = useRef<HTMLInputElement>(null);
+  const storageFileInputRef = useRef<HTMLInputElement>(null);
   const folderRenameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -482,6 +485,7 @@ export function PresentationLibrary({
 
   const handleDestinationChange = useCallback((next: LibraryDestination) => {
     setDestination(next);
+    if (next !== "storage") setStorageFocusPathname(null);
     setSelectedId(null);
     setRenamingFolderId(null);
     setRenamingFolderValue("");
@@ -505,6 +509,34 @@ export function PresentationLibrary({
       setCustomLibraryFontError(null);
     }
   }, [customLibraryFontWriteState]);
+
+  const handleStorageUpload = useCallback(async (event: ReactChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || storageUploading) return;
+    setStorageUploading(true);
+    setStorageUploadError(null);
+    try {
+      const classification = classifyCustomLibraryFile(file);
+      await uploadManagedAsset(file, { contentType: classification.contentType });
+      setStorageUsageRefreshKey((value) => value + 1);
+    } catch (error) {
+      setStorageUploadError(error instanceof UnsupportedCustomLibraryFileError
+        ? t("customLibrary.uploadError.unsupportedType")
+        : t(customLibraryUploadErrorKey(error)));
+    } finally {
+      event.target.value = "";
+      setStorageUploading(false);
+    }
+  }, [storageUploading, t]);
+
+  const handleViewFontInStorage = useCallback((pathname: string) => {
+    setStorageFocusPathname(pathname);
+    handleDestinationChange("storage");
+  }, [handleDestinationChange]);
+
+  const handleStorageFocusResolved = useCallback((pathname: string) => {
+    setStorageFocusPathname((current) => current === pathname ? null : current);
+  }, []);
 
   const handleToggleSelection = useCallback((id: string) => {
     setSelectedId((current) => (current === id ? null : id));
@@ -1540,6 +1572,14 @@ export function PresentationLibrary({
           onChange={(event) => void handleUploadCustomLibraryFile(event)}
           aria-label={t("customLibrary.fileBrowser.upload")}
         />
+        <input
+          ref={storageFileInputRef}
+          type="file"
+          accept={CUSTOM_LIBRARY_FILE_ACCEPT}
+          hidden
+          onChange={(event) => void handleStorageUpload(event)}
+          aria-label={t("library.storage.upload")}
+        />
         <StudioSidebar
           destination={destination}
           onDestinationChange={handleDestinationChange}
@@ -1554,7 +1594,7 @@ export function PresentationLibrary({
         />
 
         <main className={styles.main}>
-          <div className={styles.workspaceHeading}>
+          <div className={`${styles.workspaceHeading} ${storageDestination || fontsDestination ? styles.workspaceHeadingWithAction : ""}`}>
             <div>
               <p className={styles.eyebrow}>
                 {destinationSectionTitle(destination, t)}
@@ -1606,10 +1646,6 @@ export function PresentationLibrary({
                   )}
                 </h1>
               )}
-              <StorageUsageIndicator
-                enabled={storageDestination || fontsDestination || filesDestination}
-                refreshKey={storageUsageRefreshKey}
-              />
             </div>
             {presentationDestination ? (
               <PresentationToolbar
@@ -1652,7 +1688,6 @@ export function PresentationLibrary({
             ) : null}
             {fontsDestination && customLibraryFontStatus === "ready" ? (
               <Button
-                className={styles.mobileHidden}
                 size="compact"
                 disabled={fontMutationPending || customLibraryFontAuthoring}
                 onClick={() => {
@@ -1661,6 +1696,15 @@ export function PresentationLibrary({
                 }}
               >
                 {t("customLibrary.fontManagement.add")}
+              </Button>
+            ) : null}
+            {storageDestination ? (
+              <Button
+                size="compact"
+                disabled={storageUploading}
+                onClick={() => storageFileInputRef.current?.click()}
+              >
+                {storageUploading ? t("library.storage.uploading") : t("library.storage.upload")}
               </Button>
             ) : null}
             {filesDestination && customLibraryFileStatus === "ready" ? (
@@ -1685,7 +1729,11 @@ export function PresentationLibrary({
                 key={storageUsageRefreshKey}
                 files={customLibraryFiles}
                 fonts={customLibraryFonts}
-                onUploaded={() => setStorageUsageRefreshKey((value) => value + 1)}
+                uploading={storageUploading}
+                uploadError={storageUploadError}
+                usageRefreshKey={storageUsageRefreshKey}
+                focusPathname={storageFocusPathname}
+                onFocusResolved={handleStorageFocusResolved}
               />
             ) : <>
             <section
@@ -1902,6 +1950,8 @@ export function PresentationLibrary({
                   record={selectedCustomLibraryFont}
                   pending={fontMutationPending}
                   onDelete={handleRequestCustomLibraryFontDelete}
+                  ownerId={user?.uid ?? null}
+                  onViewInStorage={handleViewFontInStorage}
                 />
               )
             ) : filesDestination ? (

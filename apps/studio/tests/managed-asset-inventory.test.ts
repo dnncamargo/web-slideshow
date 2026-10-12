@@ -5,6 +5,7 @@ vi.mock("@vercel/blob", () => ({ list: blob.list }));
 
 import {
   isValidManagedAssetInventoryCursor,
+  getManagedAssetInventoryObject,
   listManagedAssetInventoryPage,
   MANAGED_ASSET_INVENTORY_PAGE_SIZE,
 } from "../src/features/persistence/managed-asset-inventory";
@@ -43,6 +44,15 @@ describe("managed asset inventory", () => {
     await expect(listManagedAssetInventoryPage("owner-1", "opaque-current")).rejects.toThrow(/cursor/i);
     expect(isValidManagedAssetInventoryCursor("cursor")).toBe(true);
     expect(isValidManagedAssetInventoryCursor("bad\nvalue")).toBe(false);
+  });
+
+  it("resolves one exact object independently of the current inventory cursor", async () => {
+    blob.list.mockResolvedValueOnce({ blobs: [item("users/owner-1/assets/target.woff2")], hasMore: true, cursor: "other-page" });
+    await expect(getManagedAssetInventoryObject("owner-1", "users/owner-1/assets/target.woff2"))
+      .resolves.toMatchObject({ pathname: "users/owner-1/assets/target.woff2", etag: "etag-value" });
+    expect(blob.list).toHaveBeenCalledWith(expect.objectContaining({
+      prefix: "users/owner-1/assets/target.woff2", limit: MANAGED_ASSET_INVENTORY_PAGE_SIZE,
+    }));
   });
 
   it.each([

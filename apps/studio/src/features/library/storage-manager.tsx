@@ -7,7 +7,6 @@ import { Button } from "@web-slideshow/ui";
 import { useStudioAuth } from "../auth/studio-auth-provider";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
-import { classifySupportedFileName, CUSTOM_LIBRARY_FILE_ACCEPT } from "../custom-library/custom-library-file-classification";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { StudioMessageKey } from "../i18n/studio-i18n";
 import {
@@ -15,9 +14,9 @@ import {
   MANAGED_ASSET_EXTENSIONS,
   type ManagedAssetCategory,
 } from "../persistence/managed-asset-content-types";
-import { listManagedAssetUploadIntents, uploadManagedAsset } from "../persistence/managed-asset-storage";
-import { FirebaseAuthenticationError, ManagedAssetUploadError } from "../persistence/persistence-errors";
+import { listManagedAssetUploadIntents } from "../persistence/managed-asset-storage";
 import type { ManagedAssetUploadIntent } from "../persistence/managed-asset-storage";
+import { StorageUsageIndicator } from "./storage-usage-indicator";
 import styles from "./presentation-library.module.css";
 
 interface InventoryItem {
@@ -72,7 +71,7 @@ function knownContentType(item: InventoryItem, intents: readonly ManagedAssetUpl
   const file = files.find((entry) => entry.file.source.storagePath === item.pathname);
   if (file) return file.file.source.contentType;
   const face = fonts.flatMap((entry) => entry.font.faces).find((candidate) => {
-    try { return new URL(candidate.source.url).pathname.endsWith(item.pathname); } catch { return false; }
+    try { return new URL(candidate.source.url).pathname.replace(/^\/+/, "") === item.pathname; } catch { return false; }
   });
   switch (face?.source.format) {
     case "truetype": return "font/ttf";
@@ -155,33 +154,13 @@ async function readBoundedText(response: Response, maximumBytes: number): Promis
   }
 }
 
-function uploadErrorKey(error: unknown): StudioMessageKey {
-  if (error instanceof FirebaseAuthenticationError) return "customLibrary.uploadError.authentication";
-  if (error instanceof ManagedAssetUploadError) {
-    switch (error.category) {
-      case "unsupported_type": return "customLibrary.uploadError.unsupportedType";
-      case "file_too_large": return "customLibrary.uploadError.fileTooLarge";
-      case "store_suspended": return "customLibrary.uploadError.storeSuspended";
-      case "authentication": return "customLibrary.uploadError.authentication";
-      case "authorization": return "customLibrary.uploadError.authorization";
-      case "rate_limited": return "customLibrary.uploadError.rateLimited";
-      case "network": return "customLibrary.uploadError.network";
-      case "service_unavailable": return "customLibrary.uploadError.serviceUnavailable";
-      case "uncertain_completion": return "customLibrary.uploadError.uncertainCompletion";
-      case "quota_exceeded": return "customLibrary.uploadError.quotaExceeded";
-      case "unknown": return "customLibrary.uploadError.unknown";
-    }
-  }
-  return "customLibrary.uploadError.unknown";
-}
-
 function logicalName(item: InventoryItem, intents: readonly ManagedAssetUploadIntent[], files: readonly CustomLibraryFileRecord[], fonts: readonly CustomLibraryFontRecord[]): string | null {
   const intent = intents.find((entry) => entry.storagePath === item.pathname && entry.state === "complete");
   if (intent) return intent.originalFilename;
   const file = files.find((entry) => entry.file.source.storagePath === item.pathname);
   if (file) return file.file.name;
   const font = fonts.find((entry) => entry.font.faces.some((face) => {
-    try { return new URL(face.source.url).pathname.endsWith(item.pathname); } catch { return false; }
+    try { return new URL(face.source.url).pathname.replace(/^\/+/, "") === item.pathname; } catch { return false; }
   }));
   return font?.font.family ?? null;
 }
@@ -193,13 +172,19 @@ function categoryLabel(category: Category, t: (key: StudioMessageKey) => string)
 export interface StorageManagerProps {
   files: readonly CustomLibraryFileRecord[];
   fonts: readonly CustomLibraryFontRecord[];
-  onUploaded: () => void;
+  uploading: boolean;
+  uploadError: string | null;
+  usageRefreshKey: number;
+  focusPathname: string | null;
+  onFocusResolved: (pathname: string) => void;
 }
 
-export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps) {
+export function StorageManager({ files, fonts, uploading, uploadError, usageRefreshKey, focusPathname, onFocusResolved }: StorageManagerProps) {
   const { user } = useStudioAuth();
   const { locale, t } = useStudioI18n();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [focusedItem, setFocusedItem] = useState<InventoryItem | null>(null);
+  const [focusError, setFocusError] = useState(false);
   const [intents, setIntents] = useState<ManagedAssetUploadIntent[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -214,18 +199,18 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pageError, setPageError] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"id" | "url" | null>(null);
   const [copyError, setCopyError] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef(0);
+  const userRef = useRef(user);
   const pathnamesRef = useRef(new Set<string>());
   const cursorSetRef = useRef(new Set<string>());
   const ownerId = user?.uid ?? null;
 
+  useEffect(() => { userRef.current = user; }, [user]);
+
   const fetchPage = useCallback(async (nextCursor: string | null, append: boolean, request: number) => {
-    const activeUser = user;
+    const activeUser = userRef.current;
     if (!activeUser || !ownerId) { setStatus("error"); setLoadingMore(false); return; }
     try {
       const token = await activeUser.getIdToken();
@@ -240,7 +225,9 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
       if (body.hasMore && body.cursor && cursorSetRef.current.has(body.cursor)) throw new Error("Repeated inventory cursor.");
       body.items.forEach((item) => pathnamesRef.current.add(item.pathname));
       if (body.hasMore && body.cursor) cursorSetRef.current.add(body.cursor);
-      setItems((current) => append ? [...current, ...body.items] : body.items);
+      setItems((current) => append
+        ? [...current, ...body.items.filter((item) => !current.some((existing) => existing.pathname === item.pathname))]
+        : body.items);
       setCursor(body.cursor ?? null);
       setHasMore(body.hasMore);
       setStatus("ready");
@@ -251,18 +238,56 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
     } finally {
       if (requestRef.current === request) setLoadingMore(false);
     }
-  }, [ownerId, user]);
+  }, [ownerId]);
 
   const loadFirstPage = useCallback(() => {
     const request = requestRef.current + 1;
     requestRef.current = request;
     pathnamesRef.current.clear();
     cursorSetRef.current.clear();
-    setItems([]); setCursor(null); setHasMore(false); setSelectedPath(null); setMetadata(null);
+    setItems([]); setFocusedItem(null); setFocusError(false); setCursor(null); setHasMore(false); setSelectedPath(null); setMetadata(null);
     setStatus("loading");
     void fetchPage(null, false, request);
     void listManagedAssetUploadIntents().then(setIntents, () => setIntents([]));
   }, [fetchPage]);
+
+  useEffect(() => {
+    const activeUser = userRef.current;
+    if (!focusPathname || !activeUser) return;
+    let active = true;
+    void (async () => {
+      try {
+        const token = await activeUser.getIdToken();
+        const response = await fetch(`/api/managed-assets/metadata?pathname=${encodeURIComponent(focusPathname)}`, {
+          headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Physical object could not be resolved.");
+        const value: unknown = await response.json();
+        if (typeof value !== "object" || value === null) throw new Error("Invalid physical metadata.");
+        const body = value as Record<string, unknown>;
+        if (
+          body.pathname !== focusPathname || typeof body.url !== "string" ||
+          typeof body.size !== "number" || typeof body.uploadedAt !== "string" ||
+          typeof body.etag !== "string" || typeof body.contentType !== "string"
+        ) throw new Error("Invalid physical metadata.");
+        if (!active) return;
+        setFocusedItem({
+          pathname: body.pathname,
+          url: body.url,
+          size: body.size,
+          uploadedAt: body.uploadedAt,
+          etag: body.etag,
+        });
+        setSelectedPath(focusPathname);
+        setFocusError(false);
+      } catch {
+        if (active) setFocusError(true);
+      } finally {
+        if (active) onFocusResolved(focusPathname);
+      }
+    })();
+    return () => { active = false; };
+  }, [focusPathname, onFocusResolved, ownerId]);
 
   useEffect(() => {
     let active = true;
@@ -270,17 +295,19 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
     return () => { active = false; requestRef.current += 1; };
   }, [loadFirstPage]);
 
-  const selected = items.find((item) => item.pathname === selectedPath) ?? null;
+  const selected = items.find((item) => item.pathname === selectedPath)
+    ?? (focusedItem?.pathname === selectedPath ? focusedItem : null);
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      if (!selected || !user) { setMetadata(null); setPreview(null); return; }
+      const activeUser = userRef.current;
+      if (!selected || !activeUser) { setMetadata(null); setPreview(null); return; }
       setMetadata(null); setMetadataError(false); setPreview(null); setPreviewError(false);
       void (async () => {
       try {
-        const token = await user.getIdToken();
+        const token = await activeUser.getIdToken();
         const response = await fetch(`/api/managed-assets/metadata?pathname=${encodeURIComponent(selected.pathname)}`, {
           headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
         });
@@ -311,7 +338,7 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
       })();
     });
     return () => { active = false; };
-  }, [selected, user]);
+  }, [selected, ownerId]);
 
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase(locale);
@@ -330,21 +357,6 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
     setCopyError(false); setCopied(null);
     try { await navigator.clipboard.writeText(value); setCopied(kind); }
     catch { setCopyError(true); }
-  };
-
-  const handleUpload = async (file: File | undefined) => {
-    if (!file || uploading) return;
-    setUploading(true); setUploadError(null);
-    try {
-      const classification = classifySupportedFileName(file.name);
-      if (!classification) {
-        setUploadError(t("customLibrary.uploadError.unsupportedType"));
-        return;
-      }
-      await uploadManagedAsset(file, { contentType: classification.contentType });
-      onUploaded();
-    } catch (error) { setUploadError(t(uploadErrorKey(error))); }
-    finally { setUploading(false); if (inputRef.current) inputRef.current.value = ""; }
   };
 
   const selectedName = selected ? logicalName(selected, intents, files, fonts) ?? shortId(selected) : "";
@@ -367,10 +379,13 @@ export function StorageManager({ files, fonts, onUploaded }: StorageManagerProps
             <option value="date-desc">{t("library.storage.newest")}</option><option value="date-asc">{t("library.storage.oldest")}</option><option value="type">{t("library.storage.type")}</option>
           </select></label>
           <span className={styles.storageLoadedCount}>{t("library.storage.loadedCount", { count: items.length })}</span>
-          <Button variant="primary" disabled={uploading} onClick={() => inputRef.current?.click()}>{uploading ? t("library.storage.uploading") : t("library.storage.upload")}</Button>
         </div>
-        <input ref={inputRef} type="file" accept={CUSTOM_LIBRARY_FILE_ACCEPT} className={styles.storageFileInput} aria-label={t("library.storage.upload")} disabled={uploading} onChange={(event) => void handleUpload(event.target.files?.[0])} />
+        <div className={styles.storageStatusRow}>
+          <StorageUsageIndicator enabled={true} refreshKey={usageRefreshKey} />
+          {focusError ? <p className={styles.storagePreviewFallback} role="status">{t("library.storage.focusUnavailable")}</p> : null}
+        </div>
         {uploadError ? <p className={styles.errorText} role="alert">{uploadError}</p> : null}
+        {uploading ? <p className={styles.stateBlock} role="status">{t("library.storage.uploading")}</p> : null}
         {status === "loading" ? <p className={styles.stateBlock}>{t("library.storage.loading")}</p> : null}
         {status === "error" ? <div className={styles.stateBlock}><p>{t("library.storage.loadFailed")}</p><Button size="compact" onClick={loadFirstPage}>{t("library.retry")}</Button></div> : null}
         {status === "ready" && items.length === 0 ? <p className={styles.stateBlock}>{t("library.storage.empty")}</p> : null}

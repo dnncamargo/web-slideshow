@@ -115,3 +115,27 @@ export async function listManagedAssetInventoryPage(uid: string, cursor: string 
     controller.abort();
   }
 }
+
+export async function getManagedAssetInventoryObject(uid: string, pathname: string): Promise<ManagedAssetInventoryItem | null> {
+  if (!uid.trim() || uid.includes("/") || !pathname.startsWith(`users/${uid}/assets/`) || !isValidManagedAssetInventoryCursor(pathname)) {
+    throw new Error("Managed asset inventory request is invalid.");
+  }
+  const storeId = getEffectiveStoreId();
+  assertConfiguration(storeId);
+  const prefix = `users/${uid}/assets/`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), MANAGED_ASSET_INVENTORY_TIMEOUT_MS);
+  try {
+    const result: unknown = await listWithCancellation({
+      mode: "expanded", prefix: pathname, limit: MANAGED_ASSET_INVENTORY_PAGE_SIZE, storeId,
+      abortSignal: controller.signal,
+    }, controller.signal);
+    if (!isListResult(result)) throw new Error("Invalid Blob listing.");
+    const seen = new Set<string>();
+    const items = result.blobs.map((blob) => validateBlob(blob, prefix, seen));
+    return items.find((item) => item.pathname === pathname) ?? null;
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+  }
+}

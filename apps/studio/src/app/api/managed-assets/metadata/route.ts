@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
 import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
+import { getManagedAssetInventoryObject } from "../../../../features/persistence/managed-asset-inventory";
 
 export const dynamic = "force-dynamic";
 const PREFIX_PATTERN = /^users\/([^/]+)\/assets\//;
@@ -21,15 +22,18 @@ export async function GET(request: Request): Promise<NextResponse> {
     const storeId = process.env.BLOB_STORE_ID?.trim();
     if (!storeId) return NextResponse.json({ error: "unavailable" }, { status: 503 });
     const blob = await head(pathname, { storeId });
+    const inventoryItem = await getManagedAssetInventoryObject(user.uid, pathname);
+    if (!inventoryItem) return NextResponse.json({ error: "not_found" }, { status: 404 });
     if (
       blob.pathname !== pathname || typeof blob.contentType !== "string" ||
       blob.contentType.length === 0 || blob.contentType.length > 256 ||
       !/^[\x20-\x7e]+$/.test(blob.contentType) ||
-      typeof blob.size !== "number" || !Number.isSafeInteger(blob.size) || blob.size < 0
+      typeof blob.size !== "number" || !Number.isSafeInteger(blob.size) || blob.size < 0 ||
+      blob.size !== inventoryItem.size
     ) {
       return NextResponse.json({ error: "unavailable" }, { status: 503 });
     }
-    return NextResponse.json({ contentType: blob.contentType, size: blob.size }, {
+    return NextResponse.json({ ...inventoryItem, contentType: blob.contentType }, {
       headers: { "Cache-Control": "private, no-store", Vary: "Authorization" },
     });
   } catch (error) {
