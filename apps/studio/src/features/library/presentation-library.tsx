@@ -104,8 +104,6 @@ import { CustomLibraryPaletteDeleteDialog } from "../custom-library/custom-libra
 import { CustomLibraryFontBrowser } from "../custom-library/custom-library-font-browser";
 import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-details";
 import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
-import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
-import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
 import { StorageUsageIndicator } from "./storage-usage-indicator";
 import { ManagedAssetInventory } from "./managed-asset-inventory";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
@@ -137,7 +135,7 @@ type LibraryPaletteAuthoringState =
   | null;
 
 const SELECTION_INTERACTIVE_SELECTOR =
-  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row], [data-custom-library-font-row], [data-custom-library-file-row]";
+  "button, a, input, select, textarea, [role='button'], [data-presentation-row], [data-custom-library-row], [data-custom-library-palette-row], [data-custom-library-font-row]";
 
 function destinationTitle(
   destination: LibraryDestination,
@@ -161,8 +159,6 @@ function destinationTitle(
       return t("library.palettes");
     case "fonts":
       return t("library.fonts");
-    case "files":
-      return t("library.files");
   }
 }
 
@@ -253,6 +249,7 @@ export function PresentationLibrary({
   const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
   const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
   const [storageUsageRefreshKey, setStorageUsageRefreshKey] = useState(0);
+  const [storageInventoryRefreshKey, setStorageInventoryRefreshKey] = useState(0);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -391,7 +388,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "styles") return;
-    void loadCustomLibraryItems();
+    queueMicrotask(() => void loadCustomLibraryItems());
   }, [destination, loadCustomLibraryItems]);
 
   const loadCustomLibraryPalettes = useCallback(async () => {
@@ -415,7 +412,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "palettes") return;
-    void loadCustomLibraryPalettes();
+    queueMicrotask(() => void loadCustomLibraryPalettes());
   }, [destination, loadCustomLibraryPalettes]);
 
   const loadCustomLibraryFonts = useCallback(async () => {
@@ -463,8 +460,8 @@ export function PresentationLibrary({
   }, [customLibraryFileRepository, t]);
 
   useEffect(() => {
-    if (destination !== "files") return;
-    void loadCustomLibraryFiles();
+    if (destination !== "storage") return;
+    queueMicrotask(() => void loadCustomLibraryFiles());
   }, [destination, loadCustomLibraryFiles]);
 
   useEffect(() => {
@@ -519,10 +516,6 @@ export function PresentationLibrary({
 
   const handleToggleCustomLibraryPaletteSelection = useCallback((id: string) => {
     setSelectedCustomLibraryPaletteId((current) => (current === id ? null : id));
-  }, []);
-
-  const handleToggleCustomLibraryFileSelection = useCallback((id: string) => {
-    setSelectedCustomLibraryFileId((current) => (current === id ? null : id));
   }, []);
 
   const handleWorkspaceKeyDown = useCallback(
@@ -664,7 +657,10 @@ export function PresentationLibrary({
             sizeBytes: upload.sizeBytes,
           },
         } satisfies CustomLibraryFileRecord["file"];
-        if (mountedRef.current) setStorageUsageRefreshKey((value) => value + 1);
+        if (mountedRef.current) {
+          setStorageUsageRefreshKey((value) => value + 1);
+          setStorageInventoryRefreshKey((value) => value + 1);
+        }
         setCustomLibraryFileUploadState("saving");
         try {
           await saveCustomLibraryFileDraft(draft);
@@ -1471,7 +1467,6 @@ export function PresentationLibrary({
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
-  const filesDestination = destination === "files";
   const storageDestination = isStorageDestination(destination);
   const paletteMutationPending = paletteWriteState !== null || deletingCustomLibraryPaletteId !== null;
   const fontMutationPending = customLibraryFontWriteState !== null || deletingCustomLibraryFontId !== null;
@@ -1610,7 +1605,7 @@ export function PresentationLibrary({
                 </h1>
               )}
               <StorageUsageIndicator
-                enabled={filesDestination || fontsDestination || storageDestination}
+              enabled={fontsDestination || storageDestination}
                 refreshKey={storageUsageRefreshKey}
               />
             </div>
@@ -1666,7 +1661,7 @@ export function PresentationLibrary({
                 {t("customLibrary.fontManagement.add")}
               </Button>
             ) : null}
-            {filesDestination && customLibraryFileStatus === "ready" ? (
+            {storageDestination && customLibraryFileStatus === "ready" ? (
               <Button
                 className={styles.mobileHidden}
                 size="compact"
@@ -1683,7 +1678,47 @@ export function PresentationLibrary({
           </div>
 
           <div className={styles.workspaceBody}>
-            {storageDestination ? <ManagedAssetInventory /> : (
+            {storageDestination ? (
+              <>
+                {customLibraryFileStatus === "loading" ? (
+                  <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.loading")}</p>
+                ) : null}
+                {customLibraryFileStatus === "error" ? (
+                  <div className={styles.stateBlock}>
+                    <p>{customLibraryFileError ?? t("customLibrary.fileBrowser.loadFailed")}</p>
+                    <Button size="compact" onClick={() => void loadCustomLibraryFiles()}>
+                      {t("customLibrary.fileBrowser.retry")}
+                    </Button>
+                  </div>
+                ) : null}
+                {customLibraryFileError && customLibraryFileStatus === "ready" ? (
+                  <div className={styles.errorText}>
+                    <p role="alert">{customLibraryFileError}</p>
+                    {pendingCustomLibraryFilePersistence ? (
+                      <Button
+                        size="compact"
+                        disabled={customLibraryFileUploadState !== null}
+                        onClick={() => void handleRetryCustomLibraryFilePersistence()}
+                      >
+                        {t("customLibrary.uploadError.retryPersistence")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+                <ManagedAssetInventory
+                  files={customLibraryFiles}
+                  filesStatus={customLibraryFileStatus}
+                  selectedFileId={selectedCustomLibraryFileId}
+                  fileMutationPending={fileMutationPending}
+                  renamePending={customLibraryFileRenamePending}
+                  renameError={customLibraryFileRenameError}
+                  refreshKey={storageInventoryRefreshKey}
+                  onSelectFile={setSelectedCustomLibraryFileId}
+                  onRenameFile={handleRenameCustomLibraryFile}
+                  onDeleteFile={handleRequestCustomLibraryFileDelete}
+                />
+              </>
+            ) : (
               <>
             <section
               className={styles.browserPane}
@@ -1797,44 +1832,6 @@ export function PresentationLibrary({
                     />
                   ) : null}
                 </>
-              ) : filesDestination ? (
-                <>
-                  {customLibraryFileError && customLibraryFileStatus === "ready" ? (
-                    <div>
-                      <p className={styles.errorText} role="alert">{customLibraryFileError}</p>
-                      {pendingCustomLibraryFilePersistence ? (
-                        <Button
-                          size="compact"
-                          disabled={customLibraryFileUploadState !== null}
-                          onClick={() => void handleRetryCustomLibraryFilePersistence()}
-                        >
-                          {t("customLibrary.uploadError.retryPersistence")}
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {customLibraryFileStatus === "loading" ? (
-                    <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.loading")}</p>
-                  ) : null}
-                  {customLibraryFileStatus === "error" ? (
-                    <div className={styles.stateBlock}>
-                      <p>{customLibraryFileError ?? t("customLibrary.fileBrowser.loadFailed")}</p>
-                      <Button size="compact" onClick={() => void loadCustomLibraryFiles()}>
-                        {t("customLibrary.fileBrowser.retry")}
-                      </Button>
-                    </div>
-                  ) : null}
-                  {customLibraryFileStatus === "ready" && customLibraryFiles.length === 0 ? (
-                    <p className={styles.stateBlock}>{t("customLibrary.fileBrowser.empty")}</p>
-                  ) : null}
-                  {customLibraryFileStatus === "ready" && customLibraryFiles.length > 0 ? (
-                    <CustomLibraryFileBrowser
-                      records={customLibraryFiles}
-                      selectedId={selectedCustomLibraryFileId}
-                      onSelect={handleToggleCustomLibraryFileSelection}
-                    />
-                  ) : null}
-                </>
               ) : (
                 <div className={styles.placeholder}>
                   <p className={styles.placeholderTitle}>
@@ -1901,15 +1898,6 @@ export function PresentationLibrary({
                   onDelete={handleRequestCustomLibraryFontDelete}
                 />
               )
-            ) : filesDestination ? (
-              <CustomLibraryFileDetails
-                record={selectedCustomLibraryFile}
-                pending={fileMutationPending}
-                renamePending={customLibraryFileRenamePending}
-                renameError={customLibraryFileRenameError}
-                onRename={handleRenameCustomLibraryFile}
-                onDelete={handleRequestCustomLibraryFileDelete}
-              />
             ) : (
               <PresentationDetails
                 summary={presentationDestination ? selected : null}

@@ -600,6 +600,12 @@
   cursor: pointer;
 }
 
+.storageSelect[data-file-associated="true"] {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
 .storageRow[data-selected="true"] .storageSelect {
   border-radius: var(--ps-ui-radius-6);
   background: rgb(34 211 238 / 8%);

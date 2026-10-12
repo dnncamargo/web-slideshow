@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@web-slideshow/ui";
 
 import { useStudioAuth } from "../auth/studio-auth-provider";
+import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
+import { classifySupportedFileName } from "../custom-library/custom-library-file-classification";
+import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import styles from "./presentation-library.module.css";
 
@@ -26,6 +29,20 @@ interface InventoryPage {
 }
 
 type InventoryStatus = "loading" | "ready" | "error";
+type FileMetadataStatus = "idle" | "loading" | "ready" | "error";
+
+interface ManagedAssetInventoryProps {
+  files: readonly CustomLibraryFileRecord[];
+  filesStatus: FileMetadataStatus;
+  selectedFileId: string | null;
+  fileMutationPending: boolean;
+  renamePending: boolean;
+  renameError: string | null;
+  refreshKey: number;
+  onSelectFile: (id: string | null) => void;
+  onRenameFile: (name: string) => void;
+  onDeleteFile: () => void;
+}
 
 function isInventoryPage(value: unknown, uid: string): value is InventoryPage {
   if (typeof value !== "object" || value === null) return false;
@@ -90,7 +107,18 @@ function formatUploadedAt(value: string, locale: string): string {
     .format(new Date(value));
 }
 
-export function ManagedAssetInventory() {
+export function ManagedAssetInventory({
+  files,
+  filesStatus,
+  selectedFileId,
+  fileMutationPending,
+  renamePending,
+  renameError,
+  refreshKey,
+  onSelectFile,
+  onRenameFile,
+  onDeleteFile,
+}: ManagedAssetInventoryProps) {
   const { user } = useStudioAuth();
   const { locale, t } = useStudioI18n();
   const [status, setStatus] = useState<InventoryStatus>("loading");
@@ -107,6 +135,15 @@ export function ManagedAssetInventory() {
   const seenPathnamesRef = useRef(new Set<string>());
   const activeUserRef = useRef(user);
   const ownerId = user?.uid ?? null;
+  const filesByStoragePath = useMemo(() => {
+    const recordsByPath = new Map<string, CustomLibraryFileRecord[]>();
+    for (const record of files) {
+      const current = recordsByPath.get(record.file.source.storagePath);
+      if (current) current.push(record);
+      else recordsByPath.set(record.file.source.storagePath, [record]);
+    }
+    return recordsByPath;
+  }, [files]);
 
   useEffect(() => {
     activeUserRef.current = user;
@@ -187,7 +224,7 @@ export function ManagedAssetInventory() {
       active = false;
       requestRef.current += 1;
     };
-  }, [loadFirstPage]);
+  }, [loadFirstPage, refreshKey]);
 
   const loadNextPage = () => {
     if (loadingMore || !hasMore || cursor === null) return;
@@ -197,6 +234,13 @@ export function ManagedAssetInventory() {
   };
 
   const selectedItem = items.find((item) => item.pathname === selectedPathname) ?? null;
+  const selectedFileMatches = selectedItem
+    ? filesByStoragePath.get(selectedItem.pathname) ?? []
+    : [];
+  const selectedFile = selectedFileMatches.length === 1 &&
+      selectedFileMatches[0]?.id === selectedFileId
+    ? selectedFileMatches[0]
+    : null;
 
   const copyPathname = async (pathname: string) => {
     setCopiedPathname(null);
@@ -222,21 +266,56 @@ export function ManagedAssetInventory() {
         {status === "ready" && items.length === 0 ? <p className={styles.stateBlock}>{t("library.storage.empty")}</p> : null}
         {items.length > 0 ? (
           <div className={styles.list}>
-            {items.map((item) => (
+            {items.map((item) => {
+              const matchingFiles = filesByStoragePath.get(item.pathname) ?? [];
+              const fileRecord = matchingFiles.length === 1 ? matchingFiles[0] : null;
+              const classification = fileRecord
+                ? classifySupportedFileName(fileRecord.file.name)
+                : null;
+
+              return (
               <div className={`${styles.row} ${styles.storageRow}`} key={item.pathname} data-storage-object={item.pathname} data-selected={selectedPathname === item.pathname}>
                 <button
                   type="button"
                   className={styles.storageSelect}
                   data-storage-select
+                  data-custom-library-file-row={fileRecord ? fileRecord.id : undefined}
+                  data-file-associated={fileRecord !== null}
                   data-selected={selectedPathname === item.pathname}
                   aria-pressed={selectedPathname === item.pathname}
-                  onClick={() => setSelectedPathname(item.pathname)}
+                  onClick={() => {
+                    setSelectedPathname(item.pathname);
+                    onSelectFile(fileRecord?.id ?? null);
+                  }}
                 >
+                  {fileRecord ? (
+                    <span className={styles.customLibraryFilePreview} aria-hidden="true">
+                      <span className={styles.customLibraryFilePreviewGlyph}>
+                        {classification?.extension.slice(1).toUpperCase() ?? fileRecord.file.kind.slice(0, 3).toUpperCase()}
+                      </span>
+                    </span>
+                  ) : null}
                   <span className={styles.rowDetails}>
                     <span className={styles.rowTitle}>{item.pathname}</span>
                     <span className={styles.rowMetadata}>
                       <span>{formatBytes(item.size, locale)}</span>
                       <span>{formatUploadedAt(item.uploadedAt, locale)}</span>
+                      {fileRecord ? (
+                        <>
+                          <span>{fileRecord.file.name}</span>
+                          <span>{t(`customLibrary.file.kind.${fileRecord.file.kind}`)}</span>
+                        </>
+                      ) : (
+                        <span>
+                          {matchingFiles.length > 1
+                            ? t("library.storage.fileAssociationConflict")
+                            : filesStatus === "ready"
+                              ? t("library.storage.libraryMetadataUnavailable")
+                              : filesStatus === "error"
+                                ? t("library.storage.libraryMetadataFailed")
+                                : t("library.storage.libraryMetadataLoading")}
+                        </span>
+                      )}
                     </span>
                   </span>
                 </button>
@@ -244,7 +323,8 @@ export function ManagedAssetInventory() {
                   {copiedPathname === item.pathname ? t("library.storage.copied") : t("library.storage.copyId")}
                 </Button>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
         {status === "ready" && hasMore ? (
@@ -258,10 +338,30 @@ export function ManagedAssetInventory() {
         {copyFailed ? <p className={styles.storageCopyError} role="alert">{t("library.storage.copyFailed")}</p> : null}
       </section>
 
-      <aside className={styles.detailsPane} aria-label={t("library.details")} data-storage-details>
+      {selectedFile && selectedItem ? (
+        <CustomLibraryFileDetails
+          key={`${selectedFile.id}:${selectedFile.file.name}`}
+          record={selectedFile}
+          pending={fileMutationPending}
+          renamePending={renamePending}
+          renameError={renameError}
+          physicalObject={selectedItem}
+          onRename={onRenameFile}
+          onDelete={onDeleteFile}
+        />
+      ) : <aside className={styles.detailsPane} aria-label={t("library.details")} data-storage-details>
         {selectedItem ? (
           <>
             <h2 className={styles.detailsHeading}>{t("library.storage.objectDetails")}</h2>
+            {selectedFileMatches.length > 1 ? (
+              <p role="status">{t("library.storage.fileAssociationConflict")}</p>
+            ) : filesStatus === "ready" ? (
+              <p>{t("library.storage.libraryMetadataUnavailable")}</p>
+            ) : filesStatus === "error" ? (
+              <p>{t("library.storage.libraryMetadataFailed")}</p>
+            ) : (
+              <p>{t("library.storage.libraryMetadataLoading")}</p>
+            )}
             <dl className={styles.detailsList}>
               <div className={styles.detailsRow}>
                 <dt>{t("library.storage.identifier")}</dt>
@@ -291,7 +391,7 @@ export function ManagedAssetInventory() {
         ) : (
           <p className={styles.detailsEmpty}>{t("library.storage.selectObject")}</p>
         )}
-      </aside>
+      </aside>}
     </>
   );
 }

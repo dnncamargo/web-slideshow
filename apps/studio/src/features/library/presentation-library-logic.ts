@@ -10,8 +10,7 @@ export type StaticLibraryDestination =
   | "storage"
   | "styles"
   | "palettes"
-  | "fonts"
-  | "files";
+  | "fonts";
 
 export interface FolderLibraryDestination {
   readonly kind: "folder";
@@ -30,8 +29,7 @@ export type PresentationLibraryDestination =
 export type CustomLibraryDestination =
   | "styles"
   | "palettes"
-  | "fonts"
-  | "files";
+  | "fonts";
 
 export type StorageLibraryDestination = "storage";
 
@@ -67,8 +65,7 @@ export function isCustomLibraryDestination(
   return (
     destination === "styles" ||
     destination === "palettes" ||
-    destination === "fonts" ||
-    destination === "files"
+    destination === "fonts"
   );
 }
 

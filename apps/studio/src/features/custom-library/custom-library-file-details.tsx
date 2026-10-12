@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@web-slideshow/ui";
 
@@ -11,8 +11,17 @@ import {
   type CustomLibraryFileRecord,
 } from "./custom-library-file";
 
+interface PhysicalObjectMetadata {
+  pathname: string;
+  size: number;
+  uploadedAt: string;
+  url: string;
+  etag: string;
+}
+
 interface CustomLibraryFileDetailsProps {
   record: CustomLibraryFileRecord | null;
+  physicalObject?: PhysicalObjectMetadata;
   pending?: boolean;
   renamePending?: boolean;
   renameError?: string | null;
@@ -22,22 +31,17 @@ interface CustomLibraryFileDetailsProps {
 
 export function CustomLibraryFileDetails({
   record,
+  physicalObject,
   pending = false,
   renamePending = false,
   renameError = null,
   onRename,
   onDelete,
 }: CustomLibraryFileDetailsProps) {
-  const { t } = useStudioI18n();
+  const { locale, t } = useStudioI18n();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(record?.file.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setEditing(false);
-    setName(record?.file.name ?? "");
-    setNameError(null);
-  }, [record?.id, record?.file.name]);
 
   if (!record) {
     return (
@@ -106,6 +110,30 @@ export function CustomLibraryFileDetails({
           <dt>{t("customLibrary.fileDetails.size")}</dt>
           <dd>{formatCustomLibraryFileSize(record.file.source.sizeBytes)}</dd>
         </div>
+        {physicalObject ? (
+          <>
+            <div className={styles.detailsRow}>
+              <dt>{t("library.storage.identifier")}</dt>
+              <dd className={styles.storageIdentifier}>{physicalObject.pathname}</dd>
+            </div>
+            <div className={styles.detailsRow}>
+              <dt>{t("library.storage.size")}</dt>
+              <dd>{formatCustomLibraryFileSize(physicalObject.size)}</dd>
+            </div>
+            <div className={styles.detailsRow}>
+              <dt>{t("library.storage.uploadedAt")}</dt>
+              <dd>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(physicalObject.uploadedAt))}</dd>
+            </div>
+            <div className={styles.detailsRow}>
+              <dt>{t("library.storage.url")}</dt>
+              <dd className={styles.storageIdentifier}><a href={physicalObject.url} target="_blank" rel="noreferrer">{physicalObject.url}</a></dd>
+            </div>
+            <div className={styles.detailsRow}>
+              <dt>{t("library.storage.etag")}</dt>
+              <dd className={styles.storageIdentifier}>{physicalObject.etag}</dd>
+            </div>
+          </>
+        ) : null}
       </dl>
 
       {nameError || renameError ? (

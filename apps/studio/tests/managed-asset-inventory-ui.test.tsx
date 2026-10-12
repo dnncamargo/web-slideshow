@@ -15,12 +15,27 @@ vi.mock("../src/features/auth/studio-auth-provider", () => ({
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import { ManagedAssetInventory } from "../src/features/library/managed-asset-inventory";
 
+type InventoryProps = Parameters<typeof ManagedAssetInventory>[0];
+
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-function renderInventory() {
+function renderInventory(overrides: Partial<InventoryProps> = {}) {
+  const props: InventoryProps = {
+    files: [],
+    filesStatus: "ready",
+    selectedFileId: null,
+    fileMutationPending: false,
+    renamePending: false,
+    renameError: null,
+    refreshKey: 0,
+    onSelectFile: () => {},
+    onRenameFile: () => {},
+    onDeleteFile: () => {},
+    ...overrides,
+  };
   return (
     <StudioI18nProvider>
-      <ManagedAssetInventory />
+      <ManagedAssetInventory {...props} />
     </StudioI18nProvider>
   );
 }
@@ -113,6 +128,43 @@ describe("Managed Asset Storage inventory UI", () => {
       await Promise.resolve();
     });
     expect(container.textContent).toContain("No managed Storage objects yet.");
+  });
+
+  it("associates Library metadata only by the exact physical storage path", async () => {
+    const pathname = "users/owner-1/assets/object-1";
+    const file = {
+      id: "file-1",
+      file: {
+        name: "diagram.png",
+        kind: "image" as const,
+        representation: "binary" as const,
+        source: {
+          assetId: "00000000-0000-4000-8000-000000000001",
+          storagePath: pathname,
+          downloadUrl: "https://blob.example/object-1",
+          contentType: "image/png" as const,
+          sizeBytes: 42,
+        },
+      },
+    };
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ scope: "owner", items: [item(pathname)], hasMore: false }),
+    });
+    const onSelectFile = vi.fn();
+
+    await act(async () => {
+      root.render(renderInventory({ files: [file], onSelectFile }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const row = container.querySelector<HTMLButtonElement>("[data-storage-select]");
+    expect(container.textContent).toContain("diagram.png");
+    expect(container.textContent).toContain(pathname);
+    expect(row?.getAttribute("data-custom-library-file-row")).toBe("file-1");
+    await act(async () => row?.click());
+    expect(onSelectFile).toHaveBeenCalledWith("file-1");
   });
 
   it("shows an initial error with retry", async () => {

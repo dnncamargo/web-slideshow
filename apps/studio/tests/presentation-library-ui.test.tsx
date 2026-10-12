@@ -286,7 +286,7 @@ function customLibraryFile(id: string, name: string): CustomLibraryFileRecord {
       representation: "binary",
       source: {
         assetId: "00000000-0000-4000-8000-000000000001",
-        storagePath: "users/test/assets/image-1",
+        storagePath: "users/owner-1/assets/image-1",
         downloadUrl: "https://cdn.example.test/image-1",
         contentType: "image/png",
         sizeBytes: 2048,
@@ -317,6 +317,34 @@ function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[])
     deleteFile,
   };
   return { repository, listFiles, saveFile, updateFile, deleteFile, getCurrent: () => current };
+}
+
+type StorageFetchItem = {
+  pathname: string;
+  url: string;
+  size: number;
+  uploadedAt: string;
+  etag: string;
+};
+
+function mockStorageFetch(items: StorageFetchItem[] | (() => StorageFetchItem[]) = []) {
+  const readItems = typeof items === "function" ? items : () => items;
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const currentItems = readItems();
+    if (url.endsWith("/usage")) {
+      return {
+        ok: true,
+        json: async () => ({ scope: "owner", objectCount: currentItems.length, bytesUsed: 42, measuredAt: "2026-02-03T04:05:06.000Z", quotaStatus: "unknown" }),
+      } as Response;
+    }
+    return {
+      ok: true,
+      json: async () => ({ scope: "owner", items: currentItems, hasMore: false }),
+    } as Response;
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 function fontFace(weight: number): FontFaceResource {
@@ -1908,6 +1936,11 @@ describe("presentation library workspace controls", () => {
         (button) => button.textContent?.trim() === "Custom Library",
       ),
     ).toBe(false);
+    expect(
+      Array.from(container.querySelectorAll("button")).some(
+        (button) => button.textContent?.trim() === "Files",
+      ),
+    ).toBe(false);
 
     // Fonts exists as a Custom Library destination.
     const fontsButton = Array.from(container.querySelectorAll("button")).find(
@@ -1930,30 +1963,13 @@ describe("presentation library workspace controls", () => {
     const { repository } = repositoryFor([]);
     const files = customLibraryFileRepositoryFor([]);
     const fonts = customLibraryFontRepositoryFor([]);
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/usage")) {
-        return {
-          ok: true,
-          json: async () => ({ scope: "owner", objectCount: 1, bytesUsed: 42, measuredAt: "2026-02-03T04:05:06.000Z", quotaStatus: "unknown" }),
-        } as Response;
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          scope: "owner",
-          items: [{
-            pathname: "users/owner-1/assets/physical-object",
-            url: "https://blob.example/physical-object",
-            size: 42,
-            uploadedAt: "2026-02-03T04:05:06.000Z",
-            etag: "etag-1",
-          }],
-          hasMore: false,
-        }),
-      } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = mockStorageFetch([{
+      pathname: "users/owner-1/assets/physical-object",
+      url: "https://blob.example/physical-object",
+      size: 42,
+      uploadedAt: "2026-02-03T04:05:06.000Z",
+      etag: "etag-1",
+    }]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository, files.repository)));
     await flushWorkspaceEffects();
@@ -1966,7 +1982,7 @@ describe("presentation library workspace controls", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Storage");
     expect(container.querySelector("[data-storage-object='users/owner-1/assets/physical-object']")).toBeTruthy();
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/inventory"))).toBe(true);
-    expect(files.listFiles).not.toHaveBeenCalled();
+    expect(files.listFiles).toHaveBeenCalledTimes(1);
     expect(fonts.listFonts).not.toHaveBeenCalled();
     expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(1);
   });
@@ -2131,6 +2147,7 @@ describe("presentation library workspace controls", () => {
     );
     if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
+    await flushWorkspaceEffects();
     expect(container.textContent).toContain("Loading Custom Library…");
     resolve?.([]);
     await flushWorkspaceEffects();
@@ -2306,22 +2323,29 @@ describe("presentation library workspace controls", () => {
     expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
   });
 
-  it("loads Files lazily in the canonical browser and shows selected metadata", async () => {
+  it("loads matching File metadata in Storage and exposes the physical identity", async () => {
     const { repository } = repositoryFor([]);
     const file = customLibraryFile("file-1", "diagram.png");
     const files = customLibraryFileRepositoryFor([file]);
+    mockStorageFetch([{
+      pathname: file.file.source.storagePath,
+      url: file.file.source.downloadUrl,
+      size: 2048,
+      uploadedAt: "2026-02-03T04:05:06.000Z",
+      etag: "etag-1",
+    }]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
     expect(files.listFiles).not.toHaveBeenCalled();
 
-    const destination = findButton(container, "Files");
+    const destination = findButton(container, "Objects");
     act(() => destination.click());
     await flushWorkspaceEffects();
 
     expect(files.listFiles).toHaveBeenCalledTimes(1);
-    const row = container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]");
-    expect(row?.className).toContain("row");
+    const row = container.querySelector<HTMLButtonElement>("[data-storage-object] [data-storage-select]");
+    expect(row?.closest("[data-storage-object]")?.className).toContain("row");
     act(() => row?.click());
 
     const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
@@ -2330,6 +2354,7 @@ describe("presentation library workspace controls", () => {
     expect(details?.textContent).toContain("Image");
     expect(details?.textContent).toContain("image/png");
     expect(details?.textContent).toContain("2 KB");
+    expect(details?.textContent).toContain(file.file.source.storagePath);
     expect(details?.textContent).not.toContain(file.id);
     expect(details?.textContent).not.toContain(file.file.source.assetId);
   });
@@ -2339,17 +2364,28 @@ describe("presentation library workspace controls", () => {
     const files = customLibraryFileRepositoryFor([]);
     const uploadResult = {
       assetId: "00000000-0000-4000-8000-000000000002",
-      storagePath: "users/test/assets/image-2",
+      storagePath: "users/owner-1/assets/image-2",
       downloadUrl: "https://cdn.example.test/image-2",
       contentType: "text/plain",
       sizeBytes: 5,
     };
-    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
+    let inventoryItems: StorageFetchItem[] = [];
+    testDependencies.uploadManagedAsset.mockImplementation(async () => {
+      inventoryItems = [{
+        pathname: uploadResult.storagePath,
+        url: uploadResult.downloadUrl,
+        size: uploadResult.sizeBytes,
+        uploadedAt: "2026-02-03T04:05:06.000Z",
+        etag: "etag-uploaded",
+      }];
+      return uploadResult;
+    });
+    mockStorageFetch(() => inventoryItems);
     const localFile = new File(["hello"], "  photo.png  ", { type: "" });
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
+    act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
 
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
@@ -2380,6 +2416,8 @@ describe("presentation library workspace controls", () => {
       },
       { documentId: uploadResult.assetId },
     );
+    expect(files.getCurrent()[0]?.file.name).toBe("photo.png");
+    expect(container.textContent).toContain(uploadResult.storagePath);
     expect(container.textContent).toContain("photo.png");
   });
 
@@ -2387,10 +2425,11 @@ describe("presentation library workspace controls", () => {
     const { repository } = repositoryFor([]);
     const files = customLibraryFileRepositoryFor([]);
     const localFile = new File(["hello"], "notes.exe", { type: "image/png" });
+    mockStorageFetch([]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
+    act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
     Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
@@ -2409,12 +2448,13 @@ describe("presentation library workspace controls", () => {
     const files = customLibraryFileRepositoryFor([]);
     const uploadResult = {
       assetId: "00000000-0000-4000-8000-000000000003",
-      storagePath: "users/test/assets/image-3",
+      storagePath: "users/owner-1/assets/image-3",
       downloadUrl: "https://cdn.example.test/image-3",
       contentType: "image/png",
       sizeBytes: 5,
     };
     testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
+    mockStorageFetch([]);
     files.saveFile
       .mockRejectedValueOnce(new Error("persistence unavailable"))
       .mockResolvedValueOnce("file-retried");
@@ -2422,7 +2462,7 @@ describe("presentation library workspace controls", () => {
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
+    act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
     Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
@@ -2441,19 +2481,26 @@ describe("presentation library workspace controls", () => {
     expect(files.saveFile).toHaveBeenCalledTimes(2);
     expect(files.saveFile.mock.calls[1]?.[0]).toEqual(files.saveFile.mock.calls[0]?.[0]);
     expect(files.saveFile.mock.calls[1]?.[1]).toEqual(files.saveFile.mock.calls[0]?.[1]);
-    expect(container.querySelectorAll("[data-custom-library-file-row]")).toHaveLength(1);
+    expect(container.textContent).not.toContain("Retry saving");
   });
 
   it("renames metadata without replacing source and preserves selection", async () => {
     const { repository } = repositoryFor([]);
     const file = customLibraryFile("file-rename", "before.png");
     const files = customLibraryFileRepositoryFor([file]);
+    mockStorageFetch([{
+      pathname: file.file.source.storagePath,
+      url: file.file.source.downloadUrl,
+      size: 2048,
+      uploadedAt: "2026-02-03T04:05:06.000Z",
+      etag: "etag-1",
+    }]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
+    act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
+    act(() => container.querySelector<HTMLButtonElement>("[data-storage-object] [data-storage-select]")?.click());
     act(() => findButton(container, "Rename").click());
 
     const input = container.querySelector<HTMLInputElement>('input[aria-label="Name"]');
@@ -2476,12 +2523,19 @@ describe("presentation library workspace controls", () => {
     const { repository } = repositoryFor([]);
     const file = customLibraryFile("file-delete", "delete.png");
     const files = customLibraryFileRepositoryFor([file]);
+    mockStorageFetch([{
+      pathname: file.file.source.storagePath,
+      url: file.file.source.downloadUrl,
+      size: 2048,
+      uploadedAt: "2026-02-03T04:05:06.000Z",
+      etag: "etag-1",
+    }]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
+    act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
+    act(() => container.querySelector<HTMLButtonElement>("[data-storage-object] [data-storage-select]")?.click());
     act(() => findButton(container, "Delete file").click());
     expect(files.deleteFile).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Delete Custom Library file?");
@@ -2496,6 +2550,7 @@ describe("presentation library workspace controls", () => {
 
     expect(files.deleteFile).toHaveBeenCalledWith("file-delete");
     expect(container.textContent).not.toContain("delete.png");
-    expect(container.textContent).toContain("Select a file to view details.");
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(1);
+    expect(container.textContent).toContain("No matching Library metadata is available.");
   });
 });
