@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const blob = vi.hoisted(() => ({ list: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ list: blob.list }));
+const controls = vi.hoisted(() => ({ readNames: vi.fn() }));
+vi.mock("../src/features/persistence/managed-asset-controls", () => ({ readManagedAssetDisplayNames: controls.readNames }));
 
 import {
   isValidManagedAssetInventoryCursor,
@@ -17,6 +19,7 @@ const item = (pathname = "users/owner-1/assets/asset-1.png") => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  controls.readNames.mockResolvedValue(new Map());
   vi.stubEnv("BLOB_READ_WRITE_TOKEN", "mock-token");
   vi.stubEnv("BLOB_STORE_ID", "mock-store");
 });
@@ -36,6 +39,14 @@ describe("managed asset inventory", () => {
     }));
   });
 
+  it("annotates only the current Blob page in one owner-scoped lookup", async () => {
+    blob.list.mockResolvedValueOnce({ blobs: [item(), item("users/owner-1/assets/asset-2.png")], hasMore: true, cursor: "next" });
+    controls.readNames.mockResolvedValueOnce(new Map([["users/owner-1/assets/asset-2.png", "Renamed 📘"]]));
+    const page = await listManagedAssetInventoryPage("owner-1", null);
+    expect(page.items.map((entry) => entry.displayName)).toEqual([undefined, "Renamed 📘"]);
+    expect(controls.readNames).toHaveBeenCalledWith("owner-1", ["users/owner-1/assets/asset-1.png", "users/owner-1/assets/asset-2.png"]);
+  });
+
   it("passes opaque pagination cursors and validates returned boundaries", async () => {
     blob.list.mockResolvedValueOnce({ blobs: [item()], hasMore: true, cursor: "opaque-next" });
     await expect(listManagedAssetInventoryPage("owner-1", "opaque-current")).resolves.toMatchObject({ cursor: "opaque-next", hasMore: true });
@@ -53,6 +64,20 @@ describe("managed asset inventory", () => {
     expect(blob.list).toHaveBeenCalledWith(expect.objectContaining({
       prefix: "users/owner-1/assets/target.woff2", limit: MANAGED_ASSET_INVENTORY_PAGE_SIZE,
     }));
+  });
+
+  it("loads a focused object's display name outside the inventory page", async () => {
+    const path = "users/owner-1/assets/focused.woff2";
+    blob.list.mockResolvedValueOnce({ blobs: [item(path)], hasMore: false });
+    controls.readNames.mockResolvedValueOnce(new Map([[path, "Focused font"]]));
+    await expect(getManagedAssetInventoryObject("owner-1", path)).resolves.toMatchObject({ displayName: "Focused font" });
+    expect(controls.readNames).toHaveBeenCalledWith("owner-1", [path]);
+  });
+
+  it("fails recognizably when display-name annotations cannot be read", async () => {
+    blob.list.mockResolvedValueOnce({ blobs: [item()], hasMore: false });
+    controls.readNames.mockRejectedValueOnce(new Error("Firestore unavailable"));
+    await expect(listManagedAssetInventoryPage("owner-1", null)).rejects.toMatchObject({ name: "ManagedAssetInventoryAnnotationError" });
   });
 
   it.each([

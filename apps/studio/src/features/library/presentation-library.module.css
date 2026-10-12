@@ -1042,8 +1042,11 @@
 .storageAudio { width: 100%; margin: 16px 0; }
 .storageTextPreview { max-height: 280px; margin: 16px 0; padding: 12px; overflow: auto; border: 1px solid var(--ps-ui-border-subtle); border-radius: var(--ps-ui-radius-8); background: var(--ps-ui-background-raised); color: var(--ps-ui-text-primary); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .storagePreviewFallback { color: var(--ps-ui-text-muted); font-size: 12px; line-height: 1.5; }
-.storageActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
-.storageActions a { color: var(--ps-ui-text-primary); font-size: 12px; text-underline-offset: 3px; }
+.storageActionRow { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.storageActionLink { text-decoration: none; }
+.storageActionLink:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 2px; }
+.storageRenameInput { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--ps-ui-border-strong); border-radius: var(--ps-ui-radius-8); background: var(--ps-ui-background-control); color: var(--ps-ui-text-primary); font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.4; letter-spacing: normal; text-transform: none; }
+.storageRenameInput:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 2px; }
 .storageTechnical { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ps-ui-border-subtle); color: var(--ps-ui-text-secondary); font-size: 12px; }
 .storageTechnical summary { margin-bottom: 12px; cursor: pointer; }
 .storageTechnical .detailsList { margin-bottom: 12px; }

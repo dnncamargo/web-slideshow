@@ -1,5 +1,7 @@
 import { list, type ListBlobResult } from "@vercel/blob";
 
+import { readManagedAssetDisplayNames } from "./managed-asset-controls";
+
 export const MANAGED_ASSET_INVENTORY_PAGE_SIZE = 100;
 export const MANAGED_ASSET_INVENTORY_CURSOR_MAX_LENGTH = 4096;
 export const MANAGED_ASSET_INVENTORY_TIMEOUT_MS = 15_000;
@@ -11,6 +13,14 @@ export interface ManagedAssetInventoryItem {
   size: number;
   uploadedAt: string;
   etag: string;
+  displayName?: string;
+}
+
+export class ManagedAssetInventoryAnnotationError extends Error {
+  constructor() {
+    super("Managed asset display names are unavailable.");
+    this.name = "ManagedAssetInventoryAnnotationError";
+  }
 }
 
 export interface ManagedAssetInventoryPage {
@@ -70,6 +80,19 @@ function validateBlob(value: unknown, prefix: string, seen: Set<string>): Manage
   return { pathname: blob.pathname, url: blob.url, size: blob.size, uploadedAt: date.toISOString(), etag: blob.etag };
 }
 
+async function annotateItems(uid: string, items: ManagedAssetInventoryItem[]): Promise<ManagedAssetInventoryItem[]> {
+  let names: Map<string, string>;
+  try {
+    names = await readManagedAssetDisplayNames(uid, items.map((item) => item.pathname));
+  } catch {
+    throw new ManagedAssetInventoryAnnotationError();
+  }
+  return items.map((item) => {
+    const displayName = names.get(item.pathname);
+    return displayName === undefined ? item : { ...item, displayName };
+  });
+}
+
 function listWithCancellation(options: Parameters<typeof list>[0], signal: AbortSignal): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -102,7 +125,7 @@ export async function listManagedAssetInventoryPage(uid: string, cursor: string 
     }, controller.signal);
     if (!isListResult(result)) throw new Error("Invalid Blob listing.");
     const seen = new Set<string>();
-    const items = result.blobs.map((blob) => validateBlob(blob, prefix, seen));
+    const items = await annotateItems(uid, result.blobs.map((blob) => validateBlob(blob, prefix, seen)));
     if (result.hasMore) {
       if (typeof result.cursor !== "string" || !isValidManagedAssetInventoryCursor(result.cursor) || result.cursor === cursor) {
         throw new Error("Invalid Blob pagination cursor.");
@@ -133,7 +156,9 @@ export async function getManagedAssetInventoryObject(uid: string, pathname: stri
     if (!isListResult(result)) throw new Error("Invalid Blob listing.");
     const seen = new Set<string>();
     const items = result.blobs.map((blob) => validateBlob(blob, prefix, seen));
-    return items.find((item) => item.pathname === pathname) ?? null;
+    const exact = items.find((item) => item.pathname === pathname);
+    if (!exact) return null;
+    return (await annotateItems(uid, [exact]))[0] ?? null;
   } finally {
     clearTimeout(timeout);
     controller.abort();

@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
 import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
-import { isValidManagedAssetInventoryCursor, listManagedAssetInventoryPage } from "../../../../features/persistence/managed-asset-inventory";
+import {
+  isValidManagedAssetInventoryCursor,
+  listManagedAssetInventoryPage,
+  ManagedAssetInventoryAnnotationError,
+} from "../../../../features/persistence/managed-asset-inventory";
 
 export const dynamic = "force-dynamic";
 
-function response(body: { error: "authentication" | "invalid_request" | "unavailable" }, status: number): NextResponse {
+function response(body: { error: "authentication" | "invalid_request" | "unavailable" | "annotations_unavailable" }, status: number): NextResponse {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store", Vary: "Authorization" } });
 }
 
@@ -24,8 +28,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       headers: { "Cache-Control": "private, no-store", Vary: "Authorization" },
     });
   } catch (error) {
-    return error instanceof FirebaseAuthenticationError
-      ? response({ error: "authentication" }, 401)
-      : response({ error: "unavailable" }, 503);
+    if (error instanceof FirebaseAuthenticationError) return response({ error: "authentication" }, 401);
+    if (error instanceof ManagedAssetInventoryAnnotationError) return response({ error: "annotations_unavailable" }, 503);
+    return response({ error: "unavailable" }, 503);
   }
 }

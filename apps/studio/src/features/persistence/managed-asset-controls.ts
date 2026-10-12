@@ -24,6 +24,7 @@ export interface ManagedAssetControl {
   storagePath: string;
   protected: boolean;
   state: ManagedAssetControlState;
+  displayName?: string;
   deleteAttemptId?: string;
   deleteLeaseExpiresAt?: Timestamp;
   deleteOperationId?: string;
@@ -37,7 +38,8 @@ export type ManagedAssetControlErrorCode =
   | "already_deleted"
   | "upload_in_progress"
   | "provider_unavailable"
-  | "identity_conflict";
+  | "identity_conflict"
+  | "invalid_display_name";
 
 export class ManagedAssetControlError extends Error {
   constructor(readonly code: ManagedAssetControlErrorCode) {
@@ -47,6 +49,15 @@ export class ManagedAssetControlError extends Error {
 }
 function db() {
   return getFirestore(getFirebaseAdminApp());
+}
+
+export function validateManagedAssetDisplayName(value: unknown): string {
+  if (typeof value !== "string") throw new ManagedAssetControlError("invalid_display_name");
+  const name = value.trim();
+  if (!name || Array.from(name).length > 512 || /[\\/\p{Cc}]/u.test(name)) {
+    throw new ManagedAssetControlError("invalid_display_name");
+  }
+  return name;
 }
 
 export function validateManagedAssetPath(uid: string, storagePath: unknown): string {
@@ -79,7 +90,30 @@ function parseControl(value: FirebaseFirestore.DocumentData | undefined, storage
     || !["active", "deleting", "delete_failed", "deleted"].includes(value.state)) {
     throw new ManagedAssetControlError("identity_conflict");
   }
+  if (value.displayName !== undefined) {
+    try {
+      const displayName = validateManagedAssetDisplayName(value.displayName);
+      if (displayName !== value.displayName) throw new ManagedAssetControlError("identity_conflict");
+    } catch {
+      throw new ManagedAssetControlError("identity_conflict");
+    }
+  }
   return value as ManagedAssetControl;
+}
+
+export async function readManagedAssetDisplayNames(uid: string, storagePaths: readonly string[]): Promise<Map<string, string>> {
+  const paths = [...new Set(storagePaths)];
+  const refs = paths.map((storagePath) => managedAssetControlRef(uid, storagePath));
+  const snapshots = refs.length ? await db().getAll(...refs) : [];
+  const names = new Map<string, string>();
+  snapshots.forEach((snapshot, index) => {
+    if (!snapshot.exists) return;
+    const storagePath = paths[index];
+    if (!storagePath) throw new ManagedAssetControlError("identity_conflict");
+    const control = parseControl(snapshot.data(), storagePath);
+    if (control?.displayName) names.set(storagePath, control.displayName);
+  });
+  return names;
 }
 
 export async function readManagedAssetControl(uid: string, storagePath: string): Promise<ManagedAssetControl | null> {
@@ -114,7 +148,25 @@ export async function setManagedAssetProtection(uid: string, storagePath: string
     if (current?.state === "deleting" || current?.state === "delete_failed") {
       throw new ManagedAssetControlError("deletion_in_progress");
     }
-    const next: ManagedAssetControl = { storagePath, protected: protectedValue, state: "active" };
+    const next: ManagedAssetControl = { ...current, storagePath, protected: protectedValue, state: "active" };
+    transaction.set(ref, { ...next, updatedAt: FieldValue.serverTimestamp() });
+    return next;
+  });
+}
+
+export async function renameManagedAsset(uid: string, storagePath: string, rawDisplayName: unknown): Promise<ManagedAssetControl> {
+  managedAssetControlRef(uid, storagePath);
+  const displayName = validateManagedAssetDisplayName(rawDisplayName);
+  await assertPhysicalObject(storagePath);
+  const ref = managedAssetControlRef(uid, storagePath);
+  return db().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.exists ? parseControl(snapshot.data(), storagePath) : null;
+    if (current?.state === "deleted") throw new ManagedAssetControlError("already_deleted");
+    if (current?.state !== undefined && current.state !== "active") {
+      throw new ManagedAssetControlError("deletion_in_progress");
+    }
+    const next: ManagedAssetControl = { ...current, storagePath, protected: current?.protected ?? false, state: "active", displayName };
     transaction.set(ref, { ...next, updatedAt: FieldValue.serverTimestamp() });
     return next;
   });
@@ -196,6 +248,7 @@ async function beginManagedAssetDeletion(
     const operationId = existingOperationId ?? candidateOperationId;
 
     transaction.set(controlRef, {
+      ...current,
       storagePath,
       protected: false,
       state: "deleting",

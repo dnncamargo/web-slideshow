@@ -3,10 +3,11 @@
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ManagedAssetUploadIntent } from "../src/features/persistence/managed-asset-storage";
 
 const mocks = vi.hoisted(() => ({
   user: { uid: "owner-1", getIdToken: vi.fn(async () => "owner-token") },
-  listIntents: vi.fn(async () => []),
+  listIntents: vi.fn(async (): Promise<ManagedAssetUploadIntent[]> => []),
 }));
 vi.mock("../src/features/auth/studio-auth-provider", () => ({ useStudioAuth: () => ({ user: mocks.user }) }));
 vi.mock("../src/features/persistence/managed-asset-storage", () => ({ listManagedAssetUploadIntents: mocks.listIntents }));
@@ -41,6 +42,11 @@ function renderManager(
 
 const blob = (pathname: string, uploadedAt = "2026-01-02T03:04:05.000Z") => ({ pathname, url: `https://blob.example/${pathname.split("/").at(-1)}`, size: 8, uploadedAt, etag: "provider-etag" });
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+function changeInput(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -49,6 +55,129 @@ beforeEach(() => {
 afterEach(() => { document.body.innerHTML = ""; vi.restoreAllMocks(); });
 
 describe("Storage manager", () => {
+  it("keeps two independent compact action rows and an aligned accessible Open file anchor", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
+      return response({ protected: false, state: "active", retryAvailable: false });
+    }));
+    const { host, root } = renderManager();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await Promise.resolve(); await Promise.resolve(); });
+    const first = host.querySelector('[data-storage-action-row="files"]');
+    const second = host.querySelector('[data-storage-action-row="controls"]');
+    expect(first?.textContent).toContain("Open file");
+    expect(first?.textContent).toContain("Copy URL");
+    expect(second?.textContent).toContain("Rename");
+    expect(second?.textContent).toContain("Protect file");
+    expect(second?.textContent).toContain("Delete file");
+    const open = first?.querySelector("a");
+    expect(open?.getAttribute("href")).toBe("https://blob.example/readme.txt");
+    expect(open?.getAttribute("target")).toBe("_blank");
+    expect(open?.className).toContain("ps-ui-button--compact");
+    expect(host.querySelectorAll("[data-storage-action-row]")).toHaveLength(2);
+    expect(host.querySelectorAll("[data-storage-action-row] h1, [data-storage-action-row] h2, [data-storage-action-row] hr")).toHaveLength(0);
+    await act(async () => { Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Rename")?.click(); await Promise.resolve(); });
+    await act(async () => { Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Cancel")?.click(); await Promise.resolve(); });
+    expect(host.querySelector("[data-storage-details] h2 input")).toBeNull();
+    act(() => root.unmount());
+  });
+
+  it("resolves Storage names by override, upload intent, File, Font, then physical identifier", async () => {
+    const paths = ["override", "intent", "file", "font", "fallback"].map((name) => `users/owner-1/assets/${name}`);
+    mocks.listIntents.mockResolvedValueOnce([{
+      assetId: "asset-intent", storagePath: paths[1]!, originalFilename: "Intent original.txt", extension: ".txt",
+      contentType: "text/plain", expectedSizeBytes: 8, sourceLastModified: 0, state: "complete" as const,
+    }] as ManagedAssetUploadIntent[]);
+    const file = (storagePath: string, name: string) => ({
+      id: `file-${name}`,
+      file: { name, kind: "text" as const, representation: "text" as const,
+        source: { assetId: `asset-${name}`, storagePath, downloadUrl: "https://blob.example/file", contentType: "text/plain" as const, sizeBytes: 8 } },
+    });
+    const font = (storagePath: string, family: string) => ({
+      id: `font-${family}`,
+      font: { family, faces: [{ source: { type: "url" as const, url: `https://blob.example/${storagePath}`, format: "woff2" as const } }] },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response({
+      scope: "owner", items: paths.map((pathname) => ({ ...blob(pathname), ...(pathname === paths[0] ? { displayName: "Persisted override" } : {}) })), hasMore: false,
+    })));
+    const { host, root } = renderManager("en", null, [file(paths[1]!, "Library file"), file(paths[2]!, "File name")], [font(paths[2]!, "Font behind File"), font(paths[3]!, "Font family")]);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const rows = Array.from(host.querySelectorAll<HTMLElement>("[data-storage-row]")).map((row) => row.textContent ?? "");
+    expect(rows[0]).toContain("Persisted override");
+    expect(rows[1]).toContain("Intent original.txt");
+    expect(rows[2]).toContain("File name");
+    expect(rows[3]).toContain("Font family");
+    expect(rows[4]).toContain("fallback");
+    act(() => root.unmount());
+  });
+
+  it("renames in place, updates search and type-name sorting, and preserves the selected pathname", async () => {
+    const left = "users/owner-1/assets/zebra.png";
+    const right = "users/owner-1/assets/alpha.png";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(left), blob(right)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
+      if (url === "/api/managed-assets/rename" && init?.method === "PATCH") return response({ displayName: "Aardvark image", protected: false, state: "active" });
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return response({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root } = renderManager();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => { host.querySelectorAll<HTMLButtonElement>("[data-storage-row]")[0]?.click(); await Promise.resolve(); await Promise.resolve(); });
+    const rename = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Rename");
+    await act(async () => { rename?.click(); await Promise.resolve(); });
+    const input = host.querySelector<HTMLInputElement>("[data-storage-details] h2 input");
+    expect(input?.value).toBe("zebra");
+    expect(document.activeElement).toBe(input);
+    expect(host.querySelector("[data-storage-action-row='controls']")?.textContent).toContain("Save");
+    expect(host.querySelector("[data-storage-action-row='controls']")?.textContent).toContain("Cancel");
+    expect(host.querySelector("[data-storage-action-row='controls']")?.textContent).not.toContain("Protect file");
+    await act(async () => { if (input) changeInput(input, "Aardvark image"); await Promise.resolve(); });
+    await act(async () => { Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Save")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(fetchMock).toHaveBeenCalledWith("/api/managed-assets/rename", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ pathname: left, displayName: "Aardvark image" }) }));
+    expect(host.querySelector("[data-storage-details]")?.textContent).toContain("Aardvark image");
+    expect(host.querySelectorAll("[data-storage-row]")[0]?.textContent).toContain("Aardvark image");
+    expect(host.querySelector("[data-storage-row][aria-pressed='true']")?.getAttribute("data-selected")).toBe("true");
+    const search = host.querySelector<HTMLInputElement>("input[type='search']");
+    await act(async () => { if (search) changeInput(search, "Aardvark"); await Promise.resolve(); });
+    expect(host.querySelectorAll("[data-storage-row]")).toHaveLength(1);
+    const sortSelect = host.querySelectorAll<HTMLSelectElement>("select")[1];
+    await act(async () => { if (sortSelect) { sortSelect.value = "type"; sortSelect.dispatchEvent(new Event("change", { bubbles: true })); } await Promise.resolve(); });
+    expect(host.querySelector("[data-storage-row]")?.textContent).toContain("Aardvark image");
+    act(() => root.unmount());
+  });
+
+  it("keeps an invalid or failed rename draft and supports Enter and Escape", async () => {
+    const pathname = "users/owner-1/assets/notes.txt";
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
+      if (url === "/api/managed-assets/rename" && init?.method === "PATCH") return response({ error: "unavailable" }, 503);
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return response({});
+    }));
+    const { host, root } = renderManager();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => { Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Rename")?.click(); await Promise.resolve(); });
+    let input = host.querySelector<HTMLInputElement>("[data-storage-details] h2 input");
+    await act(async () => { if (input) changeInput(input, "bad/name"); Array.from(host.querySelectorAll<HTMLButtonElement>("[data-storage-action-row='controls'] button")).find((button) => button.textContent === "Save")?.click(); await Promise.resolve(); });
+    expect(host.textContent).toContain("Use up to 512 characters without slashes");
+    expect(host.querySelector<HTMLInputElement>("[data-storage-details] h2 input")?.value).toBe("bad/name");
+    await act(async () => { input = host.querySelector<HTMLInputElement>("[data-storage-details] h2 input"); if (input) { changeInput(input, "kept draft"); input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); } await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(host.textContent).toContain("Could not rename this file.");
+    expect(host.querySelector<HTMLInputElement>("[data-storage-details] h2 input")?.value).toBe("kept draft");
+    await act(async () => { input = host.querySelector<HTMLInputElement>("[data-storage-details] h2 input"); input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await Promise.resolve(); });
+    expect(host.querySelector("[data-storage-details] h2 input")).toBeNull();
+    expect(host.querySelector("[data-storage-action-row='controls']")?.textContent).toContain("Delete file");
+    act(() => root.unmount());
+  });
+
   it("lists owner-scoped physical objects, selects details, and safely previews text", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -311,7 +440,7 @@ describe("Storage manager", () => {
 
   it("locates and selects an exact physical object outside the loaded inventory page", async () => {
     const pathname = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
-    const physical = { ...blob(pathname), url: "https://blob.example/exact.woff2", etag: "exact-etag", contentType: "font/woff2" };
+    const physical = { ...blob(pathname), url: "https://blob.example/exact.woff2", etag: "exact-etag", contentType: "font/woff2", displayName: "Focused font" };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/managed-assets/inventory") {
@@ -331,6 +460,7 @@ describe("Storage manager", () => {
     ]));
     expect(onFocusResolved).toHaveBeenCalledWith(pathname);
     expect(host.querySelector("[data-storage-details]")?.textContent).toContain(pathname);
+    expect(host.querySelector("[data-storage-details]")?.textContent).toContain("Focused font");
     expect(host.querySelector("[data-storage-details]")?.textContent).toContain("exact-etag");
     expect(host.textContent).toContain("Fonts");
     expect(fetchMock).toHaveBeenCalledWith(`/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`, expect.objectContaining({ cache: "no-store" }));

@@ -62,6 +62,7 @@ function createFirestore() {
   return {
     doc: documentRef,
     collection: collectionRef,
+      async getAll(...references: Array<ReturnType<typeof documentRef>>) { return references.map((reference) => snapshot(reference.path)); },
     async runTransaction<T>(callback: (transaction: {
       get: (reference: ReturnType<typeof documentRef> | ReturnType<typeof collectionRef>) => Promise<ReturnType<typeof snapshot> | ReturnType<typeof querySnapshot>>;
       set: (reference: ReturnType<typeof documentRef>, value: Record<string, unknown>) => void;
@@ -141,6 +142,8 @@ import {
   deleteManagedAsset,
   ManagedAssetControlError,
   readManagedAssetControl,
+  readManagedAssetDisplayNames,
+  renameManagedAsset,
   setManagedAssetProtection,
   validateManagedAssetPath,
 } from "../src/features/persistence/managed-asset-controls";
@@ -200,6 +203,46 @@ describe("managed asset controls", () => {
     await setManagedAssetProtection(owner, path, false);
     expect((await readManagedAssetControl(owner, path))?.protected).toBe(false);
     await expect(deleteManagedAsset(owner, path)).resolves.toEqual({ alreadyMissing: false });
+  });
+
+  it("validates and persists Unicode display names without changing physical identity", async () => {
+    const renamed = await renameManagedAsset(owner, path, "  春の資料 📘  ");
+    expect(renamed.displayName).toBe("春の資料 📘");
+    expect(await readManagedAssetDisplayNames(owner, [path])).toEqual(new Map([[path, "春の資料 📘"]]));
+    await expect(renameManagedAsset(owner, path, "   ")).rejects.toMatchObject({ code: "invalid_display_name" });
+    await expect(renameManagedAsset(owner, path, "folder/name")).rejects.toMatchObject({ code: "invalid_display_name" });
+    await expect(renameManagedAsset(owner, path, `x${"😀".repeat(512)}`)).rejects.toMatchObject({ code: "invalid_display_name" });
+    await expect(renameManagedAsset(owner, `users/other/assets/${path.split("/").at(-1)}`, "Other")).rejects.toMatchObject({ code: "invalid_identity" });
+  });
+
+  it("allows duplicate names, rename while protected, and retains the name through protection", async () => {
+    const otherPath = `users/${owner}/assets/223e4567-e89b-42d3-a456-426614174000.png`;
+    await renameManagedAsset(owner, path, "Shared name");
+    state.head.mockResolvedValueOnce({ ...physical, pathname: otherPath });
+    await renameManagedAsset(owner, otherPath, "Shared name");
+    state.head.mockResolvedValue({ ...physical, pathname: path });
+    await setManagedAssetProtection(owner, path, true);
+    expect((await renameManagedAsset(owner, path, "Protected renamed file")).protected).toBe(true);
+    expect((await readManagedAssetControl(owner, path))?.displayName).toBe("Protected renamed file");
+    await expect(deleteManagedAsset(owner, path)).rejects.toMatchObject({ code: "protected" });
+  });
+
+  it("preserves display names through deletion failure, retry, and terminal tombstone", async () => {
+    await renameManagedAsset(owner, path, "Keep this label");
+    state.del.mockRejectedValueOnce(new Error("provider unavailable"));
+    await expect(deleteManagedAsset(owner, path)).rejects.toMatchObject({ code: "provider_unavailable" });
+    expect((await readManagedAssetControl(owner, path))?.displayName).toBe("Keep this label");
+    await expect(deleteManagedAsset(owner, path)).resolves.toEqual({ alreadyMissing: false });
+    expect((await readManagedAssetControl(owner, path))?.displayName).toBe("Keep this label");
+    await expect(renameManagedAsset(owner, path, "Too late")).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("serializes concurrent protection and rename updates without losing either field", async () => {
+    await Promise.all([
+      setManagedAssetProtection(owner, path, true),
+      renameManagedAsset(owner, path, "Concurrent name"),
+    ]);
+    expect(await readManagedAssetControl(owner, path)).toMatchObject({ protected: true, displayName: "Concurrent name", state: "active" });
   });
 
   it("deletes only the selected Blob and removes matching uploaded Font and File associations", async () => {
@@ -286,12 +329,15 @@ describe("managed asset controls", () => {
       storagePath: path,
       protected: false,
       state: "deleting",
+      displayName: "Deletion in progress",
       deleteLeaseExpiresAt: Timestamp.fromMillis(Date.now() + 60_000),
       deleteOperationId: "existing-operation",
       deleteAttemptId: "existing-attempt",
     });
     await expect(setManagedAssetProtection(owner, path, true)).rejects.toMatchObject({ code: "deletion_in_progress" });
     await expect(deleteManagedAsset(owner, path)).rejects.toMatchObject({ code: "deletion_in_progress" });
+    await expect(renameManagedAsset(owner, path, "Must not reactivate")).rejects.toMatchObject({ code: "deletion_in_progress" });
+    expect((await readManagedAssetControl(owner, path))?.displayName).toBe("Deletion in progress");
     expect(state.del).not.toHaveBeenCalled();
   });
 
