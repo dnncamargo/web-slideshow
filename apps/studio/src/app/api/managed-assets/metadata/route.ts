@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
 import { FirebaseAuthenticationError } from "../../../../features/persistence/persistence-errors";
-import { getManagedAssetInventoryObject } from "../../../../features/persistence/managed-asset-inventory";
+import { getManagedAssetInventoryObject, ManagedAssetInventoryAnnotationError } from "../../../../features/persistence/managed-asset-inventory";
 
 export const dynamic = "force-dynamic";
 const PREFIX_PATTERN = /^users\/([^/]+)\/assets\//;
@@ -38,6 +38,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (error instanceof FirebaseAuthenticationError) return NextResponse.json({ error: "authentication" }, { status: 401 });
+    if (error instanceof ManagedAssetInventoryAnnotationError) return NextResponse.json({ error: "annotations_unavailable" }, { status: 503 });
     if (error instanceof BlobNotFoundError) return NextResponse.json({ error: "not_found" }, { status: 404 });
     return NextResponse.json({ error: "unavailable" }, { status: 503 });
   }

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("../src/features/auth/firebase-admin-auth", () => ({ verifyFirebaseIdToken: mocks.verify }));
 vi.mock("../src/features/persistence/managed-asset-inventory", () => ({
+  ManagedAssetInventoryAnnotationError: class ManagedAssetInventoryAnnotationError extends Error {},
   isValidManagedAssetInventoryCursor: mocks.validCursor,
   listManagedAssetInventoryPage: mocks.list,
 }));
@@ -43,5 +44,13 @@ describe("managed asset inventory route", () => {
     expect(await response.json()).toEqual({ error: "unavailable" });
     mocks.verify.mockRejectedValueOnce(new FirebaseAuthenticationError("private auth detail"));
     expect((await GET(new Request("https://studio.example/api/managed-assets/inventory", { headers: { Authorization: "Bearer bad" } }))).status).toBe(401);
+  });
+
+  it("returns a recognizable response when persisted annotations are unavailable", async () => {
+    const { ManagedAssetInventoryAnnotationError } = await import("../src/features/persistence/managed-asset-inventory");
+    mocks.list.mockRejectedValueOnce(new ManagedAssetInventoryAnnotationError());
+    const response = await GET(new Request("https://studio.example/api/managed-assets/inventory", { headers: { Authorization: "Bearer ok" } }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "annotations_unavailable" });
   });
 });

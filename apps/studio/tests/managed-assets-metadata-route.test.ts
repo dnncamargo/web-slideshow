@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ verify: vi.fn(), head: vi.fn(), listObject: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ BlobNotFoundError: class BlobNotFoundError extends Error {}, head: mocks.head }));
 vi.mock("../src/features/auth/firebase-admin-auth", () => ({ verifyFirebaseIdToken: mocks.verify }));
-vi.mock("../src/features/persistence/managed-asset-inventory", () => ({ getManagedAssetInventoryObject: mocks.listObject }));
+vi.mock("../src/features/persistence/managed-asset-inventory", () => ({
+  ManagedAssetInventoryAnnotationError: class ManagedAssetInventoryAnnotationError extends Error {},
+  getManagedAssetInventoryObject: mocks.listObject,
+}));
 
 import { GET } from "../src/app/api/managed-assets/metadata/route";
 
@@ -12,7 +15,7 @@ beforeEach(() => {
   vi.stubEnv("BLOB_STORE_ID", "mock-store");
   mocks.verify.mockResolvedValue({ uid: "owner-1" });
   mocks.head.mockResolvedValue({ pathname: "users/owner-1/assets/legacy", contentType: "text/plain", size: 12 });
-  mocks.listObject.mockResolvedValue({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag" });
+  mocks.listObject.mockResolvedValue({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag", displayName: "Renamed legacy" });
 });
 
 describe("managed asset selected metadata route", () => {
@@ -22,7 +25,7 @@ describe("managed asset selected metadata route", () => {
     expect(mocks.head).toHaveBeenCalledWith("users/owner-1/assets/legacy", { storeId: "mock-store" });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.listObject).toHaveBeenCalledWith("owner-1", "users/owner-1/assets/legacy");
-    expect(await response.json()).toEqual({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag", contentType: "text/plain" });
+    expect(await response.json()).toEqual({ pathname: "users/owner-1/assets/legacy", url: "https://blob.example/legacy", size: 12, uploadedAt: "2026-01-02T03:04:05.000Z", etag: "provider-etag", displayName: "Renamed legacy", contentType: "text/plain" });
   });
   it("rejects cross-owner paths before calling Blob and bounds pathname input", async () => {
     const response = await GET(new Request("https://studio.example/api/managed-assets/metadata?pathname=users%2Fowner-2%2Fassets%2Flegacy", { headers: { Authorization: "Bearer id-token" } }));
@@ -30,5 +33,12 @@ describe("managed asset selected metadata route", () => {
     expect(mocks.head).not.toHaveBeenCalled();
     const invalid = await GET(new Request(`https://studio.example/api/managed-assets/metadata?pathname=${"x".repeat(2050)}`, { headers: { Authorization: "Bearer id-token" } }));
     expect(invalid.status).toBe(400);
+  });
+  it("distinguishes missing annotation data from absent display names", async () => {
+    const { ManagedAssetInventoryAnnotationError } = await import("../src/features/persistence/managed-asset-inventory");
+    mocks.listObject.mockRejectedValueOnce(new ManagedAssetInventoryAnnotationError());
+    const response = await GET(new Request("https://studio.example/api/managed-assets/metadata?pathname=users%2Fowner-1%2Fassets%2Flegacy", { headers: { Authorization: "Bearer id-token" } }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "annotations_unavailable" });
   });
 });
