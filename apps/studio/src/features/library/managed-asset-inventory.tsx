@@ -237,10 +237,10 @@ export function ManagedAssetInventory({
   const selectedFileMatches = selectedItem
     ? filesByStoragePath.get(selectedItem.pathname) ?? []
     : [];
-  const selectedFile = selectedFileMatches.length === 1 &&
-      selectedFileMatches[0]?.id === selectedFileId
-    ? selectedFileMatches[0]
-    : null;
+  const selectedFile = files.find((record) => record.id === selectedFileId) ?? null;
+  const selectedFilePhysicalMatches = selectedFile
+    ? items.filter((item) => item.pathname === selectedFile.file.source.storagePath)
+    : [];
 
   const copyPathname = async (pathname: string) => {
     setCopiedPathname(null);
@@ -335,17 +335,44 @@ export function ManagedAssetInventory({
             </Button>
           </div>
         ) : null}
+        {filesStatus === "ready" && files.length > 0 ? (
+          <details className={styles.storageLibraryMetadata} data-library-metadata-management>
+            <summary>
+              {t("library.storage.libraryMetadataTitle", { count: files.length })}
+            </summary>
+            <p>{t("library.storage.libraryMetadataDescription")}</p>
+            <div className={styles.storageLibraryMetadataList}>
+              {files.map((record) => (
+                <button
+                  type="button"
+                  className={styles.storageLibraryMetadataItem}
+                  data-library-file-record={record.id}
+                  data-selected={selectedFileId === record.id}
+                  aria-pressed={selectedFileId === record.id}
+                  key={record.id}
+                  onClick={() => {
+                    setSelectedPathname(null);
+                    onSelectFile(record.id);
+                  }}
+                >
+                  <span>{record.file.name}</span>
+                  <span>{t(`customLibrary.file.kind.${record.file.kind}`)}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : null}
         {copyFailed ? <p className={styles.storageCopyError} role="alert">{t("library.storage.copyFailed")}</p> : null}
       </section>
 
-      {selectedFile && selectedItem ? (
+      {selectedFile ? (
         <CustomLibraryFileDetails
           key={`${selectedFile.id}:${selectedFile.file.name}`}
           record={selectedFile}
           pending={fileMutationPending}
           renamePending={renamePending}
           renameError={renameError}
-          physicalObject={selectedItem}
+          physicalObject={selectedFilePhysicalMatches.length === 1 ? selectedFilePhysicalMatches[0] : undefined}
           onRename={onRenameFile}
           onDelete={onDeleteFile}
         />

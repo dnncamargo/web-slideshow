@@ -11,4 +11,11 @@ describe("canonical element type labels", () => {
     expect(translateStudioMessage("en", "element.shape")).toBe("Shape");
     expect(translateStudioMessage("pt-BR", "element.shape")).toBe("Forma");
   });
+
+  it("labels logical File removal clearly in both Studio locales", () => {
+    expect(translateStudioMessage("en", "customLibrary.fileDetails.removeFromLibrary"))
+      .toBe("Remove from Library");
+    expect(translateStudioMessage("pt-BR", "customLibrary.fileDetails.removeFromLibrary"))
+      .toBe("Remover da Biblioteca");
+  });
 });

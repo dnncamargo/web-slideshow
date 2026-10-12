@@ -1972,7 +1972,7 @@ export function PresentationLibrary({
           message={t("customLibrary.fileDelete.body", {
             name: customLibraryFiles.find((record) => record.id === customLibraryFileDeleteTargetId)?.file.name ?? "",
           })}
-          confirmLabel={t("customLibrary.fileDetails.delete")}
+          confirmLabel={t("customLibrary.fileDetails.removeFromLibrary")}
           busyConfirmLabel={t("customLibrary.fileDelete.deleting")}
           cancelLabel={t("customLibrary.fileDetails.cancel")}
           busy={deletingCustomLibraryFileId !== null}

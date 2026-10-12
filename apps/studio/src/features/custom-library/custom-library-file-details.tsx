@@ -179,7 +179,7 @@ export function CustomLibraryFileDetails({
           </Button>
         )}
         <Button variant="danger" size="compact" disabled={pending || renamePending} onClick={onDelete}>
-          {t("customLibrary.fileDetails.delete")}
+          {t("customLibrary.fileDetails.removeFromLibrary")}
         </Button>
       </div>
     </aside>

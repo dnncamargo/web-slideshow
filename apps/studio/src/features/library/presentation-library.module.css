@@ -606,6 +606,52 @@
   gap: 12px;
 }
 
+.storageLibraryMetadata {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ps-ui-border-subtle);
+}
+
+.storageLibraryMetadata > summary {
+  color: var(--ps-ui-text-secondary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.storageLibraryMetadata > p {
+  margin: 10px 0;
+  color: var(--ps-ui-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.storageLibraryMetadataList {
+  display: grid;
+  gap: 6px;
+}
+
+.storageLibraryMetadataItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--ps-ui-border-subtle);
+  border-radius: var(--ps-ui-radius-6);
+  background: transparent;
+  color: var(--ps-ui-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.storageLibraryMetadataItem[data-selected="true"] {
+  border-color: var(--ps-ui-border-default);
+  background: rgb(34 211 238 / 8%);
+}
+
+.storageLibraryMetadataItem > span:last-child {
+  color: var(--ps-ui-text-secondary);
+}
+
 .storageRow[data-selected="true"] .storageSelect {
   border-radius: var(--ps-ui-radius-6);
   background: rgb(34 211 238 / 8%);

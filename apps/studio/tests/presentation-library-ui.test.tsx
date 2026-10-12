@@ -2519,29 +2519,27 @@ describe("presentation library workspace controls", () => {
     expect(container.textContent).toContain("Rename");
   });
 
-  it("requires confirmation for file deletion and deletes only the Library record", async () => {
+  it("keeps legacy Library metadata manageable without claiming its physical object is downloadable", async () => {
     const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-delete", "delete.png");
+    const file = customLibraryFile("file-delete", "legacy-delete.png");
     const files = customLibraryFileRepositoryFor([file]);
-    mockStorageFetch([{
-      pathname: file.file.source.storagePath,
-      url: file.file.source.downloadUrl,
-      size: 2048,
-      uploadedAt: "2026-02-03T04:05:06.000Z",
-      etag: "etag-1",
-    }]);
+    const fetchMock = mockStorageFetch([]);
 
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
     await flushWorkspaceEffects();
     act(() => findButton(container, "Objects").click());
     await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-storage-object] [data-storage-select]")?.click());
-    act(() => findButton(container, "Delete file").click());
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(0);
+    act(() => container.querySelector<HTMLButtonElement>("[data-library-file-record='file-delete']")?.click());
+    expect(container.textContent).toContain("legacy-delete.png");
+    expect(container.querySelector("aside[aria-label='Details'] a")).toBeNull();
+    act(() => findButton(container, "Remove from Library").click());
     expect(files.deleteFile).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Delete Custom Library file?");
+    expect(container.textContent).toContain("Remove Custom Library file?");
+    expect(container.textContent).toContain("This does not delete the uploaded asset.");
 
     const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
-      .find((button) => button.textContent === "Delete file");
+      .find((button) => button.textContent === "Remove from Library");
     expect(confirm).toBeTruthy();
     await act(async () => {
       confirm?.click();
@@ -2549,8 +2547,11 @@ describe("presentation library workspace controls", () => {
     });
 
     expect(files.deleteFile).toHaveBeenCalledWith("file-delete");
-    expect(container.textContent).not.toContain("delete.png");
-    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(1);
-    expect(container.textContent).toContain("No matching Library metadata is available.");
+    expect(container.textContent).not.toContain("legacy-delete.png");
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(0);
+    expect(fetchMock.mock.calls.every(([url]) => {
+      const path = String(url);
+      return path.endsWith("/api/managed-assets/inventory") || path.endsWith("/api/managed-assets/usage");
+    })).toBe(true);
   });
 });

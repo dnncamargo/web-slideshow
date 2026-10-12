@@ -167,6 +167,71 @@ describe("Managed Asset Storage inventory UI", () => {
     expect(onSelectFile).toHaveBeenCalledWith("file-1");
   });
 
+  it("keeps Library records manageable without inferring presence from the current page", async () => {
+    const file = {
+      id: "file-on-next-page",
+      file: {
+        name: "legacy-notes.txt",
+        kind: "text" as const,
+        representation: "text" as const,
+        source: {
+          assetId: "00000000-0000-4000-8000-000000000002",
+          storagePath: "users/owner-1/assets/object-2",
+          downloadUrl: "https://blob.example/object-2",
+          contentType: "text/plain" as const,
+          sizeBytes: 8,
+        },
+      },
+    };
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ scope: "owner", items: [item()], hasMore: true, cursor: "next-page" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ scope: "owner", items: [item(file.file.source.storagePath)], hasMore: false }),
+      });
+    const onSelectFile = vi.fn();
+
+    await act(async () => {
+      root.render(renderInventory({ files: [file], onSelectFile }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const metadataDisclosure = container.querySelector<HTMLDetailsElement>("[data-library-metadata-management]");
+    const recordButton = container.querySelector<HTMLButtonElement>("[data-library-file-record='file-on-next-page']");
+    expect(metadataDisclosure).toBeTruthy();
+    expect(recordButton).toBeTruthy();
+    expect(container.textContent).toContain("This list does not indicate whether each physical object is present.");
+    expect(container.textContent).not.toMatch(/blob (is )?missing|object not found/i);
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(1);
+
+    await act(async () => {
+      recordButton?.click();
+      await Promise.resolve();
+    });
+    expect(onSelectFile).toHaveBeenCalledWith("file-on-next-page");
+    await act(async () => {
+      root.render(renderInventory({ files: [file], selectedFileId: file.id, onSelectFile }));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain("Rename");
+    expect(container.textContent).toContain("Remove from Library");
+    expect(container.querySelector("aside[aria-label='Details'] a")).toBeNull();
+
+    const loadMore = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Load more");
+    await act(async () => {
+      loadMore?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelectorAll("[data-storage-object]")).toHaveLength(2);
+    expect(container.querySelector("[data-custom-library-file-row='file-on-next-page']")).toBeTruthy();
+  });
+
   it("shows an initial error with retry", async () => {
     fetchMock.mockResolvedValueOnce({ ok: false });
     await act(async () => {
