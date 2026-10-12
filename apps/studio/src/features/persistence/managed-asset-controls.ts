@@ -24,6 +24,7 @@ export interface ManagedAssetControl {
   storagePath: string;
   protected: boolean;
   state: ManagedAssetControlState;
+  deleteAttemptId?: string;
   deleteLeaseExpiresAt?: Timestamp;
   deleteOperationId?: string;
 }
@@ -140,26 +141,99 @@ function queryFontDocs(transaction: Transaction, uid: string) {
 }
 
 interface BeginDeleteResult {
-  operationId: string;
+  operationId: string | null;
+  attemptId: string | null;
   alreadyDeleted: boolean;
-  intentRefs: DocumentReference[];
+  alreadyMissing: boolean;
 }
 
-async function beginManagedAssetDeletion(uid: string, storagePath: string, operationId: string): Promise<BeginDeleteResult> {
+async function beginManagedAssetDeletion(
+  uid: string,
+  storagePath: string,
+  candidateOperationId: string,
+  candidateAttemptId: string,
+  blobMissing: boolean,
+): Promise<BeginDeleteResult> {
   const controlRef = managedAssetControlRef(uid, storagePath);
   const firestore = db();
   return firestore.runTransaction(async (transaction) => {
     const controlSnapshot = await transaction.get(controlRef);
     const current = controlSnapshot.exists ? parseControl(controlSnapshot.data(), storagePath) : null;
-    if (current?.state === "deleted") return { operationId, alreadyDeleted: true, intentRefs: [] };
+    if (current?.state === "deleted") return {
+      operationId: current.deleteOperationId ?? null,
+      attemptId: null,
+      alreadyDeleted: true,
+      alreadyMissing: blobMissing,
+    };
     if (current?.protected) throw new ManagedAssetControlError("protected");
     const now = Date.now();
-    if (current?.state === "deleting"
-      && current.deleteLeaseExpiresAt instanceof Timestamp
+    const existingOperationId = current?.deleteOperationId;
+    if (current?.state === "deleting" && current.deleteLeaseExpiresAt instanceof Timestamp
       && current.deleteLeaseExpiresAt.toMillis() > now) {
-      throw new ManagedAssetControlError("deletion_in_progress");
+      if (!blobMissing) throw new ManagedAssetControlError("deletion_in_progress");
+      if (!existingOperationId) throw new ManagedAssetControlError("identity_conflict");
+      // The prior operation may still be executing. A confirmed absent Blob
+      // lets its exact path be finalized without starting another provider call.
+      return { operationId: existingOperationId, attemptId: current.deleteAttemptId ?? null, alreadyDeleted: false, alreadyMissing: true };
     }
 
+    const intentQuery = firestore.collection(`users/${uid}/managedAssets`)
+      .where("storagePath", "==", storagePath);
+    const intentSnapshot = await transaction.get(intentQuery);
+    const intentDocs = intentSnapshot.docs as QueryDocumentSnapshot[];
+    const intents = intentDocs.map((document) => document.data() as ManagedAssetIntent);
+    if (intents.some((intent) => intent.state !== "complete" && intent.state !== "deleted")) {
+      throw new ManagedAssetControlError("upload_in_progress");
+    }
+
+    if (blobMissing && current?.state !== "deleting" && current?.state !== "delete_failed") {
+      throw new ManagedAssetControlError("not_found");
+    }
+    if ((current?.state === "deleting" || current?.state === "delete_failed") && !existingOperationId) {
+      throw new ManagedAssetControlError("identity_conflict");
+    }
+
+    const operationId = existingOperationId ?? candidateOperationId;
+
+    transaction.set(controlRef, {
+      storagePath,
+      protected: false,
+      state: "deleting",
+      deleteAttemptId: candidateAttemptId,
+      deleteOperationId: operationId,
+      deleteLeaseExpiresAt: Timestamp.fromMillis(now + DELETE_LEASE_MS),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { operationId, attemptId: candidateAttemptId, alreadyDeleted: false, alreadyMissing: blobMissing };
+  });
+}
+
+async function markDeletionFailed(uid: string, storagePath: string, operationId: string, attemptId: string): Promise<void> {
+  const ref = managedAssetControlRef(uid, storagePath);
+  await db().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
+    const current = parseControl(snapshot.data(), storagePath);
+    if (current?.state !== "deleting" || current.deleteOperationId !== operationId || current.deleteAttemptId !== attemptId) return;
+    transaction.update(ref, {
+      state: "delete_failed",
+      deleteAttemptId: FieldValue.delete(),
+      deleteLeaseExpiresAt: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
+async function finalizeManagedAssetDeletion(uid: string, storagePath: string, operationId: string): Promise<boolean> {
+  const ref = managedAssetControlRef(uid, storagePath);
+  return db().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return false;
+    const current = parseControl(snapshot.data(), storagePath);
+    if (current?.state === "deleted") return true;
+    if ((current?.state !== "deleting" && current?.state !== "delete_failed") || current.deleteOperationId !== operationId) return false;
+
+    const firestore = db();
     const fileQuery = firestore.collection(`users/${uid}/customLibraryFiles`)
       .where("file.source.storagePath", "==", storagePath);
     const intentQuery = firestore.collection(`users/${uid}/managedAssets`)
@@ -182,56 +256,20 @@ async function beginManagedAssetDeletion(uid: string, storagePath: string, opera
       if (next !== font) fontUpdates.push({ ref: document.ref, value: next });
     });
 
-    transaction.set(controlRef, {
-      storagePath,
+    transaction.update(ref, {
+      state: "deleted",
       protected: false,
-      state: "deleting",
-      deleteOperationId: operationId,
-      deleteLeaseExpiresAt: Timestamp.fromMillis(now + DELETE_LEASE_MS),
+      deleteAttemptId: FieldValue.delete(),
+      deleteLeaseExpiresAt: FieldValue.delete(),
+      deletedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    fontUpdates.forEach(({ ref, value }) => value ? transaction.set(ref, value) : transaction.delete(ref));
+    fontUpdates.forEach(({ ref: fontRef, value }) => value ? transaction.set(fontRef, value) : transaction.delete(fontRef));
     fileSnapshot.docs.forEach((document) => transaction.delete(document.ref));
     intentDocs.forEach((document) => {
       if ((document.data() as ManagedAssetIntent).state === "complete") {
         transaction.update(document.ref, { state: "deleted", updatedAt: FieldValue.serverTimestamp() });
       }
-    });
-    return { operationId, alreadyDeleted: false, intentRefs: intentDocs.map((document) => document.ref) };
-  });
-}
-
-async function markDeletionFailed(uid: string, storagePath: string, operationId: string): Promise<void> {
-  const ref = managedAssetControlRef(uid, storagePath);
-  await db().runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return;
-    const current = parseControl(snapshot.data(), storagePath);
-    if (current?.state !== "deleting" || current.deleteOperationId !== operationId) return;
-    transaction.update(ref, {
-      state: "delete_failed",
-      deleteOperationId: FieldValue.delete(),
-      deleteLeaseExpiresAt: FieldValue.delete(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-}
-
-async function markDeletionComplete(uid: string, storagePath: string, operationId: string): Promise<boolean> {
-  const ref = managedAssetControlRef(uid, storagePath);
-  return db().runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return false;
-    const current = parseControl(snapshot.data(), storagePath);
-    if (current?.state === "deleted") return true;
-    if (current?.state !== "deleting" || current.deleteOperationId !== operationId) return false;
-    transaction.update(ref, {
-      state: "deleted",
-      protected: false,
-      deleteOperationId: FieldValue.delete(),
-      deleteLeaseExpiresAt: FieldValue.delete(),
-      deletedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
     return true;
   });
@@ -239,8 +277,6 @@ async function markDeletionComplete(uid: string, storagePath: string, operationI
 
 export async function deleteManagedAsset(uid: string, storagePath: string): Promise<{ alreadyMissing: boolean }> {
   managedAssetControlRef(uid, storagePath);
-  const existingControl = await readManagedAssetControl(uid, storagePath);
-  if (existingControl?.state === "deleted") throw new ManagedAssetControlError("already_deleted");
 
   let alreadyMissing = false;
   const storeId = process.env.BLOB_STORE_ID?.trim();
@@ -254,37 +290,41 @@ export async function deleteManagedAsset(uid: string, storagePath: string): Prom
     if (error instanceof ManagedAssetControlError) throw error;
     if (error instanceof BlobNotFoundError) {
       alreadyMissing = true;
-      if (!existingControl || (existingControl.state !== "deleting" && existingControl.state !== "delete_failed")) {
-        throw new ManagedAssetControlError("not_found");
-      }
     } else {
       throw new ManagedAssetControlError("provider_unavailable");
     }
   }
 
-  const operationId = crypto.randomUUID();
-  const started = await beginManagedAssetDeletion(uid, storagePath, operationId);
-  if (started.alreadyDeleted) throw new ManagedAssetControlError("already_deleted");
+  const candidateOperationId = crypto.randomUUID();
+  const candidateAttemptId = crypto.randomUUID();
+  const started = await beginManagedAssetDeletion(uid, storagePath, candidateOperationId, candidateAttemptId, alreadyMissing);
+  if (started.alreadyDeleted) {
+    if (alreadyMissing) return { alreadyMissing: true };
+    throw new ManagedAssetControlError("already_deleted");
+  }
+  if (!started.operationId) throw new ManagedAssetControlError("identity_conflict");
+  const operationId = started.operationId;
+  const attemptId = started.attemptId;
 
   try {
-    if (!alreadyMissing) await del(storagePath, { storeId });
-    try {
-      const afterDelete = await head(storagePath, { storeId });
-      if (afterDelete.pathname !== storagePath) throw new ManagedAssetControlError("identity_conflict");
-      await markDeletionFailed(uid, storagePath, operationId);
-      throw new ManagedAssetControlError("provider_unavailable");
-    } catch (error) {
-      if (!(error instanceof BlobNotFoundError)) throw error;
+    if (!started.alreadyMissing) {
+      if (!attemptId) throw new ManagedAssetControlError("identity_conflict");
+      await del(storagePath, { storeId });
+      try {
+        const afterDelete = await head(storagePath, { storeId });
+        if (afterDelete.pathname !== storagePath) throw new ManagedAssetControlError("identity_conflict");
+        throw new ManagedAssetControlError("provider_unavailable");
+      } catch (error) {
+        if (!(error instanceof BlobNotFoundError)) throw error;
+      }
     }
-    if (!await markDeletionComplete(uid, storagePath, operationId)) {
+    if (!await finalizeManagedAssetDeletion(uid, storagePath, operationId)) {
       const latest = await readManagedAssetControl(uid, storagePath);
       if (latest?.state !== "deleted") throw new ManagedAssetControlError("deletion_in_progress");
     }
-    return { alreadyMissing };
+    return { alreadyMissing: alreadyMissing || started.alreadyMissing };
   } catch (error) {
-    if (!(error instanceof ManagedAssetControlError) || error.code !== "provider_unavailable") {
-      await markDeletionFailed(uid, storagePath, operationId).catch(() => undefined);
-    }
+    if (attemptId) await markDeletionFailed(uid, storagePath, operationId, attemptId).catch(() => undefined);
     throw error instanceof ManagedAssetControlError ? error : new ManagedAssetControlError("provider_unavailable");
   }
 }

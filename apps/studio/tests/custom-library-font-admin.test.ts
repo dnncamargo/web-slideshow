@@ -19,7 +19,11 @@ const { documents, getIntent, db } = vi.hoisted(() => {
       set: (reference: { id: string }, value: unknown) => void;
       delete: (reference: { id: string }) => void;
     }) => unknown) => callback({
-      get: async (reference: { id: string }) => ({ exists: documents.has(reference.id), data: () => documents.get(reference.id) }),
+      get: async (reference: { id: string }) => ({
+        exists: documents.has(reference.id),
+        data: () => documents.get(reference.id),
+        get: (field: string) => (documents.get(reference.id) as Record<string, unknown> | undefined)?.[field],
+      }),
       create: (reference: { id: string }, value: unknown) => { documents.set(reference.id, value); },
       set: (reference: { id: string }, value: unknown) => { documents.set(reference.id, value); },
       delete: (reference: { id: string }) => { documents.delete(reference.id); },
@@ -101,6 +105,16 @@ describe("authoritative Custom Library font writes", () => {
     await expect(updateCustomLibraryFont("font-owner", "managed", { family: "Inter", faces: [cdnFace] })).rejects.toMatchObject({ code: "managed_face_removal_denied" });
     await expect(updateCustomLibraryFont("font-owner", "managed", { family: "Inter", faces: [managedFace] })).resolves.toBeUndefined();
     expect(documents.get("managed")).toEqual({ family: "Inter", faces: [managedFace] });
+  });
+
+  it("blocks new and updated font associations while the exact asset is deleting", async () => {
+    documents.set(`${uuid}.woff2`, { state: "deleting" });
+    documents.set("existing-managed", { family: "Inter", faces: [managedFace] });
+    await expect(saveCustomLibraryFont("font-owner", { family: "New Inter", faces: [managedFace] }))
+      .rejects.toMatchObject({ code: "unverified_managed_face" });
+    await expect(updateCustomLibraryFont("font-owner", "existing-managed", { family: "Inter", faces: [managedFace] }))
+      .rejects.toMatchObject({ code: "unverified_managed_face" });
+    expect(documents.get("existing-managed")).toEqual({ family: "Inter", faces: [managedFace] });
   });
 
   it("does not allow an update to erase explicit managed provenance", async () => {

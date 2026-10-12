@@ -164,6 +164,7 @@ describe("Firestore deletion authorization", () => {
     await assertFails(getDoc(doc(other, "users", "control-owner", "managedAssetControls", leaf)));
     await assertFails(setDoc(controlRef, { protected: false, state: "active" }));
     await assertFails(updateDoc(fileRef, { name: "Changed during delete" }));
+    await assertFails(setDoc(doc(owner, "users", "control-owner", "customLibraryFiles", "file-2"), file));
     await assertFails(setDoc(doc(owner, "users", "control-owner", "managedAssetControls", "other.png"), {
       storagePath: "users/control-owner/assets/other.png", protected: false, state: "active",
     }));
