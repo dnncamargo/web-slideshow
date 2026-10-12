@@ -10,6 +10,7 @@ export type StaticLibraryDestination =
   | "styles"
   | "palettes"
   | "fonts"
+  | "storage"
   | "files";
 
 export interface FolderLibraryDestination {

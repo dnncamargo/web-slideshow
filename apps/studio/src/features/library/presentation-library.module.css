@@ -1006,6 +1006,48 @@
   gap: 8px;
 }
 
+.storageManager {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  overflow: hidden;
+}
+.storageListPane { min-width: 0; min-height: 0; overflow: auto; padding: 0 24px 24px 0; }
+.storageDetailsPane { min-width: 0; min-height: 0; overflow: auto; padding: 0 0 24px 24px; border-left: 1px solid var(--ps-ui-border-subtle); }
+.storageControls { position: sticky; top: 0; z-index: 1; display: flex; align-items: end; flex-wrap: wrap; gap: 10px; padding: 6px 0 14px; background: var(--ps-ui-background-canvas); }
+.storageControl { display: grid; min-width: 120px; gap: 4px; color: var(--ps-ui-text-muted); font-size: 11px; }
+.storageControl input,.storageControl select { min-width: 0; max-width: 220px; padding: 7px 9px; border: 1px solid var(--ps-ui-border-default); border-radius: var(--ps-ui-radius-6); background: var(--ps-ui-background-control); color: var(--ps-ui-text-primary); font: inherit; font-size: 12px; }
+.storageControl:first-child { flex: 1 1 170px; }
+.storageLoadedCount { padding: 0 2px 8px; color: var(--ps-ui-text-muted); font-size: 11px; }
+.storageFileInput { display: none; }
+.storageRows { display: grid; margin: 0; padding: 0; gap: 4px; list-style: none; }
+.storageRow { display: grid; width: 100%; min-width: 0; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--ps-ui-radius-8); background: transparent; color: var(--ps-ui-text-primary); font: inherit; text-align: left; cursor: pointer; }
+.storageRow:hover,.storageRow[data-selected="true"] { border-color: var(--ps-ui-border-subtle); background: var(--ps-ui-background-raised); }
+.storageRow:focus-visible { outline: 2px solid var(--ps-ui-semantic-focus); outline-offset: 2px; }
+.storageTypeIcon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: var(--ps-ui-radius-8); background: var(--ps-ui-background-control); color: var(--ps-ui-text-secondary); font-size: 16px; font-weight: 700; }
+.storageRowText { display: grid; min-width: 0; gap: 4px; }
+.storageRowText strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.storageRowText span,.storageRowMeta { color: var(--ps-ui-text-muted); font-size: 11px; }
+.storageRowMeta { text-align: right; white-space: nowrap; }
+.storagePreview { display: grid; max-height: 240px; margin: 18px 0; place-items: center; overflow: hidden; border: 1px solid var(--ps-ui-border-subtle); border-radius: var(--ps-ui-radius-8); background: var(--ps-ui-background-raised); }
+.storagePreview img { display: block; max-width: 100%; max-height: 240px; object-fit: contain; }
+.storageAudio { width: 100%; margin: 16px 0; }
+.storageTextPreview { max-height: 280px; margin: 16px 0; padding: 12px; overflow: auto; border: 1px solid var(--ps-ui-border-subtle); border-radius: var(--ps-ui-radius-8); background: var(--ps-ui-background-raised); color: var(--ps-ui-text-primary); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.storagePreviewFallback { color: var(--ps-ui-text-muted); font-size: 12px; line-height: 1.5; }
+.storageActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.storageActions a { color: var(--ps-ui-text-primary); font-size: 12px; text-underline-offset: 3px; }
+.storageTechnical { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ps-ui-border-subtle); color: var(--ps-ui-text-secondary); font-size: 12px; }
+.storageTechnical summary { margin-bottom: 12px; cursor: pointer; }
+.storageTechnical .detailsList { margin-bottom: 12px; }
+
+@media (max-width: 1000px) and (min-width: 761px) {
+  .storageManager { grid-template-columns: minmax(0, 1fr) 280px; }
+  .storageRow { grid-template-columns: 38px minmax(0, 1fr); }
+  .storageRowMeta { grid-column: 2; text-align: left; }
+}
+
 @media (max-width: 760px) {
   /* ==========================================================
      STUDIO MOBILE TOPBAR
@@ -1175,6 +1217,15 @@
     grid-template-rows: minmax(0, 1fr);
     min-height: 0;
   }
+  .storageManager { display: flex; flex-direction: column; gap: 0; overflow: auto; }
+  .storageListPane { flex: none; overflow: visible; padding: 0 0 18px; }
+  .storageDetailsPane { flex: none; overflow: visible; padding: 18px 0 24px; border-top: 1px solid var(--ps-ui-border-subtle); border-left: 0; }
+  .storageControls { align-items: end; }
+  .storageControl { flex: 1 1 130px; }
+  .storageControl input,.storageControl select { max-width: none; }
+  .storageLoadedCount { flex: 1 1 100%; order: 4; }
+  .storageRow { grid-template-columns: 38px minmax(0, 1fr); }
+  .storageRowMeta { grid-column: 2; text-align: left; }
   .detailsPane {
     display: none;
   }

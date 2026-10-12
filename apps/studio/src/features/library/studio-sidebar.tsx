@@ -126,7 +126,8 @@ function InlineFolderEditor({
  * - Folders: Explorer-like organization for presentations. Each folder is a
  *   real navigation destination keyed by its stable folderId; the display
  *   name is never used as identity.
- * - Custom Library: Styles, Palettes, Fonts, Files (fixed navigation)
+ * - Storage: one owner-scoped physical object inventory
+ * - Custom Library: Styles, Palettes, Fonts (fixed navigation)
  */
 export function StudioSidebar({
   destination,
@@ -233,11 +234,15 @@ export function StudioSidebar({
         </section>
 
         <section className={styles.sidebarSection}>
+          <h2>{t("library.storage.title")}</h2>
+          {item("storage", t("library.storage.title"))}
+        </section>
+
+        <section className={styles.sidebarSection}>
           <h2>{t("library.customLibrary")}</h2>
           {item("styles", t("library.styles"))}
           {item("palettes", t("library.palettes"))}
           {item("fonts", t("library.fonts"))}
-          {item("files", t("library.files"))}
         </section>
       </nav>
     </aside>

@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("../src/features/auth/studio-auth-provider", () => ({
   useStudioAuth: () => ({
-    user: { displayName: "Test user", email: "test@example.com" },
+    user: { uid: "test", displayName: "Test user", email: "test@example.com", getIdToken: async () => "owner-token" },
     signOut: testDependencies.signOut,
   }),
 }));
@@ -45,6 +45,7 @@ vi.mock("../src/features/control/live-current", () => ({
 
 vi.mock("@/features/persistence/managed-asset-storage", () => ({
   uploadManagedAsset: testDependencies.uploadManagedAsset,
+  listManagedAssetUploadIntents: async () => [],
 }));
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -270,24 +271,6 @@ function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[])
     deleteFont: vi.fn(async () => {}),
   };
   return { repository, listFonts, saveFont, updateFont, getCurrent: () => current };
-}
-
-function customLibraryFile(id: string, name: string): CustomLibraryFileRecord {
-  return {
-    id,
-    file: {
-      name,
-      kind: "image",
-      representation: "binary",
-      source: {
-        assetId: "00000000-0000-4000-8000-000000000001",
-        storagePath: "users/test/assets/image-1",
-        downloadUrl: "https://cdn.example.test/image-1",
-        contentType: "image/png",
-        sizeBytes: 2048,
-      },
-    },
-  };
 }
 
 function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[]) {
@@ -2081,6 +2064,7 @@ describe("presentation library workspace controls", () => {
     );
     if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
+    await flushWorkspaceEffects();
     expect(container.textContent).toContain("Loading Custom Library…");
     resolve?.([]);
     await flushWorkspaceEffects();
@@ -2256,196 +2240,11 @@ describe("presentation library workspace controls", () => {
     expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
   });
 
-  it("loads Files lazily in the canonical browser and shows selected metadata", async () => {
+  it("replaces the Custom Library Files destination with Storage", async () => {
     const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-1", "diagram.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
+    act(() => root.render(renderLibrary(repository)));
     await flushWorkspaceEffects();
-    expect(files.listFiles).not.toHaveBeenCalled();
-
-    const destination = findButton(container, "Files");
-    act(() => destination.click());
-    await flushWorkspaceEffects();
-
-    expect(files.listFiles).toHaveBeenCalledTimes(1);
-    const row = container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]");
-    expect(row?.className).toContain("row");
-    act(() => row?.click());
-
-    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
-    expect(details?.className).toContain("detailsPane");
-    expect(details?.textContent).toContain("diagram.png");
-    expect(details?.textContent).toContain("Image");
-    expect(details?.textContent).toContain("image/png");
-    expect(details?.textContent).toContain("2 KB");
-    expect(details?.textContent).not.toContain(file.id);
-    expect(details?.textContent).not.toContain(file.file.source.assetId);
-  });
-
-  it("classifies before upload, overrides browser MIME, and saves the managed identity", async () => {
-    const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const uploadResult = {
-      assetId: "00000000-0000-4000-8000-000000000002",
-      storagePath: "users/test/assets/image-2",
-      downloadUrl: "https://cdn.example.test/image-2",
-      contentType: "text/plain",
-      sizeBytes: 5,
-    };
-    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
-    const localFile = new File(["hello"], "  photo.png  ", { type: "" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
-    expect(input).toBeTruthy();
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
-    await act(async () => {
-      input?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(localFile, {
-      contentType: "image/png",
-    });
-    expect(files.saveFile).toHaveBeenCalledTimes(1);
-    expect(files.saveFile).toHaveBeenCalledWith(
-      {
-        name: "photo.png",
-        kind: "image",
-        representation: "binary",
-        source: {
-          assetId: uploadResult.assetId,
-          storagePath: uploadResult.storagePath,
-          downloadUrl: uploadResult.downloadUrl,
-          contentType: "image/png",
-          sizeBytes: uploadResult.sizeBytes,
-        },
-      },
-      { documentId: uploadResult.assetId },
-    );
-    expect(container.textContent).toContain("photo.png");
-  });
-
-  it("rejects unsupported extensions before Blob upload", async () => {
-    const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const localFile = new File(["hello"], "notes.exe", { type: "image/png" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
-    await act(async () => {
-      input?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(testDependencies.uploadManagedAsset).not.toHaveBeenCalled();
-    expect(files.saveFile).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("This file type is not supported.");
-  });
-
-  it("keeps a completed Blob upload pending and retries only Firestore persistence", async () => {
-    const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const uploadResult = {
-      assetId: "00000000-0000-4000-8000-000000000003",
-      storagePath: "users/test/assets/image-3",
-      downloadUrl: "https://cdn.example.test/image-3",
-      contentType: "image/png",
-      sizeBytes: 5,
-    };
-    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
-    files.saveFile
-      .mockRejectedValueOnce(new Error("persistence unavailable"))
-      .mockResolvedValueOnce("file-retried");
-    const localFile = new File(["hello"], "photo.png", { type: "image/png" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
-    await act(async () => {
-      input?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
-    expect(files.saveFile).toHaveBeenCalledTimes(1);
-    expect(files.saveFile.mock.calls[0]?.[1]).toEqual({ documentId: uploadResult.assetId });
-    expect(container.textContent).toContain("Retry saving");
-    await act(async () => findButton(container, "Retry saving").click());
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
-    expect(files.saveFile).toHaveBeenCalledTimes(2);
-    expect(files.saveFile.mock.calls[1]?.[0]).toEqual(files.saveFile.mock.calls[0]?.[0]);
-    expect(files.saveFile.mock.calls[1]?.[1]).toEqual(files.saveFile.mock.calls[0]?.[1]);
-    expect(container.querySelectorAll("[data-custom-library-file-row]")).toHaveLength(1);
-  });
-
-  it("renames metadata without replacing source and preserves selection", async () => {
-    const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-rename", "before.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
-    act(() => findButton(container, "Rename").click());
-
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Name"]');
-    expect(input).toBeTruthy();
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "  after.png  ");
-    act(() => input?.dispatchEvent(new Event("input", { bubbles: true })));
-    act(() => findButton(container, "Save").click());
-    await flushWorkspaceEffects();
-
-    expect(files.updateFile).toHaveBeenCalledTimes(1);
-    const [id, updated] = files.updateFile.mock.calls[0] ?? [];
-    expect(id).toBe("file-rename");
-    expect(updated?.name).toBe("after.png");
-    expect(updated?.source).toBe(file.file.source);
-    expect(container.textContent).toContain("after.png");
-    expect(container.textContent).toContain("Rename");
-  });
-
-  it("requires confirmation for file deletion and deletes only the Library record", async () => {
-    const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-delete", "delete.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
-    act(() => findButton(container, "Delete file").click());
-    expect(files.deleteFile).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Delete Custom Library file?");
-
-    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
-      .find((button) => button.textContent === "Delete file");
-    expect(confirm).toBeTruthy();
-    await act(async () => {
-      confirm?.click();
-      await Promise.resolve();
-    });
-
-    expect(files.deleteFile).toHaveBeenCalledWith("file-delete");
-    expect(container.textContent).not.toContain("delete.png");
-    expect(container.textContent).toContain("Select a file to view details.");
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent?.trim() === "Files")).toBe(false);
+    expect(findButton(container, "Storage")).toBeTruthy();
   });
 });

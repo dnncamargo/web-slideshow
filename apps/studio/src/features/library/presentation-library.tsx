@@ -106,6 +106,7 @@ import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-
 import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
 import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
 import { StorageUsageIndicator } from "./storage-usage-indicator";
+import { StorageManager } from "./storage-manager";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
 import {
@@ -157,6 +158,8 @@ function destinationTitle(
       return t("library.palettes");
     case "fonts":
       return t("library.fonts");
+    case "storage":
+      return t("library.storage.title");
     case "files":
       return t("library.files");
   }
@@ -169,6 +172,8 @@ function destinationSectionTitle(
   if (isFolderDestination(destination)) {
     return t("library.folders");
   }
+
+  if (destination === "storage") return t("library.storage.title");
 
   if (isCustomLibraryDestination(destination)) {
     return t("library.customLibrary");
@@ -383,7 +388,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "styles") return;
-    void loadCustomLibraryItems();
+    queueMicrotask(() => void loadCustomLibraryItems());
   }, [destination, loadCustomLibraryItems]);
 
   const loadCustomLibraryPalettes = useCallback(async () => {
@@ -407,7 +412,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "palettes") return;
-    void loadCustomLibraryPalettes();
+    queueMicrotask(() => void loadCustomLibraryPalettes());
   }, [destination, loadCustomLibraryPalettes]);
 
   const loadCustomLibraryFonts = useCallback(async () => {
@@ -431,7 +436,7 @@ export function PresentationLibrary({
   }, [customLibraryFontRepository, t]);
 
   useEffect(() => {
-    if (destination !== "fonts") return;
+    if (destination !== "fonts" && destination !== "storage") return;
     queueMicrotask(() => void loadCustomLibraryFonts());
   }, [destination, loadCustomLibraryFonts]);
 
@@ -455,8 +460,8 @@ export function PresentationLibrary({
   }, [customLibraryFileRepository, t]);
 
   useEffect(() => {
-    if (destination !== "files") return;
-    void loadCustomLibraryFiles();
+    if (destination !== "files" && destination !== "storage") return;
+    queueMicrotask(() => void loadCustomLibraryFiles());
   }, [destination, loadCustomLibraryFiles]);
 
   useEffect(() => {
@@ -1460,6 +1465,7 @@ export function PresentationLibrary({
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
+  const storageDestination = destination === "storage";
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
@@ -1601,7 +1607,7 @@ export function PresentationLibrary({
                 </h1>
               )}
               <StorageUsageIndicator
-                enabled={filesDestination || fontsDestination}
+                enabled={storageDestination || fontsDestination || filesDestination}
                 refreshKey={storageUsageRefreshKey}
               />
             </div>
@@ -1674,6 +1680,14 @@ export function PresentationLibrary({
           </div>
 
           <div className={styles.workspaceBody}>
+            {storageDestination ? (
+              <StorageManager
+                key={storageUsageRefreshKey}
+                files={customLibraryFiles}
+                fonts={customLibraryFonts}
+                onUploaded={() => setStorageUsageRefreshKey((value) => value + 1)}
+              />
+            ) : <>
             <section
               className={styles.browserPane}
               aria-live="polite"
@@ -1910,6 +1924,7 @@ export function PresentationLibrary({
                 }}
               />
             )}
+            </>}
           </div>
         </main>
       </div>
