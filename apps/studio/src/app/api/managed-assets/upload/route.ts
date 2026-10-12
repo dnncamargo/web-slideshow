@@ -2,7 +2,15 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
 import { verifyFirebaseIdToken } from "../../../../features/auth/firebase-admin-auth";
-import { isManagedAssetContentType } from "../../../../features/persistence/managed-asset-content-types";
+import {
+  classifyManagedAssetExtension,
+  isManagedAssetContentType,
+} from "../../../../features/persistence/managed-asset-content-types";
+import {
+  authorizeManagedAssetUpload,
+  ManagedAssetPhysicalCheckError,
+  reconcileManagedAssetIntent,
+} from "../../../../features/persistence/managed-asset-intents";
 import {
   classifyManagedAssetUploadError,
   FirebaseAuthenticationError,
@@ -11,7 +19,7 @@ import {
 } from "../../../../features/persistence/persistence-errors";
 
 const ASSET_PATH_PATTERN =
-  /^users\/([^/]+)\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+  /^users\/([^/]+)\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(\.[a-z0-9]+)$/i;
 const MAX_CONTENT_TYPE_LENGTH = 256;
 
 class ManagedAssetRequestError extends Error {
@@ -27,6 +35,8 @@ class ManagedAssetRequestError extends Error {
 interface ManagedAssetClientPayload {
   idToken: string;
   contentType: string;
+  assetId: string;
+  expectedSizeBytes: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -55,9 +65,16 @@ function parseClientPayload(
   const keys = Object.keys(parsed).sort();
 
   if (
-    keys.length !== 2 ||
-    keys[0] !== "contentType" ||
-    keys[1] !== "idToken" ||
+    keys.length !== 4 ||
+    keys[0] !== "assetId" ||
+    keys[1] !== "contentType" ||
+    keys[2] !== "expectedSizeBytes" ||
+    keys[3] !== "idToken" ||
+    typeof parsed.assetId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.assetId) ||
+    typeof parsed.expectedSizeBytes !== "number" ||
+    !Number.isSafeInteger(parsed.expectedSizeBytes) ||
+    parsed.expectedSizeBytes < 0 ||
     typeof parsed.idToken !== "string" ||
     !parsed.idToken.trim() ||
     typeof parsed.contentType !== "string" ||
@@ -76,6 +93,8 @@ function parseClientPayload(
   return {
     idToken: parsed.idToken,
     contentType: parsed.contentType,
+    assetId: parsed.assetId,
+    expectedSizeBytes: parsed.expectedSizeBytes,
   };
 }
 
@@ -84,6 +103,26 @@ function assertAuthorizedAssetPath(pathname: string, uid: string): void {
 
   if (!match || match[1] !== uid) {
     throw new ManagedAssetRequestError("Unauthorized asset path.", "authorization");
+  }
+
+  const classification = classifyManagedAssetExtension(match[3] ?? "");
+  if (classification === null) {
+    throw new ManagedAssetRequestError("Unsupported asset extension.", "unsupported_type");
+  }
+}
+
+function assertContentTypeMatchesPath(pathname: string, contentType: string): void {
+  const match = ASSET_PATH_PATTERN.exec(pathname);
+  if (match === null) {
+    throw new ManagedAssetRequestError("Unauthorized asset path.", "authorization");
+  }
+  const classification = classifyManagedAssetExtension(match[3] ?? "");
+
+  if (classification === null || classification.contentType !== contentType) {
+    throw new ManagedAssetRequestError(
+      "Upload content type does not match its extension.",
+      "unsupported_type",
+    );
   }
 }
 
@@ -122,19 +161,59 @@ export async function POST(request: Request): Promise<NextResponse> {
       body: body as unknown as HandleUploadBody,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const payload = parseClientPayload(clientPayload);
+        assertContentTypeMatchesPath(pathname, payload.contentType);
         const user = await verifyFirebaseIdToken(payload.idToken);
 
         assertAuthorizedAssetPath(pathname, user.uid);
+        const match = ASSET_PATH_PATTERN.exec(pathname);
+        if (!match || match[2] !== payload.assetId) {
+          throw new ManagedAssetRequestError("Upload identity does not match its intent.", "authorization");
+        }
+        let authorization: "authorized" | "complete" | "in_progress" | "uncertain";
+        try {
+          authorization = await authorizeManagedAssetUpload(
+            user.uid,
+            payload.assetId,
+            pathname,
+            payload.contentType,
+            payload.expectedSizeBytes,
+          );
+        } catch (error) {
+          if (error instanceof Error && error.message === "intent_mismatch") {
+            throw new ManagedAssetRequestError("Upload intent does not match the requested object.", "authorization");
+          }
+          if (error instanceof Error && (error.message === "intent_conflict" || error.message === "physical_uncertain")) {
+            throw new ManagedAssetRequestError("Upload intent requires recovery before another transfer.", "uncertain_completion");
+          }
+          throw error;
+        }
+        if (authorization !== "authorized") {
+          throw new ManagedAssetRequestError(
+            authorization === "complete"
+              ? "Upload already completed."
+              : authorization === "in_progress"
+                ? "Upload is still in progress."
+                : "Upload completion is uncertain and requires reconciliation.",
+            "uncertain_completion",
+          );
+        }
 
         return {
           addRandomSuffix: false,
           allowOverwrite: false,
           allowedContentTypes: [payload.contentType],
+          maximumSizeInBytes: payload.expectedSizeBytes,
+          tokenPayload: JSON.stringify({ uid: user.uid, assetId: payload.assetId }),
         };
       },
-      onUploadCompleted: async () => {
-        // Upload completion is intentionally side-effect free. The client
-        // receives the finalized public URL directly from upload().
+      onUploadCompleted: async ({ tokenPayload }) => {
+        if (!tokenPayload) throw new Error("Missing managed asset completion identity.");
+        const completion: unknown = JSON.parse(tokenPayload);
+        if (!isRecord(completion) || typeof completion.uid !== "string" || typeof completion.assetId !== "string") {
+          throw new Error("Malformed managed asset completion identity.");
+        }
+        const recovered = await reconcileManagedAssetIntent(completion.uid, completion.assetId);
+        if (recovered.status !== "complete") throw new Error("Physical managed asset could not be verified.");
       },
       request,
     });
@@ -142,7 +221,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json(response);
   } catch (error) {
     if (error instanceof ManagedAssetRequestError) {
-      return errorResponse(error.category === "unsupported_type" ? 415 : 401, error.category);
+      const status = error.category === "unsupported_type"
+        ? 415
+        : error.category === "uncertain_completion" ? 409 : 401;
+      return errorResponse(status, error.category);
+    }
+
+    if (error instanceof ManagedAssetPhysicalCheckError) {
+      return errorResponse(503, "service_unavailable");
     }
 
     if (error instanceof FirebaseAuthenticationError) {

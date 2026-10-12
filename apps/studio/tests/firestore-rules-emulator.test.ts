@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { beforeAll, afterAll, describe, it } from "vitest";
 import {
   assertFails,
   assertSucceeds,
@@ -61,8 +61,30 @@ afterAll(async () => {
 });
 
 describe("Firestore deletion authorization", () => {
+  it("allows owner reads but denies every client write to Custom Library fonts", async () => {
+    const owner = testEnv.authenticatedContext("font-owner").firestore();
+    const other = testEnv.authenticatedContext("font-other").firestore();
+    const anonymous = testEnv.authenticatedContext("font-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
+    const fontRef = doc(owner, "users", "font-owner", "customLibraryFonts", "uploaded-font");
+    const managedFont = {
+      family: "Managed Sans",
+      faces: [{ source: { type: "url", url: "https://store.public.blob.vercel-storage.com/users/font-owner/assets/123e4567-e89b-42d3-a456-426614174000.woff2", format: "woff2" }, provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" } }],
+    };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "font-owner", "customLibraryFonts", "uploaded-font"), managedFont);
+    });
+
+    await assertSucceeds(getDoc(fontRef));
+    await assertSucceeds(getDocs(collection(owner, "users", "font-owner", "customLibraryFonts")));
+    await assertFails(getDoc(doc(other, "users", "font-owner", "customLibraryFonts", "uploaded-font")));
+    await assertFails(getDocs(collection(anonymous, "users", "font-owner", "customLibraryFonts")));
+    await assertFails(setDoc(doc(owner, "users", "font-owner", "customLibraryFonts", "new-font"), managedFont));
+    await assertFails(updateDoc(fontRef, { faces: [] }));
+    await assertFails(writeBatch(owner).delete(fontRef).commit());
+  });
+
   it("allows only the non-anonymous owner to access Custom Library files", async () => {
-    const file = {
+    const file = { file: {
       name: "Workshop audio",
       kind: "audio",
       representation: "binary",
@@ -73,7 +95,7 @@ describe("Firestore deletion authorization", () => {
         contentType: "audio/mpeg",
         sizeBytes: 42,
       },
-    };
+    } };
     const owner = testEnv.authenticatedContext("file-owner").firestore();
     const other = testEnv.authenticatedContext("file-other").firestore();
     const anonymous = testEnv.authenticatedContext("file-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
@@ -86,6 +108,66 @@ describe("Firestore deletion authorization", () => {
     await assertFails(setDoc(doc(other, "users", "file-owner", "customLibraryFiles", "file-2"), file));
     await assertFails(getDocs(collection(anonymous, "users", "file-owner", "customLibraryFiles")));
     await assertFails(getDocs(collection(unauthenticated, "users", "file-owner", "customLibraryFiles")));
+  });
+
+  it("denies client reads and every client state change for managed upload intents", async () => {
+    const owner = testEnv.authenticatedContext("intent-owner").firestore();
+    const other = testEnv.authenticatedContext("intent-other").firestore();
+    const anonymous = testEnv.authenticatedContext("intent-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
+    const unauthenticated = testEnv.unauthenticatedContext().firestore();
+    const ownerRef = doc(owner, "users", "intent-owner", "managedAssets", "123e4567-e89b-12d3-a456-426614174000");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "intent-owner", "managedAssets", "existing-intent"), {
+        state: "pending",
+      });
+    });
+
+    await assertFails(setDoc(ownerRef, { state: "pending" }));
+    await assertFails(getDoc(ownerRef));
+    await assertFails(getDocs(collection(owner, "users", "intent-owner", "managedAssets")));
+    await assertFails(updateDoc(doc(owner, "users", "intent-owner", "managedAssets", "existing-intent"), { state: "complete" }));
+    await assertFails(setDoc(doc(other, "users", "intent-owner", "managedAssets", "other"), { state: "complete" }));
+    await assertFails(getDoc(doc(anonymous, "users", "intent-owner", "managedAssets", "asset")));
+    await assertFails(getDoc(doc(unauthenticated, "users", "intent-owner", "managedAssets", "asset")));
+  });
+
+  it("keeps deletion controls server-owned and blocks new File associations during deletion", async () => {
+    const owner = testEnv.authenticatedContext("control-owner").firestore();
+    const other = testEnv.authenticatedContext("control-other").firestore();
+    const leaf = "123e4567-e89b-42d3-a456-426614174000.png";
+    const controlRef = doc(owner, "users", "control-owner", "managedAssetControls", leaf);
+    const fileRef = doc(owner, "users", "control-owner", "customLibraryFiles", "file-1");
+    const file = { file: {
+      name: "Fixture image",
+      kind: "image",
+      representation: "binary",
+      source: {
+        assetId: "123e4567-e89b-42d3-a456-426614174000",
+        storagePath: `users/control-owner/assets/${leaf}`,
+        downloadUrl: "https://blob.example.test/image.png",
+        contentType: "image/png",
+        sizeBytes: 42,
+      },
+    } };
+
+    await assertSucceeds(setDoc(fileRef, file));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "control-owner", "managedAssetControls", leaf), {
+        storagePath: `users/control-owner/assets/${leaf}`,
+        protected: false,
+        state: "deleting",
+      });
+    });
+
+    await assertSucceeds(getDoc(controlRef));
+    await assertFails(getDoc(doc(other, "users", "control-owner", "managedAssetControls", leaf)));
+    await assertFails(setDoc(controlRef, { protected: false, state: "active" }));
+    await assertFails(updateDoc(fileRef, { name: "Changed during delete" }));
+    await assertFails(setDoc(doc(owner, "users", "control-owner", "customLibraryFiles", "file-2"), file));
+    await assertFails(setDoc(doc(owner, "users", "control-owner", "managedAssetControls", "other.png"), {
+      storagePath: "users/control-owner/assets/other.png", protected: false, state: "active",
+    }));
   });
 
   it("binds pointer create and update to an immutable ownerUid", async () => {

@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("../src/features/auth/studio-auth-provider", () => ({
   useStudioAuth: () => ({
-    user: { displayName: "Test user", email: "test@example.com" },
+    user: { uid: "test", displayName: "Test user", email: "test@example.com", getIdToken: async () => "owner-token" },
     signOut: testDependencies.signOut,
   }),
 }));
@@ -45,9 +45,11 @@ vi.mock("../src/features/control/live-current", () => ({
 
 vi.mock("@/features/persistence/managed-asset-storage", () => ({
   uploadManagedAsset: testDependencies.uploadManagedAsset,
+  listManagedAssetUploadIntents: async () => [],
 }));
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { STUDIO_LOCALE_STORAGE_KEY, translateStudioMessage } from "../src/features/i18n/studio-i18n";
 import { PresentationLibrary } from "../src/features/library/presentation-library";
 import { PresentationList } from "../src/features/library/presentation-list";
 import { PresentationToolbar } from "../src/features/library/presentation-toolbar";
@@ -64,7 +66,7 @@ import type {
   CustomLibraryPaletteRecord,
   CustomLibraryPaletteRepository,
 } from "../src/features/custom-library/custom-library-palette-repository";
-import type { CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
+import type { CustomLibraryFontFace, CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
 import type { CustomLibraryFileRepository } from "../src/features/custom-library/custom-library-file-repository";
@@ -272,24 +274,6 @@ function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[])
   return { repository, listFonts, saveFont, updateFont, getCurrent: () => current };
 }
 
-function customLibraryFile(id: string, name: string): CustomLibraryFileRecord {
-  return {
-    id,
-    file: {
-      name,
-      kind: "image",
-      representation: "binary",
-      source: {
-        assetId: "00000000-0000-4000-8000-000000000001",
-        storagePath: "users/test/assets/image-1",
-        downloadUrl: "https://cdn.example.test/image-1",
-        contentType: "image/png",
-        sizeBytes: 2048,
-      },
-    },
-  };
-}
-
 function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[]) {
   let current = initialFiles;
   const listFiles = vi.fn(async () => current);
@@ -320,6 +304,14 @@ function fontFace(weight: number): FontFaceResource {
     style: "normal",
     source: { type: "url", url: `https://cdn.example.test/${weight}.woff2`, format: "woff2" },
   };
+}
+
+function externalFontFace(weight: number): CustomLibraryFontFace {
+  return { ...fontFace(weight), provenance: { kind: "external-url" } };
+}
+
+function googleFontFace(weight: number): CustomLibraryFontFace {
+  return { ...fontFace(weight), provenance: { kind: "cdn", provider: "google-fonts" } };
 }
 
 function findButton(container: HTMLDivElement, text: string): HTMLButtonElement {
@@ -457,15 +449,18 @@ describe("presentation library workspace controls", () => {
   let root: Root;
 
   beforeEach(() => {
+    window.localStorage.removeItem(STUDIO_LOCALE_STORAGE_KEY);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     testDependencies.liveState = { kind: "none" };
+    testDependencies.push.mockReset();
     testDependencies.uploadManagedAsset.mockReset();
   });
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    window.localStorage.removeItem(STUDIO_LOCALE_STORAGE_KEY);
     document.body.innerHTML = "";
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -1253,7 +1248,7 @@ describe("presentation library workspace controls", () => {
     if (!addFace) throw new Error("expected manual Add font face");
     await act(async () => { addFace.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
-    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [externalFontFace(400)] });
 
     setLibraryInputValue(container.querySelector("#custom-library-font-family"), "inter");
     setLibraryInputValue(container.querySelector("#custom-library-font-url"), fontFace(700).source.url);
@@ -1264,7 +1259,7 @@ describe("presentation library workspace controls", () => {
     act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => { addSecond.click(); await new Promise<void>((resolve) => queueMicrotask(resolve)); });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
-    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenCalledWith("font-1", { family: "Inter", faces: [externalFontFace(400), externalFontFace(700)] });
     expect(container.textContent).toContain("Inter");
     expect(container.textContent).toContain("2 faces");
     expect(container.textContent).toContain("Fontsource");
@@ -1306,10 +1301,11 @@ describe("presentation library workspace controls", () => {
     });
     await flushWorkspaceEffects();
 
-    const expectedFace: FontFaceResource = {
+    const expectedFace: CustomLibraryFontFace = {
       weight: 400,
       style: "normal",
       source: { type: "url", url: downloadUrl, format: "truetype" },
+      provenance: { kind: "managed-upload", assetId: "asset-uploaded-sans-regular" },
     };
     expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "font/ttf" });
     expect(fonts.saveFont).toHaveBeenCalledWith(
@@ -1338,10 +1334,11 @@ describe("presentation library workspace controls", () => {
       style: "normal",
       source: { type: "url", url: "https://cdn.example.test/uploaded-sans-regular.woff2", format: "woff2" },
     };
-    const newFace: FontFaceResource = {
+    const newFace: CustomLibraryFontFace = {
       weight: 700,
       style: "italic",
       source: { type: "url", url: "https://cdn.example.test/uploaded-sans-bold-italic.woff2", format: "woff2" },
+      provenance: { kind: "managed-upload", assetId: "asset-uploaded-sans-bold-italic" },
     };
     const existing = { id: "uploaded-sans", font: { family: "Uploaded Sans", faces: [existingFace] } };
     const fonts = customLibraryFontRepositoryFor([existing]);
@@ -1506,7 +1503,7 @@ describe("presentation library workspace controls", () => {
       findButton(container, "Add face").click();
       await Promise.resolve();
     });
-    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [fontFace(400)] });
+    expect(fonts.saveFont).toHaveBeenCalledWith({ family: "Inter", faces: [externalFontFace(400)] });
     expect(container.textContent).not.toContain("Added Inter.");
     expect(container.textContent).not.toContain("1 fonts in Custom Library.");
 
@@ -1566,13 +1563,13 @@ describe("presentation library workspace controls", () => {
     if (!weight) throw new Error("expected weight selector");
     act(() => { weight.value = "700"; weight.dispatchEvent(new Event("change", { bubbles: true })); });
     await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
-    expect(fonts.updateFont).toHaveBeenCalledWith("inter-master", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenCalledWith("inter-master", { family: "Inter", faces: [fontFace(400), externalFontFace(700)] });
     expect(fonts.getCurrent()).toEqual([existing]);
     expect(container.textContent).toContain("Could not save the font to Custom Library.");
 
     await act(async () => { findButton(container, "Add face").click(); await Promise.resolve(); });
     expect(fonts.updateFont).toHaveBeenCalledTimes(2);
-    expect(fonts.getCurrent()).toEqual([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400), fontFace(700)] } }]);
+    expect(fonts.getCurrent()).toEqual([{ id: "inter-master", font: { family: "Inter", faces: [fontFace(400), externalFontFace(700)] } }]);
   });
 
   it("serializes Google multi-face imports against the current master ref", async () => {
@@ -1608,8 +1605,8 @@ describe("presentation library workspace controls", () => {
     resolveSave?.("inter-master");
     await flushWorkspaceEffects();
     await flushWorkspaceEffects();
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "inter-master", { family: "Inter", faces: [fontFace(400), fontFace(500), fontFace(700)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "inter-master", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "inter-master", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500), googleFontFace(700)] });
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
   });
 
@@ -1640,9 +1637,9 @@ describe("presentation library workspace controls", () => {
     await flushWorkspaceEffects();
     expect(fonts.saveFont).toHaveBeenCalledTimes(1);
     expect(fonts.updateFont).toHaveBeenCalledTimes(2);
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(500)] });
-    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "font-1", { family: "Inter", faces: [fontFace(400), fontFace(700)] });
-    expect(fonts.getCurrent()[0]?.font.faces).toEqual([fontFace(400), fontFace(700)]);
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(1, "font-1", { family: "Inter", faces: [googleFontFace(400), googleFontFace(500)] });
+    expect(fonts.updateFont).toHaveBeenNthCalledWith(2, "font-1", { family: "Inter", faces: [googleFontFace(400), googleFontFace(700)] });
+    expect(fonts.getCurrent()[0]?.font.faces).toEqual([googleFontFace(400), googleFontFace(700)]);
   });
 
   it("loads, selects, inspects, and deletes a Custom Library Palette independently", async () => {
@@ -2081,6 +2078,7 @@ describe("presentation library workspace controls", () => {
     );
     if (!destination) throw new Error("expected Styles destination");
     act(() => destination.click());
+    await flushWorkspaceEffects();
     expect(container.textContent).toContain("Loading Custom Library…");
     resolve?.([]);
     await flushWorkspaceEffects();
@@ -2256,196 +2254,146 @@ describe("presentation library workspace controls", () => {
     expect(repository.movePresentationToFolder).not.toHaveBeenCalled();
   });
 
-  it("loads Files lazily in the canonical browser and shows selected metadata", async () => {
+  it("labels the Storage destination Uploaded Files while preserving its section heading and destination", async () => {
     const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-1", "diagram.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
+    act(() => root.render(renderLibrary(repository)));
     await flushWorkspaceEffects();
-    expect(files.listFiles).not.toHaveBeenCalled();
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent?.trim() === "Files")).toBe(false);
+    const storageSection = Array.from(container.querySelectorAll("nav section")).find((section) => section.querySelector("h2")?.textContent === "Storage");
+    const storageItem = findButton(container, "Uploaded Files");
+    expect(storageSection?.contains(storageItem)).toBe(true);
+    expect(storageItem.getAttribute("aria-current")).toBeNull();
 
-    const destination = findButton(container, "Files");
-    act(() => destination.click());
+    act(() => storageItem.click());
     await flushWorkspaceEffects();
-
-    expect(files.listFiles).toHaveBeenCalledTimes(1);
-    const row = container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]");
-    expect(row?.className).toContain("row");
-    act(() => row?.click());
-
-    const details = container.querySelector<HTMLElement>('[aria-label="Details"]');
-    expect(details?.className).toContain("detailsPane");
-    expect(details?.textContent).toContain("diagram.png");
-    expect(details?.textContent).toContain("Image");
-    expect(details?.textContent).toContain("image/png");
-    expect(details?.textContent).toContain("2 KB");
-    expect(details?.textContent).not.toContain(file.id);
-    expect(details?.textContent).not.toContain(file.file.source.assetId);
+    expect(storageItem.getAttribute("aria-current")).toBe("page");
+    const header = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(header?.querySelector("p")?.textContent).toBe("Storage");
+    expect(header?.querySelector("h1")?.textContent).toBe("Uploaded Files");
+    expect(testDependencies.push).not.toHaveBeenCalled();
   });
 
-  it("classifies before upload, overrides browser MIME, and saves the managed identity", async () => {
+  it("renders the Storage navigation item and page heading in Portuguese", async () => {
+    window.localStorage.setItem(STUDIO_LOCALE_STORAGE_KEY, "pt-BR");
     const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const uploadResult = {
-      assetId: "00000000-0000-4000-8000-000000000002",
-      storagePath: "users/test/assets/image-2",
-      downloadUrl: "https://cdn.example.test/image-2",
-      contentType: "text/plain",
-      sizeBytes: 5,
-    };
-    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
-    const localFile = new File(["hello"], "  photo.png  ", { type: "" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
+    act(() => root.render(renderLibrary(repository)));
     await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
     await flushWorkspaceEffects();
 
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
+    const section = Array.from(container.querySelectorAll("nav section")).find((candidate) => candidate.querySelector("h2")?.textContent === "Armazenamento");
+    const storageItem = findButton(container, "Arquivos enviados");
+    expect(section?.contains(storageItem)).toBe(true);
+    act(() => storageItem.click());
+    await flushWorkspaceEffects();
+    expect(storageItem.getAttribute("aria-current")).toBe("page");
+    const header = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(header?.querySelector("p")?.textContent).toBe("Armazenamento");
+    expect(header?.querySelector("h1")?.textContent).toBe("Arquivos enviados");
+  });
+
+  it("opens the exact managed font object from Fonts in Storage", async () => {
+    const pathname = "users/test/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
+    const blobUrl = `https://abc.public.blob.vercel-storage.com/${pathname}`;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/metadata?pathname=")) {
+        return new Response(JSON.stringify({
+          pathname,
+          url: blobUrl,
+          size: 120,
+          uploadedAt: "2026-01-01T00:00:00.000Z",
+          etag: "verified-etag",
+          contentType: "font/woff2",
+        }), { status: 200 });
+      }
+      if (url.includes("/usage")) {
+        return new Response(JSON.stringify({ scope: "owner", objectCount: 1, bytesUsed: 120, measuredAt: "2026-01-01T00:00:00.000Z", quotaStatus: "unknown" }), { status: 200 });
+      }
+      if (url.includes("/inventory")) {
+        return new Response(JSON.stringify({ scope: "owner", items: [], hasMore: false }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ pathname, url: blobUrl, size: 120, uploadedAt: "2026-01-01T00:00:00.000Z", etag: "verified-etag", contentType: "font/woff2" }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([{
+      id: "managed-font",
+      font: { family: "Managed Sans", faces: [{
+        source: { type: "url", url: blobUrl, format: "woff2" },
+        provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" },
+      }] },
+    }]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+    const fontRow = container.querySelector<HTMLButtonElement>('[data-custom-library-font-row][aria-label="Managed Sans"]');
+    expect(fontRow).toBeTruthy();
+    act(() => fontRow?.click());
+    act(() => findButton(container, "View in Storage").click());
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+
+    expect(findButton(container, "Uploaded Files").getAttribute("aria-current")).toBe("page");
+    expect(container.querySelector('[data-storage-manager]')?.textContent).toContain(pathname);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(`/api/managed-assets/metadata?pathname=${encodeURIComponent(pathname)}`);
+  });
+
+  it("keeps Fonts free of Storage requests and places acquisition and upload beside their headings", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/usage")) return new Response(JSON.stringify({ scope: "owner", objectCount: 0, bytesUsed: 0, measuredAt: "2026-01-01T00:00:00.000Z", quotaStatus: "unknown" }), { status: 200 });
+      return new Response(JSON.stringify({ scope: "owner", items: [], hasMore: false }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { repository } = repositoryFor([]);
+    const fonts = customLibraryFontRepositoryFor([]);
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
+    await flushWorkspaceEffects();
+    const allHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(allHeader?.querySelector("p")?.textContent).toBe("Presentations");
+    expect(allHeader?.querySelector("h1")?.textContent).toBe("All");
+
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+    const fontHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(fontHeader?.querySelector("p")?.textContent).toBe("Custom Library");
+    expect(fontHeader?.querySelector("h1")?.textContent).toBe("Fonts");
+    const addFont = findButton(container, "+ Add font");
+    expect(fontHeader?.contains(addFont)).toBe(true);
+    expect(container.textContent).not.toContain("Your storage");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    act(() => findButton(container, "Uploaded Files").click());
+    await flushWorkspaceEffects();
+    const storageHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(storageHeader?.querySelector("p")?.textContent).toBe("Storage");
+    expect(storageHeader?.querySelector("h1")?.textContent).toBe("Uploaded Files");
+    const upload = findButton(container, "Upload file");
+    expect(storageHeader?.contains(upload)).toBe(true);
+    expect(container.querySelector("[data-storage-manager]")?.contains(upload)).toBe(false);
+    await flushWorkspaceEffects();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(expect.arrayContaining([
+      expect.stringContaining("/api/managed-assets/inventory"),
+      expect.stringContaining("/api/managed-assets/usage"),
+    ]));
+
+    const file = new File(["hello"], "hello.txt", { type: "text/plain", lastModified: 10 });
+    const uploadInputs = container.querySelectorAll<HTMLInputElement>('input[aria-label="Upload file"][hidden]');
+    const input = uploadInputs.item(uploadInputs.length - 1);
     expect(input).toBeTruthy();
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
     await act(async () => {
-      input?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(localFile, {
-      contentType: "image/png",
-    });
-    expect(files.saveFile).toHaveBeenCalledTimes(1);
-    expect(files.saveFile).toHaveBeenCalledWith(
-      {
-        name: "photo.png",
-        kind: "image",
-        representation: "binary",
-        source: {
-          assetId: uploadResult.assetId,
-          storagePath: uploadResult.storagePath,
-          downloadUrl: uploadResult.downloadUrl,
-          contentType: "image/png",
-          sizeBytes: uploadResult.sizeBytes,
-        },
-      },
-      { documentId: uploadResult.assetId },
-    );
-    expect(container.textContent).toContain("photo.png");
-  });
-
-  it("rejects unsupported extensions before Blob upload", async () => {
-    const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const localFile = new File(["hello"], "notes.exe", { type: "image/png" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
-    await act(async () => {
+      Object.defineProperty(input, "files", { configurable: true, value: [file] });
       input?.dispatchEvent(new Event("change", { bubbles: true }));
       await Promise.resolve();
     });
-
-    expect(testDependencies.uploadManagedAsset).not.toHaveBeenCalled();
-    expect(files.saveFile).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("This file type is not supported.");
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "text/plain" });
   });
 
-  it("keeps a completed Blob upload pending and retries only Firestore persistence", async () => {
-    const { repository } = repositoryFor([]);
-    const files = customLibraryFileRepositoryFor([]);
-    const uploadResult = {
-      assetId: "00000000-0000-4000-8000-000000000003",
-      storagePath: "users/test/assets/image-3",
-      downloadUrl: "https://cdn.example.test/image-3",
-      contentType: "image/png",
-      sizeBytes: 5,
-    };
-    testDependencies.uploadManagedAsset.mockResolvedValue(uploadResult);
-    files.saveFile
-      .mockRejectedValueOnce(new Error("persistence unavailable"))
-      .mockResolvedValueOnce("file-retried");
-    const localFile = new File(["hello"], "photo.png", { type: "image/png" });
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Upload file"]');
-    Object.defineProperty(input, "files", { configurable: true, value: [localFile] });
-    await act(async () => {
-      input?.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
-    expect(files.saveFile).toHaveBeenCalledTimes(1);
-    expect(files.saveFile.mock.calls[0]?.[1]).toEqual({ documentId: uploadResult.assetId });
-    expect(container.textContent).toContain("Retry saving");
-    await act(async () => findButton(container, "Retry saving").click());
-    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledOnce();
-    expect(files.saveFile).toHaveBeenCalledTimes(2);
-    expect(files.saveFile.mock.calls[1]?.[0]).toEqual(files.saveFile.mock.calls[0]?.[0]);
-    expect(files.saveFile.mock.calls[1]?.[1]).toEqual(files.saveFile.mock.calls[0]?.[1]);
-    expect(container.querySelectorAll("[data-custom-library-file-row]")).toHaveLength(1);
-  });
-
-  it("renames metadata without replacing source and preserves selection", async () => {
-    const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-rename", "before.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
-    act(() => findButton(container, "Rename").click());
-
-    const input = container.querySelector<HTMLInputElement>('input[aria-label="Name"]');
-    expect(input).toBeTruthy();
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "  after.png  ");
-    act(() => input?.dispatchEvent(new Event("input", { bubbles: true })));
-    act(() => findButton(container, "Save").click());
-    await flushWorkspaceEffects();
-
-    expect(files.updateFile).toHaveBeenCalledTimes(1);
-    const [id, updated] = files.updateFile.mock.calls[0] ?? [];
-    expect(id).toBe("file-rename");
-    expect(updated?.name).toBe("after.png");
-    expect(updated?.source).toBe(file.file.source);
-    expect(container.textContent).toContain("after.png");
-    expect(container.textContent).toContain("Rename");
-  });
-
-  it("requires confirmation for file deletion and deletes only the Library record", async () => {
-    const { repository } = repositoryFor([]);
-    const file = customLibraryFile("file-delete", "delete.png");
-    const files = customLibraryFileRepositoryFor([file]);
-
-    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
-    await flushWorkspaceEffects();
-    act(() => findButton(container, "Files").click());
-    await flushWorkspaceEffects();
-    act(() => container.querySelector<HTMLButtonElement>("[data-custom-library-file-row]")?.click());
-    act(() => findButton(container, "Delete file").click());
-    expect(files.deleteFile).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Delete Custom Library file?");
-
-    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
-      .find((button) => button.textContent === "Delete file");
-    expect(confirm).toBeTruthy();
-    await act(async () => {
-      confirm?.click();
-      await Promise.resolve();
-    });
-
-    expect(files.deleteFile).toHaveBeenCalledWith("file-delete");
-    expect(container.textContent).not.toContain("delete.png");
-    expect(container.textContent).toContain("Select a file to view details.");
+  it("translates the Storage heading in English and Portuguese", () => {
+    expect(translateStudioMessage("en", "library.storage.title")).toBe("Storage");
+    expect(translateStudioMessage("en", "library.storage.uploadedFiles")).toBe("Uploaded Files");
+    expect(translateStudioMessage("pt-BR", "library.storage.title")).toBe("Armazenamento");
+    expect(translateStudioMessage("pt-BR", "library.storage.uploadedFiles")).toBe("Arquivos enviados");
   });
 });

@@ -58,6 +58,7 @@ import type { CustomLibraryPaletteDraft } from "../custom-library/custom-library
 import { CustomLibraryPaletteEditor } from "../custom-library/custom-library-palette-editor";
 import type { CustomLibraryFontRepository } from "../custom-library/custom-library-font-repository";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
+import type { CustomLibraryFontFaceProvenance } from "../custom-library/custom-library-font";
 import type { CustomLibraryFileRepository } from "../custom-library/custom-library-file-repository";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import {
@@ -105,7 +106,7 @@ import { CustomLibraryFontDetails } from "../custom-library/custom-library-font-
 import { CustomLibraryFontDeleteDialog } from "../custom-library/custom-library-font-delete-dialog";
 import { CustomLibraryFileBrowser } from "../custom-library/custom-library-file-browser";
 import { CustomLibraryFileDetails } from "../custom-library/custom-library-file-details";
-import { StorageUsageIndicator } from "./storage-usage-indicator";
+import { StorageManager } from "./storage-manager";
 import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import styles from "./presentation-library.module.css";
 import {
@@ -157,6 +158,8 @@ function destinationTitle(
       return t("library.palettes");
     case "fonts":
       return t("library.fonts");
+    case "storage":
+      return t("library.storage.uploadedFiles");
     case "files":
       return t("library.files");
   }
@@ -169,6 +172,8 @@ function destinationSectionTitle(
   if (isFolderDestination(destination)) {
     return t("library.folders");
   }
+
+  if (destination === "storage") return t("library.storage.title");
 
   if (isCustomLibraryDestination(destination)) {
     return t("library.customLibrary");
@@ -245,6 +250,9 @@ export function PresentationLibrary({
   const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
   const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
   const [storageUsageRefreshKey, setStorageUsageRefreshKey] = useState(0);
+  const [storageUploadError, setStorageUploadError] = useState<string | null>(null);
+  const [storageUploading, setStorageUploading] = useState(false);
+  const [storageFocusPathname, setStorageFocusPathname] = useState<string | null>(null);
 
   const [folders, setFolders] = useState<PresentationFolder[]>([]);
   const [folderStatus, setFolderStatus] = useState<FolderStatus>("loading");
@@ -306,6 +314,7 @@ export function PresentationLibrary({
   const paletteWriteRef = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const customLibraryFileInputRef = useRef<HTMLInputElement>(null);
+  const storageFileInputRef = useRef<HTMLInputElement>(null);
   const folderRenameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -383,7 +392,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "styles") return;
-    void loadCustomLibraryItems();
+    queueMicrotask(() => void loadCustomLibraryItems());
   }, [destination, loadCustomLibraryItems]);
 
   const loadCustomLibraryPalettes = useCallback(async () => {
@@ -407,7 +416,7 @@ export function PresentationLibrary({
 
   useEffect(() => {
     if (destination !== "palettes") return;
-    void loadCustomLibraryPalettes();
+    queueMicrotask(() => void loadCustomLibraryPalettes());
   }, [destination, loadCustomLibraryPalettes]);
 
   const loadCustomLibraryFonts = useCallback(async () => {
@@ -431,7 +440,7 @@ export function PresentationLibrary({
   }, [customLibraryFontRepository, t]);
 
   useEffect(() => {
-    if (destination !== "fonts") return;
+    if (destination !== "fonts" && destination !== "storage") return;
     queueMicrotask(() => void loadCustomLibraryFonts());
   }, [destination, loadCustomLibraryFonts]);
 
@@ -455,8 +464,8 @@ export function PresentationLibrary({
   }, [customLibraryFileRepository, t]);
 
   useEffect(() => {
-    if (destination !== "files") return;
-    void loadCustomLibraryFiles();
+    if (destination !== "files" && destination !== "storage") return;
+    queueMicrotask(() => void loadCustomLibraryFiles());
   }, [destination, loadCustomLibraryFiles]);
 
   useEffect(() => {
@@ -477,6 +486,7 @@ export function PresentationLibrary({
 
   const handleDestinationChange = useCallback((next: LibraryDestination) => {
     setDestination(next);
+    if (next !== "storage") setStorageFocusPathname(null);
     setSelectedId(null);
     setRenamingFolderId(null);
     setRenamingFolderValue("");
@@ -500,6 +510,34 @@ export function PresentationLibrary({
       setCustomLibraryFontError(null);
     }
   }, [customLibraryFontWriteState]);
+
+  const handleStorageUpload = useCallback(async (event: ReactChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || storageUploading) return;
+    setStorageUploading(true);
+    setStorageUploadError(null);
+    try {
+      const classification = classifyCustomLibraryFile(file);
+      await uploadManagedAsset(file, { contentType: classification.contentType });
+      setStorageUsageRefreshKey((value) => value + 1);
+    } catch (error) {
+      setStorageUploadError(error instanceof UnsupportedCustomLibraryFileError
+        ? t("customLibrary.uploadError.unsupportedType")
+        : t(customLibraryUploadErrorKey(error)));
+    } finally {
+      event.target.value = "";
+      setStorageUploading(false);
+    }
+  }, [storageUploading, t]);
+
+  const handleViewFontInStorage = useCallback((pathname: string) => {
+    setStorageFocusPathname(pathname);
+    handleDestinationChange("storage");
+  }, [handleDestinationChange]);
+
+  const handleStorageFocusResolved = useCallback((pathname: string) => {
+    setStorageFocusPathname((current) => current === pathname ? null : current);
+  }, []);
 
   const handleToggleSelection = useCallback((id: string) => {
     setSelectedId((current) => (current === id ? null : id));
@@ -783,6 +821,7 @@ export function PresentationLibrary({
       family: string,
       face: FontFaceResource,
       persistenceId?: string,
+      provenance?: CustomLibraryFontFaceProvenance,
     ): Promise<FontFaceAddResult> => {
       customLibraryFontPendingWritesRef.current += 1;
       setCustomLibraryFontWriteState("saving");
@@ -793,6 +832,7 @@ export function PresentationLibrary({
         const existing = currentFonts.find(
           (record) => normalizeFontFamily(record.font.family) === normalizedFamily,
         );
+        const persistedFace = provenance ? { ...face, provenance } : face;
 
         if (existing && existing.font.faces.some((storedFace) => areFontFacesEquivalent(storedFace, face))) {
           return { status: "duplicate" as const };
@@ -804,7 +844,7 @@ export function PresentationLibrary({
           if (existing) {
             const nextFont = {
               family: existing.font.family,
-              faces: [...existing.font.faces, face],
+              faces: [...existing.font.faces, persistedFace],
             };
             await customLibraryFontRepository.updateFont(existing.id, nextFont);
             const nextRecord = { id: existing.id, font: nextFont };
@@ -814,7 +854,7 @@ export function PresentationLibrary({
             customLibraryFontsRef.current = nextFonts;
             if (mountedRef.current) setCustomLibraryFonts(nextFonts);
           } else {
-            const nextFont = { family, faces: [face] };
+            const nextFont = { family, faces: [persistedFace] };
             const id = persistenceId
               ? await customLibraryFontRepository.saveFont(nextFont, {
                   documentId: persistenceId,
@@ -1460,6 +1500,7 @@ export function PresentationLibrary({
   const deleteTarget =
     summaries.find((summary) => summary.id === deleteTargetId) ?? null;
   const presentationDestination = isPresentationDestination(destination);
+  const storageDestination = destination === "storage";
   const stylesDestination = destination === "styles";
   const palettesDestination = destination === "palettes";
   const fontsDestination = destination === "fonts";
@@ -1534,6 +1575,14 @@ export function PresentationLibrary({
           onChange={(event) => void handleUploadCustomLibraryFile(event)}
           aria-label={t("customLibrary.fileBrowser.upload")}
         />
+        <input
+          ref={storageFileInputRef}
+          type="file"
+          accept={CUSTOM_LIBRARY_FILE_ACCEPT}
+          hidden
+          onChange={(event) => void handleStorageUpload(event)}
+          aria-label={t("library.storage.upload")}
+        />
         <StudioSidebar
           destination={destination}
           onDestinationChange={handleDestinationChange}
@@ -1548,7 +1597,7 @@ export function PresentationLibrary({
         />
 
         <main className={styles.main}>
-          <div className={styles.workspaceHeading}>
+          <div className={`${styles.workspaceHeading} ${storageDestination || fontsDestination ? styles.workspaceHeadingWithAction : ""}`}>
             <div>
               <p className={styles.eyebrow}>
                 {destinationSectionTitle(destination, t)}
@@ -1600,10 +1649,6 @@ export function PresentationLibrary({
                   )}
                 </h1>
               )}
-              <StorageUsageIndicator
-                enabled={filesDestination || fontsDestination}
-                refreshKey={storageUsageRefreshKey}
-              />
             </div>
             {presentationDestination ? (
               <PresentationToolbar
@@ -1646,7 +1691,6 @@ export function PresentationLibrary({
             ) : null}
             {fontsDestination && customLibraryFontStatus === "ready" ? (
               <Button
-                className={styles.mobileHidden}
                 size="compact"
                 disabled={fontMutationPending || customLibraryFontAuthoring}
                 onClick={() => {
@@ -1655,6 +1699,15 @@ export function PresentationLibrary({
                 }}
               >
                 {t("customLibrary.fontManagement.add")}
+              </Button>
+            ) : null}
+            {storageDestination ? (
+              <Button
+                size="compact"
+                disabled={storageUploading}
+                onClick={() => storageFileInputRef.current?.click()}
+              >
+                {storageUploading ? t("library.storage.uploading") : t("library.storage.upload")}
               </Button>
             ) : null}
             {filesDestination && customLibraryFileStatus === "ready" ? (
@@ -1674,6 +1727,19 @@ export function PresentationLibrary({
           </div>
 
           <div className={styles.workspaceBody}>
+            {storageDestination ? (
+              <StorageManager
+                key={storageUsageRefreshKey}
+                files={customLibraryFiles}
+                fonts={customLibraryFonts}
+                uploading={storageUploading}
+                uploadError={storageUploadError}
+                usageRefreshKey={storageUsageRefreshKey}
+                focusPathname={storageFocusPathname}
+                onFocusResolved={handleStorageFocusResolved}
+                onPhysicalDelete={() => setStorageUsageRefreshKey((value) => value + 1)}
+              />
+            ) : <>
             <section
               className={styles.browserPane}
               aria-live="polite"
@@ -1888,6 +1954,8 @@ export function PresentationLibrary({
                   record={selectedCustomLibraryFont}
                   pending={fontMutationPending}
                   onDelete={handleRequestCustomLibraryFontDelete}
+                  ownerId={user?.uid ?? null}
+                  onViewInStorage={handleViewFontInStorage}
                 />
               )
             ) : filesDestination ? (
@@ -1910,6 +1978,7 @@ export function PresentationLibrary({
                 }}
               />
             )}
+            </>}
           </div>
         </main>
       </div>

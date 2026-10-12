@@ -18,9 +18,9 @@ vi.mock("../src/features/persistence/managed-asset-storage", () => ({
 }));
 
 const uploadResult = {
-  assetId: "asset-1",
-  storagePath: "users/user-1/assets/asset-1",
-  downloadUrl: "https://firebasestorage.googleapis.com/download/asset-1",
+  assetId: "123e4567-e89b-42d3-a456-426614174000",
+  storagePath: "users/user-1/assets/123e4567-e89b-42d3-a456-426614174000.ttf",
+  downloadUrl: "https://store.public.blob.vercel-storage.com/users/user-1/assets/123e4567-e89b-42d3-a456-426614174000.ttf",
   contentType: "font/ttf",
   sizeBytes: 12,
 };
@@ -125,6 +125,7 @@ describe("FontFileUploadControl", () => {
         },
       }),
       expect.any(String),
+      { kind: "managed-upload", assetId: uploadResult.assetId },
     );
     expect(onPhysicalUpload).toHaveBeenCalledOnce();
   });
@@ -189,6 +190,7 @@ describe("FontFileUploadControl", () => {
         },
       }),
       expect.any(String),
+      { kind: "managed-upload", assetId: uploadResult.assetId },
     );
   });
 
@@ -330,6 +332,7 @@ describe("FontFileUploadControl", () => {
       "My Font",
       expect.objectContaining({ source: expect.objectContaining({ url: uploadResult.downloadUrl }) }),
       initialPersistenceId,
+      { kind: "managed-upload", assetId: uploadResult.assetId },
     );
     expect(onFontAdded).toHaveBeenCalledWith("My Font");
   });
@@ -393,6 +396,7 @@ describe("Custom Library font upload integration", () => {
         source: expect.objectContaining({ format: "truetype" }),
       }),
       expect.any(String),
+      { kind: "managed-upload", assetId: uploadResult.assetId },
     );
     expect(container.textContent).toContain("Added My Font.");
     expect(onPhysicalUpload).toHaveBeenCalledOnce();

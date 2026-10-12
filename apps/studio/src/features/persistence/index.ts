@@ -102,9 +102,13 @@ export {
   PresentationRecoveryFailedError,
 } from "./persistence-errors";
 export {
+  createManagedAssetId,
   uploadManagedAsset,
+  resumeManagedAssetUpload,
+  listManagedAssetUploadIntents,
   type ManagedAssetUploadResult,
   type ManagedAssetUploadOptions,
+  type ManagedAssetUploadIntent,
 } from "./managed-asset-storage";
 export {
   MANAGED_ASSET_CONTENT_TYPES,

@@ -1,4 +1,4 @@
-import { cert, getApp, getApps, initializeApp } from "firebase-admin/app";
+import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 
 import {
@@ -11,11 +11,10 @@ export interface VerifiedFirebaseUser {
 }
 
 let cachedAdminAuth: Auth | null = null;
+let cachedAdminApp: App | null = null;
 
-function getFirebaseAdminAuth(): Auth {
-  if (cachedAdminAuth) {
-    return cachedAdminAuth;
-  }
+export function getFirebaseAdminApp(): App {
+  if (cachedAdminApp) return cachedAdminApp;
 
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim();
@@ -30,7 +29,7 @@ function getFirebaseAdminAuth(): Auth {
     );
   }
 
-  const app = getApps().length > 0
+  cachedAdminApp = getApps().length > 0
     ? getApp()
     : initializeApp({
         credential: cert({
@@ -40,7 +39,12 @@ function getFirebaseAdminAuth(): Auth {
         }),
       });
 
-  cachedAdminAuth = getAuth(app);
+  return cachedAdminApp;
+}
+
+function getFirebaseAdminAuth(): Auth {
+  if (cachedAdminAuth) return cachedAdminAuth;
+  cachedAdminAuth = getAuth(getFirebaseAdminApp());
   return cachedAdminAuth;
 }
 

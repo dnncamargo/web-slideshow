@@ -370,7 +370,7 @@ export function WebFontSearchControl({
 
     const canonicalFamily = existingFamily?.family ?? family.family;
 
-    const added = await onAddFontFace(canonicalFamily, parsedFace.data);
+    const added = await onAddFontFace(canonicalFamily, parsedFace.data, undefined, { kind: "cdn", provider });
 
     if (!fontFaceWasSaved(added)) {
       return false;

@@ -3,6 +3,7 @@ import {
   BlobClientTokenExpiredError,
   BlobContentTypeNotAllowedError,
   BlobFileTooLargeError,
+  BlobPreconditionFailedError,
   BlobPathnameMismatchError,
   BlobRequestAbortedError,
   BlobServiceNotAvailable,
@@ -82,6 +83,7 @@ export function classifyManagedAssetUploadError(
   if (error instanceof BlobClientTokenExpiredError) return "authentication";
   if (error instanceof BlobServiceRateLimited) return "rate_limited";
   if (error instanceof BlobServiceNotAvailable) return "service_unavailable";
+  if (error instanceof BlobPreconditionFailedError) return "uncertain_completion";
   if (error instanceof BlobRequestAbortedError) return "uncertain_completion";
   if (error instanceof TypeError) return "uncertain_completion";
   if (
@@ -114,6 +116,8 @@ export class InvalidPersistedCustomLibraryPaletteError extends PersistenceError 
 export class InvalidCustomLibraryFontForPersistenceError extends PersistenceError {}
 
 export class InvalidPersistedCustomLibraryFontError extends PersistenceError {}
+
+export class CustomLibraryFontRemovalDeniedError extends PersistenceError {}
 
 export class InvalidCustomLibraryFileForPersistenceError extends PersistenceError {}
 

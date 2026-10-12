@@ -4,12 +4,16 @@ import { Button } from "@web-slideshow/ui";
 
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import styles from "../library/presentation-library.module.css";
-import type { CustomLibraryFontRecord } from "./custom-library-font";
+import type { StudioMessageKey } from "../i18n/studio-i18n";
+import type { CustomLibraryFontFace, CustomLibraryFontFaceProvenance, CustomLibraryFontRecord } from "./custom-library-font";
+import { fontFaceRemovalSafety, managedFontPathFromUrl } from "./custom-library-font-provenance";
 
 interface CustomLibraryFontDetailsProps {
   record: CustomLibraryFontRecord | null;
   pending?: boolean;
   onDelete: () => void;
+  ownerId?: string | null;
+  onViewInStorage?: (pathname: string) => void;
 }
 
 const styleOrder = { normal: 0, italic: 1 } as const;
@@ -24,7 +28,19 @@ function weightLabel(weight: number | undefined, t: ReturnType<typeof useStudioI
   return weight === undefined ? t("inspector.default") : String(weight);
 }
 
-export function CustomLibraryFontDetails({ record, pending = false, onDelete }: CustomLibraryFontDetailsProps) {
+export function resolveManagedFontStoragePath(face: CustomLibraryFontFace, ownerId: string | null | undefined): string | null {
+  if (!ownerId) return null;
+  const identity = managedFontPathFromUrl(face.source.url, ownerId);
+  if (!identity) return null;
+  const extension = identity.pathname.slice(identity.pathname.lastIndexOf(".")).toLowerCase();
+  const expectedFormat = extension === ".ttf" ? "truetype" : extension === ".otf" ? "opentype" : extension.slice(1);
+  if (face.source.format !== expectedFormat) return null;
+  const provenance = face.provenance as CustomLibraryFontFaceProvenance | undefined;
+  if (provenance && (provenance.kind !== "managed-upload" || provenance.assetId.toLowerCase() !== identity.assetId.toLowerCase())) return null;
+  return identity.pathname;
+}
+
+export function CustomLibraryFontDetails({ record, pending = false, onDelete, ownerId = null, onViewInStorage }: CustomLibraryFontDetailsProps) {
   const { t } = useStudioI18n();
 
   if (!record) {
@@ -42,6 +58,7 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete }: 
   const stylesInUse = [...new Set(record.font.faces.map((face) => face.style))]
     .sort((first, second) => (first === undefined ? -1 : second === undefined ? 1 : styleOrder[first] - styleOrder[second]))
     .map((style) => styleLabel(style, t));
+  const removalBlocked = record.font.faces.some((face) => fontFaceRemovalSafety(face, ownerId ?? "") !== "removable");
 
   return (
     <aside className={`${styles.detailsPane} ${styles.fontDetailsPane}`} aria-label={t("library.details")}>
@@ -60,6 +77,18 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete }: 
                   {[weightLabel(face.weight, t), styleLabel(face.style, t), face.subset, face.source.format?.toUpperCase()]
                     .filter((value): value is string => value !== undefined)
                     .join(" · ")}
+                {resolveManagedFontStoragePath(face, ownerId) && onViewInStorage ? (
+                  <Button size="compact" onClick={() => {
+                    const pathname = resolveManagedFontStoragePath(face, ownerId);
+                    if (pathname) onViewInStorage(pathname);
+                  }}>
+                    {t("customLibrary.fontDetails.viewInStorage" as StudioMessageKey)}
+                  </Button>
+                ) : (
+                  <span className={styles.storagePreviewFallback}>
+                    {t("customLibrary.fontDetails.storageUnavailable" as StudioMessageKey)}
+                  </span>
+                )}
                 </li>
               ))}
             </ul>
@@ -67,10 +96,11 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete }: 
         </div>
       </dl>
       <div className={styles.paletteDetailsActions}>
-        <Button variant="danger" size="compact" disabled={pending} onClick={onDelete}>
+        <Button variant="danger" size="compact" disabled={pending || removalBlocked} onClick={onDelete}>
           {t("customLibrary.fontDetails.delete")}
         </Button>
       </div>
+      {removalBlocked ? <p className={styles.stateBlock} role="status">{t("customLibrary.fontDetails.managedRemovalBlocked")}</p> : null}
     </aside>
   );
 }

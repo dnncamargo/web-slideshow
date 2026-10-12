@@ -206,7 +206,7 @@ export function GoogleFontImportControl({
             continue;
           }
 
-          const added = await onAddFontFace(canonicalFamily, face);
+          const added = await onAddFontFace(canonicalFamily, face, undefined, { kind: "cdn", provider: "google-fonts" });
 
           if (!fontFaceWasSaved(added)) {
             sawRejectedFace = true;

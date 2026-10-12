@@ -69,4 +69,50 @@ describe("Custom Library Font browser and details", () => {
     expect(container.textContent).toContain("Select a font to view details.");
     expect(container.querySelector("button")).toBeNull();
   });
+
+  it("offers an exact Storage link for a canonical managed font face", () => {
+    const onViewInStorage = vi.fn();
+    const managedRecord: CustomLibraryFontRecord = {
+      id: "managed-font",
+      font: {
+        family: "Managed Sans",
+        faces: [{
+          source: {
+            type: "url",
+            url: "https://abc.public.blob.vercel-storage.com/users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2",
+            format: "woff2",
+          },
+        }],
+      },
+    };
+    act(() => root.render(<StudioI18nProvider><CustomLibraryFontDetails record={managedRecord} ownerId="owner-1" onDelete={vi.fn()} onViewInStorage={onViewInStorage} /></StudioI18nProvider>));
+    const link = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "View in Storage");
+    expect(link).toBeTruthy();
+    act(() => link?.click());
+    expect(onViewInStorage).toHaveBeenCalledWith("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2");
+  });
+
+  it("blocks Fonts deletion for a managed upload while leaving CDN and external deletion available", () => {
+    const managedRecord: CustomLibraryFontRecord = {
+      id: "managed-font",
+      font: { family: "Managed Sans", faces: [{
+        source: { type: "url", url: "https://abc.public.blob.vercel-storage.com/users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2", format: "woff2" },
+        provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" },
+      }] },
+    };
+    act(() => root.render(<StudioI18nProvider><CustomLibraryFontDetails record={managedRecord} ownerId="owner-1" onDelete={vi.fn()} /></StudioI18nProvider>));
+    const managedDelete = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Delete font");
+    expect(managedDelete?.disabled).toBe(true);
+    expect(container.textContent).toContain("Uploaded font faces cannot be removed from Fonts.");
+
+    act(() => root.render(<StudioI18nProvider><CustomLibraryFontDetails record={record} ownerId="owner-1" onDelete={vi.fn()} /></StudioI18nProvider>));
+    const externalDelete = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Delete font");
+    expect(externalDelete?.disabled).toBe(false);
+  });
+
+  it("shows an unavailable state for external and legacy URLs", () => {
+    act(() => root.render(<StudioI18nProvider><CustomLibraryFontDetails record={record} ownerId="owner-1" onDelete={vi.fn()} onViewInStorage={vi.fn()} /></StudioI18nProvider>));
+    expect(container.textContent).toContain("Physical Storage identity unavailable");
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "View in Storage")).toBe(false);
+  });
 });

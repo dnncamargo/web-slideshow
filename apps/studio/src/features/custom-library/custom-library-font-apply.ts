@@ -12,6 +12,7 @@ import {
 } from "@/features/editor/font-resource-helpers";
 
 import type { CustomLibraryFontDraft } from "./custom-library-font";
+import { toPresentationFontFace } from "./custom-library-font-provenance";
 
 export type CustomLibraryFontApplyResult =
   | { kind: "added"; presentation: Presentation; fontResourceId: string; addedFaces: number }
@@ -40,7 +41,8 @@ export function addCustomLibraryFontToPresentation(
   );
 
   const incomingFaces: FontFaceResource[] = [];
-  for (const incomingFace of libraryFont.faces) {
+  for (const storedFace of libraryFont.faces) {
+    const incomingFace = toPresentationFontFace(storedFace);
     const duplicate = findFaceInSlot(incomingFaces, incomingFace);
     if (duplicate) {
       if (!areFontFacesEquivalent(duplicate, incomingFace)) {
