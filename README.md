@@ -126,6 +126,16 @@ private Custom Library resource
 
 Player and published presentation runtime do not depend on private Custom Library records. A managed asset store supplies bytes where required; it does not create a private runtime dependency or a generic persisted `FileResource` model.
 
+### Unified Storage behavior
+
+Storage is the unified physical file manager shared by Files and Fonts. Uploaded Files provides owner-scoped Vercel Blob inventory, upload, search, classification, sorting, file details and safe previews, persistent protection, and individual physical deletion. Physical existence is authoritative in Vercel Blob. Firestore stores owner-scoped annotations, durable upload intents, logical File/Font associations and deletion state; it is not a parallel physical inventory.
+
+New uploads use the physical pathname `users/{uid}/assets/{assetId}.{extension}` with a UUID asset ID and an explicit canonical MIME type from the shared extension classification. Upload intent reconciliation is durable and conservative: an expired lease does not prove a transfer ended, provider uncertainty does not authorize an unsafe retransmission, and completion requires authoritative physical metadata verification.
+
+Individual deletion is authenticated and owner-scoped, respects persistent protection, and retains one durable deletion operation across retries. Matching logical associations are removed only after Vercel Blob absence is verified. Firestore and Vercel Blob do not share a transaction, so the workflow does not claim cross-provider atomicity; retries reconcile ambiguous provider responses.
+
+Legacy extensionless Blobs remain visible and may have correct physical `Content-Type` metadata even when the Vercel Dashboard displays “unknown.” No automatic migration is required or implemented. The current Firebase and Vercel resources are the designated development/test environment. The development Blob Store is attached across Vercel environments, so the configured Store identity remains significant.
+
 Presentation Resources have two independent dimensions:
 
 | Semantic kind | Examples |
@@ -258,6 +268,8 @@ publishedPresentations/{publicationId}/versions/{versionId}
 ```
 
 Republishing never mutates an existing published version. The canonical Presentation is serialized as `presentationJson` at the persistence boundary and validated again on read.
+
+Because Presentation data and published versions carry resource URLs, physically deleting a resource can leave broken references in a draft and in immutable published versions. No automatic repair or in-place published-version mutation is implemented; recovery and repair are planned work.
 
 Private organization metadata and slide Notes remain outside the canonical Presentation.
 
@@ -422,6 +434,8 @@ Custom Library TTF / WOFF2 upload
 → renderer-generated @font-face
 ```
 
+Fonts manages font-face registrations with persisted provenance for managed uploads, CDN sources and external URLs. Fonts may remove CDN and external URL faces, but does not physically delete managed uploads. A managed face links to its Storage object by exact identity when available, so the owner can open that object in Storage.
+
 FontResource removal is blocked while the family is referenced by any current canonical typography-bearing location, including nested Topics/Table ContentSlots, Code, Terminal body/title, Text Styles and Linked Styles.
 
 PRs #213–#215 established managed asset storage, Custom Library TTF/WOFF2 upload and the migration of managed binary storage from Firebase Storage to Vercel Blob. Firebase Storage is not the current managed binary provider.
@@ -555,6 +569,14 @@ Recent merged work includes:
 - Container foreground Color inheritance for Text, Topics, Table text, nested Containers and eligible Topics markers, with authored, inherited and theme-default Inspector semantics and no persisted effective child Color;
 - Plot axis-label refinement: explicit Axis Color > Container foreground > theme primary for 2D and 3D labels, with the 2D x label framed beyond the mathematical endpoint without changing curve geometry.
 
+### Locally implemented Storage rebuild — not merged
+
+- Checkpoint 1 + 1B: canonical UUID/extension upload identity, shared MIME contract, durable upload intents and conservative physical reconciliation;
+- Checkpoint 2A: unified Uploaded Files inventory and interface, previews, search, filters, Fonts separation and font-source provenance;
+- Checkpoint 2B: persistent protection, individual physical deletion and recoverable deletion lifecycle.
+
+The Product Owner manually accepted inventory, PNG MIME/path behavior, protection and deletion behavior. The latest accepted implementation commit is `7d10600586911e7abc6002d28e22e05a8130b441`. Full branch audit/closure and a new PR are still pending; these changes are not merged into `main`. Historical test counts remain attached to their own checkpoints. The latest deletion-hardening validation was 263 focused tests, 12 Firestore emulator tests, Studio typecheck and Studio build.
+
 Historical suite counts belong to their respective checkpoints and should not be treated as the current expected total. Feature closure continues to require focused tests, relevant typechecks, `git diff --check`, remote review and manual acceptance where applicable.
 
 ## Development
@@ -647,12 +669,13 @@ Text Effects ✅
 Pointed Notes ✅
 Root-backed Container preserve-children correction        ✅
 Player pairing: two Players / disconnect / re-pair (#242–#244) ✅
-NEXT: not selected
+Storage rebuild Checkpoints 1 + 1B, 2A, 2B — locally implemented and manually accepted; branch closure pending
+NEXT: complete Storage rebuild branch closure and open its separate PR
 ```
 
-The current close checkpoint retires the obsolete Container Children Fit runtime and authoring machinery while retaining historical `layout.children.fit` documents as loadable/renderable compatibility input. It also modernizes the self-contained `/demo` from the accepted presentation JSON without making that JSON a production runtime dependency, and keeps neutral demo roots at the logical slide viewport. The close remains subject to the documented Player PIN lifecycle and target-display acceptance gates.
+The preceding close checkpoint retired the obsolete Container Children Fit runtime and authoring machinery while retaining historical `layout.children.fit` documents as loadable/renderable compatibility input. It also modernized the self-contained `/demo` from the accepted presentation JSON without making that JSON a production runtime dependency, and kept neutral demo roots at the logical slide viewport. Its Player PIN lifecycle and target-display acceptance gates belong to that historical checkpoint.
 
-Immediate execution order:
+Completed execution order from the preceding work area:
 
 1. Table Size ✅
 2. Divider gradient ✅

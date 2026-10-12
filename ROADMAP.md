@@ -7,6 +7,7 @@ Merged code in `main` remains authoritative. Every new work area begins by reval
 ## Status legend
 
 - ✅ complete / merged
+- 🟦 implemented locally and manually accepted; branch closure pending, not merged
 - 🟡 useful operational base complete; future expansion exists
 - ← NEXT current planned execution area
 - planned future checkpoint
@@ -693,6 +694,42 @@ Custom Library resources remain private reusable masters/sources. Applying one m
 
 Library-thumbnail FontResource parity is implemented: `PresentationThumbnailPreview` renders with Presentation context and reuses `renderFontResources(preview.presentation.resources?.fonts)`. Tests verify the resulting `style[data-presentation-font-resources]` output. Direct This Presentation FontResource authoring remains deferred.
 
+---
+
+# Storage rebuild — locally implemented and manually accepted; not merged
+
+The earlier merged managed-asset and FontResource foundation above remains the baseline. This Storage rebuild is implemented on the local `feature/storage-rebuild-upload-contract` branch and manually accepted by the Product Owner. It has not been merged into `main`; full branch closure and a separate PR are pending. PR #252 is the separate earlier inventory change and remains open and unmerged.
+
+## Completed local checkpoints 🟦
+
+### Checkpoint 1 + 1B — canonical uploads and safe reconciliation
+
+Canonical physical identity is `users/{uid}/assets/{assetId}.{extension}`. Files and Fonts share supported extension/MIME classification; the server validates the pairing and issues no-overwrite upload authorization. Durable owner-scoped upload intents preserve identity across recovery; completion requires authoritative Vercel Blob metadata. Expired leases and provider uncertainty do not prove that a transfer ended or authorize unsafe retransmission.
+
+### Checkpoint 2A — Uploaded Files and Fonts separation
+
+The unified Storage interface exposes owner-scoped physical inventory, file details, previews, search, classification and sorting. Fonts retains font-face registration and provenance; CDN and external URL faces can be removed through Fonts, while managed uploads remain linked to Storage by exact identity when available.
+
+### Checkpoint 2B — protection and individual deletion
+
+Persistent protection and authenticated, owner-scoped individual physical deletion use a durable deletion operation with retry and ambiguous-provider recovery. Matching logical associations are removed only after verified Blob absence. No cross-provider atomicity is claimed, and there is no automatic physical cleanup.
+
+Manual acceptance evidence: authenticated inventory displayed 30 existing files and approximately 18.3 MB before manual upload/deletion; a real PNG upload confirmed `UUID.png`, `image/png` and the correct Dashboard Content Type; and the Product Owner accepted protection persistence, deletion rejection while protected, unprotection and physical deletion. Latest accepted implementation commit: `7d10600586911e7abc6002d28e22e05a8130b441`.
+
+The latest deletion-hardening checkpoint passed 263 focused tests across 21 files, 12 Firestore rules emulator tests, Studio typecheck and Studio build. Historical counts remain tied to their own checkpoints; these numbers do not represent a complete final branch audit. No final branch audit, new PR review, deployment or merge has occurred.
+
+The current Firebase and Vercel resources are designated development/test resources. The Blob Store is attached across Vercel environments; treat the Store ID and environment explicitly during future operations.
+
+## Planned work after branch closure
+
+### 1. File renaming — decision and audit first
+
+Not implemented. First decide whether rename means changing a logical display name or relocating the physical Blob pathname. Audit the existing identity and product requirements before selecting behavior; prefer preserving physical identity until that decision is complete. This roadmap does not authorize copying or deleting Blob objects.
+
+### 2. Broken references and Presentation recovery
+
+Not implemented. Investigate missing physical resources and broken references after deletion across draft Presentations and immutable published versions. Define how to recover when bytes remain available and how to relink or replace a resource when the original object is gone, including how users identify and repair the affected references. Preserve `schemaVersion: 1`, immutable publication and existing resource ownership boundaries. Recovery is not currently solved.
+
 ## Presentation Resources direction
 
 The planned resource taxonomy separates semantic resource kind from physical/textual representation. The semantic direction is:
@@ -730,7 +767,7 @@ Do not infer rejected intermediate Pattern geometry or a generic Linked Style ta
 
 ---
 
-# Recorded execution order and immediate next area
+# Recorded execution order and completed follow-up history
 
 The recorded execution order is:
 
@@ -768,7 +805,7 @@ Completed the shared CodeMirror authoring surface for Presentation text Files, S
 
 The shared editor now includes syntax profiles, pairing/indentation helpers, local Undo/Redo, supported Format Code, line numbers, active-line/gutter highlighting, selection-match highlighting and a compact floating Find/Replace surface backed by the official `@codemirror/search` state and commands. Search/Replace edits remain transient until the owning consumer's existing Save/Apply boundary. No additional consumers, Blocks live-preview editor, generic source/preview mode, tabs, LSP or persisted source abstraction remain in this workstream.
 
-## Current next area
+## Completed continuation from the preceding work area
 
 ### 1. Text effects — gradient fill / shadow / glow ✅
 
@@ -885,10 +922,10 @@ P12   UX / Properties refinement                            ✅
        Two-Player pairing, disconnect and re-pair (#242–#244)   ✅
 
 NEXT:
-  not selected
+  complete Storage rebuild branch closure and open its separate PR
 
 IMMEDIATE QUEUE:
-  not selected
+  after branch closure, discuss File renaming; then investigate broken references and Presentation recovery
 
 RELEASE GATE STILL PENDING:
   Production two-account / two-Player isolation acceptance
