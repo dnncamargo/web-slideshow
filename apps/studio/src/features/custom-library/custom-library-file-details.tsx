@@ -10,6 +10,8 @@ import {
   formatCustomLibraryFileSize,
   type CustomLibraryFileRecord,
 } from "./custom-library-file";
+import { customLibraryFileAvailabilityPath } from "./managed-asset-availability-path";
+import { ManagedAssetAvailabilityControl } from "./managed-asset-availability-control";
 
 interface CustomLibraryFileDetailsProps {
   record: CustomLibraryFileRecord | null;
@@ -107,6 +109,8 @@ export function CustomLibraryFileDetails({
           <dd>{formatCustomLibraryFileSize(record.file.source.sizeBytes)}</dd>
         </div>
       </dl>
+
+      <ManagedAssetAvailabilityControl pathname={customLibraryFileAvailabilityPath(record)} />
 
       {nameError || renameError ? (
         <p className={styles.customLibraryFileRenameError} role="alert">
