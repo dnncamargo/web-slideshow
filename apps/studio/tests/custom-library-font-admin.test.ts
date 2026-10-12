@@ -11,6 +11,7 @@ const { documents, getIntent, db } = vi.hoisted(() => {
     }),
   });
   const db = {
+    doc: (path: string) => ref(path.split("/").at(-1) ?? path),
     collection: (name: string) => collectionFor(name),
     runTransaction: async (callback: (transaction: {
       get: (reference: { id: string }) => Promise<{ exists: boolean; data: () => unknown }>;

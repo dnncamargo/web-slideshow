@@ -1737,6 +1737,7 @@ export function PresentationLibrary({
                 usageRefreshKey={storageUsageRefreshKey}
                 focusPathname={storageFocusPathname}
                 onFocusResolved={handleStorageFocusResolved}
+                onPhysicalDelete={() => setStorageUsageRefreshKey((value) => value + 1)}
               />
             ) : <>
             <section

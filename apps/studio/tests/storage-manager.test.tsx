@@ -34,8 +34,9 @@ function renderManager(
   document.body.append(host);
   const root = createRoot(host);
   const onFocusResolved = vi.fn();
-  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} /></StudioI18nProvider>));
-  return { host, root, onFocusResolved };
+  const onPhysicalDelete = vi.fn();
+  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} onPhysicalDelete={onPhysicalDelete} /></StudioI18nProvider>));
+  return { host, root, onFocusResolved, onPhysicalDelete };
 }
 
 const blob = (pathname: string, uploadedAt = "2026-01-02T03:04:05.000Z") => ({ pathname, url: `https://blob.example/${pathname.split("/").at(-1)}`, size: 8, uploadedAt, etag: "provider-etag" });
@@ -49,10 +50,13 @@ afterEach(() => { document.body.innerHTML = ""; vi.restoreAllMocks(); });
 
 describe("Storage manager", () => {
   it("lists owner-scoped physical objects, selects details, and safely previews text", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false }))
-      .mockResolvedValueOnce(response({ contentType: "text/plain", size: 8 }))
-      .mockResolvedValueOnce(new Response("<script>unsafe()</script>", { status: 200 }));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return new Response("<script>unsafe()</script>", { status: 200 });
+    });
     vi.stubGlobal("fetch", fetchMock);
     const { host, root } = renderManager();
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -68,9 +72,12 @@ describe("Storage manager", () => {
   });
 
   it("does not render SVG as an executable preview or open it directly", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce(response({ scope: "owner", items: [blob("users/owner-1/assets/unsafe.svg")], hasMore: false }))
-      .mockResolvedValueOnce(response({ contentType: "image/svg+xml", size: 8 })));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/unsafe.svg")], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/svg+xml", size: 8 });
+      return response({ protected: false, state: "active", retryAvailable: false });
+    }));
     const { host, root } = renderManager();
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await Promise.resolve(); await Promise.resolve(); });
@@ -81,10 +88,13 @@ describe("Storage manager", () => {
   });
 
   it("shows a preview failure without losing verified physical details", async () => {
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce(response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false }))
-      .mockResolvedValueOnce(response({ contentType: "text/plain", size: 8 }))
-      .mockResolvedValueOnce(new Response("", { status: 503 })));
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return new Response("", { status: 503 });
+    }));
     const { host, root } = renderManager();
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
@@ -166,6 +176,92 @@ describe("Storage manager", () => {
     for (const label of ["Images", "Audio", "Fonts", "Text", "Structured data", "Other / Unknown"]) {
       expect(host.textContent).toContain(label);
     }
+    act(() => root.unmount());
+  });
+
+  it("updates a legacy item's classification after authenticated physical metadata resolves", async () => {
+    const pathname = "users/owner-1/assets/legacy-photo";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
+      if (url.startsWith("/api/managed-assets/protection?")) return response({ protected: false, state: "active", retryAvailable: false });
+      return response({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root } = renderManager();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(host.textContent).toContain("Other / Unknown");
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(host.textContent).toContain("image/png");
+    const categoryFilter = host.querySelectorAll<HTMLSelectElement>("select")[0];
+    await act(async () => {
+      if (!categoryFilter) return;
+      categoryFilter.value = "images";
+      categoryFilter.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(host.querySelectorAll("[data-storage-row]")).toHaveLength(1);
+    expect(host.textContent).toContain("legacy-photo");
+    act(() => root.unmount());
+  });
+
+  it("persists protection and requires confirmation before deleting only the selected path", async () => {
+    const pathname = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png";
+    let protectedValue = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
+      if (url.startsWith("/api/managed-assets/protection?") && !init?.method) return response({ protected: protectedValue, state: "active", retryAvailable: false });
+      if (url === "/api/managed-assets/protection" && init?.method === "PUT") {
+        protectedValue = Boolean(JSON.parse(String(init.body)).protected);
+        return response({ protected: protectedValue, state: "active" });
+      }
+      if (url === "/api/managed-assets/delete" && init?.method === "DELETE") return response({ alreadyMissing: false });
+      return response({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root, onPhysicalDelete } = renderManager();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    const button = (label: string) => Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((entry) => entry.textContent === label);
+    await act(async () => { button("Protect file")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(protectedValue).toBe(true);
+    expect(host.textContent).toContain("This file is protected from deletion.");
+    expect(button("Delete file")?.disabled).toBe(true);
+    await act(async () => { button("Unprotect file")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(protectedValue).toBe(false);
+    await act(async () => { button("Delete file")?.click(); await Promise.resolve(); });
+    expect(host.textContent).toContain("Delete this file?");
+    expect(host.textContent).toContain(pathname);
+    expect(fetchMock.mock.calls.some(([url, init]) => String(url) === "/api/managed-assets/delete" && init?.method === "DELETE")).toBe(false);
+    const confirm = host.querySelector<HTMLDivElement>("[data-studio-danger-confirm-dialog]")
+      ? Array.from(host.querySelectorAll<HTMLButtonElement>("[data-studio-danger-confirm-dialog] button")).find((entry) => entry.textContent === "Delete file")
+      : undefined;
+    await act(async () => { confirm?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(fetchMock).toHaveBeenCalledWith("/api/managed-assets/delete", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ pathname }) }));
+    expect(onPhysicalDelete).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+  });
+
+  it("localizes protection and explicit deletion confirmation in Portuguese", async () => {
+    const pathname = "users/owner-1/assets/legacy-image";
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
+      if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
+      return response({ protected: false, state: "active", retryAvailable: false });
+    }));
+    const { host, root } = renderManager("pt-BR");
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    await act(async () => { host.querySelector<HTMLButtonElement>("[data-storage-row]")?.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(host.textContent).toContain("Proteger arquivo");
+    expect(host.textContent).toContain("Excluir arquivo");
+    const deleteButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "Excluir arquivo");
+    await act(async () => { deleteButton?.click(); await Promise.resolve(); });
+    expect(host.textContent).toContain("Excluir este arquivo?");
+    expect(host.textContent).toContain("identificador físico legacy-image");
     act(() => root.unmount());
   });
 

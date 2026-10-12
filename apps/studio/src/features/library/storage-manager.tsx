@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@web-slideshow/ui";
 
+import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import { useStudioAuth } from "../auth/studio-auth-provider";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
@@ -25,6 +26,7 @@ interface InventoryItem {
   size: number;
   uploadedAt: string;
   etag: string;
+  contentType?: string;
 }
 
 interface InventoryPage {
@@ -53,8 +55,12 @@ function normalizedContentType(contentType: string): string {
 }
 
 function categoryFor(item: InventoryItem, contentType?: string): Category {
-  const dot = item.pathname.lastIndexOf("/");
-  const filename = item.pathname.slice(dot + 1);
+  return categoryForPath(item.pathname, contentType);
+}
+
+function categoryForPath(pathname: string, contentType?: string): Category {
+  const dot = pathname.lastIndexOf("/");
+  const filename = pathname.slice(dot + 1);
   const extensionClass = classifyManagedAssetExtension(`.${filename.split(".").at(-1)}`);
   const category = classifyContentType(contentType ?? "") ?? extensionClass?.category ?? null;
   if (category === "image") return "images";
@@ -66,6 +72,7 @@ function categoryFor(item: InventoryItem, contentType?: string): Category {
 }
 
 function knownContentType(item: InventoryItem, intents: readonly ManagedAssetUploadIntent[], files: readonly CustomLibraryFileRecord[], fonts: readonly CustomLibraryFontRecord[]): string | undefined {
+  if (item.contentType) return item.contentType;
   const intent = intents.find((entry) => entry.storagePath === item.pathname && entry.state === "complete");
   if (intent) return intent.contentType;
   const file = files.find((entry) => entry.file.source.storagePath === item.pathname);
@@ -177,9 +184,10 @@ export interface StorageManagerProps {
   usageRefreshKey: number;
   focusPathname: string | null;
   onFocusResolved: (pathname: string) => void;
+  onPhysicalDelete: () => void;
 }
 
-export function StorageManager({ files, fonts, uploading, uploadError, usageRefreshKey, focusPathname, onFocusResolved }: StorageManagerProps) {
+export function StorageManager({ files, fonts, uploading, uploadError, usageRefreshKey, focusPathname, onFocusResolved, onPhysicalDelete }: StorageManagerProps) {
   const { user } = useStudioAuth();
   const { locale, t } = useStudioI18n();
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -190,6 +198,15 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<SelectedMetadata | null>(null);
   const [metadataError, setMetadataError] = useState(false);
+  const [protectionState, setProtectionState] = useState<"active" | "deleting" | "delete_failed" | "deleted">("active");
+  const [isProtected, setIsProtected] = useState(false);
+  const [protectionLoading, setProtectionLoading] = useState(false);
+  const [protectionBusy, setProtectionBusy] = useState(false);
+  const [protectionError, setProtectionError] = useState(false);
+  const [deleteRetryAvailable, setDeleteRetryAvailable] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [search, setSearch] = useState("");
@@ -297,18 +314,20 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
 
   const selected = items.find((item) => item.pathname === selectedPath)
     ?? (focusedItem?.pathname === selectedPath ? focusedItem : null);
+  const selectedPathname = selected?.pathname;
+  const selectedUrl = selected?.url;
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
       const activeUser = userRef.current;
-      if (!selected || !activeUser) { setMetadata(null); setPreview(null); return; }
+      if (!selectedPathname || !selectedUrl || !activeUser) { setMetadata(null); setPreview(null); return; }
       setMetadata(null); setMetadataError(false); setPreview(null); setPreviewError(false);
       void (async () => {
       try {
         const token = await activeUser.getIdToken();
-        const response = await fetch(`/api/managed-assets/metadata?pathname=${encodeURIComponent(selected.pathname)}`, {
+        const response = await fetch(`/api/managed-assets/metadata?pathname=${encodeURIComponent(selectedPathname)}`, {
           headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
         });
         if (!response.ok) throw new Error("Metadata unavailable");
@@ -317,14 +336,28 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
         const actual = body as SelectedMetadata;
         if (!active) return;
         setMetadata(actual);
-        const itemCategory = categoryFor(selected, actual.contentType);
-        const extension = extensionFor(selected);
+        setItems((current) => {
+          let changed = false;
+          const next = current.map((item) => {
+            if (item.pathname !== selectedPathname || item.contentType === actual.contentType) return item;
+            changed = true;
+            return { ...item, contentType: actual.contentType };
+          });
+          return changed ? next : current;
+        });
+        setFocusedItem((current) => current?.pathname === selectedPathname && current.contentType !== actual.contentType
+          ? { ...current, contentType: actual.contentType }
+          : current);
+        const itemCategory = categoryForPath(selectedPathname, actual.contentType);
+        const filename = selectedPathname.slice(selectedPathname.lastIndexOf("/") + 1);
+        const extensionMatch = /\.[a-z0-9]+$/i.exec(filename);
+        const extension = extensionMatch?.[0]?.toLowerCase() ?? null;
         const mime = normalizedContentType(actual.contentType);
         if (itemCategory === "images" && extension !== ".svg" && /^image\/(jpeg|png|webp|gif)$/.test(mime)) return;
         if (["audio/mpeg", "audio/wav", "audio/ogg"].includes(mime)) return;
         if (["text/plain", "text/markdown", "text/csv", "application/json", "application/xml", "text/xml"].includes(mime) && actual.size <= PREVIEW_LIMIT) {
           try {
-            const textResponse = await fetch(selected.url, { cache: "no-store" });
+            const textResponse = await fetch(selectedUrl, { cache: "no-store" });
             if (!textResponse.ok) throw new Error("Preview request failed");
             const text = await readBoundedText(textResponse, PREVIEW_LIMIT);
             if (active) setPreview(text);
@@ -338,7 +371,82 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
       })();
     });
     return () => { active = false; };
-  }, [selected, ownerId]);
+  }, [selectedPathname, selectedUrl, ownerId]);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!selectedPathname || !userRef.current) {
+        setProtectionLoading(false); setProtectionState("active"); setIsProtected(false); setProtectionError(false); setDeleteRetryAvailable(false);
+        return;
+      }
+      setProtectionLoading(true); setProtectionError(false);
+      void (async () => {
+        try {
+          const token = await userRef.current!.getIdToken();
+          const response = await fetch(`/api/managed-assets/protection?pathname=${encodeURIComponent(selectedPathname)}`, {
+            headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+          });
+          if (!response.ok) throw new Error("Protection state unavailable");
+          const value: unknown = await response.json();
+          if (typeof value !== "object" || value === null) throw new Error("Invalid protection state");
+          const body = value as Record<string, unknown>;
+          if (typeof body.protected !== "boolean" || !["active", "deleting", "delete_failed", "deleted"].includes(String(body.state))) {
+            throw new Error("Invalid protection state");
+          }
+          if (active) {
+            setIsProtected(body.protected);
+            setProtectionState(body.state as typeof protectionState);
+            setDeleteRetryAvailable(body.retryAvailable === true);
+          }
+        } catch {
+          if (active) setProtectionError(true);
+        } finally {
+          if (active) setProtectionLoading(false);
+        }
+      })();
+    });
+    return () => { active = false; };
+  }, [selectedPathname, ownerId]);
+
+  const updateProtection = async () => {
+    if (!selectedPathname || !user || protectionBusy || protectionLoading || protectionState !== "active") return;
+    setProtectionBusy(true); setProtectionError(false);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/managed-assets/protection", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ pathname: selectedPathname, protected: !isProtected }),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Protection update failed");
+      const value: unknown = await response.json();
+      if (typeof value !== "object" || value === null || typeof (value as Record<string, unknown>).protected !== "boolean") {
+        throw new Error("Invalid protection response");
+      }
+      setIsProtected((value as { protected: boolean }).protected);
+    } catch { setProtectionError(true); }
+    finally { setProtectionBusy(false); }
+  };
+
+  const deleteSelected = async () => {
+    if (!selectedPathname || !user || deleting || isProtected) return;
+    setDeleting(true); setDeleteError(false);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/managed-assets/delete", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ pathname: selectedPathname }),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Physical deletion failed");
+      setDeleteConfirmOpen(false);
+      onPhysicalDelete();
+    } catch { setDeleteError(true); }
+    finally { setDeleting(false); }
+  };
 
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase(locale);
@@ -423,7 +531,16 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
           <div className={styles.storageActions}>
             {canOpen ? <a href={selected.url} target="_blank" rel="noopener noreferrer">{t("library.storage.openFile")}</a> : null}
             <Button size="compact" onClick={() => void copy(selected.url, "url")}>{copied === "url" ? t("library.storage.copied") : t("library.storage.copyUrl")}</Button>
+          <Button size="compact" disabled={protectionLoading || protectionBusy || protectionState !== "active"} onClick={() => void updateProtection()}>
+            {protectionBusy ? t("library.storage.protectionSaving") : isProtected ? t("library.storage.unprotect") : t("library.storage.protect")}
+          </Button>
+          <Button size="compact" variant="danger" disabled={protectionLoading || protectionError || protectionBusy || deleting || isProtected || protectionState === "deleted" || (protectionState === "deleting" && !deleteRetryAvailable)} onClick={() => { setDeleteError(false); setDeleteConfirmOpen(true); }}>
+            {protectionState === "delete_failed" || (protectionState === "deleting" && deleteRetryAvailable) ? t("library.storage.retryDelete") : t("library.storage.deleteFile")}
+          </Button>
           </div>
+        {isProtected ? <p className={styles.storagePreviewFallback} role="status">{t("library.storage.protectedStatus")}</p> : null}
+        {protectionError ? <p className={styles.errorText} role="alert">{t("library.storage.protectionFailed")}</p> : null}
+        {deleteError ? <p className={styles.errorText} role="alert">{t("library.storage.deleteFailed")}</p> : null}
           {copyError ? <p className={styles.errorText} role="alert">{t("library.storage.copyFailed")}</p> : null}
           <details className={styles.storageTechnical}><summary>{t("library.storage.technicalDetails")}</summary>
             <dl className={styles.detailsList}>
@@ -435,6 +552,19 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
           </details>
         </>}
       </aside>
+      {deleteConfirmOpen && selected ? (
+        <DangerConfirmDialog
+          title={t("library.storage.deleteConfirmTitle")}
+          message={t("library.storage.deleteConfirmMessage", { name: selectedName, identifier: physicalIdentifier(selected) })}
+          confirmLabel={t("library.storage.deleteFile")}
+          busyConfirmLabel={t("library.storage.deleting")}
+          cancelLabel={t("customLibrary.cancel")}
+          busy={deleting}
+          error={deleteError ? t("library.storage.deleteFailed") : undefined}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => void deleteSelected()}
+        />
+      ) : null}
     </div>
   );
 }

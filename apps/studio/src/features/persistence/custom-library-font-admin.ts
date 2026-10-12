@@ -4,6 +4,7 @@ import { getFirebaseAdminApp } from "../auth/firebase-admin-auth";
 import type { CustomLibraryFontDraft, CustomLibraryFontFace } from "../custom-library/custom-library-font";
 import { fontFaceRemovalSafety, hasSameFontFaceIdentity, managedFontPathFromUrl } from "../custom-library/custom-library-font-provenance";
 import { parseCustomLibraryFontDraft } from "../custom-library/custom-library-font-schema";
+import { managedAssetControlRef } from "./managed-asset-controls";
 import { getManagedAssetIntent } from "./managed-asset-intents";
 import { assertStableAssetDocumentId, canonicalValuesEqual } from "./firestore-idempotency";
 
@@ -65,6 +66,24 @@ async function validateNewFaces(uid: string, previous: CustomLibraryFontDraft | 
   await Promise.all(additions.map((face) => validateNewFace(uid, face)));
 }
 
+async function assertManagedFacesAvailable(
+  transaction: FirebaseFirestore.Transaction,
+  uid: string,
+  font: CustomLibraryFontDraft,
+): Promise<void> {
+  const paths = [...new Set(font.faces.flatMap((face) => {
+    const identity = managedFontPathFromUrl(face.source.url, uid);
+    return identity ? [identity.pathname] : [];
+  }))];
+  for (const path of paths) {
+    const snapshot = await transaction.get(managedAssetControlRef(uid, path));
+    const state = snapshot.exists ? snapshot.get("state") : undefined;
+    if (state === "deleting" || state === "delete_failed" || state === "deleted") {
+      throw new CustomLibraryFontWriteError("unverified_managed_face");
+    }
+  }
+}
+
 function assertProtectedFacesRetained(uid: string, previous: CustomLibraryFontDraft, next: CustomLibraryFontDraft): void {
   for (const face of previous.faces) {
     if (fontFaceRemovalSafety(face, uid) === "removable") continue;
@@ -84,11 +103,8 @@ export async function saveCustomLibraryFont(uid: string, input: unknown, documen
   await validateNewFaces(uid, null, font);
   const collection = fontCollection(uid);
   const ref = documentId ? collection.doc(documentId) : collection.doc();
-  if (documentId === undefined) {
-    await ref.create(font);
-    return ref.id;
-  }
   return getFirestore(getFirebaseAdminApp()).runTransaction(async (transaction) => {
+    await assertManagedFacesAvailable(transaction, uid, font);
     const snapshot = await transaction.get(ref);
     if (snapshot.exists) {
       const existing = parseFont(snapshot.data());
@@ -109,6 +125,7 @@ export async function updateCustomLibraryFont(uid: string, id: string, input: un
     const previous = parseFont(snapshot.data());
     assertProtectedFacesRetained(uid, previous, next);
     await validateNewFaces(uid, previous, next);
+    await assertManagedFacesAvailable(transaction, uid, next);
     transaction.set(ref, next);
   });
 }

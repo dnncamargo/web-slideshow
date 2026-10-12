@@ -2,13 +2,14 @@ import { BlobNotFoundError, head, type HeadBlobResult } from "@vercel/blob";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 
 import { getFirebaseAdminApp } from "../auth/firebase-admin-auth";
+import { managedAssetControlRef } from "./managed-asset-controls";
 import { classifyManagedAssetExtension } from "./managed-asset-content-types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ETAG_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,512}$/;
 const ACTIVE_UPLOAD_LEASE_MS = 2 * 60 * 1000;
 
-export type ManagedAssetIntentState = "pending" | "uploading" | "uncertain" | "complete" | "conflict";
+export type ManagedAssetIntentState = "pending" | "uploading" | "uncertain" | "complete" | "conflict" | "deleted";
 
 export interface ManagedAssetIntentInput {
   assetId: string;
@@ -83,6 +84,12 @@ export async function createManagedAssetIntent(uid: string, input: ManagedAssetI
   };
   const ref = intentRef(uid, input.assetId);
   return firestore().runTransaction(async (transaction) => {
+    const controlRef = managedAssetControlRef(uid, storagePath);
+    const controlSnapshot = await transaction.get(controlRef);
+    const controlState = controlSnapshot.exists ? controlSnapshot.get("state") : undefined;
+    if (controlState === "deleting" || controlState === "delete_failed" || controlState === "deleted") {
+      throw new Error("intent_conflict");
+    }
     const snapshot = await transaction.get(ref);
     if (snapshot.exists) {
       const data = snapshot.data() as Record<string, unknown>;
@@ -126,7 +133,7 @@ function metadataMatches(intent: ManagedAssetIntent, physical: HeadBlobResult): 
 
 export async function reconcileManagedAssetIntent(uid: string, assetId: string): Promise<ReconciledManagedAsset> {
   const intent = await getManagedAssetIntent(uid, assetId);
-  if (!intent) return { status: "conflict" };
+  if (!intent || intent.state === "deleted") return { status: "conflict" };
 
   let physical: HeadBlobResult;
   try {
@@ -138,7 +145,7 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
       const currentSnapshot = await transaction.get(ref);
       if (!currentSnapshot.exists) return { status: "conflict" };
       const current = currentSnapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
-      if (current.state === "complete" || current.state === "conflict") return { status: "conflict" };
+      if (current.state === "complete" || current.state === "conflict" || current.state === "deleted") return { status: "conflict" };
 
       // The Blob check ran outside the transaction. If authorization advanced
       // the intent while that check was pending, this reconciliation is stale
@@ -187,7 +194,7 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
         }
         return { status: current.state === "uncertain" ? "uncertain" : "conflict" };
       }
-      if (current.state === "complete" || current.state === "conflict") return { status: "conflict" };
+      if (current.state === "complete" || current.state === "conflict" || current.state === "deleted") return { status: "conflict" };
       transaction.update(ref, { state: "conflict", updatedAt: FieldValue.serverTimestamp() });
       return { status: "conflict" };
     });
@@ -207,7 +214,7 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
     if (!currentSnapshot.exists) return false;
     const current = currentSnapshot.data() as ManagedAssetIntent;
     if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath)) return false;
-    if (current.state === "conflict") return false;
+    if (current.state === "conflict" || current.state === "deleted") return false;
     if (current.state === "complete") {
       return current.downloadUrl === result.downloadUrl && current.etag === result.etag && current.sizeBytes === result.sizeBytes;
     }
@@ -248,8 +255,13 @@ export async function authorizeManagedAssetUpload(
     if (!snapshot.exists) throw new Error("intent_mismatch");
     const current = snapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
     if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, storagePath)) throw new Error("intent_mismatch");
+    const controlSnapshot = await transaction.get(managedAssetControlRef(uid, storagePath));
+    const controlState = controlSnapshot.exists ? controlSnapshot.get("state") : undefined;
+    if (controlState === "deleting" || controlState === "delete_failed" || controlState === "deleted") {
+      throw new Error("intent_conflict");
+    }
     if (current.state === "complete") return "complete";
-    if (current.state === "conflict") throw new Error("intent_conflict");
+    if (current.state === "conflict" || current.state === "deleted") throw new Error("intent_conflict");
     if (current.state === "uncertain") return "uncertain";
     if (current.state === "uploading") return "in_progress";
     if (current.state !== "pending") throw new Error("intent_conflict");

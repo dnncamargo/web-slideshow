@@ -84,7 +84,7 @@ describe("Firestore deletion authorization", () => {
   });
 
   it("allows only the non-anonymous owner to access Custom Library files", async () => {
-    const file = {
+    const file = { file: {
       name: "Workshop audio",
       kind: "audio",
       representation: "binary",
@@ -95,7 +95,7 @@ describe("Firestore deletion authorization", () => {
         contentType: "audio/mpeg",
         sizeBytes: 42,
       },
-    };
+    } };
     const owner = testEnv.authenticatedContext("file-owner").firestore();
     const other = testEnv.authenticatedContext("file-other").firestore();
     const anonymous = testEnv.authenticatedContext("file-anonymous", { firebase: { sign_in_provider: "anonymous" } }).firestore();
@@ -130,6 +130,43 @@ describe("Firestore deletion authorization", () => {
     await assertFails(setDoc(doc(other, "users", "intent-owner", "managedAssets", "other"), { state: "complete" }));
     await assertFails(getDoc(doc(anonymous, "users", "intent-owner", "managedAssets", "asset")));
     await assertFails(getDoc(doc(unauthenticated, "users", "intent-owner", "managedAssets", "asset")));
+  });
+
+  it("keeps deletion controls server-owned and blocks new File associations during deletion", async () => {
+    const owner = testEnv.authenticatedContext("control-owner").firestore();
+    const other = testEnv.authenticatedContext("control-other").firestore();
+    const leaf = "123e4567-e89b-42d3-a456-426614174000.png";
+    const controlRef = doc(owner, "users", "control-owner", "managedAssetControls", leaf);
+    const fileRef = doc(owner, "users", "control-owner", "customLibraryFiles", "file-1");
+    const file = { file: {
+      name: "Fixture image",
+      kind: "image",
+      representation: "binary",
+      source: {
+        assetId: "123e4567-e89b-42d3-a456-426614174000",
+        storagePath: `users/control-owner/assets/${leaf}`,
+        downloadUrl: "https://blob.example.test/image.png",
+        contentType: "image/png",
+        sizeBytes: 42,
+      },
+    } };
+
+    await assertSucceeds(setDoc(fileRef, file));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "control-owner", "managedAssetControls", leaf), {
+        storagePath: `users/control-owner/assets/${leaf}`,
+        protected: false,
+        state: "deleting",
+      });
+    });
+
+    await assertSucceeds(getDoc(controlRef));
+    await assertFails(getDoc(doc(other, "users", "control-owner", "managedAssetControls", leaf)));
+    await assertFails(setDoc(controlRef, { protected: false, state: "active" }));
+    await assertFails(updateDoc(fileRef, { name: "Changed during delete" }));
+    await assertFails(setDoc(doc(owner, "users", "control-owner", "managedAssetControls", "other.png"), {
+      storagePath: "users/control-owner/assets/other.png", protected: false, state: "active",
+    }));
   });
 
   it("binds pointer create and update to an immutable ownerUid", async () => {

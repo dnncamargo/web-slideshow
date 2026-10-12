@@ -16,6 +16,19 @@ service cloud.firestore {
       return isNonAnonymous() && request.auth.uid == userId;
     }
 
+    function managedFilePathAvailable(userId, storagePath) {
+      let segments = storagePath.split('/');
+      let leaf = segments.size() == 4 ? segments[3] : '';
+      let controlPath = /databases/$(database)/documents/users/$(userId)/managedAssetControls/$(leaf);
+      return storagePath is string
+        && segments.size() == 4
+        && segments[0] == 'users'
+        && segments[1] == userId
+        && segments[2] == 'assets'
+        && leaf.matches('^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$')
+        && (!exists(controlPath) || get(controlPath).data.state == 'active');
+    }
+
     function publicationMetadataHasValidShape(publication) {
       return publication.keys().hasAll(['publicationId', 'currentVersionId', 'publishedRevision', 'publishedAt'])
         && publication.keys().hasOnly(['publicationId', 'currentVersionId', 'publishedRevision', 'publishedAt'])
@@ -279,7 +292,12 @@ service cloud.firestore {
     // users/{userId}/customLibraryFiles/{fileId}
     // ------------------------------------------------------------
     match /users/{userId}/customLibraryFiles/{fileId} {
-      allow read, write: if isPrivatePresentationOwner(userId)
+      allow read: if isPrivatePresentationOwner(userId)
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow create, update: if isPrivatePresentationOwner(userId)
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && managedFilePathAvailable(userId, request.resource.data.file.source.storagePath);
+      allow delete: if isPrivatePresentationOwner(userId)
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
@@ -287,6 +305,14 @@ service cloud.firestore {
     // metadata. Browsers must use the authenticated API, not write state.
     match /users/{userId}/managedAssets/{assetId} {
       allow read, write: if false;
+    }
+
+    // Protection and deletion transitions are written only by authenticated
+    // server routes. Owners can read the selected object's annotation.
+    match /users/{userId}/managedAssetControls/{assetPathLeaf} {
+      allow read: if isPrivatePresentationOwner(userId)
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      allow write: if false;
     }
 
     // ------------------------------------------------------------
