@@ -49,6 +49,7 @@ vi.mock("@/features/persistence/managed-asset-storage", () => ({
 }));
 
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
+import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
 import { PresentationLibrary } from "../src/features/library/presentation-library";
 import { PresentationList } from "../src/features/library/presentation-list";
 import { PresentationToolbar } from "../src/features/library/presentation-toolbar";
@@ -2259,10 +2260,15 @@ describe("presentation library workspace controls", () => {
     const fonts = customLibraryFontRepositoryFor([]);
     act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository)));
     await flushWorkspaceEffects();
+    const allHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(allHeader?.querySelector("p")?.textContent).toBe("Presentations");
+    expect(allHeader?.querySelector("h1")?.textContent).toBe("All");
 
     act(() => findButton(container, "Fonts").click());
     await flushWorkspaceEffects();
     const fontHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(fontHeader?.querySelector("p")?.textContent).toBe("Custom Library");
+    expect(fontHeader?.querySelector("h1")?.textContent).toBe("Fonts");
     const addFont = findButton(container, "+ Add font");
     expect(fontHeader?.contains(addFont)).toBe(true);
     expect(container.textContent).not.toContain("Your storage");
@@ -2271,6 +2277,8 @@ describe("presentation library workspace controls", () => {
     act(() => findButton(container, "Storage").click());
     await flushWorkspaceEffects();
     const storageHeader = container.querySelector<HTMLElement>('[class*="workspaceHeading"]');
+    expect(storageHeader?.querySelector("p")?.textContent).toBe("Storage");
+    expect(storageHeader?.querySelector("h1")?.textContent).toBe("Uploaded Files");
     const upload = findButton(container, "Upload file");
     expect(storageHeader?.contains(upload)).toBe(true);
     expect(container.querySelector("[data-storage-manager]")?.contains(upload)).toBe(false);
@@ -2290,5 +2298,12 @@ describe("presentation library workspace controls", () => {
       await Promise.resolve();
     });
     expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "text/plain" });
+  });
+
+  it("translates the Storage heading in English and Portuguese", () => {
+    expect(translateStudioMessage("en", "library.storage.title")).toBe("Storage");
+    expect(translateStudioMessage("en", "library.storage.uploadedFiles")).toBe("Uploaded Files");
+    expect(translateStudioMessage("pt-BR", "library.storage.title")).toBe("Armazenamento");
+    expect(translateStudioMessage("pt-BR", "library.storage.uploadedFiles")).toBe("Arquivos enviados");
   });
 });

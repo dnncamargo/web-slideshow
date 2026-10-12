@@ -159,7 +159,7 @@ function destinationTitle(
     case "fonts":
       return t("library.fonts");
     case "storage":
-      return t("library.storage.title");
+      return t("library.storage.uploadedFiles");
     case "files":
       return t("library.files");
   }
