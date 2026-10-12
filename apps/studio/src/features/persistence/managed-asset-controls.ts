@@ -37,6 +37,8 @@ export type ManagedAssetControlErrorCode =
   | "upload_in_progress"
   | "provider_unavailable"
   | "identity_conflict"
+  | "store_mismatch"
+  | "asset_available"
   | "invalid_display_name";
 
 export class ManagedAssetControlError extends Error {
@@ -362,6 +364,121 @@ export async function deleteManagedAsset(uid: string, storagePath: string): Prom
     return { alreadyMissing: alreadyMissing || started.alreadyMissing };
   } catch (error) {
     if (attemptId) await markDeletionFailed(uid, storagePath, operationId, attemptId).catch(() => undefined);
+    throw error instanceof ManagedAssetControlError ? error : new ManagedAssetControlError("provider_unavailable");
+  }
+}
+
+async function assertManagedAssetMissing(storagePath: string, expectedStoreId: string): Promise<string> {
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+  if (!storeId || !expectedStoreId || storeId !== expectedStoreId
+    || !(process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim())) {
+    throw new ManagedAssetControlError(storeId && expectedStoreId && storeId !== expectedStoreId ? "store_mismatch" : "provider_unavailable");
+  }
+  try {
+    const physical = await head(storagePath, { storeId });
+    if (physical.pathname !== storagePath) throw new ManagedAssetControlError("identity_conflict");
+    throw new ManagedAssetControlError("asset_available");
+  } catch (error) {
+    if (error instanceof ManagedAssetControlError) throw error;
+    if (error instanceof BlobNotFoundError) return storeId;
+    throw new ManagedAssetControlError("provider_unavailable");
+  }
+}
+
+async function reserveMissingAssetReconciliation(
+  uid: string,
+  storagePath: string,
+  operationId: string,
+  attemptId: string,
+): Promise<"reserved" | "already_reconciled"> {
+  const controlRef = managedAssetControlRef(uid, storagePath);
+  const firestore = db();
+  return firestore.runTransaction(async (transaction) => {
+    const controlSnapshot = await transaction.get(controlRef);
+    if (!controlSnapshot.exists) throw new ManagedAssetControlError("not_found");
+    const current = parseControl(controlSnapshot.data(), storagePath);
+    if (current?.state === "deleted") return "already_reconciled";
+    if (!current) throw new ManagedAssetControlError("not_found");
+    if (current.protected) throw new ManagedAssetControlError("protected");
+    if (current.state !== "active" || current.deleteAttemptId || current.deleteOperationId || current.deleteLeaseExpiresAt) {
+      throw new ManagedAssetControlError("deletion_in_progress");
+    }
+
+    const intentQuery = firestore.collection(`users/${uid}/managedAssets`)
+      .where("storagePath", "==", storagePath);
+    const intentSnapshot = await transaction.get(intentQuery);
+    const intentDocs = intentSnapshot.docs as QueryDocumentSnapshot[];
+    const intents = intentDocs.map((document) => document.data() as ManagedAssetIntent);
+    if (intents.some((intent) => intent.state !== "complete" && intent.state !== "deleted")) {
+      throw new ManagedAssetControlError("upload_in_progress");
+    }
+
+    transaction.set(controlRef, {
+      ...current,
+      state: "deleting",
+      deleteAttemptId: attemptId,
+      deleteOperationId: operationId,
+      deleteLeaseExpiresAt: Timestamp.fromMillis(Date.now() + DELETE_LEASE_MS),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return "reserved";
+  });
+}
+
+async function restoreActiveAfterReconciliation(
+  uid: string,
+  storagePath: string,
+  operationId: string,
+  attemptId: string,
+): Promise<void> {
+  const ref = managedAssetControlRef(uid, storagePath);
+  await db().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
+    const current = parseControl(snapshot.data(), storagePath);
+    if (current?.state !== "deleting" || current.deleteOperationId !== operationId || current.deleteAttemptId !== attemptId) return;
+    transaction.update(ref, {
+      state: "active",
+      deleteAttemptId: FieldValue.delete(),
+      deleteOperationId: FieldValue.delete(),
+      deleteLeaseExpiresAt: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
+/**
+ * Explicitly reconciles an owner-scoped managed asset whose Blob is confirmed absent.
+ * The control transition blocks PowerShow upload intents while Firestore associations
+ * are finalized. Blob and Firestore cannot participate in one atomic transaction, so
+ * a direct provider-side re-upload after the final absence check remains outside this
+ * operation's race guarantees; this operation never issues a physical delete.
+ */
+export async function reconcileMissingManagedAsset(
+  uid: string,
+  storagePath: string,
+  expectedStoreId: string,
+): Promise<{ alreadyReconciled: boolean }> {
+  managedAssetControlRef(uid, storagePath);
+  const storeId = await assertManagedAssetMissing(storagePath, expectedStoreId);
+  const operationId = crypto.randomUUID();
+  const attemptId = crypto.randomUUID();
+  const reservation = await reserveMissingAssetReconciliation(uid, storagePath, operationId, attemptId);
+  if (reservation === "already_reconciled") return { alreadyReconciled: true };
+
+  try {
+    // Recheck after acquiring the Firestore upload barrier; the UI's earlier status
+    // is informational and never authorizes this mutation.
+    await assertManagedAssetMissing(storagePath, storeId);
+    if (!await finalizeManagedAssetDeletion(uid, storagePath, operationId)) {
+      const latest = await readManagedAssetControl(uid, storagePath);
+      if (latest?.state !== "deleted") throw new ManagedAssetControlError("deletion_in_progress");
+    }
+    return { alreadyReconciled: false };
+  } catch (error) {
+    await restoreActiveAfterReconciliation(uid, storagePath, operationId, attemptId).catch(() => undefined);
+    const latest = await readManagedAssetControl(uid, storagePath).catch(() => null);
+    if (latest?.state === "deleted") return { alreadyReconciled: true };
     throw error instanceof ManagedAssetControlError ? error : new ManagedAssetControlError("provider_unavailable");
   }
 }
