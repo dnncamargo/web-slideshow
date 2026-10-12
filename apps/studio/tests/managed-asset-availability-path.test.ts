@@ -4,10 +4,13 @@ import type { FontFaceResource, PresentationFileResource } from "@web-slideshow/
 import type { CustomLibraryFileRecord } from "../src/features/custom-library/custom-library-file";
 import type { CustomLibraryFontFace } from "../src/features/custom-library/custom-library-font";
 import {
+  customLibraryFileAvailabilityIdentity,
   customLibraryFileAvailabilityPath,
+  managedFontFaceAvailabilityIdentity,
   managedFontFaceAvailabilityPath,
   presentationFileAvailabilityPath,
 } from "../src/features/custom-library/managed-asset-availability-path";
+import { configuredManagedAssetStoreId } from "../src/features/persistence/managed-asset-blob-identity";
 
 const uid = "owner-1";
 const assetId = "123e4567-e89b-42d3-a456-426614174000";
@@ -37,11 +40,30 @@ function fontFace(url = blobUrl, overrides: Partial<CustomLibraryFontFace> = {})
 }
 
 describe("managed asset availability identity", () => {
+  it("only trusts the configured Store when the read/write token selects the same Store", () => {
+    expect(configuredManagedAssetStoreId("store_store-a", "vercel_blob_rw_store-a_secret")).toBe("store-a");
+    expect(configuredManagedAssetStoreId("store-a", "vercel_blob_rw_store-b_secret")).toBeNull();
+    expect(configuredManagedAssetStoreId("store-a", "malformed-token")).toBeNull();
+    expect(configuredManagedAssetStoreId("store-a", undefined)).toBe("store-a");
+  });
+
   it("accepts an exact managed File association and rejects path or asset identity mismatches", () => {
     expect(customLibraryFileAvailabilityPath(libraryFile())).toBe(storagePath);
     expect(customLibraryFileAvailabilityPath(libraryFile({ storagePath: `users/other/assets/${assetId}.woff2` }))).toBeNull();
     expect(customLibraryFileAvailabilityPath(libraryFile({ downloadUrl: "https://example.test/font.woff2" }))).toBeNull();
     expect(customLibraryFileAvailabilityPath(libraryFile({ assetId: "223e4567-e89b-42d3-a456-426614174000" }))).toBeNull();
+  });
+
+  it("keeps Store identity distinct when two Blob hosts use the same pathname", () => {
+    const storeA = customLibraryFileAvailabilityIdentity(libraryFile({
+      downloadUrl: `https://store-a.public.blob.vercel-storage.com/${storagePath}`,
+    }));
+    const storeB = customLibraryFileAvailabilityIdentity(libraryFile({
+      downloadUrl: `https://store-b.public.blob.vercel-storage.com/${storagePath}`,
+    }));
+    expect(storeA).toEqual({ storeId: "store-a", storagePath });
+    expect(storeB).toEqual({ storeId: "store-b", storagePath });
+    expect(storeA).not.toEqual(storeB);
   });
 
   it("recognizes a managed font face only when its URL, format, and provenance agree", () => {
@@ -68,6 +90,16 @@ describe("managed asset availability identity", () => {
     expect(managedFontFaceAvailabilityPath({
       source: { type: "url", url: "https://fonts.example.test/font.woff2", format: "woff2" },
     })).toBeNull();
+    expect(managedFontFaceAvailabilityIdentity({
+      source: { type: "url", url: "https://a.b.public.blob.vercel-storage.com/users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2", format: "woff2" },
+    })).toBeNull();
+  });
+
+  it("preserves external Font provenance even when its Blob pathname collides", () => {
+    const external = fontFace(`https://store-a.public.blob.vercel-storage.com/${storagePath}`, {
+      provenance: { kind: "external-url" },
+    });
+    expect(managedFontFaceAvailabilityIdentity(external)).toBeNull();
   });
 
   it("checks only binary managed Presentation Files, never embedded text content", () => {

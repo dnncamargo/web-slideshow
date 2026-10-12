@@ -28,12 +28,13 @@ describe("ManagedAssetAvailabilityControl", () => {
 
   function render(
     pathname: string | null,
-    reconciliation?: { assetName: string; associations: readonly string[]; onComplete: () => void },
+    reconciliation?: { assetName: string; associations: readonly string[]; onComplete: () => void | Promise<void> },
+    expectedStoreId: string | null = "test-store",
   ): HTMLDivElement {
     const container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    act(() => root?.render(<StudioI18nProvider><ManagedAssetAvailabilityControl pathname={pathname} reconciliation={reconciliation} /></StudioI18nProvider>));
+    act(() => root?.render(<StudioI18nProvider><ManagedAssetAvailabilityControl pathname={pathname} expectedStoreId={expectedStoreId} reconciliation={reconciliation} /></StudioI18nProvider>));
     return container;
   }
 
@@ -51,7 +52,7 @@ describe("ManagedAssetAvailabilityControl", () => {
     expect(request).toHaveBeenCalledWith("/api/managed-assets/availability", expect.objectContaining({
       method: "POST",
       headers: { Authorization: "Bearer id-token", "Content-Type": "application/json" },
-      body: JSON.stringify({ pathname: "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png" }),
+      body: JSON.stringify({ pathname: "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png", expectedStoreId: "test-store" }),
       cache: "no-store",
     }));
     expect(container.querySelector('[data-managed-asset-availability="available"]')?.textContent).toContain("Available");
@@ -78,6 +79,18 @@ describe("ManagedAssetAvailabilityControl", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("leaves a legacy reference unverified when its Store identity cannot be established", async () => {
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const container = render("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png", {
+      assetName: "Legacy file", associations: ["Legacy file (File)"], onComplete: vi.fn(),
+    }, null);
+    expect(container.textContent).toContain("Unverified");
+    expect(container.querySelector("button")).toBeNull();
+    await act(async () => { await Promise.resolve(); });
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("keeps availability independent for mixed font faces", async () => {
     const request = vi.fn()
       .mockResolvedValueOnce(Response.json({ state: "available", storeId: "test-store" }))
@@ -87,8 +100,8 @@ describe("ManagedAssetAvailabilityControl", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => root?.render(<StudioI18nProvider>
-      <ManagedAssetAvailabilityControl pathname="users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2" />
-      <ManagedAssetAvailabilityControl pathname="users/owner-1/assets/223e4567-e89b-42d3-a456-426614174000.woff2" />
+      <ManagedAssetAvailabilityControl pathname="users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2" expectedStoreId="test-store" />
+      <ManagedAssetAvailabilityControl pathname="users/owner-1/assets/223e4567-e89b-42d3-a456-426614174000.woff2" expectedStoreId="test-store" />
     </StudioI18nProvider>));
 
     const buttons = container.querySelectorAll("button");
@@ -118,6 +131,7 @@ describe("ManagedAssetAvailabilityControl", () => {
     await act(async () => { reconcile?.click(); });
 
     const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.parentElement?.tagName).not.toBe("SPAN");
     expect(dialog?.textContent).toContain("Fixture file");
     expect(dialog?.textContent).toContain("Fixture Sans · Regular · WOFF2 (Font face)");
     expect(dialog?.textContent).toContain("cannot restore the original bytes");
@@ -166,6 +180,16 @@ describe("ManagedAssetAvailabilityControl", () => {
     const container = render("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png", {
       assetName: "Fixture file", associations: ["Fixture file (File)"], onComplete: vi.fn(),
     });
+    await act(async () => { container.querySelector("button")?.click(); });
+    expect(container.textContent).toContain("Unverified");
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Reconcile missing asset")).toBe(false);
+  });
+
+  it("fails closed when the server checked a different Store than the resource URL", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "missing", storeId: "other-store" })));
+    const container = render("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png", {
+      assetName: "Fixture file", associations: ["Fixture file (File)"], onComplete: vi.fn(),
+    }, "test-store");
     await act(async () => { container.querySelector("button")?.click(); });
     expect(container.textContent).toContain("Unverified");
     expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Reconcile missing asset")).toBe(false);

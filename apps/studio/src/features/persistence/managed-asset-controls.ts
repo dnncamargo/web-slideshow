@@ -12,6 +12,11 @@ import { getFirebaseAdminApp } from "../auth/firebase-admin-auth";
 import type { CustomLibraryFontDraft, CustomLibraryFontFace } from "../custom-library/custom-library-font";
 import { parseCustomLibraryFontDraft } from "../custom-library/custom-library-font-schema";
 import { isManagedAssetControlPath } from "./managed-asset-control-path";
+import {
+  configuredManagedAssetStoreId,
+  managedAssetBlobIdentityFromUrl,
+  normalizeManagedAssetStoreId,
+} from "./managed-asset-blob-identity";
 import type { ManagedAssetIntent } from "./managed-asset-intents";
 
 const DELETE_LEASE_MS = 2 * 60 * 1000;
@@ -109,7 +114,7 @@ export async function readManagedAssetControl(uid: string, storagePath: string):
 }
 
 async function assertPhysicalObject(storagePath: string): Promise<void> {
-  const storeId = process.env.BLOB_STORE_ID?.trim();
+  const storeId = configuredManagedAssetStoreId(process.env.BLOB_STORE_ID, process.env.BLOB_READ_WRITE_TOKEN);
   if (!storeId || !(process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim())) {
     throw new ManagedAssetControlError("provider_unavailable");
   }
@@ -158,20 +163,40 @@ export async function renameManagedAsset(uid: string, storagePath: string, rawDi
   });
 }
 
-function fontFaceStoragePath(face: CustomLibraryFontFace): string | null {
+function fontFaceBlobIdentity(face: CustomLibraryFontFace) {
+  if (face.provenance && face.provenance.kind !== "managed-upload") return null;
   try {
-    const url = new URL(face.source.url);
-    if (url.protocol !== "https:" || !url.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
-    return decodeURIComponent(url.pathname).replace(/^\/+/, "");
+    const identity = managedAssetBlobIdentityFromUrl(face.source.url);
+    if (!identity) return null;
+    if (face.provenance?.kind === "managed-upload") {
+      const leaf = identity.storagePath.slice(identity.storagePath.lastIndexOf("/") + 1);
+      const assetId = /^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\.[a-z0-9]+)?$/i.exec(leaf)?.[1];
+      if (!assetId || face.provenance.assetId.toLowerCase() !== assetId.toLowerCase()) return null;
+    }
+    return identity;
   } catch {
     return null;
   }
 }
 
-function removeFontPath(font: CustomLibraryFontDraft, storagePath: string): CustomLibraryFontDraft | null {
-  const faces = font.faces.filter((face) => fontFaceStoragePath(face) !== storagePath);
+function removeFontPath(font: CustomLibraryFontDraft, storagePath: string, storeId: string): CustomLibraryFontDraft | null {
+  const faces = font.faces.filter((face) => {
+    const identity = fontFaceBlobIdentity(face);
+    return identity?.storagePath !== storagePath || identity.storeId !== storeId;
+  });
   if (faces.length === font.faces.length) return font;
   return faces.length === 0 ? null : { ...font, faces };
+}
+
+function fileSourceMatchesStore(value: FirebaseFirestore.DocumentData | undefined, storagePath: string, storeId: string): boolean {
+  if (!value || typeof value !== "object") return false;
+  const file = value.file;
+  if (!file || typeof file !== "object") return false;
+  const source = (file as FirebaseFirestore.DocumentData).source;
+  if (!source || typeof source !== "object") return false;
+  const record = source as FirebaseFirestore.DocumentData;
+  const identity = typeof record.downloadUrl === "string" ? managedAssetBlobIdentityFromUrl(record.downloadUrl) : null;
+  return record.storagePath === storagePath && identity?.storagePath === storagePath && identity.storeId === storeId;
 }
 
 function queryFontDocs(transaction: Transaction, uid: string) {
@@ -263,7 +288,7 @@ async function markDeletionFailed(uid: string, storagePath: string, operationId:
   });
 }
 
-async function finalizeManagedAssetDeletion(uid: string, storagePath: string, operationId: string): Promise<boolean> {
+async function finalizeManagedAssetDeletion(uid: string, storagePath: string, operationId: string, storeId: string): Promise<boolean> {
   const ref = managedAssetControlRef(uid, storagePath);
   return db().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -291,7 +316,7 @@ async function finalizeManagedAssetDeletion(uid: string, storagePath: string, op
     const fontUpdates: Array<{ ref: DocumentReference; value: CustomLibraryFontDraft | null }> = [];
     fontSnapshot.docs.forEach((document) => {
       const font = parseCustomLibraryFontDraft(document.data());
-      const next = removeFontPath(font, storagePath);
+      const next = removeFontPath(font, storagePath, storeId);
       if (next !== font) fontUpdates.push({ ref: document.ref, value: next });
     });
 
@@ -304,9 +329,13 @@ async function finalizeManagedAssetDeletion(uid: string, storagePath: string, op
       updatedAt: FieldValue.serverTimestamp(),
     });
     fontUpdates.forEach(({ ref: fontRef, value }) => value ? transaction.set(fontRef, value) : transaction.delete(fontRef));
-    fileSnapshot.docs.forEach((document) => transaction.delete(document.ref));
+    fileSnapshot.docs.forEach((document) => {
+      if (fileSourceMatchesStore(document.data(), storagePath, storeId)) transaction.delete(document.ref);
+    });
     intentDocs.forEach((document) => {
-      if ((document.data() as ManagedAssetIntent).state === "complete") {
+      const intent = document.data() as ManagedAssetIntent;
+      const identity = intent.downloadUrl ? managedAssetBlobIdentityFromUrl(intent.downloadUrl) : null;
+      if (intent.state === "complete" && identity?.storagePath === storagePath && identity.storeId === storeId) {
         transaction.update(document.ref, { state: "deleted", updatedAt: FieldValue.serverTimestamp() });
       }
     });
@@ -318,8 +347,9 @@ export async function deleteManagedAsset(uid: string, storagePath: string): Prom
   managedAssetControlRef(uid, storagePath);
 
   let alreadyMissing = false;
-  const storeId = process.env.BLOB_STORE_ID?.trim();
-  if (!storeId || !(process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim())) {
+  const storeId = configuredManagedAssetStoreId(process.env.BLOB_STORE_ID, process.env.BLOB_READ_WRITE_TOKEN);
+  const normalizedStoreId = storeId;
+  if (!storeId || !normalizedStoreId || !(process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim())) {
     throw new ManagedAssetControlError("provider_unavailable");
   }
   try {
@@ -357,7 +387,7 @@ export async function deleteManagedAsset(uid: string, storagePath: string): Prom
         if (!(error instanceof BlobNotFoundError)) throw error;
       }
     }
-    if (!await finalizeManagedAssetDeletion(uid, storagePath, operationId)) {
+    if (!await finalizeManagedAssetDeletion(uid, storagePath, operationId, normalizedStoreId)) {
       const latest = await readManagedAssetControl(uid, storagePath);
       if (latest?.state !== "deleted") throw new ManagedAssetControlError("deletion_in_progress");
     }
@@ -369,10 +399,12 @@ export async function deleteManagedAsset(uid: string, storagePath: string): Prom
 }
 
 async function assertManagedAssetMissing(storagePath: string, expectedStoreId: string): Promise<string> {
-  const storeId = process.env.BLOB_STORE_ID?.trim();
-  if (!storeId || !expectedStoreId || storeId !== expectedStoreId
+  const configuredStoreId = process.env.BLOB_STORE_ID?.trim();
+  const storeId = configuredManagedAssetStoreId(configuredStoreId, process.env.BLOB_READ_WRITE_TOKEN);
+  const expected = normalizeManagedAssetStoreId(expectedStoreId);
+  if (!configuredStoreId || !storeId || !expected || storeId !== expected
     || !(process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim())) {
-    throw new ManagedAssetControlError(storeId && expectedStoreId && storeId !== expectedStoreId ? "store_mismatch" : "provider_unavailable");
+    throw new ManagedAssetControlError(storeId && expected && storeId !== expected ? "store_mismatch" : "provider_unavailable");
   }
   try {
     const physical = await head(storagePath, { storeId });
@@ -388,19 +420,31 @@ async function assertManagedAssetMissing(storagePath: string, expectedStoreId: s
 async function reserveMissingAssetReconciliation(
   uid: string,
   storagePath: string,
+  storeId: string,
   operationId: string,
   attemptId: string,
-): Promise<"reserved" | "already_reconciled"> {
+): Promise<{ operationId: string; attemptId: string; alreadyReconciled: boolean }> {
   const controlRef = managedAssetControlRef(uid, storagePath);
   const firestore = db();
   return firestore.runTransaction(async (transaction) => {
     const controlSnapshot = await transaction.get(controlRef);
     if (!controlSnapshot.exists) throw new ManagedAssetControlError("not_found");
     const current = parseControl(controlSnapshot.data(), storagePath);
-    if (current?.state === "deleted") return "already_reconciled";
+    if (current?.state === "deleted") return { operationId: current.deleteOperationId ?? operationId, attemptId, alreadyReconciled: true };
     if (!current) throw new ManagedAssetControlError("not_found");
     if (current.protected) throw new ManagedAssetControlError("protected");
-    if (current.state !== "active" || current.deleteAttemptId || current.deleteOperationId || current.deleteLeaseExpiresAt) {
+
+    let reservedOperationId = operationId;
+    if (current.state === "deleting") {
+      if (current.deleteLeaseExpiresAt instanceof Timestamp && current.deleteLeaseExpiresAt.toMillis() > Date.now()) {
+        throw new ManagedAssetControlError("deletion_in_progress");
+      }
+      if (!current.deleteOperationId) throw new ManagedAssetControlError("identity_conflict");
+      reservedOperationId = current.deleteOperationId;
+    } else if (current.state === "delete_failed") {
+      if (!current.deleteOperationId) throw new ManagedAssetControlError("identity_conflict");
+      reservedOperationId = current.deleteOperationId;
+    } else if (current.state !== "active" || current.deleteAttemptId || current.deleteOperationId || current.deleteLeaseExpiresAt) {
       throw new ManagedAssetControlError("deletion_in_progress");
     }
 
@@ -412,16 +456,23 @@ async function reserveMissingAssetReconciliation(
     if (intents.some((intent) => intent.state !== "complete" && intent.state !== "deleted")) {
       throw new ManagedAssetControlError("upload_in_progress");
     }
+    for (const intent of intents) {
+      if (intent.state !== "complete") continue;
+      if (!intent.downloadUrl) throw new ManagedAssetControlError("identity_conflict");
+      const identity = managedAssetBlobIdentityFromUrl(intent.downloadUrl);
+      if (identity?.storagePath !== storagePath) throw new ManagedAssetControlError("identity_conflict");
+      if (identity.storeId !== storeId) throw new ManagedAssetControlError("store_mismatch");
+    }
 
     transaction.set(controlRef, {
       ...current,
       state: "deleting",
       deleteAttemptId: attemptId,
-      deleteOperationId: operationId,
+      deleteOperationId: reservedOperationId,
       deleteLeaseExpiresAt: Timestamp.fromMillis(Date.now() + DELETE_LEASE_MS),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return "reserved";
+    return { operationId: reservedOperationId, attemptId, alreadyReconciled: false };
   });
 }
 
@@ -463,20 +514,20 @@ export async function reconcileMissingManagedAsset(
   const storeId = await assertManagedAssetMissing(storagePath, expectedStoreId);
   const operationId = crypto.randomUUID();
   const attemptId = crypto.randomUUID();
-  const reservation = await reserveMissingAssetReconciliation(uid, storagePath, operationId, attemptId);
-  if (reservation === "already_reconciled") return { alreadyReconciled: true };
+  const reservation = await reserveMissingAssetReconciliation(uid, storagePath, storeId, operationId, attemptId);
+  if (reservation.alreadyReconciled) return { alreadyReconciled: true };
 
   try {
     // Recheck after acquiring the Firestore upload barrier; the UI's earlier status
     // is informational and never authorizes this mutation.
     await assertManagedAssetMissing(storagePath, storeId);
-    if (!await finalizeManagedAssetDeletion(uid, storagePath, operationId)) {
+    if (!await finalizeManagedAssetDeletion(uid, storagePath, reservation.operationId, storeId)) {
       const latest = await readManagedAssetControl(uid, storagePath);
       if (latest?.state !== "deleted") throw new ManagedAssetControlError("deletion_in_progress");
     }
     return { alreadyReconciled: false };
   } catch (error) {
-    await restoreActiveAfterReconciliation(uid, storagePath, operationId, attemptId).catch(() => undefined);
+    await restoreActiveAfterReconciliation(uid, storagePath, reservation.operationId, reservation.attemptId).catch(() => undefined);
     const latest = await readManagedAssetControl(uid, storagePath).catch(() => null);
     if (latest?.state === "deleted") return { alreadyReconciled: true };
     throw error instanceof ManagedAssetControlError ? error : new ManagedAssetControlError("provider_unavailable");

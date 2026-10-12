@@ -35,9 +35,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return json({ error: "invalid_request" }, 400);
   }
 
-  const pathname = (body as { pathname: string }).pathname;
+  const requestBody = body as Record<string, unknown>;
+  const pathname = requestBody.pathname as string;
+  const expectedStoreId = typeof requestBody.expectedStoreId === "string" ? requestBody.expectedStoreId : null;
   try {
-    return json(await checkManagedAssetAvailability(owner.uid, pathname));
+    return json(await checkManagedAssetAvailability(owner.uid, pathname, expectedStoreId));
   } catch (error) {
     if (error instanceof ManagedAssetControlError && error.code === "invalid_identity") {
       return json({ error: "authorization" }, 403);

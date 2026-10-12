@@ -39,8 +39,9 @@ function renderManager(
   const root = createRoot(host);
   const onFocusResolved = vi.fn();
   const onPhysicalDelete = vi.fn();
-  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} onPhysicalDelete={onPhysicalDelete} /></StudioI18nProvider>));
-  return { host, root, onFocusResolved, onPhysicalDelete };
+  const onManagedAssetReconciled = vi.fn(async () => {});
+  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} libraryRefreshFailed={false} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} onPhysicalDelete={onPhysicalDelete} onManagedAssetReconciled={onManagedAssetReconciled} /></StudioI18nProvider>));
+  return { host, root, onFocusResolved, onPhysicalDelete, onManagedAssetReconciled };
 }
 
 const blob = (pathname: string, uploadedAt = "2026-01-02T03:04:05.000Z") => ({ pathname, url: `https://blob.example/${pathname.split("/").at(-1)}`, size: 8, uploadedAt, etag: "provider-etag" });
@@ -184,7 +185,8 @@ describe("Storage manager", () => {
 
   it("keeps non-eligible legacy files visible with their fallback name and disables Rename", async () => {
     const pathname = "users/owner-1/assets/arquivo-antigo.png";
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
       const url = String(input);
       if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
@@ -206,7 +208,8 @@ describe("Storage manager", () => {
   });
 
   it("lists owner-scoped physical objects, selects details, and safely previews text", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
       const url = String(input);
       if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
@@ -528,10 +531,11 @@ describe("Storage manager", () => {
         }],
       },
     };
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
       const url = String(input);
       if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [], hasMore: false });
-      if (url === "/api/managed-assets/availability") return response({ state: "missing", storeId: "test-store" });
+      if (url === "/api/managed-assets/availability") return response({ state: "missing", storeId: "fixture" });
       return response({});
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -546,6 +550,8 @@ describe("Storage manager", () => {
       Array.from(candidate?.querySelectorAll<HTMLButtonElement>("button") ?? [])
         .find((button) => button.textContent === "Check availability")?.click();
     });
+    const availabilityCall = fetchMock.mock.calls.find(([url]) => String(url) === "/api/managed-assets/availability");
+    expect(JSON.parse(String(availabilityCall?.[1]?.body))).toEqual({ pathname, expectedStoreId: "fixture" });
     expect(candidate?.textContent).toContain("Source missing");
     expect(candidate?.textContent).toContain("Reconcile missing asset");
     await act(async () => {

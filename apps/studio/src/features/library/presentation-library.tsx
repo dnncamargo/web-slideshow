@@ -250,6 +250,7 @@ export function PresentationLibrary({
   const [deletingCustomLibraryFileId, setDeletingCustomLibraryFileId] = useState<string | null>(null);
   const [customLibraryFileDeleteError, setCustomLibraryFileDeleteError] = useState<string | null>(null);
   const [storageUsageRefreshKey, setStorageUsageRefreshKey] = useState(0);
+  const [storageLibraryRefreshFailed, setStorageLibraryRefreshFailed] = useState(false);
   const [storageUploadError, setStorageUploadError] = useState<string | null>(null);
   const [storageUploading, setStorageUploading] = useState(false);
   const [storageFocusPathname, setStorageFocusPathname] = useState<string | null>(null);
@@ -419,7 +420,7 @@ export function PresentationLibrary({
     queueMicrotask(() => void loadCustomLibraryPalettes());
   }, [destination, loadCustomLibraryPalettes]);
 
-  const loadCustomLibraryFonts = useCallback(async () => {
+  const loadCustomLibraryFonts = useCallback(async (): Promise<boolean> => {
     const request = customLibraryFontLoadRef.current + 1;
     customLibraryFontLoadRef.current = request;
     setCustomLibraryFontStatus("loading");
@@ -427,15 +428,17 @@ export function PresentationLibrary({
 
     try {
       const fonts = await customLibraryFontRepository.listFonts();
-      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return;
+      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return false;
       customLibraryFontsRef.current = fonts;
       setCustomLibraryFonts(fonts);
       setCustomLibraryFontStatus("ready");
+      return true;
     } catch (error) {
       console.error("Library: could not load Custom Library fonts", error);
-      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return;
+      if (!mountedRef.current || customLibraryFontLoadRef.current !== request) return false;
       setCustomLibraryFontStatus("error");
       setCustomLibraryFontError(t("customLibrary.fontBrowser.loadFailed"));
+      return false;
     }
   }, [customLibraryFontRepository, t]);
 
@@ -444,7 +447,7 @@ export function PresentationLibrary({
     queueMicrotask(() => void loadCustomLibraryFonts());
   }, [destination, loadCustomLibraryFonts]);
 
-  const loadCustomLibraryFiles = useCallback(async () => {
+  const loadCustomLibraryFiles = useCallback(async (): Promise<boolean> => {
     const request = customLibraryFileLoadRef.current + 1;
     customLibraryFileLoadRef.current = request;
     setCustomLibraryFileStatus("loading");
@@ -452,16 +455,28 @@ export function PresentationLibrary({
 
     try {
       const files = await customLibraryFileRepository.listFiles();
-      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return;
+      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return false;
       setCustomLibraryFiles(files);
       setCustomLibraryFileStatus("ready");
+      return true;
     } catch (error) {
       console.error("Library: could not load Custom Library files", error);
-      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return;
+      if (!mountedRef.current || customLibraryFileLoadRef.current !== request) return false;
       setCustomLibraryFileStatus("error");
       setCustomLibraryFileError(t("customLibrary.fileBrowser.loadFailed"));
+      return false;
     }
   }, [customLibraryFileRepository, t]);
+
+  const handleManagedAssetReconciled = useCallback(async () => {
+    setStorageLibraryRefreshFailed(false);
+    const [filesRefreshed, fontsRefreshed] = await Promise.all([
+      loadCustomLibraryFiles(),
+      loadCustomLibraryFonts(),
+    ]);
+    setStorageLibraryRefreshFailed(!filesRefreshed || !fontsRefreshed);
+    setStorageUsageRefreshKey((value) => value + 1);
+  }, [loadCustomLibraryFiles, loadCustomLibraryFonts]);
 
   useEffect(() => {
     if (destination !== "files" && destination !== "storage") return;
@@ -1734,10 +1749,12 @@ export function PresentationLibrary({
                 fonts={customLibraryFonts}
                 uploading={storageUploading}
                 uploadError={storageUploadError}
+                libraryRefreshFailed={storageLibraryRefreshFailed}
                 usageRefreshKey={storageUsageRefreshKey}
                 focusPathname={storageFocusPathname}
                 onFocusResolved={handleStorageFocusResolved}
                 onPhysicalDelete={() => setStorageUsageRefreshKey((value) => value + 1)}
+                onManagedAssetReconciled={handleManagedAssetReconciled}
               />
             ) : <>
             <section

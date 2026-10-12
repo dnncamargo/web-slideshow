@@ -28,7 +28,7 @@ import type { CustomLibraryFontRepository } from "@/features/custom-library/cust
 import type { CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
 import { getCustomLibraryFileResourceId } from "@/features/custom-library/custom-library-file-apply";
 import { formatCustomLibraryFileSize } from "@/features/custom-library/custom-library-file";
-import { customLibraryFileAvailabilityPath, managedFontFaceAvailabilityPath, presentationFileAvailabilityPath } from "@/features/custom-library/managed-asset-availability-path";
+import { customLibraryFileAvailabilityIdentity, managedFontFaceAvailabilityIdentity, presentationFileAvailabilityIdentity } from "@/features/custom-library/managed-asset-availability-path";
 import { ManagedAssetAvailabilityControl } from "@/features/custom-library/managed-asset-availability-control";
 import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
@@ -1822,7 +1822,7 @@ function MasterFontChooser({
         <span className={styles.masterPaletteCount}>{t(font.faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: font.faces.length })}</span>
         {font.faces.map((face, index) => <span key={`${face.source.url}-${index}`} className={styles.masterPaletteCount}>
           {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
-          <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityPath(face)} compact />
+          <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null} expectedStoreId={managedFontFaceAvailabilityIdentity(face)?.storeId ?? null} compact />
         </span>)}
       </div>
       <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFont", { family: font.family })} onClick={() => onAdd(font)}>+</button>
@@ -1848,7 +1848,7 @@ function LocalPresentationFontRow({
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
       {faces.map((face, index) => <span key={`${face.source.url}-${index}`} className={styles.masterPaletteCount}>
         {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
-        <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityPath(face)} compact />
+        <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null} expectedStoreId={managedFontFaceAvailabilityIdentity(face)?.storeId ?? null} compact />
       </span>)}
     </div>
     <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
@@ -1881,7 +1881,7 @@ function MasterFileChooser({
       <div className={styles.resourceItemDetailsStack}>
         <strong>{record.file.name}</strong>
         <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${record.file.kind}`)} · {formatCustomLibraryFileSize(record.file.source.sizeBytes)}{alreadyAdded ? ` · ${t("customResources.fileAlreadyAddedShort")}` : ""}</span>
-        <ManagedAssetAvailabilityControl pathname={customLibraryFileAvailabilityPath(record)} compact />
+        <ManagedAssetAvailabilityControl pathname={customLibraryFileAvailabilityIdentity(record)?.storagePath ?? null} expectedStoreId={customLibraryFileAvailabilityIdentity(record)?.storeId ?? null} compact />
       </div>
       <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFile", { name: record.file.name })} disabled={addingFileId !== null || alreadyAdded} onClick={() => onAdd(record)}>+</button>
     </div>;
@@ -1910,7 +1910,7 @@ function LocalPresentationFileRow({
     <div className={styles.resourceItemDetailsStack}>
       <strong>{file.name}</strong>
       <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${file.kind}`)} · {file.contentType}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
-      {file.representation === "binary" ? <ManagedAssetAvailabilityControl pathname={presentationFileAvailabilityPath(file)} compact /> : null}
+      {file.representation === "binary" ? <ManagedAssetAvailabilityControl pathname={presentationFileAvailabilityIdentity(file)?.storagePath ?? null} expectedStoreId={presentationFileAvailabilityIdentity(file)?.storeId ?? null} compact /> : null}
     </div>
     <div className={styles.resourceActionRow}>
       {file.representation === "text" ? (

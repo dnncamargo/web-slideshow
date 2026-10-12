@@ -151,7 +151,7 @@ import {
 
 const owner = "owner-1";
 const path = `users/${owner}/assets/123e4567-e89b-42d3-a456-426614174000.png`;
-const physical = { pathname: path, url: `https://fixture.public.blob.vercel-storage.com/${path}`, contentType: "image/png", size: 8, etag: "provider-etag" };
+const physical = { pathname: path, url: `https://test-store.public.blob.vercel-storage.com/${path}`, contentType: "image/png", size: 8, etag: "provider-etag" };
 const fontPath = `users/${owner}/customLibraryFonts/font-1`;
 const filePath = `users/${owner}/customLibraryFiles/file-1`;
 const intentPath = `users/${owner}/managedAssets/123e4567-e89b-42d3-a456-426614174000`;
@@ -168,8 +168,8 @@ function seedLogicalAssociations() {
       { source: { type: "url", url: externalUrl, format: "woff2" }, provenance: { kind: "external-url" } },
     ],
   });
-  state.documents.set(filePath, { file: { source: { storagePath: path } } });
-  state.documents.set(intentPath, { state: "complete", storagePath: path });
+  state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: physical.url } } });
+  state.documents.set(intentPath, { state: "complete", storagePath: path, downloadUrl: physical.url });
 }
 
 function seedActiveControl(protectedValue = false) {
@@ -177,7 +177,7 @@ function seedActiveControl(protectedValue = false) {
 }
 
 function seedCompleteIntent() {
-  state.documents.set(intentPath, { state: "complete", assetId: "123e4567-e89b-42d3-a456-426614174000", storagePath: path });
+  state.documents.set(intentPath, { state: "complete", assetId: "123e4567-e89b-42d3-a456-426614174000", storagePath: path, downloadUrl: physical.url });
 }
 
 beforeEach(() => {
@@ -187,7 +187,7 @@ beforeEach(() => {
   state.failNextFinalize = false;
   state.hasPhysical = true;
   process.env.BLOB_STORE_ID = "test-store";
-  process.env.BLOB_READ_WRITE_TOKEN = "test-token";
+  process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test-store_test-token";
   state.head.mockImplementation(async () => {
     if (!state.hasPhysical) throw new BlobNotFoundError();
     return physical;
@@ -262,7 +262,7 @@ describe("managed asset controls", () => {
       family: "Unrelated Sans",
       faces: [{ source: { type: "url", url: `https://fixture.public.blob.vercel-storage.com/${unrelatedPath}`, format: "woff2" } }],
     });
-    state.documents.set(`users/${owner}/customLibraryFiles/file-2`, { file: { source: { storagePath: unrelatedPath } } });
+    state.documents.set(`users/${owner}/customLibraryFiles/file-2`, { file: { source: { storagePath: unrelatedPath, downloadUrl: `https://test-store.public.blob.vercel-storage.com/${unrelatedPath}` } } });
     state.documents.set(`users/${owner}/managedAssets/223e4567-e89b-42d3-a456-426614174000`, {
       state: "complete", storagePath: unrelatedPath,
     });
@@ -401,7 +401,7 @@ describe("managed asset controls", () => {
     seedActiveControl();
     seedCompleteIntent();
     state.hasPhysical = false;
-    state.documents.set(filePath, { file: { name: "Fixture image", source: { storagePath: path } } });
+    state.documents.set(filePath, { file: { name: "Fixture image", source: { storagePath: path, downloadUrl: physical.url } } });
     state.documents.set(fontPath, { family: "Fixture Sans", faces: [
       { source: { type: "url", url: physical.url, format: "woff2" }, provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" } },
       { source: { type: "url", url: cdnUrl, format: "woff2" }, provenance: { kind: "cdn", provider: "google-fonts" } },
@@ -412,7 +412,7 @@ describe("managed asset controls", () => {
       { source: { type: "url", url: physical.url, format: "woff2" }, provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" } },
     ] });
     state.documents.set(`users/${owner}/customLibraryFiles/file-2`, {
-      file: { name: "Fixture image", source: { storagePath: unrelatedPath } },
+      file: { name: "Fixture image", source: { storagePath: unrelatedPath, downloadUrl: `https://test-store.public.blob.vercel-storage.com/${unrelatedPath}` } },
     });
     state.documents.set(`users/${owner}/customLibraryFonts/font-unrelated`, {
       family: "Unrelated Sans",
@@ -442,9 +442,74 @@ describe("managed asset controls", () => {
     expect(state.del).not.toHaveBeenCalled();
   });
 
+  it("does not reconcile a Store A association after a missing check against Store B", async () => {
+    seedActiveControl();
+    state.hasPhysical = false;
+    process.env.BLOB_STORE_ID = "store-b";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_store-b_test-token";
+    state.documents.set(intentPath, { state: "complete", storagePath: path, downloadUrl: `https://store-a.public.blob.vercel-storage.com/${path}` });
+    state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: `https://store-a.public.blob.vercel-storage.com/${path}` } } });
+
+    await expect(reconcileMissingManagedAsset(owner, path, "store-b")).rejects.toMatchObject({ code: "store_mismatch" });
+
+    expect((await readManagedAssetControl(owner, path))?.state).toBe("active");
+    expect(state.documents.has(filePath)).toBe(true);
+    expect(state.documents.get(intentPath)?.state).toBe("complete");
+    expect(state.head).toHaveBeenCalledWith(path, { storeId: "store-b" });
+    expect(state.del).not.toHaveBeenCalled();
+  });
+
+  it("removes only matching Store associations and preserves a foreign Store Font face and File", async () => {
+    seedActiveControl();
+    seedCompleteIntent();
+    state.hasPhysical = false;
+    state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: physical.url } } });
+    const foreignFilePath = `users/${owner}/customLibraryFiles/file-foreign`;
+    state.documents.set(foreignFilePath, { file: { source: { storagePath: path, downloadUrl: `https://store-a.public.blob.vercel-storage.com/${path}` } } });
+    state.documents.set(fontPath, { family: "Fixture Sans", faces: [
+      { source: { type: "url", url: physical.url, format: "woff2" }, provenance: { kind: "managed-upload", assetId: "123e4567-e89b-42d3-a456-426614174000" } },
+      { source: { type: "url", url: `https://store-a.public.blob.vercel-storage.com/${path}`, format: "woff2" }, provenance: { kind: "external-url" } },
+      { source: { type: "url", url: cdnUrl, format: "woff2" }, provenance: { kind: "cdn", provider: "google-fonts" } },
+    ] });
+
+    await expect(reconcileMissingManagedAsset(owner, path, "test-store")).resolves.toEqual({ alreadyReconciled: false });
+
+    expect(state.documents.has(filePath)).toBe(false);
+    expect(state.documents.has(foreignFilePath)).toBe(true);
+    expect((state.documents.get(fontPath)?.faces as Array<{ source: { url: string }; provenance?: { kind: string } }>).map((face) => face.provenance?.kind === "external-url" ? face.provenance.kind : face.source.url)).toEqual([
+      "external-url",
+      cdnUrl,
+    ]);
+    expect(state.documents.get(intentPath)?.state).toBe("deleted");
+  });
+
+  it("resumes an expired reconciliation reservation only after fresh absence checks", async () => {
+    seedCompleteIntent();
+    state.hasPhysical = false;
+    const priorOperationId = "interrupted-reconciliation";
+    state.documents.set(controlPath, {
+      storagePath: path,
+      protected: false,
+      state: "deleting",
+      deleteOperationId: priorOperationId,
+      deleteAttemptId: "abandoned-attempt",
+      deleteLeaseExpiresAt: Timestamp.fromMillis(Date.now() - 1_000),
+    });
+    state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: physical.url } } });
+
+    await expect(reconcileMissingManagedAsset(owner, path, "test-store")).resolves.toEqual({ alreadyReconciled: false });
+
+    expect(state.head).toHaveBeenCalledTimes(2);
+    expect(state.head).toHaveBeenCalledWith(path, { storeId: "test-store" });
+    expect((await readManagedAssetControl(owner, path))?.state).toBe("deleted");
+    expect((await readManagedAssetControl(owner, path))?.deleteOperationId).toBe(priorOperationId);
+    expect(state.documents.has(filePath)).toBe(false);
+    expect(state.del).not.toHaveBeenCalled();
+  });
+
   it("refuses a present Blob, protected asset, pending upload, and conflicting deletion", async () => {
     seedActiveControl();
-    state.documents.set(filePath, { file: { source: { storagePath: path } } });
+    state.documents.set(filePath, { file: { source: { storagePath: path, downloadUrl: physical.url } } });
     await expect(reconcileMissingManagedAsset(owner, path, "test-store")).rejects.toMatchObject({ code: "asset_available" });
     expect(state.documents.has(filePath)).toBe(true);
 
@@ -478,6 +543,21 @@ describe("managed asset controls", () => {
     await expect(reconcileMissingManagedAsset(owner, path, "test-store")).rejects.toMatchObject({ code: "provider_unavailable" });
     expect((await readManagedAssetControl(owner, path))?.state).toBe("active");
     expect(state.documents.has(filePath)).toBe(false);
+  });
+
+  it("fails closed before reads or writes when the read/write token selects another Store", async () => {
+    seedActiveControl();
+    seedCompleteIntent();
+    state.hasPhysical = false;
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_store-b_test-token";
+
+    await expect(reconcileMissingManagedAsset(owner, path, "test-store")).rejects.toMatchObject({ code: "provider_unavailable" });
+    await expect(deleteManagedAsset(owner, path)).rejects.toMatchObject({ code: "provider_unavailable" });
+
+    expect(state.head).not.toHaveBeenCalled();
+    expect(state.del).not.toHaveBeenCalled();
+    expect((await readManagedAssetControl(owner, path))?.state).toBe("active");
+    expect(state.documents.get(intentPath)?.state).toBe("complete");
   });
 
   it("restores the control if the Blob reappears after reservation", async () => {

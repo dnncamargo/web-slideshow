@@ -17,7 +17,7 @@ const headers = { Authorization: "Bearer owner-token", "Content-Type": "applicat
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("BLOB_STORE_ID", "selected-test-store");
-  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-token");
+  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_selected-test-store_test-token");
   mocks.verify.mockResolvedValue({ uid: "owner-1" });
   mocks.head.mockResolvedValue({ pathname });
 });
@@ -25,7 +25,7 @@ beforeEach(() => {
 describe("managed asset availability route integration", () => {
   it("authenticates the owner, checks one exact path in the configured store, and performs no writes", async () => {
     const response = await POST(new Request("https://studio.example/api/managed-assets/availability", {
-      method: "POST", headers, body: JSON.stringify({ pathname }),
+      method: "POST", headers, body: JSON.stringify({ pathname, expectedStoreId: "selected-test-store" }),
     }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
@@ -37,13 +37,13 @@ describe("managed asset availability route integration", () => {
   it("reports missing only for a provider not-found response and unknown for provider failures", async () => {
     mocks.head.mockRejectedValueOnce(new BlobNotFoundError());
     const missing = await POST(new Request("https://studio.example/api/managed-assets/availability", {
-      method: "POST", headers, body: JSON.stringify({ pathname }),
+      method: "POST", headers, body: JSON.stringify({ pathname, expectedStoreId: "selected-test-store" }),
     }));
     expect(await missing.json()).toEqual({ state: "missing", storeId: "selected-test-store" });
 
     mocks.head.mockRejectedValueOnce(new Error("timeout"));
     const unknown = await POST(new Request("https://studio.example/api/managed-assets/availability", {
-      method: "POST", headers, body: JSON.stringify({ pathname }),
+      method: "POST", headers, body: JSON.stringify({ pathname, expectedStoreId: "selected-test-store" }),
     }));
     expect(await unknown.json()).toEqual({ state: "unknown", storeId: "selected-test-store" });
   });
@@ -55,9 +55,19 @@ describe("managed asset availability route integration", () => {
     expect(unauthenticated.status).toBe(401);
 
     const foreign = await POST(new Request("https://studio.example/api/managed-assets/availability", {
-      method: "POST", headers, body: JSON.stringify({ pathname: "users/other/assets/file.png" }),
+      method: "POST", headers, body: JSON.stringify({ pathname: "users/other/assets/file.png", expectedStoreId: "selected-test-store" }),
     }));
     expect(foreign.status).toBe(403);
     expect(mocks.head).not.toHaveBeenCalled();
+  });
+
+  it("returns unknown without a read when the source hostname identifies another Store", async () => {
+    const response = await POST(new Request("https://studio.example/api/managed-assets/availability", {
+      method: "POST", headers, body: JSON.stringify({ pathname, expectedStoreId: "store-a" }),
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+    expect(mocks.del).not.toHaveBeenCalled();
   });
 });

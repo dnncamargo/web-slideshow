@@ -6,22 +6,17 @@ import type {
 import type { CustomLibraryFileRecord } from "./custom-library-file";
 import type { CustomLibraryFontFace } from "./custom-library-font";
 import { isManagedAssetControlPath } from "../persistence/managed-asset-control-path";
+import { managedAssetBlobIdentityFromUrl, type ManagedAssetBlobIdentity } from "../persistence/managed-asset-blob-identity";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_ASSET_LEAF_PATTERN = /^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\.([a-z0-9]+))?$/i;
 
-function pathFromManagedBlobUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password
-      || !url.hostname.toLowerCase().endsWith(".public.blob.vercel-storage.com")) return null;
-    const pathname = decodeURIComponent(url.pathname).replace(/^\/+/, "");
-    const owner = /^users\/([^/]+)\/assets\//.exec(pathname)?.[1];
-    if (!owner || !isManagedAssetControlPath(owner, pathname)) return null;
-    return pathname;
-  } catch {
-    return null;
-  }
+function managedAssetIdentityFromBlobUrl(value: string): ManagedAssetBlobIdentity | null {
+  const identity = managedAssetBlobIdentityFromUrl(value);
+  if (!identity) return null;
+  const owner = /^users\/([^/]+)\/assets\//.exec(identity.storagePath)?.[1];
+  if (!owner || !isManagedAssetControlPath(owner, identity.storagePath)) return null;
+  return identity;
 }
 
 function assetLeaf(storagePath: string): string | null {
@@ -30,13 +25,17 @@ function assetLeaf(storagePath: string): string | null {
   return match?.[1] ? match[1].toLowerCase() : null;
 }
 
-export function customLibraryFileAvailabilityPath(
+export function customLibraryFileAvailabilityIdentity(
   record: CustomLibraryFileRecord,
-): string | null {
+): ManagedAssetBlobIdentity | null {
   const { assetId, storagePath, downloadUrl } = record.file.source;
-  const pathFromUrl = pathFromManagedBlobUrl(downloadUrl);
-  if (!pathFromUrl || pathFromUrl !== storagePath || assetLeaf(storagePath) !== assetId.toLowerCase()) return null;
-  return storagePath;
+  const identity = managedAssetIdentityFromBlobUrl(downloadUrl);
+  if (!identity || identity.storagePath !== storagePath || assetLeaf(storagePath) !== assetId.toLowerCase()) return null;
+  return identity;
+}
+
+export function customLibraryFileAvailabilityPath(record: CustomLibraryFileRecord): string | null {
+  return customLibraryFileAvailabilityIdentity(record)?.storagePath ?? null;
 }
 
 function fontFormatMatchesPath(face: FontFaceResource, storagePath: string): boolean {
@@ -47,14 +46,15 @@ function fontFormatMatchesPath(face: FontFaceResource, storagePath: string): boo
   return face.source.format === expectedFormat;
 }
 
-export function managedFontFaceAvailabilityPath(
+export function managedFontFaceAvailabilityIdentity(
   face: CustomLibraryFontFace | FontFaceResource,
-): string | null {
+): ManagedAssetBlobIdentity | null {
   const provenance = "provenance" in face ? face.provenance : undefined;
   if (provenance && provenance.kind !== "managed-upload") return null;
 
-  const storagePath = pathFromManagedBlobUrl(face.source.url);
-  if (!storagePath || !fontFormatMatchesPath(face, storagePath)) return null;
+  const identity = managedAssetIdentityFromBlobUrl(face.source.url);
+  if (!identity || !fontFormatMatchesPath(face, identity.storagePath)) return null;
+  const storagePath = identity.storagePath;
   const leaf = storagePath.slice(storagePath.lastIndexOf("/") + 1);
   const match = UUID_ASSET_LEAF_PATTERN.exec(leaf);
   if (!match?.[1]) return null;
@@ -65,14 +65,22 @@ export function managedFontFaceAvailabilityPath(
     return null;
   }
 
-  return storagePath;
+  return identity;
 }
 
-export function presentationFileAvailabilityPath(
+export function managedFontFaceAvailabilityPath(face: CustomLibraryFontFace | FontFaceResource): string | null {
+  return managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null;
+}
+
+export function presentationFileAvailabilityIdentity(
   file: PresentationFileResource,
-): string | null {
+): ManagedAssetBlobIdentity | null {
   if (file.representation !== "binary") return null;
-  const storagePath = pathFromManagedBlobUrl(file.source.url);
-  if (!storagePath || !assetLeaf(storagePath)) return null;
-  return storagePath;
+  const identity = managedAssetIdentityFromBlobUrl(file.source.url);
+  if (!identity || !assetLeaf(identity.storagePath)) return null;
+  return identity;
+}
+
+export function presentationFileAvailabilityPath(file: PresentationFileResource): string | null {
+  return presentationFileAvailabilityIdentity(file)?.storagePath ?? null;
 }

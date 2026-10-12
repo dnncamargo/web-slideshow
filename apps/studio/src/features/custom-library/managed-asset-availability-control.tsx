@@ -13,23 +13,26 @@ type AvailabilityViewState = "idle" | "checking" | ManagedAssetAvailabilityState
 
 export function ManagedAssetAvailabilityControl({
   pathname,
+  expectedStoreId,
   compact = false,
   reconciliation,
 }: {
   pathname: string | null;
+  expectedStoreId?: string | null;
   compact?: boolean;
   reconciliation?: {
     assetName: string;
     associations: readonly string[];
-    onComplete: () => void;
+    onComplete: () => void | Promise<void>;
   };
 }) {
   const { t } = useStudioI18n();
   const [result, setResult] = useState<{
     pathname: string | null;
+    sourceStoreId: string | null;
     state: AvailabilityViewState;
     storeId: string | null;
-  }>({ pathname, state: pathname ? "idle" : "unknown", storeId: null });
+  }>({ pathname, sourceStoreId: expectedStoreId ?? null, state: pathname && expectedStoreId ? "idle" : "unknown", storeId: null });
   const requestRevisionRef = useRef(0);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [reconciling, setReconciling] = useState(false);
@@ -37,17 +40,17 @@ export function ManagedAssetAvailabilityControl({
 
   useEffect(() => {
     requestRevisionRef.current += 1;
-  }, [pathname]);
+  }, [expectedStoreId, pathname]);
 
-  const currentResult = result.pathname === pathname
+  const currentResult = result.pathname === pathname && result.sourceStoreId === (expectedStoreId ?? null)
     ? result
-    : { pathname, state: (pathname ? "idle" : "unknown") as AvailabilityViewState, storeId: null };
+    : { pathname, sourceStoreId: expectedStoreId ?? null, state: (pathname && expectedStoreId ? "idle" : "unknown") as AvailabilityViewState, storeId: null };
 
   async function checkAvailability(): Promise<void> {
-    if (!pathname || currentResult.state === "checking") return;
+    if (!pathname || !expectedStoreId || currentResult.state === "checking") return;
     const requestRevision = requestRevisionRef.current + 1;
     requestRevisionRef.current = requestRevision;
-    setResult({ pathname, state: "checking", storeId: null });
+    setResult({ pathname, sourceStoreId: expectedStoreId, state: "checking", storeId: null });
     try {
       const user = getCurrentNonAnonymousUser();
       if (!user || user.isAnonymous) throw new Error("Authentication is unavailable.");
@@ -57,7 +60,7 @@ export function ManagedAssetAvailabilityControl({
           Authorization: `Bearer ${await user.getIdToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ pathname }),
+        body: JSON.stringify({ pathname, expectedStoreId }),
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Availability check failed.");
@@ -68,14 +71,20 @@ export function ManagedAssetAvailabilityControl({
         ? value.state
         : "unknown";
       if (requestRevisionRef.current !== requestRevision) return;
-      setResult({ pathname, state: nextState, storeId: typeof value.storeId === "string" ? value.storeId : null });
+      const checkedStoreId = typeof value.storeId === "string" ? value.storeId : null;
+      setResult({
+        pathname,
+        sourceStoreId: expectedStoreId,
+        state: checkedStoreId === expectedStoreId ? nextState : "unknown",
+        storeId: checkedStoreId === expectedStoreId ? checkedStoreId : null,
+      });
     } catch {
-      if (requestRevisionRef.current === requestRevision) setResult({ pathname, state: "unknown", storeId: null });
+      if (requestRevisionRef.current === requestRevision) setResult({ pathname, sourceStoreId: expectedStoreId, state: "unknown", storeId: null });
     }
   }
 
   async function confirmReconciliation(): Promise<void> {
-    if (!pathname || state !== "missing" || !storeId || !reconciliation || reconciling) return;
+    if (!pathname || state !== "missing" || !storeId || storeId !== expectedStoreId || !reconciliation || reconciling) return;
     setReconciling(true);
     setReconcileError(false);
     try {
@@ -87,7 +96,7 @@ export function ManagedAssetAvailabilityControl({
           Authorization: `Bearer ${await user.getIdToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ pathname, expectedStoreId: storeId }),
+        body: JSON.stringify({ pathname, expectedStoreId }),
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Managed asset reconciliation failed.");
@@ -96,8 +105,8 @@ export function ManagedAssetAvailabilityControl({
         throw new Error("Invalid reconciliation response.");
       }
       setReconcileOpen(false);
-      setResult({ pathname, state: "unknown", storeId: null });
-      reconciliation.onComplete();
+      setResult({ pathname, sourceStoreId: expectedStoreId ?? null, state: "unknown", storeId: null });
+      await reconciliation.onComplete();
     } catch {
       setReconcileError(true);
     } finally {
@@ -114,8 +123,9 @@ export function ManagedAssetAvailabilityControl({
       : t(`managedAssetAvailability.${state}`);
 
   return (
-    <span className={`${styles.availability} ${compact ? styles.compact : ""}`}>
-      {pathname ? (
+    <>
+      <span className={`${styles.availability} ${compact ? styles.compact : ""}`}>
+      {pathname && expectedStoreId ? (
         <Button size="compact" disabled={state === "checking"} onClick={() => void checkAvailability()}>
           {state === "checking" ? t("managedAssetAvailability.checking") : t("managedAssetAvailability.check")}
         </Button>
@@ -128,12 +138,13 @@ export function ManagedAssetAvailabilityControl({
         {stateLabel}
         {storeId ? <small className={styles.storeId}>{t("managedAssetAvailability.storeId", { storeId })}</small> : null}
       </span>
-      {state === "missing" && storeId && reconciliation ? (
+      {state === "missing" && storeId && storeId === expectedStoreId && reconciliation ? (
         <Button size="compact" variant="danger" disabled={reconciling} onClick={() => { setReconcileError(false); setReconcileOpen(true); }}>
           {t("managedAssetAvailability.reconcile")}
         </Button>
       ) : null}
       {reconcileError ? <span role="alert">{t("managedAssetAvailability.reconcileFailed")}</span> : null}
+      </span>
       {reconcileOpen && reconciliation ? (
         <DangerConfirmDialog
           title={t("managedAssetAvailability.reconcileConfirmTitle")}
@@ -151,6 +162,6 @@ export function ManagedAssetAvailabilityControl({
           onConfirm={() => void confirmReconciliation()}
         />
       ) : null}
-    </span>
+    </>
   );
 }
