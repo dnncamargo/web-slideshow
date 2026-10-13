@@ -56,7 +56,7 @@ beforeEach(() => {
     const value = state.annotations.get(path);
     return { exists: Boolean(value), data: () => value };
   }));
-  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "mock-token");
+  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_mock-store_test-token");
   vi.stubEnv("BLOB_STORE_ID", "mock-store");
 });
 afterEach(() => vi.unstubAllEnvs());

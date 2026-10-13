@@ -85,6 +85,7 @@ describe("Custom Resources Files", () => {
 
   function renderWorkspace(options: {
     fileRepository?: CustomLibraryFileRepository;
+    listManagedAssetLibraryFiles?: () => Promise<CustomLibraryFileRecord[]>;
     files?: PresentationFileResource[];
     onAdd?: (file: CustomLibraryFileRecord) => Promise<"added" | "unchanged" | "conflict" | "load-error">;
     onCreate?: (filename: string) => "created" | "empty" | "unsupported" | "dirty";
@@ -99,6 +100,7 @@ describe("Custom Resources Files", () => {
       customLibraryPaletteRepository={paletteRepository}
       customLibraryFontRepository={fontRepository}
       customLibraryFileRepository={options.fileRepository ?? repository()}
+      listManagedAssetLibraryFiles={options.listManagedAssetLibraryFiles}
       presentationColors={[]}
       presentationFonts={[]}
       presentationFiles={options.files}
@@ -180,6 +182,100 @@ describe("Custom Resources Files", () => {
     expect(addButtons).toHaveLength(2);
     expect(addButtons[0]?.disabled).toBe(true);
     expect(addButtons[1]?.disabled).toBe(false);
+  });
+
+  it("shows physically projected files when the legacy collection is empty and keeps stable selection IDs", async () => {
+    const binary: CustomLibraryFileRecord = {
+      id: "123e4567-e89b-42d3-a456-426614174001",
+      file: {
+        name: "photo.png",
+        kind: "image",
+        representation: "binary",
+        source: {
+          assetId: "123e4567-e89b-42d3-a456-426614174001",
+          storagePath: "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174001.png",
+          downloadUrl: "https://verified-store.public.blob.vercel-storage.com/users/owner-1/assets/123e4567-e89b-42d3-a456-426614174001.png",
+          contentType: "image/png",
+          sizeBytes: 1024,
+        },
+      },
+    };
+    const onAdd = vi.fn(async () => "added" as const);
+    const container = renderWorkspace({
+      fileRepository: repository(),
+      listManagedAssetLibraryFiles: async () => [libraryFile, binary],
+      onAdd,
+    });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.textContent).toContain("lesson-notes.txt");
+    expect(container.textContent).toContain("photo.png");
+    const textAdd = container.querySelector<HTMLButtonElement>("[aria-label='Add lesson-notes.txt']");
+    const binaryAdd = container.querySelector<HTMLButtonElement>("[aria-label='Add photo.png']");
+    await act(async () => textAdd?.click());
+    await flush();
+    await act(async () => binaryAdd?.click());
+    expect(onAdd).toHaveBeenCalledWith(libraryFile);
+    expect(onAdd).toHaveBeenCalledWith(binary);
+  });
+
+  it("still shows verified projected files when the legacy Firestore listing is unavailable", async () => {
+    const unavailableRepository = repository();
+    unavailableRepository.listFiles = vi.fn(async () => { throw new Error("Firestore unavailable"); });
+    const container = renderWorkspace({
+      fileRepository: unavailableRepository,
+      listManagedAssetLibraryFiles: async () => [libraryFile],
+    });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.textContent).toContain("lesson-notes.txt");
+    expect(container.textContent).not.toContain("Could not load files.");
+  });
+
+  it("keeps Already added behavior for a projected asset ID without changing presentation descriptors", async () => {
+    const id = "123e4567-e89b-42d3-a456-426614174002";
+    const projected: CustomLibraryFileRecord = {
+      id,
+      file: {
+        name: "projected.png",
+        kind: "image",
+        representation: "binary",
+        source: {
+          assetId: id,
+          storagePath: `users/owner-1/assets/${id}.png`,
+          downloadUrl: `https://verified-store.public.blob.vercel-storage.com/users/owner-1/assets/${id}.png`,
+          contentType: "image/png",
+          sizeBytes: 20,
+        },
+      },
+    };
+    const descriptor: PresentationFileResource = {
+      id: `file-${id}`,
+      name: "existing.png",
+      kind: "image",
+      representation: "binary",
+      contentType: "image/png",
+      source: { type: "url", url: "https://verified-store.public.blob.vercel-storage.com/existing.png" },
+    };
+    const onAdd = vi.fn(async () => "added" as const);
+    const container = renderWorkspace({
+      fileRepository: repository([]),
+      listManagedAssetLibraryFiles: async () => [projected],
+      files: [descriptor],
+      onAdd,
+    });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.textContent).toContain("Already added");
+    expect(container.querySelector<HTMLButtonElement>("[aria-label='Add projected.png']")?.disabled).toBe(true);
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(container.querySelector("[data-presentation-file-row]")?.textContent).toContain("existing.png");
   });
 
   it("renders presentation-owned files with canonical metadata and removes by local ID", async () => {

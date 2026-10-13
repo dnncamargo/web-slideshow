@@ -1,0 +1,103 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ head: vi.fn(), del: vi.fn() }));
+vi.mock("@vercel/blob", () => ({
+  BlobNotFoundError: class BlobNotFoundError extends Error {},
+  head: mocks.head,
+  del: mocks.del,
+}));
+
+import { BlobNotFoundError } from "@vercel/blob";
+import { checkManagedAssetAvailability } from "../src/features/persistence/managed-asset-availability";
+
+const uid = "owner-1";
+const pathname = `users/${uid}/assets/123e4567-e89b-42d3-a456-426614174000.png`;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubEnv("BLOB_STORE_ID", "verified-test-store");
+  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_verified-test-store_test-token");
+  mocks.head.mockResolvedValue({ pathname });
+});
+
+describe("checkManagedAssetAvailability", () => {
+  it("confirms the exact owner path in the configured store without writes", async () => {
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({
+      state: "available",
+      storeId: "verified-test-store",
+    });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "verified-test-store" });
+    expect(mocks.del).not.toHaveBeenCalled();
+  });
+
+  it("reports missing only for the provider's authoritative not-found result", async () => {
+    mocks.head.mockRejectedValueOnce(new BlobNotFoundError());
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({
+      state: "missing",
+      storeId: "verified-test-store",
+    });
+  });
+
+  it.each([
+    ["provider timeout", new Error("timeout")],
+    ["provider credentials", new Error("unauthorized")],
+  ])("returns unknown for %s", async (_label, error) => {
+    mocks.head.mockRejectedValueOnce(error);
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toMatchObject({ state: "unknown" });
+  });
+
+  it("returns unknown when provider identity does not match the requested path", async () => {
+    mocks.head.mockResolvedValueOnce({ pathname: `users/${uid}/assets/other.png` });
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toMatchObject({ state: "unknown" });
+  });
+
+  it("returns unknown when the configured store or provider credential is unavailable", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "");
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({ state: "unknown" });
+    vi.stubEnv("BLOB_STORE_ID", "verified-test-store");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid and cross-owner paths before a provider request", async () => {
+    await expect(checkManagedAssetAvailability(uid, "users/other/assets/file.png", "verified-test-store")).rejects.toMatchObject({ code: "invalid_identity" });
+    await expect(checkManagedAssetAvailability(uid, `users/${uid}/assets/../other.png`, "verified-test-store")).rejects.toMatchObject({ code: "invalid_identity" });
+    expect(mocks.head).not.toHaveBeenCalled();
+    expect(mocks.del).not.toHaveBeenCalled();
+  });
+
+  it("returns unknown without querying a different configured Store", async () => {
+    await expect(checkManagedAssetAvailability(uid, pathname, "source-store-a")).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+    expect(mocks.del).not.toHaveBeenCalled();
+  });
+
+  it("returns unknown without a provider request when the read/write token selects another Store", async () => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw-token-store_test-token");
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
+
+  it("returns unknown without a provider request when the source Store identity is ambiguous", async () => {
+    await expect(checkManagedAssetAvailability(uid, pathname, null)).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
+
+  it("uses the exact mixed-case Store for OIDC and fails closed on a case-mismatched source identity", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_Mixed-Store");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "test-oidc-token");
+
+    await expect(checkManagedAssetAvailability(uid, pathname, "Mixed-Store")).resolves.toEqual({
+      state: "available",
+      storeId: "Mixed-Store",
+    });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "Mixed-Store" });
+
+    vi.clearAllMocks();
+    await expect(checkManagedAssetAvailability(uid, pathname, "mixed-store")).resolves.toEqual({ state: "unknown" });
+    expect(mocks.head).not.toHaveBeenCalled();
+  });
+});

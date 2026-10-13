@@ -8,6 +8,8 @@ import { DangerConfirmDialog } from "../app/danger-confirm-dialog";
 import { useStudioAuth } from "../auth/studio-auth-provider";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import type { CustomLibraryFontRecord } from "../custom-library/custom-library-font";
+import { customLibraryFileAvailabilityIdentity, managedFontFaceAvailabilityIdentity } from "../custom-library/managed-asset-availability-path";
+import { ManagedAssetAvailabilityControl } from "../custom-library/managed-asset-availability-control";
 import { useStudioI18n } from "../i18n/studio-i18n-context";
 import type { StudioMessageKey } from "../i18n/studio-i18n";
 import {
@@ -41,6 +43,36 @@ interface InventoryPage {
 type Category = "images" | "audio" | "fonts" | "text" | "structured-data" | "other";
 type SortOrder = "date-desc" | "date-asc" | "type";
 interface SelectedMetadata { contentType: string; size: number }
+interface LibraryManagedAssetCandidate { pathname: string; storeId: string; label: string; associations: string[] }
+
+function libraryManagedAssetCandidates(
+  files: readonly CustomLibraryFileRecord[],
+  fonts: readonly CustomLibraryFontRecord[],
+): LibraryManagedAssetCandidate[] {
+  const candidates = new Map<string, LibraryManagedAssetCandidate>();
+  const add = (identity: { storagePath: string; storeId: string } | null, label: string, association: string) => {
+    if (!identity) return;
+    const key = `${identity.storeId}\u0000${identity.storagePath}`;
+    const candidate = candidates.get(key) ?? { pathname: identity.storagePath, storeId: identity.storeId, label, associations: [] };
+    if (!candidate.associations.includes(association)) candidate.associations.push(association);
+    candidates.set(key, candidate);
+  };
+
+  files.forEach((record) => add(
+    customLibraryFileAvailabilityIdentity(record),
+    record.file.name,
+    `${record.file.name} (File)`,
+  ));
+  fonts.forEach((record) => record.font.faces.forEach((face) => {
+    const faceDescriptor = [face.weight, face.style, face.source.format?.toUpperCase()]
+      .filter((value) => value !== undefined)
+      .join(" · ");
+    const label = faceDescriptor ? `${record.font.family} · ${faceDescriptor}` : record.font.family;
+    add(managedFontFaceAvailabilityIdentity(face), label, `${label} (Font face)`);
+  }));
+
+  return [...candidates.values()].sort((left, right) => left.label.localeCompare(right.label));
+}
 const CURSOR_LIMIT = 4096;
 const PREVIEW_LIMIT = 512 * 1024;
 
@@ -186,13 +218,15 @@ export interface StorageManagerProps {
   fonts: readonly CustomLibraryFontRecord[];
   uploading: boolean;
   uploadError: string | null;
+  libraryRefreshFailed: boolean;
   usageRefreshKey: number;
   focusPathname: string | null;
   onFocusResolved: (pathname: string) => void;
   onPhysicalDelete: () => void;
+  onManagedAssetReconciled: () => void | Promise<void>;
 }
 
-export function StorageManager({ files, fonts, uploading, uploadError, usageRefreshKey, focusPathname, onFocusResolved, onPhysicalDelete }: StorageManagerProps) {
+export function StorageManager({ files, fonts, uploading, uploadError, libraryRefreshFailed, usageRefreshKey, focusPathname, onFocusResolved, onPhysicalDelete, onManagedAssetReconciled }: StorageManagerProps) {
   const { user } = useStudioAuth();
   const { locale, t } = useStudioI18n();
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -235,6 +269,7 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
   const pathnamesRef = useRef(new Set<string>());
   const cursorSetRef = useRef(new Set<string>());
   const ownerId = user?.uid ?? null;
+  const libraryAssets = useMemo(() => libraryManagedAssetCandidates(files, fonts), [files, fonts]);
 
   useEffect(() => { userRef.current = user; }, [user]);
 
@@ -600,6 +635,26 @@ export function StorageManager({ files, fonts, uploading, uploadError, usageRefr
             </button></li>;
           })}
         </ul>
+        {libraryAssets.length > 0 ? <section aria-label={t("library.storage.libraryAssets")} data-library-managed-assets>
+          <h3 className={styles.detailsHeading}>{t("library.storage.libraryAssets")}</h3>
+          <p className={styles.storagePreviewFallback}>{t("library.storage.libraryAssetsHelp")}</p>
+          {libraryRefreshFailed ? <p role="alert" className={styles.errorText}>{t("library.storage.libraryAssetsRefreshFailed")}</p> : null}
+          <ul className={styles.storageRows}>
+            {libraryAssets.map((asset) => <li key={`${asset.storeId}:${asset.pathname}`} className={styles.storageRow} data-library-managed-asset={asset.pathname} data-library-managed-store-id={asset.storeId}>
+              <span className={styles.storageTypeIcon} aria-hidden="true">◇</span>
+              <span className={styles.storageRowText}>
+                <strong>{asset.label}</strong>
+                <span>{t("library.storage.libraryAssetAssociation")}</span>
+              </span>
+              <ManagedAssetAvailabilityControl
+                pathname={asset.pathname}
+                expectedStoreId={asset.storeId}
+                compact
+                reconciliation={{ assetName: asset.label, associations: asset.associations, onComplete: onManagedAssetReconciled }}
+              />
+            </li>)}
+          </ul>
+        </section> : null}
         {pageError ? <p className={styles.errorText} role="alert">{t("library.storage.loadMoreFailed")}</p> : null}
         {hasMore ? <Button size="compact" disabled={loadingMore} onClick={() => { if (cursor && !loadingMore) { setLoadingMore(true); void fetchPage(cursor, true, requestRef.current); } }}>{loadingMore ? t("library.storage.loadingMore") : t("library.storage.loadMore")}</Button> : null}
       </section>

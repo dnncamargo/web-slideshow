@@ -10,6 +10,8 @@ import {
   formatCustomLibraryFileSize,
   type CustomLibraryFileRecord,
 } from "./custom-library-file";
+import { customLibraryFileAvailabilityIdentity } from "./managed-asset-availability-path";
+import { ManagedAssetAvailabilityControl } from "./managed-asset-availability-control";
 
 interface CustomLibraryFileDetailsProps {
   record: CustomLibraryFileRecord | null;
@@ -58,6 +60,7 @@ export function CustomLibraryFileDetails({
     setNameError(null);
     onRename(trimmedName);
   };
+  const availabilityIdentity = customLibraryFileAvailabilityIdentity(record);
 
   return (
     <aside className={styles.detailsPane} aria-label={t("library.details")}>
@@ -107,6 +110,8 @@ export function CustomLibraryFileDetails({
           <dd>{formatCustomLibraryFileSize(record.file.source.sizeBytes)}</dd>
         </div>
       </dl>
+
+      <ManagedAssetAvailabilityControl pathname={availabilityIdentity?.storagePath ?? null} expectedStoreId={availabilityIdentity?.storeId ?? null} />
 
       {nameError || renameError ? (
         <p className={styles.customLibraryFileRenameError} role="alert">

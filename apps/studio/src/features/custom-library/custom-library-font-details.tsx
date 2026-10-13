@@ -7,6 +7,8 @@ import styles from "../library/presentation-library.module.css";
 import type { StudioMessageKey } from "../i18n/studio-i18n";
 import type { CustomLibraryFontFace, CustomLibraryFontFaceProvenance, CustomLibraryFontRecord } from "./custom-library-font";
 import { fontFaceRemovalSafety, managedFontPathFromUrl } from "./custom-library-font-provenance";
+import { ManagedAssetAvailabilityControl } from "./managed-asset-availability-control";
+import { managedFontFaceAvailabilityIdentity } from "./managed-asset-availability-path";
 
 interface CustomLibraryFontDetailsProps {
   record: CustomLibraryFontRecord | null;
@@ -77,6 +79,11 @@ export function CustomLibraryFontDetails({ record, pending = false, onDelete, ow
                   {[weightLabel(face.weight, t), styleLabel(face.style, t), face.subset, face.source.format?.toUpperCase()]
                     .filter((value): value is string => value !== undefined)
                     .join(" · ")}
+                <ManagedAssetAvailabilityControl
+                  pathname={managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null}
+                  expectedStoreId={managedFontFaceAvailabilityIdentity(face)?.storeId ?? null}
+                  compact
+                />
                 {resolveManagedFontStoragePath(face, ownerId) && onViewInStorage ? (
                   <Button size="compact" onClick={() => {
                     const pathname = resolveManagedFontStoragePath(face, ownerId);

@@ -34,6 +34,10 @@ vi.mock("../src/features/auth/studio-auth-provider", () => ({
   }),
 }));
 
+vi.mock("../src/features/auth/firebase-auth", () => ({
+  getCurrentNonAnonymousUser: () => ({ uid: "test", isAnonymous: false, getIdToken: async () => "owner-token" }),
+}));
+
 vi.mock("../src/features/control/live-current", () => ({
   subscribeLiveCurrent: (onState: (state: TestLiveState) => void) => {
     onState(testDependencies.liveState);
@@ -271,7 +275,7 @@ function customLibraryFontRepositoryFor(initialFonts: CustomLibraryFontRecord[])
     getFont: vi.fn(async () => null),
     deleteFont: vi.fn(async () => {}),
   };
-  return { repository, listFonts, saveFont, updateFont, getCurrent: () => current };
+  return { repository, listFonts, saveFont, updateFont, getCurrent: () => current, setCurrent: (next: CustomLibraryFontRecord[]) => { current = next; } };
 }
 
 function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[]) {
@@ -295,7 +299,7 @@ function customLibraryFileRepositoryFor(initialFiles: CustomLibraryFileRecord[])
     getFile: vi.fn(async () => null),
     deleteFile,
   };
-  return { repository, listFiles, saveFile, updateFile, deleteFile, getCurrent: () => current };
+  return { repository, listFiles, saveFile, updateFile, deleteFile, getCurrent: () => current, setCurrent: (next: CustomLibraryFileRecord[]) => { current = next; } };
 }
 
 function fontFace(weight: number): FontFaceResource {
@@ -314,7 +318,7 @@ function googleFontFace(weight: number): CustomLibraryFontFace {
   return { ...fontFace(weight), provenance: { kind: "cdn", provider: "google-fonts" } };
 }
 
-function findButton(container: HTMLDivElement, text: string): HTMLButtonElement {
+function findButton(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
     .find((candidate) => candidate.textContent?.trim() === text);
   if (!button) throw new Error(`expected button ${text}`);
@@ -2271,6 +2275,133 @@ describe("presentation library workspace controls", () => {
     expect(header?.querySelector("p")?.textContent).toBe("Storage");
     expect(header?.querySelector("h1")?.textContent).toBe("Uploaded Files");
     expect(testDependencies.push).not.toHaveBeenCalled();
+  });
+
+  it("refreshes inventory, Files, and Fonts after reconciliation and preserves unaffected associations", async () => {
+    const { repository } = repositoryFor([]);
+    const targetPath = "users/test/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
+    const otherPath = "users/test/assets/223e4567-e89b-42d3-a456-426614174000.woff2";
+    const managedFile = (id: string, name: string, assetId: string, pathname: string): CustomLibraryFileRecord => ({
+      id,
+      file: {
+        name, kind: "font", representation: "binary",
+        source: {
+          assetId, storagePath: pathname,
+          downloadUrl: `https://test-store.public.blob.vercel-storage.com/${pathname}`,
+          contentType: "font/woff2", sizeBytes: 10,
+        },
+      },
+    });
+    const managedFont = (id: string, family: string, assetId: string, pathname: string): CustomLibraryFontRecord => ({
+      id,
+      font: {
+        family,
+        faces: [{
+          source: { type: "url", url: `https://test-store.public.blob.vercel-storage.com/${pathname}`, format: "woff2" },
+          provenance: { kind: "managed-upload", assetId },
+        }],
+      },
+    });
+    const targetFile = managedFile("file-target", "Target font file", "123e4567-e89b-42d3-a456-426614174000", targetPath);
+    const otherFile = managedFile("file-other", "Unaffected font file", "223e4567-e89b-42d3-a456-426614174000", otherPath);
+    const targetFont = managedFont("font-target", "Target Sans", "123e4567-e89b-42d3-a456-426614174000", targetPath);
+    const otherFont = managedFont("font-other", "Unaffected Sans", "223e4567-e89b-42d3-a456-426614174000", otherPath);
+    const files = customLibraryFileRepositoryFor([targetFile, otherFile]);
+    const fonts = customLibraryFontRepositoryFor([targetFont, otherFont]);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return Response.json({ scope: "owner", items: [], hasMore: false });
+      if (url === "/api/managed-assets/availability") return Response.json({ state: "missing", storeId: "test-store" });
+      if (url === "/api/managed-assets/reconcile") {
+        files.setCurrent([otherFile]);
+        fonts.setCurrent([otherFont]);
+        return Response.json({ alreadyReconciled: false });
+      }
+      return Response.json({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository, files.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Uploaded Files").click());
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+
+    const target = container.querySelector<HTMLElement>(`[data-library-managed-asset="${targetPath}"]`);
+    expect(target?.textContent).toContain("Target font file");
+    if (!target) throw new Error("expected target asset row");
+    await act(async () => { findButton(target, "Check availability").click(); });
+    await act(async () => { findButton(target, "Reconcile missing asset").click(); });
+    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find((button) => button.textContent === "Reconcile missing asset");
+    expect(confirm).toBeDefined();
+    expect(container.querySelector('[role="dialog"]')?.textContent).toContain("Target Sans");
+    await act(async () => { confirm?.click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+
+    expect(files.listFiles).toHaveBeenCalledTimes(2);
+    expect(fonts.listFonts).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === "/api/managed-assets/inventory")).toHaveLength(2);
+    expect(container.querySelector(`[data-library-managed-asset="${targetPath}"]`)).toBeNull();
+    expect(container.querySelector(`[data-library-managed-asset="${otherPath}"]`)?.textContent).toContain("Unaffected font file");
+    act(() => findButton(container, "Fonts").click());
+    await flushWorkspaceEffects();
+    expect(container.textContent).toContain("Unaffected Sans");
+    expect(container.textContent).not.toContain("Target Sans");
+  });
+
+  it("surfaces stale association rows when Files or Fonts refresh fails after reconciliation", async () => {
+    const { repository } = repositoryFor([]);
+    const pathname = "users/test/assets/323e4567-e89b-42d3-a456-426614174000.woff2";
+    const targetFile: CustomLibraryFileRecord = {
+      id: "file-target",
+      file: {
+        name: "Target file", kind: "font", representation: "binary",
+        source: {
+          assetId: "323e4567-e89b-42d3-a456-426614174000", storagePath: pathname,
+          downloadUrl: `https://test-store.public.blob.vercel-storage.com/${pathname}`,
+          contentType: "font/woff2", sizeBytes: 10,
+        },
+      },
+    };
+    const targetFont: CustomLibraryFontRecord = {
+      id: "font-target",
+      font: {
+        family: "Target Sans",
+        faces: [{
+          source: { type: "url", url: `https://test-store.public.blob.vercel-storage.com/${pathname}`, format: "woff2" },
+          provenance: { kind: "managed-upload", assetId: "323e4567-e89b-42d3-a456-426614174000" },
+        }],
+      },
+    };
+    const files = customLibraryFileRepositoryFor([targetFile]);
+    const fonts = customLibraryFontRepositoryFor([targetFont]);
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return Response.json({ scope: "owner", items: [], hasMore: false });
+      if (url === "/api/managed-assets/availability") return Response.json({ state: "missing", storeId: "test-store" });
+      if (url === "/api/managed-assets/reconcile") {
+        files.setCurrent([]);
+        fonts.listFonts.mockRejectedValueOnce(new Error("offline"));
+        return Response.json({ alreadyReconciled: false });
+      }
+      return Response.json({});
+    }));
+
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, fonts.repository, files.repository)));
+    await flushWorkspaceEffects();
+    act(() => findButton(container, "Uploaded Files").click());
+    await flushWorkspaceEffects();
+    await flushWorkspaceEffects();
+    const target = container.querySelector<HTMLElement>(`[data-library-managed-asset="${pathname}"]`);
+    if (!target) throw new Error("expected target asset row");
+    await act(async () => { findButton(target, "Check availability").click(); });
+    await act(async () => { findButton(target, "Reconcile missing asset").click(); });
+    const confirm = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')).find((button) => button.textContent === "Reconcile missing asset");
+    await act(async () => { confirm?.click(); await Promise.resolve(); });
+    await flushWorkspaceEffects();
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("references could not be refreshed");
+    expect(container.querySelector(`[data-library-managed-asset="${pathname}"]`)?.textContent).toContain("Target Sans");
   });
 
   it("renders the Storage navigation item and page heading in Portuguese", async () => {

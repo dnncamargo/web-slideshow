@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   listIntents: vi.fn(async (): Promise<ManagedAssetUploadIntent[]> => []),
 }));
 vi.mock("../src/features/auth/studio-auth-provider", () => ({ useStudioAuth: () => ({ user: mocks.user }) }));
+vi.mock("../src/features/auth/firebase-auth", () => ({
+  getCurrentNonAnonymousUser: () => ({ uid: "owner-1", isAnonymous: false, getIdToken: async () => "owner-token" }),
+}));
 vi.mock("../src/features/persistence/managed-asset-storage", () => ({ listManagedAssetUploadIntents: mocks.listIntents }));
 vi.mock("../src/features/library/storage-usage-indicator", () => ({ StorageUsageIndicator: () => <div data-storage-usage-indicator /> }));
 
@@ -36,8 +39,9 @@ function renderManager(
   const root = createRoot(host);
   const onFocusResolved = vi.fn();
   const onPhysicalDelete = vi.fn();
-  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} onPhysicalDelete={onPhysicalDelete} /></StudioI18nProvider>));
-  return { host, root, onFocusResolved, onPhysicalDelete };
+  const onManagedAssetReconciled = vi.fn(async () => {});
+  act(() => root.render(<StudioI18nProvider><LocaleSetter locale={locale} /><StorageManager files={files} fonts={fonts} uploading={false} uploadError={null} libraryRefreshFailed={false} usageRefreshKey={0} focusPathname={focusPathname} onFocusResolved={onFocusResolved} onPhysicalDelete={onPhysicalDelete} onManagedAssetReconciled={onManagedAssetReconciled} /></StudioI18nProvider>));
+  return { host, root, onFocusResolved, onPhysicalDelete, onManagedAssetReconciled };
 }
 
 const blob = (pathname: string, uploadedAt = "2026-01-02T03:04:05.000Z") => ({ pathname, url: `https://blob.example/${pathname.split("/").at(-1)}`, size: 8, uploadedAt, etag: "provider-etag" });
@@ -181,7 +185,8 @@ describe("Storage manager", () => {
 
   it("keeps non-eligible legacy files visible with their fallback name and disables Rename", async () => {
     const pathname = "users/owner-1/assets/arquivo-antigo.png";
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
       const url = String(input);
       if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob(pathname)], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "image/png", size: 8 });
@@ -203,7 +208,8 @@ describe("Storage manager", () => {
   });
 
   it("lists owner-scoped physical objects, selects details, and safely previews text", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
       const url = String(input);
       if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [blob("users/owner-1/assets/readme.txt")], hasMore: false });
       if (url.startsWith("/api/managed-assets/metadata?")) return response({ contentType: "text/plain", size: 8 });
@@ -499,6 +505,61 @@ describe("Storage manager", () => {
     expect(host.textContent).toContain("Could not load files.");
     expect(host.textContent).not.toContain("No files uploaded yet.");
     expect(host.querySelector("[data-storage-usage-indicator]")).toBeTruthy();
+    act(() => root.unmount());
+  });
+
+  it("exposes explicit availability and reconciliation only for library references in Storage Manager", async () => {
+    const pathname = "users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2";
+    const downloadUrl = "https://fixture.public.blob.vercel-storage.com/" + pathname;
+    const file = {
+      id: "file-font-1",
+      file: {
+        name: "Fixture font file", kind: "font" as const, representation: "binary" as const,
+        source: {
+          assetId: "123e4567-e89b-42d3-a456-426614174000", storagePath: pathname,
+          downloadUrl, contentType: "font/woff2" as const, sizeBytes: 8,
+        },
+      },
+    };
+    const font = {
+      id: "font-1",
+      font: {
+        family: "Fixture Sans",
+        faces: [{
+          source: { type: "url" as const, url: downloadUrl, format: "woff2" as const },
+          provenance: { kind: "managed-upload" as const, assetId: "123e4567-e89b-42d3-a456-426614174000" },
+        }],
+      },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init;
+      const url = String(input);
+      if (url === "/api/managed-assets/inventory") return response({ scope: "owner", items: [], hasMore: false });
+      if (url === "/api/managed-assets/availability") return response({ state: "missing", storeId: "fixture" });
+      return response({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { host, root } = renderManager("en", null, [file], [font]);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    const candidate = host.querySelector<HTMLElement>('[data-library-managed-asset="' + pathname + '"]');
+    expect(candidate?.textContent).toContain("Fixture font file");
+    expect(host.querySelector("[data-library-managed-assets]")?.textContent).toContain("Custom Library asset references");
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === "/api/managed-assets/availability")).toBe(false);
+    await act(async () => {
+      Array.from(candidate?.querySelectorAll<HTMLButtonElement>("button") ?? [])
+        .find((button) => button.textContent === "Check availability")?.click();
+    });
+    const availabilityCall = fetchMock.mock.calls.find(([url]) => String(url) === "/api/managed-assets/availability");
+    expect(JSON.parse(String(availabilityCall?.[1]?.body))).toEqual({ pathname, expectedStoreId: "fixture" });
+    expect(candidate?.textContent).toContain("Source missing");
+    expect(candidate?.textContent).toContain("Reconcile missing asset");
+    await act(async () => {
+      Array.from(candidate?.querySelectorAll<HTMLButtonElement>("button") ?? [])
+        .find((button) => button.textContent === "Reconcile missing asset")?.click();
+    });
+    expect(host.querySelector('[role="dialog"]')?.textContent).toContain("Fixture font file (File), Fixture Sans · WOFF2 (Font face)");
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === "/api/managed-assets/reconcile")).toBe(false);
     act(() => root.unmount());
   });
 });

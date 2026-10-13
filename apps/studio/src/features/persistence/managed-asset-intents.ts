@@ -28,6 +28,11 @@ export interface ManagedAssetIntent extends ManagedAssetIntentInput {
   sizeBytes?: number;
 }
 
+export interface ManagedAssetIntentRecord {
+  id: string;
+  intent: ManagedAssetIntent;
+}
+
 export interface ReconciledManagedAsset {
   status: "absent" | "in_progress" | "complete" | "conflict" | "uncertain";
   result?: {
@@ -113,6 +118,11 @@ export async function createManagedAssetIntent(uid: string, input: ManagedAssetI
 export async function listManagedAssetIntents(uid: string): Promise<ManagedAssetIntent[]> {
   const snapshot = await firestore().collection(`users/${uid}/managedAssets`).get();
   return snapshot.docs.map((document) => document.data() as ManagedAssetIntent);
+}
+
+export async function listManagedAssetIntentRecords(uid: string): Promise<ManagedAssetIntentRecord[]> {
+  const snapshot = await firestore().collection(`users/${uid}/managedAssets`).get();
+  return snapshot.docs.map((document) => ({ id: document.id, intent: document.data() as ManagedAssetIntent }));
 }
 
 export async function getManagedAssetIntent(uid: string, assetId: string): Promise<ManagedAssetIntent | null> {
