@@ -34,6 +34,7 @@ import type { CustomLibraryFileRepository } from "@/features/custom-library/cust
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
 import { getDefaultCustomLibraryFileRepository } from "@/features/persistence/custom-library-file-repository-instance";
+import { preserveManagedAssetLibraryFileRecords } from "@/features/persistence/managed-asset-library-file-projection";
 import { readAbsoluteNumber } from "../inspector/inspector-helpers";
 import { ElementTypographyFields, type CoreTypographyProperty } from "../inspector/sections/element-typography-control";
 import { ColorControl } from "../inspector/sections/color-control";
@@ -60,6 +61,7 @@ interface CustomResourcesWorkspaceProps {
   customLibraryPaletteRepository?: CustomLibraryPaletteRepository;
   customLibraryFontRepository?: CustomLibraryFontRepository;
   customLibraryFileRepository?: CustomLibraryFileRepository;
+  listManagedAssetLibraryFiles?: () => Promise<CustomLibraryFileRecord[]>;
   presentationColors: readonly PresentationPaletteColor[];
   presentationFonts: readonly FontResource[];
   presentationFiles?: readonly PresentationFileResource[];
@@ -217,6 +219,7 @@ export function CustomResourcesWorkspace({
   customLibraryPaletteRepository = getDefaultCustomLibraryPaletteRepository(),
   customLibraryFontRepository = getDefaultCustomLibraryFontRepository(),
   customLibraryFileRepository = getDefaultCustomLibraryFileRepository(),
+  listManagedAssetLibraryFiles: listAvailableManagedAssetLibraryFiles,
   presentationColors,
   presentationFonts,
   presentationFiles = [],
@@ -328,14 +331,23 @@ export function CustomResourcesWorkspace({
     fileRequestRevisionRef.current = requestRevision;
     setFileLoadState({ kind: "loading" });
     void Promise.resolve()
-      .then(() => customLibraryFileRepository.listFiles())
+      .then(async () => {
+        if (!listAvailableManagedAssetLibraryFiles) return customLibraryFileRepository.listFiles();
+        const [persistedResult, projectedResult] = await Promise.allSettled([
+          customLibraryFileRepository.listFiles(),
+          listAvailableManagedAssetLibraryFiles(),
+        ]);
+        if (projectedResult.status === "rejected") throw projectedResult.reason;
+        const persistedRecords = persistedResult.status === "fulfilled" ? persistedResult.value : [];
+        return preserveManagedAssetLibraryFileRecords(projectedResult.value, persistedRecords);
+      })
       .then((records) => {
         if (requestRevision === fileRequestRevisionRef.current) setFileLoadState({ kind: "ready", records });
       })
       .catch(() => {
         if (requestRevision === fileRequestRevisionRef.current) setFileLoadState({ kind: "error" });
       });
-  }, [customLibraryFileRepository]);
+  }, [customLibraryFileRepository, listAvailableManagedAssetLibraryFiles]);
 
   useEffect(() => {
     void Promise.resolve().then(loadPalettes);

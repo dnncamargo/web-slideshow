@@ -10,6 +10,7 @@ import {
   getManagedAssetInventoryObject,
   listManagedAssetInventoryPage,
   MANAGED_ASSET_INVENTORY_PAGE_SIZE,
+  getEffectiveManagedAssetStoreId,
 } from "../src/features/persistence/managed-asset-inventory";
 
 const item = (pathname = "users/owner-1/assets/asset-1.png") => ({
@@ -20,12 +21,25 @@ const item = (pathname = "users/owner-1/assets/asset-1.png") => ({
 beforeEach(() => {
   vi.clearAllMocks();
   controls.readNames.mockResolvedValue(new Map());
-  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "mock-token");
+  vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_mock-store_test-token");
   vi.stubEnv("BLOB_STORE_ID", "mock-store");
 });
 afterEach(() => vi.unstubAllEnvs());
 
 describe("managed asset inventory", () => {
+  it("selects the exact canonical Store ID for token and OIDC configurations", () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_Mixed-Store");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_Mixed-Store_test-token");
+    expect(getEffectiveManagedAssetStoreId()).toBe("Mixed-Store");
+
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_mixed-store_test-token");
+    expect(() => getEffectiveManagedAssetStoreId()).toThrow("Managed asset storage is unavailable.");
+
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-token");
+    expect(getEffectiveManagedAssetStoreId()).toBe("Mixed-Store");
+  });
+
   it("lists a bounded physical page scoped to the authenticated owner", async () => {
     blob.list.mockResolvedValueOnce({ blobs: [item()], hasMore: false });
     await expect(listManagedAssetInventoryPage("owner-1", null)).resolves.toEqual({
@@ -37,6 +51,20 @@ describe("managed asset inventory", () => {
     expect(blob.list).toHaveBeenCalledWith(expect.objectContaining({
       prefix: "users/owner-1/assets/", storeId: "mock-store", mode: "expanded", limit: MANAGED_ASSET_INVENTORY_PAGE_SIZE,
     }));
+  });
+
+  it("lists mixed-case provider Store IDs exactly even when Blob URLs use DNS casing", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_Mixed-Store");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_Mixed-Store_test-token");
+    const path = "users/owner-1/assets/asset-1.png";
+    blob.list.mockResolvedValueOnce({
+      blobs: [{ ...item(path), url: `https://mixed-store.public.blob.vercel-storage.com/${path}` }],
+      hasMore: false,
+    });
+
+    await listManagedAssetInventoryPage("owner-1", null);
+
+    expect(blob.list).toHaveBeenCalledWith(expect.objectContaining({ storeId: "Mixed-Store" }));
   });
 
   it("annotates only the current Blob page in one owner-scoped lookup", async () => {

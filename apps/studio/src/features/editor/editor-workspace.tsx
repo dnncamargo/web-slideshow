@@ -70,6 +70,7 @@ import {
   removeCustomLibraryFileFromPresentation,
 } from "@/features/custom-library/custom-library-file-apply";
 import { classifySupportedFileName } from "@/features/custom-library/custom-library-file-classification";
+import { listManagedAssetLibraryFiles } from "@/features/persistence/managed-asset-library-files-client";
 import {
   applyCustomLibraryItemToPresentation,
   type CustomLibraryElementOwner,
@@ -7638,6 +7639,7 @@ export function EditorWorkspace({
             customLibraryPaletteRepository={customLibraryPaletteRepository}
             customLibraryFontRepository={customLibraryFontRepository}
             customLibraryFileRepository={customLibraryFileRepository}
+            listManagedAssetLibraryFiles={listManagedAssetLibraryFiles}
             customLibraryRepository={customLibraryRepository}
             presentationColors={presentation.palette?.colors ?? []}
             presentationFonts={presentation.resources?.fonts ?? []}

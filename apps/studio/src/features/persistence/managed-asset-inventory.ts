@@ -1,6 +1,7 @@
 import { list, type ListBlobResult } from "@vercel/blob";
 
 import { isManagedAssetControlPath } from "./managed-asset-control-path";
+import { configuredManagedAssetStoreId } from "./managed-asset-blob-identity";
 import { readManagedAssetDisplayNames } from "./managed-asset-controls";
 
 export const MANAGED_ASSET_INVENTORY_PAGE_SIZE = 100;
@@ -31,8 +32,11 @@ export interface ManagedAssetInventoryPage {
   cursor?: string;
 }
 
-function getEffectiveStoreId(): string {
-  const storeId = process.env.BLOB_STORE_ID?.trim();
+export function getEffectiveManagedAssetStoreId(): string {
+  const storeId = configuredManagedAssetStoreId(
+    process.env.BLOB_STORE_ID,
+    process.env.BLOB_READ_WRITE_TOKEN,
+  );
   if (!storeId) throw new Error("Managed asset storage is unavailable.");
   return storeId;
 }
@@ -119,7 +123,7 @@ export async function listManagedAssetInventoryPage(uid: string, cursor: string 
   if (!uid.trim() || uid.includes("/") || !isValidManagedAssetInventoryCursor(cursor)) {
     throw new Error("Managed asset inventory request is invalid.");
   }
-  const storeId = getEffectiveStoreId();
+  const storeId = getEffectiveManagedAssetStoreId();
   assertConfiguration(storeId);
   const prefix = `users/${uid}/assets/`;
   const controller = new AbortController();
@@ -149,7 +153,7 @@ export async function getManagedAssetInventoryObject(uid: string, pathname: stri
   if (!uid.trim() || uid.includes("/") || !pathname.startsWith(`users/${uid}/assets/`) || !isValidManagedAssetInventoryCursor(pathname)) {
     throw new Error("Managed asset inventory request is invalid.");
   }
-  const storeId = getEffectiveStoreId();
+  const storeId = getEffectiveManagedAssetStoreId();
   assertConfiguration(storeId);
   const prefix = `users/${uid}/assets/`;
   const controller = new AbortController();
