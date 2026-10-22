@@ -658,8 +658,14 @@ export function PresenterView({
               checkboxTargets={currentCheckboxTargets}
               onCheckboxChange={setCheckboxState}
             />
+          ) : presentationState.kind === "error" ? (
+            <p className={`${styles.status} ${styles.error}`} data-presenter-load-error>
+              {t("control.publishedPresentationLoadError")}
+            </p>
           ) : (
-            <p className={styles.status}>{t("control.awaitingPlayer")}</p>
+            <p className={styles.status} data-presenter-load-waiting>
+              {t("control.awaitingPlayer")}
+            </p>
           )}
         </section>
 
