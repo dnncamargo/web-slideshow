@@ -14,6 +14,7 @@ import {
   usePresenterNotes,
   type PresenterNotesState,
 } from "../src/features/control/presenter/use-presenter-notes";
+import type { PresenterPresentationState } from "../src/features/control/presenter/use-presenter-presentation";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 
 vi.mock("../src/features/control/presenter/use-presenter-notes", () => ({
@@ -87,7 +88,11 @@ describe("PresenterView pointed notes", () => {
     document.body.innerHTML = "";
   });
 
-  function render(notesState: PresenterNotesState, displayIndex = 1) {
+  function render(
+    notesState: PresenterNotesState,
+    displayIndex = 1,
+    stateOverride?: PresenterPresentationState,
+  ) {
     mockedUsePresenterNotes.mockReturnValue(notesState);
     const publishedPresentation = presentation();
 
@@ -104,7 +109,7 @@ describe("PresenterView pointed notes", () => {
               status: { kind: "synced" },
             }}
             sendFailed={false}
-            presentationState={{
+            presentationState={stateOverride ?? {
               kind: "ready",
               presentation: publishedPresentation,
               livePresentation: publishedPresentation,
@@ -131,6 +136,31 @@ describe("PresenterView pointed notes", () => {
       );
     });
   }
+
+  it("keeps the waiting status during loading and displays a distinct final load error", () => {
+    render({ kind: "idle" }, 1, { kind: "loading" });
+    expect(container.querySelector("[data-presenter-load-waiting]")?.textContent).toBe(
+      "Waiting for Player…",
+    );
+    expect(container.querySelector("[data-presenter-load-error]")).toBeNull();
+
+    render({ kind: "idle" }, 1, { kind: "error" });
+    expect(container.querySelector("[data-presenter-load-error]")?.textContent).toContain(
+      "Could not load the published presentation",
+    );
+    expect(container.querySelector("[data-presenter-load-error]")?.textContent).toContain(
+      "Reload Control to try again",
+    );
+    expect(container.querySelector("[data-presenter-load-waiting]")).toBeNull();
+  });
+
+  it("keeps rendering the preview when the published presentation is ready", () => {
+    render({ kind: "idle" });
+
+    expect(container.querySelector("[class*='previewCurrent']")).not.toBeNull();
+    expect(container.querySelector("[data-presenter-load-waiting]")).toBeNull();
+    expect(container.querySelector("[data-presenter-load-error]")).toBeNull();
+  });
 
   it("renders current-slide markers in order at logical note positions, not in the next preview", () => {
     render(readyNotesState());

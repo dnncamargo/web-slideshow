@@ -1,6 +1,16 @@
 import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PublishedPresentationReader } from "@/features/persistence/published-presentation-reader";
+import { isFirebaseError } from "@/features/persistence/persistence-errors";
+
+const TRANSIENT_VERSION_READ_RETRY_DELAY_MS = 500;
+
+function isTransientVersionReadError(error: unknown): boolean {
+  const cause =
+    error instanceof Error && "cause" in error ? error.cause : error;
+
+  return isFirebaseError(cause) && cause.code === "unavailable";
+}
 
 export interface PresenterVersionIdentity {
   publicationId: string;
@@ -163,16 +173,18 @@ export class PresenterVersionLoader {
     const requestRevision = ++this.requestRevision;
 
     try {
-      const livePromise = this.reader.getVersion(
+      const livePromise = this.readVersion(
         identity.publicationId,
         identity.liveVersionId,
+        requestRevision,
       );
       const previewPromise =
         identity.previewVersionId === identity.liveVersionId
           ? livePromise
-          : this.reader.getVersion(
+          : this.readVersion(
               identity.publicationId,
               identity.previewVersionId,
+              requestRevision,
             );
       const [livePresentation, previewPresentation] = await Promise.all([
         livePromise,
@@ -198,6 +210,37 @@ export class PresenterVersionLoader {
       }
 
       throw error;
+    }
+  }
+
+  private async readVersion(
+    publicationId: string,
+    versionId: string,
+    requestRevision: number,
+  ): Promise<Presentation | null> {
+    try {
+      return await this.reader.getVersion(publicationId, versionId);
+    } catch (error) {
+      if (requestRevision !== this.requestRevision) {
+        return null;
+      }
+
+      if (!isTransientVersionReadError(error)) {
+        throw error;
+      }
+
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, TRANSIENT_VERSION_READ_RETRY_DELAY_MS);
+      });
+
+      if (requestRevision !== this.requestRevision) {
+        return null;
+      }
+
+      // Firestore reports a transient unavailable error when the client is
+      // offline. Retry once so a brief reconnect can recover without hiding a
+      // persistent failure or retrying permission/data errors.
+      return this.reader.getVersion(publicationId, versionId);
     }
   }
 }

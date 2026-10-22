@@ -8,6 +8,7 @@ import type { Presentation } from "@web-slideshow/document-schema";
 
 import type { PresenterPresentationState } from "../src/features/control/presenter/use-presenter-presentation";
 import type { PublishedPresentationPointer } from "../src/features/persistence/published-presentation-reader";
+import { FirestoreOperationError } from "../src/features/persistence/persistence-errors";
 import {
   createBlankPresentation,
   createBlankSlide,
@@ -74,7 +75,124 @@ describe("usePresenterPresentation", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it("recovers a transient published-version read without changing session identity or remounting", async () => {
+    vi.useFakeTimers();
+    const live = presentation("#ffd400");
+    const offline = new FirestoreOperationError(
+      "Failed to read published version.",
+      Object.assign(new Error("client is offline"), { code: "unavailable" }),
+    );
+    reader.getVersion.mockRejectedValueOnce(offline).mockResolvedValue(live);
+
+    function Harness() {
+      state = usePresenterPresentation(
+        {
+          kind: "active",
+          live: {
+            publicationId: "publication-1",
+            currentVersionId: "version-1",
+            revision: 13,
+          },
+        },
+        SLIDE_IDS[0]!,
+      );
+      return null;
+    }
+
+    await act(async () => root.render(<Harness />));
+    expect(state).toMatchObject({ kind: "loading" });
+    expect(reader.getVersion).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(state).toMatchObject({
+      kind: "ready",
+      livePresentation: live,
+      presentation: live,
+    });
+    expect(reader.getVersion).toHaveBeenCalledTimes(2);
+    expect(reader.getVersion).toHaveBeenNthCalledWith(1, "publication-1", "version-1");
+    expect(reader.getVersion).toHaveBeenNthCalledWith(2, "publication-1", "version-1");
+  });
+
+  it("keeps the final read failure in error state after the single retry is exhausted", async () => {
+    vi.useFakeTimers();
+    const offline = new FirestoreOperationError(
+      "Failed to read published version.",
+      Object.assign(new Error("client is offline"), { code: "unavailable" }),
+    );
+    reader.getVersion.mockRejectedValue(offline);
+
+    function Harness() {
+      state = usePresenterPresentation(
+        {
+          kind: "active",
+          live: {
+            publicationId: "publication-1",
+            currentVersionId: "version-1",
+            revision: 13,
+          },
+        },
+        SLIDE_IDS[0]!,
+      );
+      return null;
+    }
+
+    await act(async () => root.render(<Harness />));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(state).toMatchObject({ kind: "error" });
+    expect(reader.getVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not surface a replaced session's unavailable error after switching during retry wait", async () => {
+    vi.useFakeTimers();
+    const staleRead = deferred<Presentation | null>();
+    const offline = new FirestoreOperationError(
+      "Failed to read published version.",
+      Object.assign(new Error("client is offline"), { code: "unavailable" }),
+    );
+    const current = presentation("#22d3ee");
+    reader.getVersion.mockImplementation(
+      (_publicationId: string, versionId: string) =>
+        versionId === "version-old" ? staleRead.promise : Promise.resolve(current),
+    );
+
+    function Harness({ publicationId, versionId }: { publicationId: string; versionId: string }) {
+      state = usePresenterPresentation(
+        {
+          kind: "active",
+          live: { publicationId, currentVersionId: versionId, revision: 13 },
+        },
+        SLIDE_IDS[0]!,
+      );
+      return null;
+    }
+
+    await act(async () => root.render(<Harness publicationId="publication-old" versionId="version-old" />));
+    await act(async () => {
+      staleRead.reject(offline);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    await act(async () => root.render(<Harness publicationId="publication-new" versionId="version-new" />));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(state).toMatchObject({ kind: "ready", livePresentation: current });
+    expect(reader.getVersion).toHaveBeenCalledTimes(2);
+    expect(reader.getVersion).toHaveBeenCalledWith("publication-new", "version-new");
   });
 
   it("previews a content-only V2 pointer update without a structural warning", async () => {

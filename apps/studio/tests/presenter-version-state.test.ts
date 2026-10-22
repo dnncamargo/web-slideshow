@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Presentation } from "@web-slideshow/document-schema";
 
@@ -6,6 +6,7 @@ import {
   createBlankPresentation,
   createBlankSlide,
 } from "../src/features/persistence/presentation-repository-instance";
+import { FirestoreOperationError } from "../src/features/persistence/persistence-errors";
 import {
   PresenterVersionLoader,
   canUsePointerObservation,
@@ -20,6 +21,17 @@ function presentation(ids: string[], title = "Presentation"): Presentation {
     slides: ids.map((id) => createBlankSlide(id)),
   };
 }
+
+function firestoreReadError(code: string, message: string): FirestoreOperationError {
+  return new FirestoreOperationError(
+    "Failed to read published version.",
+    Object.assign(new Error(message), { code }),
+  );
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -178,6 +190,103 @@ describe("presenter slide mapping", () => {
 });
 
 describe("PresenterVersionLoader", () => {
+  it("recovers from one transient unavailable read without changing identity", async () => {
+    vi.useFakeTimers();
+    const expected = presentation(["page-a"]);
+    const getVersion = vi.fn()
+      .mockRejectedValueOnce(firestoreReadError("unavailable", "client is offline"))
+      .mockResolvedValue(expected);
+    const loader = new PresenterVersionLoader({ getVersion });
+
+    const load = loader.load({
+      publicationId: "publication-1",
+      liveVersionId: "version-1",
+      previewVersionId: "version-1",
+    });
+    await vi.advanceTimersByTimeAsync(500);
+
+    await expect(load).resolves.toMatchObject({
+      publicationId: "publication-1",
+      liveVersionId: "version-1",
+      previewVersionId: "version-1",
+      livePresentation: expected,
+      previewPresentation: expected,
+    });
+    expect(getVersion).toHaveBeenCalledTimes(2);
+    expect(getVersion).toHaveBeenNthCalledWith(1, "publication-1", "version-1");
+    expect(getVersion).toHaveBeenNthCalledWith(2, "publication-1", "version-1");
+  });
+
+  it("stops after one retry when the transient read keeps failing", async () => {
+    vi.useFakeTimers();
+    const error = firestoreReadError("unavailable", "client is offline");
+    const getVersion = vi.fn().mockRejectedValue(error);
+    const loader = new PresenterVersionLoader({ getVersion });
+
+    const load = loader.load({
+      publicationId: "publication-1",
+      liveVersionId: "version-1",
+      previewVersionId: "version-1",
+    });
+    const loadFailure = expect(load).rejects.toBe(error);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await loadFailure;
+    expect(getVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a non-transient read error", async () => {
+    vi.useFakeTimers();
+    const error = firestoreReadError("permission-denied", "permission denied");
+    const getVersion = vi.fn().mockRejectedValue(error);
+    const loader = new PresenterVersionLoader({ getVersion });
+
+    await expect(loader.load({
+      publicationId: "publication-1",
+      liveVersionId: "version-1",
+      previewVersionId: "version-1",
+    })).rejects.toBe(error);
+
+    expect(getVersion).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not retry a stale session after its transient-read delay", async () => {
+    vi.useFakeTimers();
+    const staleError = firestoreReadError("unavailable", "client is offline");
+    const currentPresentation = presentation(["page-current"]);
+    const getVersion = vi.fn((_publicationId: string, versionId: string) =>
+      versionId === "version-stale"
+        ? Promise.reject(staleError)
+        : Promise.resolve(currentPresentation),
+    );
+    const loader = new PresenterVersionLoader({ getVersion });
+
+    const staleLoad = loader.load({
+      publicationId: "publication-1",
+      liveVersionId: "version-stale",
+      previewVersionId: "version-stale",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(vi.getTimerCount()).toBe(1);
+
+    const currentLoad = loader.load({
+      publicationId: "publication-2",
+      liveVersionId: "version-current",
+      previewVersionId: "version-current",
+    });
+    await vi.advanceTimersByTimeAsync(500);
+
+    await expect(staleLoad).resolves.toBeNull();
+    await expect(currentLoad).resolves.toMatchObject({
+      publicationId: "publication-2",
+      liveVersionId: "version-current",
+      livePresentation: currentPresentation,
+    });
+    expect(getVersion).toHaveBeenCalledTimes(2);
+  });
+
   it("converges V2 -> V3 -> V4 to only the latest target", async () => {
     const v2 = deferred<Presentation | null>();
     const v3 = deferred<Presentation | null>();
