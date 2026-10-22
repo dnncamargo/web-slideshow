@@ -407,6 +407,7 @@ export function PresenterView({
 }: PresenterViewProps) {
   const { t } = useStudioI18n();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPointedNoteMarkers, setShowPointedNoteMarkers] = useState(true);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   const clock = useLocalClock();
@@ -654,6 +655,8 @@ export function PresenterView({
               slide={currentSlide}
               aspectRatio={aspectRatio}
               variant="current"
+              pointedNotes={currentSlidePointedNotes}
+              showPointedNoteMarkers={showPointedNoteMarkers}
               galleryTargets={currentGalleryTargets}
               checkboxTargets={currentCheckboxTargets}
               onCheckboxChange={setCheckboxState}
@@ -726,6 +729,18 @@ export function PresenterView({
 
                   <div className={presenterStyles.settingsSection}>
                     <span className={presenterStyles.settingsGroupLabel}>{t("control.controls")}</span>
+                    <label className={presenterStyles.settingsToggle}>
+                      <span>{t("notes.showPointedMarkers")}</span>
+                      <span className={presenterStyles.settingsToggleControl}>
+                        <input
+                          type="checkbox"
+                          aria-label={t("notes.showPointedMarkers")}
+                          checked={showPointedNoteMarkers}
+                          onChange={(event) => setShowPointedNoteMarkers(event.target.checked)}
+                          data-pointed-markers-toggle
+                        />
+                      </span>
+                    </label>
                     <label className={presenterStyles.settingsField}>
                       <span>{t("control.position")}</span>
                       <select aria-label={t("control.position")} value={playerControls.position} disabled={disabled || playerControlsWriteInFlight} onChange={(event) => setPlayerControls({ position: event.target.value as LivePlayerControlsPosition })}>

@@ -213,6 +213,36 @@ describe("EditorWorkspace slide geometry", () => {
     expect(markers[0]?.textContent).not.toContain("[");
   });
 
+  it("hides and restores only the marker layer without changing or saving note data", async () => {
+    const notes = {
+      text: "ordinary",
+      pointed: [{ id: "pointed-a", text: "first", x: 480, y: 270 }],
+    };
+    const notesRepository: PresentationNotesRepository = {
+      getNotes: vi.fn(async () => ({ bySlideId: { "slide-1": notes } })),
+      setSlideNotes: vi.fn(async () => undefined),
+    };
+    const viewport = await mount(presentation(), notesRepository);
+    setViewportSize(viewport, 1024, 604);
+    await act(async () => { await Promise.resolve(); });
+
+    const toggle = container.querySelector<HTMLButtonElement>("[data-pointed-markers-toggle]");
+    const markerSelector = "[data-pointed-note-marker]";
+    expect(toggle?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelectorAll(markerSelector)).toHaveLength(1);
+
+    act(() => toggle?.click());
+    expect(container.querySelectorAll(markerSelector)).toHaveLength(0);
+    expect(notesRepository.setSlideNotes).not.toHaveBeenCalled();
+
+    act(() => toggle?.click());
+    const marker = container.querySelector<HTMLButtonElement>(markerSelector);
+    expect(marker?.dataset.pointedNoteId).toBe("pointed-a");
+    expect(marker?.style.left).toBe("480px");
+    expect(marker?.style.top).toBe("270px");
+    expect(notesRepository.setSlideNotes).not.toHaveBeenCalled();
+  });
+
   it("previews marker movement in logical coordinates and saves once on pointerup", async () => {
     vi.useFakeTimers();
     const notesRepository: PresentationNotesRepository = {
