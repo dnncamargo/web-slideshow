@@ -132,7 +132,7 @@ describe("PresenterView pointed notes", () => {
     });
   }
 
-  it("renders the current slide pointed notes on desktop and mobile without legacy text or markers", () => {
+  it("renders current-slide markers in order at logical note positions, not in the next preview", () => {
     render(readyNotesState());
 
     const desktop = container.querySelector<HTMLElement>(
@@ -152,7 +152,52 @@ describe("PresenterView pointed notes", () => {
     expect(container.textContent).not.toContain(
       "Legacy general note must stay hidden",
     );
-    expect(container.querySelector("[data-pointed-note-marker]")).toBeNull();
+    const currentPreview = container.querySelector<HTMLElement>("[class*='previewCurrent']");
+    const nextPreview = container.querySelector<HTMLElement>("[class*='previewNext']");
+    const markers = Array.from(
+      currentPreview?.querySelectorAll<HTMLElement>("[data-pointed-note-marker]") ?? [],
+    );
+    expect(markers.map((marker) => marker.dataset.pointedNoteId)).toEqual([
+      "second-slide-note-a",
+      "second-slide-note-b",
+      "second-slide-note-c",
+    ]);
+    expect(markers.map((marker) => marker.textContent)).toEqual(["1", "2", "3"]);
+    expect(markers.map((marker) => marker.style.left)).toEqual(["10px", "30px", "50px"]);
+    expect(markers.map((marker) => marker.style.top)).toEqual(["20px", "40px", "60px"]);
+    const layer = currentPreview?.querySelector<HTMLElement>("[data-pointed-note-layer]");
+    const slideSurface = currentPreview?.querySelector<HTMLElement>("[class*='previewSurface']");
+    expect(layer?.style.width).toBe("960px");
+    expect(layer?.style.height).toBe("540px");
+    expect(layer?.style.transform).toBe(slideSurface?.style.transform);
+    expect(layer?.getAttribute("aria-hidden")).toBe("true");
+    expect(nextPreview?.querySelector("[data-pointed-note-marker]")).toBeNull();
+  });
+
+  it("toggles only the Control marker overlay from desktop settings and keeps the note list", () => {
+    render(readyNotesState());
+    const settingsButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Player settings"]',
+    );
+    act(() => settingsButton?.click());
+
+    const toggle = container.querySelector<HTMLInputElement>("[data-pointed-markers-toggle]");
+    expect(toggle?.checked).toBe(true);
+    expect(toggle?.closest("[class*='settingsPanel']")).not.toBeNull();
+    expect(container.querySelector("[data-mobile-pointed-notes] [data-pointed-markers-toggle]")).toBeNull();
+    expect(container.querySelectorAll("[data-pointed-note-marker]")).toHaveLength(3);
+
+    act(() => toggle?.click());
+    expect(container.querySelectorAll("[data-pointed-note-marker]")).toHaveLength(0);
+    expect(container.querySelector("[data-pointed-notes]")?.textContent).toContain(
+      "Second slide first",
+    );
+    expect(container.querySelector("[data-mobile-pointed-notes]")?.textContent).toContain(
+      "Second slide first",
+    );
+
+    act(() => toggle?.click());
+    expect(container.querySelectorAll("[data-pointed-note-marker]")).toHaveLength(3);
   });
 
   it("resolves pointed notes by the current slide id when the display index changes", () => {
@@ -164,6 +209,12 @@ describe("PresenterView pointed notes", () => {
     expect(
       container.querySelector("[data-pointed-notes]")?.textContent,
     ).not.toContain("First slide note");
+    expect(
+      container.querySelector("[class*='previewCurrent'] [data-pointed-note-marker]")?.getAttribute("data-pointed-note-id"),
+    ).toBe("second-slide-note-a");
+    expect(
+      container.querySelector("[class*='previewNext'] [data-pointed-note-marker]"),
+    ).toBeNull();
 
     render(notes, 0);
     expect(
@@ -172,6 +223,9 @@ describe("PresenterView pointed notes", () => {
     expect(
       container.querySelector("[data-pointed-notes]")?.textContent,
     ).not.toContain("Second slide first");
+    expect(
+      container.querySelector("[class*='previewCurrent'] [data-pointed-note-marker]")?.getAttribute("data-pointed-note-id"),
+    ).toBe("first-slide-note");
   });
 
   it.each([

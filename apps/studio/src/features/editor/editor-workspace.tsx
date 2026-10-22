@@ -1419,6 +1419,7 @@ export function EditorWorkspace({
   const [rightPanelMode, setRightPanelMode] = useState<
     "editor" | "resources" | "notes"
   >("editor");
+  const [showPointedNoteMarkers, setShowPointedNoteMarkers] = useState(true);
   const [textEditingFileId, setTextEditingFileId] = useState<string | null>(null);
   const [textEditingDirty, setTextEditingDirty] = useState(false);
   const [scriptedSourceSession, setScriptedSourceSession] = useState<ScriptedSourceEditRequest | null>(null);
@@ -7346,6 +7347,20 @@ export function EditorWorkspace({
                 {t("notes.toggle")}
               </button>
 
+              <button
+                type="button"
+                className={
+                  showPointedNoteMarkers
+                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
+                    : styles.notesToggle
+                }
+                aria-pressed={showPointedNoteMarkers}
+                data-pointed-markers-toggle
+                onClick={() => setShowPointedNoteMarkers((visible) => !visible)}
+              >
+                {t("notes.showPointedMarkers")}
+              </button>
+
               <span>{presentation.aspectRatio}</span>
             </span>
           </div>
@@ -7384,6 +7399,7 @@ export function EditorWorkspace({
               {authoringTarget.kind === "slide" &&
                 !rootDefinitionMode &&
                 editorNotes.status === "ready" &&
+                showPointedNoteMarkers &&
                 editorNotes.slideNotes.pointed.length > 0 && (
                   <div
                     className={styles.pointedNoteLayer}

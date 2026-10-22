@@ -30,6 +30,32 @@
   transform-origin: 0 0;
 }
 
+.pointedNoteLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.pointedNoteMarker {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  background: #8b1e2d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: 0.72;
+}
+
 .previewCurrent {
   width: 100%;
   max-width: 960px;

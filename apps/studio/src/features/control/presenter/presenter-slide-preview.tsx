@@ -13,6 +13,7 @@ import {
 } from "@web-slideshow/renderer";
 import type { CheckboxRuntimeState } from "@web-slideshow/renderer";
 import { materializeSlide, type Presentation, type Slide } from "@web-slideshow/document-schema";
+import type { PointedNote } from "@/features/persistence/presentation-notes";
 
 import styles from "./presenter-view.module.css";
 
@@ -123,6 +124,8 @@ export interface PresenterSlidePreviewProps {
   slide: Slide;
   aspectRatio: Presentation["aspectRatio"];
   variant: "current" | "next";
+  pointedNotes?: readonly PointedNote[];
+  showPointedNoteMarkers?: boolean;
   galleryTargets?: readonly PresenterGalleryTarget[];
   checkboxTargets?: readonly PresenterCheckboxTarget[];
   onCheckboxChange?(
@@ -146,6 +149,8 @@ export function PresenterSlidePreview({
   slide,
   aspectRatio,
   variant,
+  pointedNotes = [],
+  showPointedNoteMarkers = true,
   galleryTargets = [],
   checkboxTargets = [],
   onCheckboxChange,
@@ -251,6 +256,30 @@ export function PresenterSlidePreview({
         } as CSSProperties}
         dangerouslySetInnerHTML={renderedMarkup}
       />
+      {variant === "current" && showPointedNoteMarkers && pointedNotes.length > 0 && (
+        <div
+          className={styles.pointedNoteLayer}
+          data-pointed-note-layer
+          aria-hidden="true"
+          style={{
+            width: `${logicalSize.logicalWidth}px`,
+            height: `${logicalSize.logicalHeight}px`,
+            transform: `scale(${scale})`,
+          }}
+        >
+          {pointedNotes.map((pointedNote, index) => (
+            <span
+              key={pointedNote.id}
+              className={styles.pointedNoteMarker}
+              data-pointed-note-marker
+              data-pointed-note-id={pointedNote.id}
+              style={{ left: `${pointedNote.x}px`, top: `${pointedNote.y}px` }}
+            >
+              {index + 1}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

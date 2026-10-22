@@ -138,6 +138,7 @@ const englishMessages = {
   "history.text.edit": "Edit text",
 
   "notes.toggle": "Notes",
+  "notes.showPointedMarkers": "Show pointers",
   "notes.pointed": "Pointed notes",
   "notes.addPointed": "Add pointed note",
   "notes.noPointed": "No pointed notes.",
@@ -1649,6 +1650,7 @@ const portugueseMessages = {
   "history.text.edit": "Editar texto",
 
   "notes.toggle": "Notas",
+  "notes.showPointedMarkers": "Mostrar apontadores",
   "notes.pointed": "Notas apontáveis",
   "notes.addPointed": "Adicionar nota apontável",
   "notes.noPointed": "Nenhuma nota apontável.",
