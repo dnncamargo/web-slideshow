@@ -78,6 +78,25 @@
   padding: 16px;
 }
 
+.pointedMarkersToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.pointedMarkersToggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #6366f1;
+}
+
 .addPointedNoteButton,
 .removePointedNoteButton {
   border: 1px solid #303847;
