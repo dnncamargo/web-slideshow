@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   remove: vi.fn(),
   runTransaction: vi.fn(),
+  set: vi.fn(),
   update: vi.fn(),
   getCurrentNonAnonymousUser: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock("firebase/database", () => ({
   ref: mocks.ref,
   remove: mocks.remove,
   runTransaction: mocks.runTransaction,
+  set: mocks.set,
   update: mocks.update,
 }));
 
@@ -53,6 +55,7 @@ describe("Control Player pairing", () => {
       snapshot: { val: () => update(null) },
     }));
     mocks.remove.mockResolvedValue(undefined);
+    mocks.set.mockResolvedValue(undefined);
     mocks.update.mockResolvedValue(undefined);
     mocks.onValue.mockReturnValue(vi.fn());
   });
@@ -185,11 +188,12 @@ describe("Control Player pairing", () => {
       "  Front desk  ",
     );
 
-    expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings/player-1");
-    expect(mocks.update).toHaveBeenCalledWith(
-      { path: "playerBindings/player-1" },
-      { displayName: "Front desk" },
+    expect(mocks.get).toHaveBeenCalledWith({ path: "playerBindings/player-1" });
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "playerBindings/player-1/displayName" },
+      "Front desk",
     );
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("rejects blank and overlong names before writing", async () => {
@@ -200,7 +204,7 @@ describe("Control Player pairing", () => {
       saveOwnedPlayerDisplayName({} as never, "player-1", "x".repeat(41)),
     ).rejects.toThrow("1 to 40 characters");
     expect(mocks.get).not.toHaveBeenCalled();
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.set).not.toHaveBeenCalled();
   });
 
   it("rejects renaming a Player owned by another account", async () => {
@@ -209,7 +213,7 @@ describe("Control Player pairing", () => {
     await expect(
       saveOwnedPlayerDisplayName({} as never, "player-1", "New name"),
     ).rejects.toThrow("not paired to this account");
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.set).not.toHaveBeenCalled();
   });
 
   it("cleans only the target Player presence before removing its owned binding", async () => {
