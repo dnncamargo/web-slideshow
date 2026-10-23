@@ -42,7 +42,7 @@ describe("Player pairing Control", () => {
     document.body.innerHTML = "";
   });
 
-  it("starts collapsed, opens the PIN field, and hides after successful pairing", async () => {
+  it("starts collapsed, pairs successfully, and allows another connection", async () => {
     act(() => {
       root.render(
         <StudioI18nProvider>
@@ -89,7 +89,14 @@ describe("Player pairing Control", () => {
 
     expect(mocks.claimPlayerByPin).toHaveBeenCalledWith({}, "123 456");
     expect(container.querySelector("input")).toBeNull();
-    expect(container.textContent).not.toContain("Connect Player");
+    const reconnectButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Connect Player",
+    );
+    expect(reconnectButton).toBeDefined();
+
+    act(() => reconnectButton?.click());
+    expect(container.querySelector("input")).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("");
   });
 
   it("closes the expanded form without pairing", () => {

@@ -22,10 +22,9 @@ export function PlayerPairingControl() {
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
   const [open, setOpen] = useState(false);
 
-  if (!isRealtimeDatabaseConfigured() || connected) return null;
+  if (!isRealtimeDatabaseConfigured()) return null;
 
   if (!open) {
     return (
@@ -60,7 +59,7 @@ export function PlayerPairingControl() {
         }
         await claimPlayerByPin(database, pin);
         setPin("");
-        setConnected(true);
+        setOpen(false);
       } catch (claimError) {
         setError(
           claimError instanceof Error
