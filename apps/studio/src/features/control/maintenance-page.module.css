@@ -133,6 +133,51 @@
   white-space: nowrap;
 }
 
+.playerNameForm {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerNameForm input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+}
+
+.playerNameForm button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ps-ui-border-default);
+  border-radius: var(--ps-ui-radius-6);
+  background: var(--ps-ui-background-control);
+  color: var(--ps-ui-text-secondary);
+}
+
+.playerNameForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.playerNameStatus {
+  color: var(--ps-ui-semantic-success, #34d399);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.playerNameError {
+  color: var(--ps-ui-semantic-danger, #f87171);
+  font-size: 12px;
+}
+
 .pairedPlayer button {
   flex: none;
   min-height: 36px;
@@ -167,7 +212,10 @@
   color: var(--ps-ui-text-secondary);
 }
 
-.logsControl button:disabled { cursor: not-allowed; opacity: 0.65; }
+.logsControl button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
 
 .actions button {
   min-height: 40px;

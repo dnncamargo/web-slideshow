@@ -1,4 +1,16 @@
-import { equalTo, get, onValue, orderByChild, query, ref, remove, runTransaction, update, type Database, type Unsubscribe } from "firebase/database";
+import {
+  equalTo,
+  get,
+  onValue,
+  orderByChild,
+  query,
+  ref,
+  remove,
+  runTransaction,
+  update,
+  type Database,
+  type Unsubscribe,
+} from "firebase/database";
 
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
 import { buildLivePath } from "../live/live-path";
@@ -7,6 +19,12 @@ export const PLAYER_BINDINGS_PATH = "playerBindings";
 export const PLAYER_PAIRING_CODES_PATH = "playerPairingCodes";
 export const PLAYER_PAIRING_CLAIMS_PATH = "playerPairingClaims";
 export const PLAYER_PAIRING_CLAIM_TTL_MS = 15_000;
+export const PLAYER_DISPLAY_NAME_MAX_LENGTH = 40;
+
+export interface OwnedPlayerBinding {
+  playerUid: string;
+  displayName?: string;
+}
 
 export interface PlayerPairingClaim {
   playerUid: string;
@@ -49,6 +67,31 @@ function parseBindingOwnerUid(value: unknown): string | null {
   return typeof ownerUid === "string" && ownerUid.trim() !== ""
     ? ownerUid.trim()
     : null;
+}
+
+export function normalizePlayerDisplayName(value: string): string | null {
+  const displayName = value.trim();
+  return displayName.length > 0 &&
+    displayName.length <= PLAYER_DISPLAY_NAME_MAX_LENGTH
+    ? displayName
+    : null;
+}
+
+function parseOwnedPlayerBinding(
+  playerUid: string,
+  value: unknown,
+  ownerUid: string,
+): OwnedPlayerBinding | null {
+  if (parseBindingOwnerUid(value) !== ownerUid) return null;
+  const record = value as Record<string, unknown>;
+  const displayName =
+    typeof record.displayName === "string"
+      ? normalizePlayerDisplayName(record.displayName)
+      : null;
+  return {
+    playerUid,
+    ...(displayName === null ? {} : { displayName }),
+  };
 }
 
 function parsePresencePlayerUid(value: unknown): string | null {
@@ -156,7 +199,10 @@ export async function claimPlayerByPin(
     try {
       await remove(claimRef);
     } catch (error) {
-      console.error("Control: could not remove the failed Player claim.", error);
+      console.error(
+        "Control: could not remove the failed Player claim.",
+        error,
+      );
     }
     throw new Error("That Player is already paired.");
   }
@@ -171,21 +217,25 @@ export async function claimPlayerByPin(
   } catch (error) {
     // Binding is the durable authority. A failed cleanup leaves only a
     // temporary proof which expires and cannot reassign the Player.
-    console.error("Control: could not remove the consumed Player claim.", error);
+    console.error(
+      "Control: could not remove the consumed Player claim.",
+      error,
+    );
   }
 
   return { playerUid: pairing.playerUid, ownerUid: owner.uid };
 }
 
-
 export function subscribeOwnedPlayerBindings(
   database: Database,
-  onPlayers: (playerUids: readonly string[]) => void,
+  onPlayers: (players: readonly OwnedPlayerBinding[]) => void,
   onError: (error: unknown) => void = () => undefined,
 ): Unsubscribe {
   const owner = getCurrentNonAnonymousUser();
   if (owner === null) {
-    throw new Error("Maintenance requires an authenticated non-anonymous user.");
+    throw new Error(
+      "Maintenance requires an authenticated non-anonymous user.",
+    );
   }
 
   const ownedBindings = query(
@@ -203,18 +253,51 @@ export function subscribeOwnedPlayerBindings(
         return;
       }
 
-      const playerUids = Object.entries(value as Record<string, unknown>)
-        .flatMap(([playerUid, binding]) =>
-          playerUid.trim() !== "" && parseBindingOwnerUid(binding) === owner.uid
-            ? [playerUid]
-            : [],
-        )
-        .sort();
+      const players = Object.entries(value as Record<string, unknown>)
+        .flatMap(([playerUid, binding]) => {
+          if (playerUid.trim() === "") return [];
+          const parsed = parseOwnedPlayerBinding(playerUid, binding, owner.uid);
+          return parsed === null ? [] : [parsed];
+        })
+        .sort((left, right) => left.playerUid.localeCompare(right.playerUid));
 
-      onPlayers(playerUids);
+      onPlayers(players);
     },
     onError,
   );
+}
+
+export async function saveOwnedPlayerDisplayName(
+  database: Database,
+  playerUid: string,
+  value: string,
+): Promise<void> {
+  const owner = getCurrentNonAnonymousUser();
+  if (owner === null) {
+    throw new Error(
+      "Maintenance requires an authenticated non-anonymous user.",
+    );
+  }
+
+  const canonicalPlayerUid = playerUid.trim();
+  if (canonicalPlayerUid === "" || canonicalPlayerUid.includes("/")) {
+    throw new Error("Player identity is invalid.");
+  }
+
+  const displayName = normalizePlayerDisplayName(value);
+  if (displayName === null) {
+    throw new Error(
+      `Player name must contain 1 to ${PLAYER_DISPLAY_NAME_MAX_LENGTH} characters.`,
+    );
+  }
+
+  const bindingRef = ref(database, bindingPath(canonicalPlayerUid));
+  const snapshot = await get(bindingRef);
+  if (parseBindingOwnerUid(snapshot.val()) !== owner.uid) {
+    throw new Error("That Player is not paired to this account.");
+  }
+
+  await update(bindingRef, { displayName });
 }
 
 export async function disconnectOwnedPlayer(
@@ -223,7 +306,9 @@ export async function disconnectOwnedPlayer(
 ): Promise<void> {
   const owner = getCurrentNonAnonymousUser();
   if (owner === null) {
-    throw new Error("Maintenance requires an authenticated non-anonymous user.");
+    throw new Error(
+      "Maintenance requires an authenticated non-anonymous user.",
+    );
   }
 
   const canonicalPlayerUid = playerUid.trim();

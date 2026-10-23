@@ -560,6 +560,10 @@
         "ownerUid": {
           ".validate": "newData.isString() && newData.val().length > 0"
         },
+        "displayName": {
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('playerBindings').child($playerUid).child('ownerUid').val() === auth.uid",
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+        },
         "$other": {
           ".validate": false
         }

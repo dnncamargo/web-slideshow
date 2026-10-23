@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   onValue: vi.fn(),
   readControlLatencySnapshot: vi.fn(),
   disconnectOwnedPlayer: vi.fn(),
+  saveOwnedPlayerDisplayName: vi.fn(),
   subscribeOwnedPlayerBindings: vi.fn(),
   requestPlayerClearCache: vi.fn(),
   ref: vi.fn(),
@@ -26,7 +27,11 @@ const mocks = vi.hoisted(() => ({
   subscribeLiveCurrent: vi.fn(),
 }));
 
-vi.mock("firebase/database", () => ({ onValue: mocks.onValue, ref: mocks.ref, set: mocks.set }));
+vi.mock("firebase/database", () => ({
+  onValue: mocks.onValue,
+  ref: mocks.ref,
+  set: mocks.set,
+}));
 vi.mock("../src/features/control/realtime-db", () => ({
   getRealtimeDatabaseOrNull: () => database,
 }));
@@ -43,6 +48,12 @@ vi.mock("../src/features/control/control-latency-snapshot", () => ({
 }));
 vi.mock("../src/features/control/player-pairing", () => ({
   disconnectOwnedPlayer: mocks.disconnectOwnedPlayer,
+  normalizePlayerDisplayName: (value: string) => {
+    const name = value.trim();
+    return name.length > 0 && name.length <= 40 ? name : null;
+  },
+  PLAYER_DISPLAY_NAME_MAX_LENGTH: 40,
+  saveOwnedPlayerDisplayName: mocks.saveOwnedPlayerDisplayName,
   subscribeOwnedPlayerBindings: mocks.subscribeOwnedPlayerBindings,
 }));
 
@@ -125,6 +136,9 @@ describe("Maintenance page", () => {
   let liveUnsubscribe: ReturnType<typeof vi.fn>;
   let callbacks: Map<string, (snapshot: { val(): unknown }) => void>;
   let unsubscribes: ReturnType<typeof vi.fn>[];
+  let pairedPlayersCallback: (
+    players: readonly { playerUid: string; displayName?: string }[],
+  ) => void = () => undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -134,7 +148,9 @@ describe("Maintenance page", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    mocks.ref.mockImplementation((_database: unknown, path: string) => ({ path }));
+    mocks.ref.mockImplementation((_database: unknown, path: string) => ({
+      path,
+    }));
     mocks.onValue.mockImplementation(
       (
         reference: { path: string },
@@ -153,10 +169,14 @@ describe("Maintenance page", () => {
     });
     mocks.readControlLatencySnapshot.mockReturnValue(null);
     mocks.disconnectOwnedPlayer.mockResolvedValue(undefined);
-    mocks.subscribeOwnedPlayerBindings.mockImplementation((_database, onPlayers) => {
-      onPlayers([]);
-      return vi.fn();
-    });
+    mocks.saveOwnedPlayerDisplayName.mockResolvedValue(undefined);
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([]);
+        return vi.fn();
+      },
+    );
     mocks.requestPlayerReload.mockResolvedValue({});
     mocks.requestPlayerClearCache.mockResolvedValue({});
     mocks.requestPlayerRetry.mockResolvedValue({});
@@ -184,10 +204,19 @@ describe("Maintenance page", () => {
     emit(buildPlayerPresencePath(), value);
   }
 
+  function changeInputValue(input: HTMLInputElement, value: string): void {
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   function button(label: string): HTMLButtonElement {
-    const match = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (candidate) => candidate.textContent === label,
-    );
+    const match = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((candidate) => candidate.textContent === label);
     if (!match) {
       throw new Error(`Button not found: ${label}`);
     }
@@ -202,19 +231,26 @@ describe("Maintenance page", () => {
     expect(sections[0]?.querySelector("h2")?.textContent).toBe("Player status");
     expect(sections[1]?.querySelector("h2")?.textContent).toBe("Recovery");
     expect(container.querySelectorAll("main")).toHaveLength(1);
-    expect(container.querySelectorAll<HTMLButtonElement>("button")).toHaveLength(4);
+    expect(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).toHaveLength(4);
   });
 
   it("lists paired Players and disconnects one after confirmation", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-    mocks.subscribeOwnedPlayerBindings.mockImplementation((_database, onPlayers) => {
-      onPlayers(["player-owned-1"]);
-      return vi.fn();
-    });
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        onPlayers([{ playerUid: "player-owned-1" }]);
+        return vi.fn();
+      },
+    );
 
     render();
 
-    expect(container.textContent).toContain("Player player…");
+    expect(
+      container.querySelector<HTMLInputElement>("[data-player-name-input]")
+        ?.placeholder,
+    ).toBe("Player player…");
     const disconnect = button("Disconnect Player");
     await act(async () => disconnect.click());
 
@@ -228,10 +264,125 @@ describe("Maintenance page", () => {
     confirm.mockRestore();
   });
 
+  it("loads saved and legacy bindings and preserves edits during subscription updates", async () => {
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([
+          { playerUid: "player-named-1", displayName: "Lobby display" },
+          { playerUid: "player-legacy-2" },
+        ]);
+        return vi.fn();
+      },
+    );
+    render();
+
+    const inputs = container.querySelectorAll<HTMLInputElement>(
+      "[data-player-name-input]",
+    );
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0]?.value).toBe("Lobby display");
+    expect(inputs[1]?.value).toBe("");
+    expect(inputs[1]?.placeholder).toBe("Player player…");
+    expect(inputs[0]?.maxLength).toBe(40);
+
+    act(() => changeInputValue(inputs[0]!, "Still editing"));
+    act(() => {
+      pairedPlayersCallback([
+        { playerUid: "player-named-1", displayName: "Remote update" },
+        { playerUid: "player-legacy-2" },
+      ]);
+    });
+    expect(
+      container.querySelector<HTMLInputElement>("[data-player-name-input]")
+        ?.value,
+    ).toBe("Still editing");
+  });
+
+  it("trims and saves a Player name, then keeps disconnect bound to its technical identity", async () => {
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([{ playerUid: "player-owned-1" }]);
+        return vi.fn();
+      },
+    );
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render();
+
+    const input = container.querySelector<HTMLInputElement>(
+      "[data-player-name-input]",
+    );
+    if (input === null) throw new Error("expected the Player name input");
+    act(() => changeInputValue(input, "  Front projector  "));
+
+    const form = input.closest("form");
+    if (form === null) throw new Error("expected the Player name form");
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(mocks.saveOwnedPlayerDisplayName).toHaveBeenCalledWith(
+      database,
+      "player-owned-1",
+      "Front projector",
+    );
+    expect(container.textContent).toContain("Saved");
+
+    act(() => {
+      pairedPlayersCallback([
+        { playerUid: "player-owned-1", displayName: "Front projector" },
+      ]);
+    });
+    await act(async () => button("Disconnect Player").click());
+    expect(mocks.disconnectOwnedPlayer).toHaveBeenCalledWith(
+      database,
+      "player-owned-1",
+    );
+    confirm.mockRestore();
+  });
+
+  it("shows saved Player names for matching connected leases and UID fallback otherwise", () => {
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([
+          { playerUid: "player-boot-a", displayName: "Front projector" },
+        ]);
+        return vi.fn();
+      },
+    );
+    render();
+    emitPresence({
+      ...presence("boot-a"),
+      leases: {
+        ...presence("boot-a").leases,
+        "boot-b": {
+          ...presence("boot-b").leases["boot-b"],
+          playerUid: "player-legacy-b",
+        },
+      },
+    });
+
+    const connectedPlayers = container.querySelectorAll(
+      "[data-connected-player]",
+    );
+    expect(connectedPlayers).toHaveLength(2);
+    expect(connectedPlayers[0]?.textContent).toBe("Front projector");
+    expect(connectedPlayers[0]?.getAttribute("title")).toContain("boot-a");
+    expect(connectedPlayers[1]?.textContent).toBe("Player player…");
+  });
+
   it("never opens a local Player URL for logs", () => {
     render();
     expect(container.textContent).not.toContain("Open Player with logs");
-    expect([...container.querySelectorAll<HTMLAnchorElement>("a")].some((candidate) => candidate.hasAttribute("target"))).toBe(false);
+    expect(
+      [...container.querySelectorAll<HTMLAnchorElement>("a")].some(
+        (candidate) => candidate.hasAttribute("target"),
+      ),
+    ).toBe(false);
   });
 
   it("shows no connected Players and disables logs", () => {
@@ -289,13 +440,25 @@ describe("Maintenance page", () => {
     render();
     emitPresence({
       ...presence("boot-a"),
-      leases: { "boot-a": presence("boot-a").leases["boot-a"], "boot-b": { activationRevision: 7, currentVersionId: "version-1", playerUid: "player-boot-b", bootId: "boot-b", connected: true, transitionedAt: 100 } },
+      leases: {
+        "boot-a": presence("boot-a").leases["boot-a"],
+        "boot-b": {
+          activationRevision: 7,
+          currentVersionId: "version-1",
+          playerUid: "player-boot-b",
+          bootId: "boot-b",
+          connected: true,
+          transitionedAt: 100,
+        },
+      },
     });
-    expect(container.textContent).toContain("Player boot-a…");
-    expect(container.textContent).toContain("Player boot-b…");
+    expect(container.textContent).toContain("Player player…");
     expect(button("Off").disabled).toBe(false);
     await act(async () => button("Off").click());
-    expect(mocks.set).toHaveBeenCalledWith({ path: "live/owner-a/playerLogs" }, { activationRevision: 7, enabled: true });
+    expect(mocks.set).toHaveBeenCalledWith(
+      { path: "live/owner-a/playerLogs" },
+      { activationRevision: 7, enabled: true },
+    );
   });
 
   it("requires confirmation, writes clear-cache exactly, and waits for a replacement boot", async () => {
@@ -305,8 +468,15 @@ describe("Maintenance page", () => {
 
     await act(async () => button("Clear cache and reload").click());
 
-    expect(confirm).toHaveBeenCalledWith("Clear the Player browser cache and reload?");
-    expect(mocks.requestPlayerClearCache).toHaveBeenCalledWith(database, 7, "version-1", "boot-a");
+    expect(confirm).toHaveBeenCalledWith(
+      "Clear the Player browser cache and reload?",
+    );
+    expect(mocks.requestPlayerClearCache).toHaveBeenCalledWith(
+      database,
+      7,
+      "version-1",
+      "boot-a",
+    );
     expect(container.textContent).toContain("Waiting for Player…");
 
     emitPresence(presence("boot-a", "ready"));
@@ -429,9 +599,7 @@ describe("Maintenance page", () => {
     expect(container.textContent).not.toContain("Waiting for Player…");
 
     act(() =>
-      liveCallback(
-        activeState({ currentVersionId: "version-2", revision: 8 }),
-      ),
+      liveCallback(activeState({ currentVersionId: "version-2", revision: 8 })),
     );
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
@@ -445,9 +613,7 @@ describe("Maintenance page", () => {
     expect(container.textContent).toContain("Requesting reload…");
 
     act(() =>
-      liveCallback(
-        activeState({ currentVersionId: "version-2", revision: 8 }),
-      ),
+      liveCallback(activeState({ currentVersionId: "version-2", revision: 8 })),
     );
 
     expect(container.textContent).not.toContain("Requesting reload…");
@@ -512,9 +678,9 @@ describe("Maintenance page", () => {
 
     expect(liveUnsubscribe).toHaveBeenCalledTimes(1);
     expect(unsubscribes).toHaveLength(4);
-    expect(unsubscribes.every((unsubscribe) => unsubscribe.mock.calls.length === 1)).toBe(
-      true,
-    );
+    expect(
+      unsubscribes.every((unsubscribe) => unsubscribe.mock.calls.length === 1),
+    ).toBe(true);
 
     expect(() => {
       staleLiveCallback(activeState({ revision: 8 }));
