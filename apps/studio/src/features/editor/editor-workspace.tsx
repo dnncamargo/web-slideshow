@@ -1434,6 +1434,8 @@ export function EditorWorkspace({
   const scriptedSourceEditorActive = scriptedSourceSession !== null;
   const shapePathSourceEditorActive = shapePathSourceSession !== null;
   const largeSourceEditorActive = scriptedSourceEditorActive || shapePathSourceEditorActive;
+  const canvasIsMounted =
+    textEditingFile === null && !scriptedSourceEditorActive && !shapePathSourceEditorActive;
 
   const [resourceSections, setResourceSections] = useState<Record<string, boolean>>({});
   const resourcePresentationId = useRef(presentation.id);
@@ -2598,7 +2600,7 @@ export function EditorWorkspace({
     window.addEventListener("resize", measure);
 
     return () => window.removeEventListener("resize", measure);
-  }, [presentation.aspectRatio, textEditingFileId]);
+  }, [canvasIsMounted, presentation.aspectRatio]);
 
   useEffect(() => {
     const canvas = slideCanvasRef.current;
