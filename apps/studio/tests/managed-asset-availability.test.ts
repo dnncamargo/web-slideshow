@@ -26,7 +26,7 @@ describe("checkManagedAssetAvailability", () => {
       state: "available",
       storeId: "verified-test-store",
     });
-    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "verified-test-store" });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { token: "vercel_blob_rw_verified-test-store_test-token" });
     expect(mocks.del).not.toHaveBeenCalled();
   });
 
@@ -85,7 +85,16 @@ describe("checkManagedAssetAvailability", () => {
     expect(mocks.head).not.toHaveBeenCalled();
   });
 
-  it("uses the exact mixed-case Store for OIDC and fails closed on a case-mismatched source identity", async () => {
+  it("forces the validated read-write token even when OIDC is also present", async () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-token-for-another-store");
+    await expect(checkManagedAssetAvailability(uid, pathname, "verified-test-store")).resolves.toEqual({
+      state: "available",
+      storeId: "verified-test-store",
+    });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { token: "vercel_blob_rw_verified-test-store_test-token" });
+  });
+
+  it("uses the configured OIDC Store and matches URL Store IDs without DNS case sensitivity", async () => {
     vi.stubEnv("BLOB_STORE_ID", "store_Mixed-Store");
     vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "test-oidc-token");
@@ -94,10 +103,13 @@ describe("checkManagedAssetAvailability", () => {
       state: "available",
       storeId: "Mixed-Store",
     });
-    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "Mixed-Store" });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "Mixed-Store", oidcToken: "test-oidc-token" });
 
     vi.clearAllMocks();
-    await expect(checkManagedAssetAvailability(uid, pathname, "mixed-store")).resolves.toEqual({ state: "unknown" });
-    expect(mocks.head).not.toHaveBeenCalled();
+    await expect(checkManagedAssetAvailability(uid, pathname, "mixed-store")).resolves.toEqual({
+      state: "available",
+      storeId: "mixed-store",
+    });
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "Mixed-Store", oidcToken: "test-oidc-token" });
   });
 });

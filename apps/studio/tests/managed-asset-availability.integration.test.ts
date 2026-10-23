@@ -29,8 +29,10 @@ describe("managed asset availability route integration", () => {
     }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(await response.json()).toEqual({ state: "available", storeId: "selected-test-store" });
-    expect(mocks.head).toHaveBeenCalledWith(pathname, { storeId: "selected-test-store" });
+    const result = await response.json();
+    expect(result).toEqual({ state: "available", storeId: "selected-test-store" });
+    expect(JSON.stringify(result)).not.toContain("test-token");
+    expect(mocks.head).toHaveBeenCalledWith(pathname, { token: "vercel_blob_rw_selected-test-store_test-token" });
     expect(mocks.del).not.toHaveBeenCalled();
   });
 

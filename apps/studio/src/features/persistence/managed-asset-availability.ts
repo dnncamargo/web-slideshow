@@ -18,19 +18,27 @@ export async function checkManagedAssetAvailability(
   validateManagedAssetPath(uid, storagePath);
 
   const configuredStoreId = process.env.BLOB_STORE_ID?.trim();
-  const storeId = configuredManagedAssetStoreId(configuredStoreId, process.env.BLOB_READ_WRITE_TOKEN);
+  const readWriteToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim();
+  const storeId = configuredManagedAssetStoreId(configuredStoreId, readWriteToken);
   const expected = expectedStoreId ? normalizeManagedAssetStoreId(expectedStoreId) : null;
-  const hasProviderCredential = Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim(),
-  );
-  if (!storeId || !expected || storeId !== expected || !hasProviderCredential) return { state: "unknown" };
+  const hasProviderCredential = Boolean(readWriteToken || oidcToken);
+  if (!storeId || !expected || storeId.toLowerCase() !== expected.toLowerCase() || !hasProviderCredential) {
+    return { state: "unknown" };
+  }
+  const options = readWriteToken
+    ? { token: readWriteToken }
+    : oidcToken
+      ? { storeId, oidcToken }
+      : null;
+  if (!options) return { state: "unknown" };
 
   try {
-    const blob = await head(storagePath, { storeId });
-    if (blob.pathname !== storagePath) return { state: "unknown", storeId };
-    return { state: "available", storeId };
+    const blob = await head(storagePath, options);
+    if (blob.pathname !== storagePath) return { state: "unknown", storeId: expected };
+    return { state: "available", storeId: expected };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) return { state: "missing", storeId };
-    return { state: "unknown", storeId };
+    if (error instanceof BlobNotFoundError) return { state: "missing", storeId: expected };
+    return { state: "unknown", storeId: expected };
   }
 }

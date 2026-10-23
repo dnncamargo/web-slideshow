@@ -12,6 +12,7 @@ import {
 } from "../src/features/custom-library/managed-asset-availability-path";
 import {
   configuredManagedAssetStoreId,
+  managedAssetStoreIdsMatch,
   managedAssetBlobIdentityFromUrl,
   normalizeManagedAssetStoreId,
 } from "../src/features/persistence/managed-asset-blob-identity";
@@ -51,12 +52,14 @@ describe("managed asset availability identity", () => {
     expect(configuredManagedAssetStoreId("store-a", undefined)).toBe("store-a");
   });
 
-  it("preserves provider Store ID case and strips only the SDK's optional prefix", () => {
+  it("normalizes SDK prefixes and compares DNS Store IDs case-insensitively", () => {
     expect(normalizeManagedAssetStoreId("store_lower-store")).toBe("lower-store");
     expect(normalizeManagedAssetStoreId("Mixed-Store")).toBe("Mixed-Store");
     expect(normalizeManagedAssetStoreId("store_Mixed-Store")).toBe("Mixed-Store");
     expect(configuredManagedAssetStoreId("store_Mixed-Store", "vercel_blob_rw_Mixed-Store_secret")).toBe("Mixed-Store");
-    expect(configuredManagedAssetStoreId("store_Mixed-Store", "vercel_blob_rw_mixed-store_secret")).toBeNull();
+    expect(configuredManagedAssetStoreId("store_Mixed-Store", "vercel_blob_rw_mixed-store_secret")).toBe("Mixed-Store");
+    expect(managedAssetStoreIdsMatch("store_Mixed-Store", "mixed-store")).toBe(true);
+    expect(managedAssetStoreIdsMatch("store-a", "store-b")).toBe(false);
   });
 
   it("preserves the raw Blob hostname label because URL.hostname lowercases DNS names", () => {

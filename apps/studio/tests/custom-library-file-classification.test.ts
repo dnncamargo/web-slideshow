@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyCustomLibraryFile,
+  classifyCustomLibraryFileUpload,
   classifySupportedFileName,
+  CUSTOM_LIBRARY_FILE_ACCEPT,
   UnsupportedCustomLibraryFileError,
 } from "../src/features/custom-library/custom-library-file-classification";
 
@@ -48,6 +50,30 @@ describe("classifyCustomLibraryFile", () => {
 
   it.each(["asset", "asset.exe", "asset.tar.gz"])("rejects unsupported extension %s", (name) => {
     expect(() => classifyCustomLibraryFile({ name, type: "" })).toThrow(UnsupportedCustomLibraryFileError);
+  });
+});
+
+describe("classifyCustomLibraryFileUpload", () => {
+  it.each([".ttf", ".otf", ".woff", ".woff2"])("reserves %s for Custom Library/Fonts", (extension) => {
+    expect(() => classifyCustomLibraryFileUpload({ name: `font${extension}`, type: "font/woff2" }))
+      .toThrow(UnsupportedCustomLibraryFileError);
+    expect(CUSTOM_LIBRARY_FILE_ACCEPT).not.toContain(extension);
+  });
+
+  it.each(cases.filter(([, kind]) => kind !== "font"))(
+    "continues to accept supported generic upload %s",
+    (extension, kind, representation, contentType) => {
+      expect(classifyCustomLibraryFileUpload({ name: `asset${extension}`, type: "" })).toEqual({
+        extension, kind, representation, contentType,
+      });
+      expect(CUSTOM_LIBRARY_FILE_ACCEPT).toContain(extension);
+    },
+  );
+
+  it("continues to classify legacy font records without permitting new generic font uploads", () => {
+    expect(classifyCustomLibraryFile({ name: "legacy.woff2", type: "" }).kind).toBe("font");
+    expect(() => classifyCustomLibraryFileUpload({ name: "legacy.woff2", type: "" }))
+      .toThrow(UnsupportedCustomLibraryFileError);
   });
 });
 

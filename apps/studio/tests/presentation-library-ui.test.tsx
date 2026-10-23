@@ -2521,6 +2521,55 @@ describe("presentation library workspace controls", () => {
     expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(file, { contentType: "text/plain" });
   });
 
+  it("rejects font files from generic uploads while keeping non-font uploads available", async () => {
+    const { repository } = repositoryFor([]);
+    const files = customLibraryFileRepositoryFor([]);
+    testDependencies.uploadManagedAsset.mockResolvedValue({
+      assetId: "123e4567-e89b-42d3-a456-426614174000",
+      storagePath: "users/test/assets/123e4567-e89b-42d3-a456-426614174000.png",
+      downloadUrl: "https://store.public.blob.vercel-storage.com/users/test/assets/123e4567-e89b-42d3-a456-426614174000.png",
+      contentType: "image/png",
+      sizeBytes: 4,
+    });
+    act(() => root.render(renderLibrary(repository, undefined, undefined, undefined, undefined, files.repository)));
+    await flushWorkspaceEffects();
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"][hidden]'));
+    const customFilesInput = inputs.find((input) => input.getAttribute("aria-label") === "Upload file");
+    expect(customFilesInput?.accept).not.toMatch(/\.(ttf|otf|woff2?)(,|$)/i);
+    const rejectedFont = new File(["font"], "blocked.woff2", { type: "font/woff2" });
+    await act(async () => {
+      Object.defineProperty(customFilesInput, "files", { configurable: true, value: [rejectedFont] });
+      customFilesInput?.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(testDependencies.uploadManagedAsset).not.toHaveBeenCalled();
+    expect(files.saveFile).not.toHaveBeenCalled();
+
+    testDependencies.uploadManagedAsset.mockClear();
+    const validImage = new File([new Uint8Array([1, 2, 3, 4])], "image.png", { type: "image/png" });
+    await act(async () => {
+      Object.defineProperty(customFilesInput, "files", { configurable: true, value: [validImage] });
+      customFilesInput?.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(testDependencies.uploadManagedAsset).toHaveBeenCalledWith(validImage, { contentType: "image/png" });
+    expect(files.saveFile).toHaveBeenCalledWith(expect.objectContaining({ kind: "image" }), expect.anything());
+
+    await act(async () => { findButton(container, "Uploaded Files").click(); });
+    await flushWorkspaceEffects();
+    const storageInput = inputs.find((input) => input.getAttribute("aria-label") === "Upload file" && input !== customFilesInput);
+    expect(storageInput?.accept).not.toMatch(/\.(ttf|otf|woff2?)(,|$)/i);
+    testDependencies.uploadManagedAsset.mockClear();
+    const physicalFont = new File(["font"], "physical.woff", { type: "font/woff" });
+    await act(async () => {
+      Object.defineProperty(storageInput, "files", { configurable: true, value: [physicalFont] });
+      storageInput?.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(testDependencies.uploadManagedAsset).not.toHaveBeenCalledWith(physicalFont, expect.anything());
+  });
+
   it("translates the Storage heading in English and Portuguese", () => {
     expect(translateStudioMessage("en", "library.storage.title")).toBe("Storage");
     expect(translateStudioMessage("en", "library.storage.uploadedFiles")).toBe("Uploaded Files");

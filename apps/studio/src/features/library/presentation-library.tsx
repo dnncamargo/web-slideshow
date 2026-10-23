@@ -62,7 +62,7 @@ import type { CustomLibraryFontFaceProvenance } from "../custom-library/custom-l
 import type { CustomLibraryFileRepository } from "../custom-library/custom-library-file-repository";
 import type { CustomLibraryFileRecord } from "../custom-library/custom-library-file";
 import {
-  classifyCustomLibraryFile,
+  classifyCustomLibraryFileUpload,
   CUSTOM_LIBRARY_FILE_ACCEPT,
   UnsupportedCustomLibraryFileError,
 } from "../custom-library/custom-library-file-classification";
@@ -532,7 +532,7 @@ export function PresentationLibrary({
     setStorageUploading(true);
     setStorageUploadError(null);
     try {
-      const classification = classifyCustomLibraryFile(file);
+      const classification = classifyCustomLibraryFileUpload(file);
       await uploadManagedAsset(file, { contentType: classification.contentType });
       setStorageUsageRefreshKey((value) => value + 1);
     } catch (error) {
@@ -676,9 +676,9 @@ export function PresentationLibrary({
       setCustomLibraryFileError(null);
 
       try {
-        let classification: ReturnType<typeof classifyCustomLibraryFile>;
+        let classification: ReturnType<typeof classifyCustomLibraryFileUpload>;
         try {
-          classification = classifyCustomLibraryFile(file);
+          classification = classifyCustomLibraryFileUpload(file);
         } catch (error) {
           if (mountedRef.current) {
             setCustomLibraryFileError(

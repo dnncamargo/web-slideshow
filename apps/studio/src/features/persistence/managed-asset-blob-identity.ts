@@ -12,6 +12,13 @@ export function normalizeManagedAssetStoreId(value: string): string | null {
   return normalized && STORE_LABEL_PATTERN.test(normalized) ? normalized : null;
 }
 
+export function managedAssetStoreIdsMatch(left: string, right: string): boolean {
+  const normalizedLeft = normalizeManagedAssetStoreId(left);
+  const normalizedRight = normalizeManagedAssetStoreId(right);
+  return normalizedLeft !== null && normalizedRight !== null &&
+    normalizedLeft.toLowerCase() === normalizedRight.toLowerCase();
+}
+
 /**
  * Resolve the Store selected by the application's Blob credentials.
  *
@@ -30,7 +37,7 @@ export function configuredManagedAssetStoreId(
   const tokenParts = readWriteToken.trim().split("_");
   if (tokenParts.slice(0, 3).join("_") !== "vercel_blob_rw" || !tokenParts[3]) return null;
   const tokenStoreId = normalizeManagedAssetStoreId(tokenParts[3]);
-  return tokenStoreId === configured ? configured : null;
+  return tokenStoreId && managedAssetStoreIdsMatch(tokenStoreId, configured) ? configured : null;
 }
 
 export function managedAssetBlobIdentityFromUrl(value: string): ManagedAssetBlobIdentity | null {
