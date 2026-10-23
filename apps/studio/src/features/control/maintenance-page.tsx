@@ -28,6 +28,7 @@ import {
   parsePlayerPresence,
   resolveConnectedPlayerLeases,
   resolvePlayerOperationalStatus,
+  type PlayerPresenceLease,
   type PlayerOperationalStatus,
 } from "./player-presence";
 import { useLivePlayerLogsControl } from "./use-live-player-logs-control";
@@ -39,7 +40,11 @@ import {
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import {
   disconnectOwnedPlayer,
+  normalizePlayerDisplayName,
+  PLAYER_DISPLAY_NAME_MAX_LENGTH,
+  saveOwnedPlayerDisplayName,
   subscribeOwnedPlayerBindings,
+  type OwnedPlayerBinding,
 } from "./player-pairing";
 
 import styles from "./maintenance-page.module.css";
@@ -62,14 +67,27 @@ function label(status: PlayerOperationalStatus | null): string {
 
 export function MaintenancePage() {
   const [liveState, setLiveState] = useState<LiveState>({ kind: "loading" });
+  const editingPlayerNameUidsRef = useRef(new Set<string>());
   const live = liveState.kind === "active" ? liveState.live : null;
   const playerLogs = useLivePlayerLogsControl(live);
   const [status, setStatus] = useState<PlayerOperationalStatus | null>(null);
-  const [connectedPlayers, setConnectedPlayers] = useState<string[]>([]);
-  const [pairedPlayers, setPairedPlayers] = useState<string[]>([]);
-  const [disconnectingPlayerUid, setDisconnectingPlayerUid] = useState<string | null>(null);
+  const [connectedPlayers, setConnectedPlayers] = useState<
+    PlayerPresenceLease[]
+  >([]);
+  const [pairedPlayers, setPairedPlayers] = useState<OwnedPlayerBinding[]>([]);
+  const [playerNameDrafts, setPlayerNameDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [playerNameSaveStates, setPlayerNameSaveStates] = useState<
+    Record<string, { kind: "saving" } | { kind: "saved" } | { kind: "error" }>
+  >({});
+  const [disconnectingPlayerUid, setDisconnectingPlayerUid] = useState<
+    string | null
+  >(null);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
-  const [controlState, setControlState] = useState<LiveControlState | null>(null);
+  const [controlState, setControlState] = useState<LiveControlState | null>(
+    null,
+  );
   const [playerState, setPlayerState] = useState<LivePlayerState | null>(null);
   const [latencySnapshot, setLatencySnapshot] =
     useState<ControlLatencySnapshot | null>(null);
@@ -121,7 +139,28 @@ export function MaintenancePage() {
         database,
         (playerUids) => {
           if (subscribed) {
-            setPairedPlayers([...playerUids]);
+            const players = [...playerUids];
+            setPairedPlayers(players);
+            setPlayerNameDrafts((current) => {
+              const next = { ...current };
+              const playerUids = new Set(
+                players.map(({ playerUid }) => playerUid),
+              );
+
+              for (const player of players) {
+                if (!editingPlayerNameUidsRef.current.has(player.playerUid)) {
+                  next[player.playerUid] = player.displayName ?? "";
+                }
+              }
+              for (const playerUid of Object.keys(next)) {
+                if (!playerUids.has(playerUid)) {
+                  delete next[playerUid];
+                  editingPlayerNameUidsRef.current.delete(playerUid);
+                }
+              }
+
+              return next;
+            });
             setDisconnectError(null);
           }
         },
@@ -171,12 +210,7 @@ export function MaintenancePage() {
     return () => {
       recoveryTokenRef.current += 1;
     };
-  }, [
-    activePublicationId,
-    activeRevision,
-    activeVersionId,
-    liveState.kind,
-  ]);
+  }, [activePublicationId, activeRevision, activeVersionId, liveState.kind]);
 
   useEffect(() => {
     if (liveState.kind !== "active") {
@@ -211,9 +245,7 @@ export function MaintenancePage() {
             ),
           );
           setConnectedPlayers(
-            resolveConnectedPlayerLeases(snapshot.val(), liveState.live).map(
-              (lease) => lease.bootId,
-            ),
+            resolveConnectedPlayerLeases(snapshot.val(), liveState.live),
           );
         }
       }),
@@ -249,7 +281,10 @@ export function MaintenancePage() {
     currentStatus !== null && currentStatus.kind !== "no-report"
       ? currentStatus.presence
       : null;
-  const canControlLogs = liveState.kind === "active" && connectedPlayers.length > 0 && !playerLogs.writeInFlight;
+  const canControlLogs =
+    liveState.kind === "active" &&
+    connectedPlayers.length > 0 &&
+    !playerLogs.writeInFlight;
 
   useEffect(() => {
     if (
@@ -301,7 +336,8 @@ export function MaintenancePage() {
     currentStatus?.kind === "load-failed" &&
     currentStatus.presence.bootId === presence.bootId &&
     currentStatus.presence.activationRevision === liveState.live.revision &&
-    currentStatus.presence.currentVersionId === liveState.live.currentVersionId &&
+    currentStatus.presence.currentVersionId ===
+      liveState.live.currentVersionId &&
     !reloadWriting &&
     !clearCacheWriting &&
     reloadPendingBootId === null &&
@@ -311,7 +347,8 @@ export function MaintenancePage() {
   const canClearCache =
     liveState.kind === "active" &&
     presence !== null &&
-    (currentStatus?.kind === "ready" || currentStatus?.kind === "load-failed") &&
+    (currentStatus?.kind === "ready" ||
+      currentStatus?.kind === "load-failed") &&
     !reloadWriting &&
     !clearCacheWriting &&
     reloadPendingBootId === null &&
@@ -396,7 +433,9 @@ export function MaintenancePage() {
   async function disconnectPlayer(playerUid: string): Promise<void> {
     if (
       disconnectingPlayerUid !== null ||
-      !window.confirm("Disconnect this Player? It will return to pairing mode and show a new PIN.")
+      !window.confirm(
+        "Disconnect this Player? It will return to pairing mode and show a new PIN.",
+      )
     ) {
       return;
     }
@@ -416,6 +455,52 @@ export function MaintenancePage() {
       setDisconnectError("Could not disconnect Player. Try again.");
     } finally {
       setDisconnectingPlayerUid(null);
+    }
+  }
+
+  async function savePlayerName(
+    playerUid: string,
+    value: string,
+  ): Promise<void> {
+    const displayName = normalizePlayerDisplayName(value);
+    if (displayName === null) {
+      setPlayerNameSaveStates((current) => ({
+        ...current,
+        [playerUid]: { kind: "error" },
+      }));
+      return;
+    }
+
+    const database = getRealtimeDatabaseOrNull();
+    if (!database) {
+      setPlayerNameSaveStates((current) => ({
+        ...current,
+        [playerUid]: { kind: "error" },
+      }));
+      return;
+    }
+
+    setPlayerNameSaveStates((current) => ({
+      ...current,
+      [playerUid]: { kind: "saving" },
+    }));
+
+    try {
+      await saveOwnedPlayerDisplayName(database, playerUid, displayName);
+      editingPlayerNameUidsRef.current.delete(playerUid);
+      setPlayerNameDrafts((current) => ({
+        ...current,
+        [playerUid]: displayName,
+      }));
+      setPlayerNameSaveStates((current) => ({
+        ...current,
+        [playerUid]: { kind: "saved" },
+      }));
+    } catch {
+      setPlayerNameSaveStates((current) => ({
+        ...current,
+        [playerUid]: { kind: "error" },
+      }));
     }
   }
 
@@ -472,6 +557,20 @@ export function MaintenancePage() {
     controlState.revision === playerState.appliedControlRevision
       ? "Slide state synced"
       : "Slide state pending";
+  const pairedPlayersByUid = new Map(
+    pairedPlayers.map((player) => [player.playerUid, player]),
+  );
+
+  function playerFallbackName(playerUid: string): string {
+    return `Player ${playerUid.slice(0, 6)}…`;
+  }
+
+  function playerDisplayName(playerUid: string): string {
+    return (
+      pairedPlayersByUid.get(playerUid)?.displayName ??
+      playerFallbackName(playerUid)
+    );
+  }
 
   return (
     <main className={styles.page}>
@@ -528,8 +627,14 @@ export function MaintenancePage() {
             <p>No connected Players</p>
           ) : (
             <ul className={styles.connectedPlayers}>
-              {connectedPlayers.map((bootId) => (
-                <li key={bootId} title={bootId}>Player {bootId.slice(0, 6)}…</li>
+              {connectedPlayers.map((lease) => (
+                <li
+                  key={lease.bootId}
+                  data-connected-player
+                  title={`${lease.playerUid} · ${lease.bootId}`}
+                >
+                  {playerDisplayName(lease.playerUid)}
+                </li>
               ))}
             </ul>
           )}
@@ -538,20 +643,75 @@ export function MaintenancePage() {
             <p>No paired Players</p>
           ) : (
             <ul className={styles.pairedPlayers}>
-              {pairedPlayers.map((playerUid) => (
-                <li className={styles.pairedPlayer} key={playerUid}>
-                  <span title={playerUid}>Player {playerUid.slice(0, 6)}…</span>
-                  <button
-                    type="button"
-                    disabled={disconnectingPlayerUid !== null}
-                    onClick={() => void disconnectPlayer(playerUid)}
-                  >
-                    {disconnectingPlayerUid === playerUid
-                      ? "Disconnecting…"
-                      : "Disconnect Player"}
-                  </button>
-                </li>
-              ))}
+              {pairedPlayers.map(({ playerUid }) => {
+                const saveState = playerNameSaveStates[playerUid];
+                const fallbackName = playerFallbackName(playerUid);
+                return (
+                  <li className={styles.pairedPlayer} key={playerUid}>
+                    <form
+                      className={styles.playerNameForm}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void savePlayerName(
+                          playerUid,
+                          playerNameDrafts[playerUid] ?? "",
+                        );
+                      }}
+                    >
+                      <input
+                        type="text"
+                        data-player-name-input
+                        aria-label={`Name for ${fallbackName}`}
+                        autoComplete="off"
+                        maxLength={PLAYER_DISPLAY_NAME_MAX_LENGTH}
+                        placeholder={fallbackName}
+                        value={playerNameDrafts[playerUid] ?? ""}
+                        title={playerUid}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          editingPlayerNameUidsRef.current.add(playerUid);
+                          setPlayerNameDrafts((current) => ({
+                            ...current,
+                            [playerUid]: value,
+                          }));
+                          setPlayerNameSaveStates((current) => {
+                            const next = { ...current };
+                            delete next[playerUid];
+                            return next;
+                          });
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={saveState?.kind === "saving"}
+                      >
+                        {saveState?.kind === "saving" ? "Saving…" : "Save name"}
+                      </button>
+                      {saveState?.kind === "saved" && (
+                        <span className={styles.playerNameStatus} role="status">
+                          Saved
+                        </span>
+                      )}
+                      {saveState?.kind === "error" && (
+                        <span className={styles.playerNameError} role="alert">
+                          Enter a name with 1 to{" "}
+                          {PLAYER_DISPLAY_NAME_MAX_LENGTH} characters, then try
+                          again.
+                        </span>
+                      )}
+                    </form>
+                    <button
+                      type="button"
+                      disabled={disconnectingPlayerUid !== null}
+                      onClick={() => void disconnectPlayer(playerUid)}
+                    >
+                      {disconnectingPlayerUid === playerUid
+                        ? "Disconnecting…"
+                        : "Disconnect Player"}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {disconnectError && <p role="alert">{disconnectError}</p>}
@@ -567,13 +727,15 @@ export function MaintenancePage() {
               {playerLogs.enabled ? "On" : "Off"}
             </button>
           </div>
-          {playerLogs.sendFailed && <p role="alert">Could not update Player logs. Try again.</p>}
+          {playerLogs.sendFailed && (
+            <p role="alert">Could not update Player logs. Try again.</p>
+          )}
           <p>
             {retryPending !== null
               ? "Trying again…"
               : reloadPendingBootId !== null
-              ? "Waiting for Player…"
-              : "Request a remote Player reload."}
+                ? "Waiting for Player…"
+                : "Request a remote Player reload."}
           </p>
           {reloadError && <p role="alert">{reloadError}</p>}
           <div className={styles.actions}>

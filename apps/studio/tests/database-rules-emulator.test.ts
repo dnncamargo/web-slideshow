@@ -9,19 +9,26 @@ import {
 } from "@firebase/rules-unit-testing";
 
 const projectId = "demo-web-slideshow-database-rules";
-const rules = readFileSync(new URL("../../../database.rules.json", import.meta.url), "utf8");
+const rules = readFileSync(
+  new URL("../../../database.rules.json", import.meta.url),
+  "utf8",
+);
 let testEnv: RulesTestEnvironment;
 
 function anonymous(uid: string) {
-  return testEnv.authenticatedContext(uid, {
-    firebase: { sign_in_provider: "anonymous" },
-  }).database();
+  return testEnv
+    .authenticatedContext(uid, {
+      firebase: { sign_in_provider: "anonymous" },
+    })
+    .database();
 }
 
 function account(uid: string) {
-  return testEnv.authenticatedContext(uid, {
-    firebase: { sign_in_provider: "google.com" },
-  }).database();
+  return testEnv
+    .authenticatedContext(uid, {
+      firebase: { sign_in_provider: "google.com" },
+    })
+    .database();
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -65,10 +72,12 @@ describe("Realtime Database Player pairing rules", () => {
       const serverTimeOffset = -clientClockOffsetMs;
       const expiresAt = clientNow + serverTimeOffset + 60_000 - 5_000;
 
-      const result = await player.ref(`playerPairingCodes/${pin}`).transaction(() => ({
-        playerUid,
-        expiresAt,
-      }));
+      const result = await player
+        .ref(`playerPairingCodes/${pin}`)
+        .transaction(() => ({
+          playerUid,
+          expiresAt,
+        }));
 
       expect(result.committed).toBe(true);
     }
@@ -82,19 +91,25 @@ describe("Realtime Database Player pairing rules", () => {
     const occupiedPin = "123463";
     const now = Date.now();
 
-    await assertFails(player.ref(`playerPairingCodes/${lowerBoundPin}`).set({
-      playerUid: "player-pairing-lifecycle",
-      expiresAt: now - 1,
-    }));
-    await assertFails(player.ref(`playerPairingCodes/${upperBoundPin}`).set({
-      playerUid: "player-pairing-lifecycle",
-      expiresAt: now + 65_000,
-    }));
+    await assertFails(
+      player.ref(`playerPairingCodes/${lowerBoundPin}`).set({
+        playerUid: "player-pairing-lifecycle",
+        expiresAt: now - 1,
+      }),
+    );
+    await assertFails(
+      player.ref(`playerPairingCodes/${upperBoundPin}`).set({
+        playerUid: "player-pairing-lifecycle",
+        expiresAt: now + 65_000,
+      }),
+    );
 
-    await assertSucceeds(player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
-      playerUid: "player-pairing-lifecycle",
-      expiresAt: Date.now() + 55_000,
-    })));
+    await assertSucceeds(
+      player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
+        playerUid: "player-pairing-lifecycle",
+        expiresAt: Date.now() + 55_000,
+      })),
+    );
 
     const ordinaryCollision = await otherPlayer
       .ref(`playerPairingCodes/${occupiedPin}`)
@@ -114,24 +129,30 @@ describe("Realtime Database Player pairing rules", () => {
       })),
     );
 
-    await assertSucceeds(player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
-      playerUid: "player-pairing-lifecycle",
-      expiresAt: Date.now() + 55_000,
-    })));
+    await assertSucceeds(
+      player.ref(`playerPairingCodes/${occupiedPin}`).transaction(() => ({
+        playerUid: "player-pairing-lifecycle",
+        expiresAt: Date.now() + 55_000,
+      })),
+    );
   });
 
   it("rejects unauthenticated and non-anonymous PIN reservations", async () => {
     const unauthenticated = testEnv.unauthenticatedContext().database();
     const accountClient = account("account-cannot-reserve");
 
-    await assertFails(unauthenticated.ref("playerPairingCodes/123464").set({
-      playerUid: "player-unauthenticated",
-      expiresAt: Date.now() + 55_000,
-    }));
-    await assertFails(accountClient.ref("playerPairingCodes/123465").set({
-      playerUid: "player-account",
-      expiresAt: Date.now() + 55_000,
-    }));
+    await assertFails(
+      unauthenticated.ref("playerPairingCodes/123464").set({
+        playerUid: "player-unauthenticated",
+        expiresAt: Date.now() + 55_000,
+      }),
+    );
+    await assertFails(
+      accountClient.ref("playerPairingCodes/123465").set({
+        playerUid: "player-account",
+        expiresAt: Date.now() + 55_000,
+      }),
+    );
   });
 
   it("requires a valid claim before creating exactly one durable binding", async () => {
@@ -141,23 +162,31 @@ describe("Realtime Database Player pairing rules", () => {
     const code = player.ref("playerPairingCodes/123456");
     const claim = owner.ref("playerPairingClaims/player-claim-1");
 
-    await assertSucceeds(code.set({
-      playerUid: "player-claim-1",
-      expiresAt: Date.now() + 30_000,
-    }));
-    await assertFails(
-      owner.ref("playerBindings/player-claim-1").set({ ownerUid: "account-claim-1" }),
+    await assertSucceeds(
+      code.set({
+        playerUid: "player-claim-1",
+        expiresAt: Date.now() + 30_000,
+      }),
     );
     await assertFails(
-      player.ref("playerBindings/player-claim-1").set({ ownerUid: "player-claim-1" }),
+      owner
+        .ref("playerBindings/player-claim-1")
+        .set({ ownerUid: "account-claim-1" }),
+    );
+    await assertFails(
+      player
+        .ref("playerBindings/player-claim-1")
+        .set({ ownerUid: "player-claim-1" }),
     );
     await assertFails(otherOwner.ref("playerPairingCodes/123456").remove());
 
-    await assertSucceeds(claim.transaction(() => ({
-      pin: "123456",
-      ownerUid: "account-claim-1",
-      expiresAt: Date.now() + 10_000,
-    })));
+    await assertSucceeds(
+      claim.transaction(() => ({
+        pin: "123456",
+        ownerUid: "account-claim-1",
+        expiresAt: Date.now() + 10_000,
+      })),
+    );
     await assertFails(
       otherOwner.ref("playerPairingClaims/player-claim-1").transaction(() => ({
         pin: "123456",
@@ -166,19 +195,21 @@ describe("Realtime Database Player pairing rules", () => {
       })),
     );
     await assertSucceeds(
-      owner.ref("playerBindings/player-claim-1").transaction((current) =>
-        current ?? { ownerUid: "account-claim-1" },
-      ),
+      owner
+        .ref("playerBindings/player-claim-1")
+        .transaction((current) => current ?? { ownerUid: "account-claim-1" }),
     );
     await assertFails(
-      otherOwner.ref("playerBindings/player-claim-1").transaction((current) =>
-        current ?? { ownerUid: "account-claim-2" },
-      ),
+      otherOwner
+        .ref("playerBindings/player-claim-1")
+        .transaction((current) => current ?? { ownerUid: "account-claim-2" }),
     );
 
     await assertSucceeds(owner.ref("playerPairingCodes/123456").remove());
     await assertSucceeds(claim.remove());
-    const binding = await player.ref("playerBindings/player-claim-1").once("value");
+    const binding = await player
+      .ref("playerBindings/player-claim-1")
+      .once("value");
     expect(binding.val()).toEqual({ ownerUid: "account-claim-1" });
   });
 
@@ -219,10 +250,12 @@ describe("Realtime Database Player pairing rules", () => {
     const player = anonymous("player-claim-replace");
     const firstOwner = account("account-claim-first");
     const secondOwner = account("account-claim-second");
-    await assertSucceeds(player.ref("playerPairingCodes/323456").set({
-      playerUid: "player-claim-replace",
-      expiresAt: Date.now() + 30_000,
-    }));
+    await assertSucceeds(
+      player.ref("playerPairingCodes/323456").set({
+        playerUid: "player-claim-replace",
+        expiresAt: Date.now() + 30_000,
+      }),
+    );
 
     await assertSucceeds(
       firstOwner.ref("playerPairingClaims/player-claim-replace").set({
@@ -241,10 +274,12 @@ describe("Realtime Database Player pairing rules", () => {
     );
 
     const expiringPlayer = anonymous("player-claim-expiring-binding");
-    await assertSucceeds(expiringPlayer.ref("playerPairingCodes/323457").set({
-      playerUid: "player-claim-expiring-binding",
-      expiresAt: Date.now() + 30_000,
-    }));
+    await assertSucceeds(
+      expiringPlayer.ref("playerPairingCodes/323457").set({
+        playerUid: "player-claim-expiring-binding",
+        expiresAt: Date.now() + 30_000,
+      }),
+    );
     await assertSucceeds(
       secondOwner.ref("playerPairingClaims/player-claim-expiring-binding").set({
         pin: "323457",
@@ -266,10 +301,12 @@ describe("Realtime Database Player pairing rules", () => {
     const invalidPins = ["abcdef", "12345a", "12345", "1234567"];
 
     for (const pin of invalidPins) {
-      await assertFails(player.ref(`playerPairingCodes/${pin}`).set({
-        playerUid: "player-shape",
-        expiresAt: Date.now() + 30_000,
-      }));
+      await assertFails(
+        player.ref(`playerPairingCodes/${pin}`).set({
+          playerUid: "player-shape",
+          expiresAt: Date.now() + 30_000,
+        }),
+      );
     }
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -282,37 +319,49 @@ describe("Realtime Database Player pairing rules", () => {
       }
     });
 
-    await assertFails(player.ref("playerPairingCodes/423456").set({
-      playerUid: "player-shape",
-      expiresAt: Date.now() + 30_000,
-      extra: true,
-    }));
-    await assertSucceeds(player.ref("playerPairingCodes/423456").set({
-      playerUid: "player-shape",
-      expiresAt: Date.now() + 30_000,
-    }));
-    await assertFails(owner.ref("playerPairingClaims/player-shape").set({
-      pin: "423456",
-      ownerUid: "account-shape",
-      expiresAt: Date.now() + 10_000,
-      extra: true,
-    }));
-    await assertSucceeds(owner.ref("playerPairingClaims/player-shape").set({
-      pin: "423456",
-      ownerUid: "account-shape",
-      expiresAt: Date.now() + 10_000,
-    }));
-    for (const pin of invalidPins) {
-      await assertFails(owner.ref("playerPairingClaims/player-shape").set({
-        pin,
+    await assertFails(
+      player.ref("playerPairingCodes/423456").set({
+        playerUid: "player-shape",
+        expiresAt: Date.now() + 30_000,
+        extra: true,
+      }),
+    );
+    await assertSucceeds(
+      player.ref("playerPairingCodes/423456").set({
+        playerUid: "player-shape",
+        expiresAt: Date.now() + 30_000,
+      }),
+    );
+    await assertFails(
+      owner.ref("playerPairingClaims/player-shape").set({
+        pin: "423456",
         ownerUid: "account-shape",
         expiresAt: Date.now() + 10_000,
-      }));
+        extra: true,
+      }),
+    );
+    await assertSucceeds(
+      owner.ref("playerPairingClaims/player-shape").set({
+        pin: "423456",
+        ownerUid: "account-shape",
+        expiresAt: Date.now() + 10_000,
+      }),
+    );
+    for (const pin of invalidPins) {
+      await assertFails(
+        owner.ref("playerPairingClaims/player-shape").set({
+          pin,
+          ownerUid: "account-shape",
+          expiresAt: Date.now() + 10_000,
+        }),
+      );
     }
-    await assertFails(owner.ref("playerBindings/player-shape").set({
-      ownerUid: "account-shape",
-      extra: true,
-    }));
+    await assertFails(
+      owner.ref("playerBindings/player-shape").set({
+        ownerUid: "account-shape",
+        extra: true,
+      }),
+    );
   });
 
   it("allows the authenticated owner to transact at the Live root without exposing that root cross-account or to a bound anonymous Player", async () => {
@@ -321,9 +370,12 @@ describe("Realtime Database Player pairing rules", () => {
     const player = anonymous("player-root-transaction");
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.database().ref("playerBindings/player-root-transaction").set({
-        ownerUid: "account-root-transaction",
-      });
+      await context
+        .database()
+        .ref("playerBindings/player-root-transaction")
+        .set({
+          ownerUid: "account-root-transaction",
+        });
     });
 
     const live = owner.ref("live/account-root-transaction");
@@ -340,8 +392,12 @@ describe("Realtime Database Player pairing rules", () => {
     );
 
     await assertSucceeds(live.once("value"));
-    await assertFails(otherOwner.ref("live/account-root-transaction").once("value"));
-    await assertFails(player.ref("live/account-root-transaction").once("value"));
+    await assertFails(
+      otherOwner.ref("live/account-root-transaction").once("value"),
+    );
+    await assertFails(
+      player.ref("live/account-root-transaction").once("value"),
+    );
 
     await assertSucceeds(
       player.ref("live/account-root-transaction/current").once("value"),
@@ -379,15 +435,51 @@ describe("Realtime Database Player pairing rules", () => {
         .once("value"),
     );
 
-    await assertFails(
-      ownerB.ref("playerBindings/player-bindings-a").remove(),
-    );
-    await assertFails(
-      playerA.ref("playerBindings/player-bindings-a").remove(),
-    );
+    await assertFails(ownerB.ref("playerBindings/player-bindings-a").remove());
+    await assertFails(playerA.ref("playerBindings/player-bindings-a").remove());
     await assertSucceeds(
       ownerA.ref("playerBindings/player-bindings-a").remove(),
     );
+  });
+
+  it("allows only the authenticated owner to write a bounded Player display name", async () => {
+    const owner = account("account-player-name");
+    const otherOwner = account("account-player-name-other");
+    const playerUid = "player-display-name";
+    const player = anonymous(playerUid);
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref(`playerBindings/${playerUid}`).set({
+        ownerUid: "account-player-name",
+      });
+    });
+
+    const displayName = owner.ref(`playerBindings/${playerUid}/displayName`);
+    await assertSucceeds(displayName.set("Projector 1"));
+    await assertFails(displayName.set("   "));
+    await assertFails(displayName.set("\t\n "));
+    await assertFails(displayName.set("x".repeat(41)));
+    await assertFails(
+      otherOwner
+        .ref(`playerBindings/${playerUid}/displayName`)
+        .set("Other owner"),
+    );
+    await assertFails(
+      player.ref(`playerBindings/${playerUid}/displayName`).set("Player name"),
+    );
+    await assertFails(
+      owner
+        .ref(`playerBindings/${playerUid}/ownerUid`)
+        .set("account-player-name-other"),
+    );
+
+    const binding = await owner
+      .ref(`playerBindings/${playerUid}`)
+      .once("value");
+    expect(binding.val()).toEqual({
+      ownerUid: "account-player-name",
+      displayName: "Projector 1",
+    });
   });
 
   it("lets an unbound Player delete only its own tagged presence and prevents new runtime writes", async () => {
@@ -407,43 +499,63 @@ describe("Realtime Database Player pairing rules", () => {
       });
     });
 
-    const current = player.ref("live/account-presence-cleanup/playerPresence/current");
-    const lease = player.ref("live/account-presence-cleanup/playerPresence/leases/boot-presence");
+    const current = player.ref(
+      "live/account-presence-cleanup/playerPresence/current",
+    );
+    const lease = player.ref(
+      "live/account-presence-cleanup/playerPresence/leases/boot-presence",
+    );
 
-    await assertSucceeds(current.set({
-      activationRevision: 1,
-      currentVersionId: "version-presence",
-      playerUid: "player-presence-cleanup",
-      bootId: "boot-presence",
-      stage: "ready",
-      transitionedAt: Date.now(),
-    }));
-    await assertSucceeds(lease.set({
-      activationRevision: 1,
-      currentVersionId: "version-presence",
-      playerUid: "player-presence-cleanup",
-      bootId: "boot-presence",
-      connected: true,
-      transitionedAt: Date.now(),
-    }));
+    await assertSucceeds(
+      current.set({
+        activationRevision: 1,
+        currentVersionId: "version-presence",
+        playerUid: "player-presence-cleanup",
+        bootId: "boot-presence",
+        stage: "ready",
+        transitionedAt: Date.now(),
+      }),
+    );
+    await assertSucceeds(
+      lease.set({
+        activationRevision: 1,
+        currentVersionId: "version-presence",
+        playerUid: "player-presence-cleanup",
+        bootId: "boot-presence",
+        connected: true,
+        transitionedAt: Date.now(),
+      }),
+    );
 
     await assertSucceeds(
       owner.ref("playerBindings/player-presence-cleanup").remove(),
     );
 
-    await assertFails(otherPlayer.ref("live/account-presence-cleanup/playerPresence/current").remove());
-    await assertFails(otherPlayer.ref("live/account-presence-cleanup/playerPresence/leases/boot-presence").remove());
+    await assertFails(
+      otherPlayer
+        .ref("live/account-presence-cleanup/playerPresence/current")
+        .remove(),
+    );
+    await assertFails(
+      otherPlayer
+        .ref(
+          "live/account-presence-cleanup/playerPresence/leases/boot-presence",
+        )
+        .remove(),
+    );
     await assertSucceeds(current.remove());
     await assertSucceeds(lease.remove());
 
-    await assertFails(current.set({
-      activationRevision: 1,
-      currentVersionId: "version-presence",
-      playerUid: "player-presence-cleanup",
-      bootId: "boot-new",
-      stage: "starting",
-      transitionedAt: Date.now(),
-    }));
+    await assertFails(
+      current.set({
+        activationRevision: 1,
+        currentVersionId: "version-presence",
+        playerUid: "player-presence-cleanup",
+        bootId: "boot-new",
+        stage: "starting",
+        transitionedAt: Date.now(),
+      }),
+    );
   });
 
   it("rejects anonymous Control writes while preserving bounded Player runtime writes", async () => {
@@ -496,64 +608,88 @@ describe("Realtime Database Player pairing rules", () => {
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const database = context.database();
-      await database.ref("playerBindings/player-isolation-a").set({ ownerUid: "account-isolation-a" });
-      await database.ref("playerBindings/player-isolation-b").set({ ownerUid: "account-isolation-b" });
+      await database
+        .ref("playerBindings/player-isolation-a")
+        .set({ ownerUid: "account-isolation-a" });
+      await database
+        .ref("playerBindings/player-isolation-b")
+        .set({ ownerUid: "account-isolation-b" });
     });
 
-    await assertSucceeds(ownerA.ref("live/account-isolation-a/current").set({
-      publicationId: "publication-a",
-      currentVersionId: "version-a",
-      revision: 1,
-    }));
-    await assertSucceeds(ownerB.ref("live/account-isolation-b/current").set({
-      publicationId: "publication-b",
-      currentVersionId: "version-b",
-      revision: 1,
-    }));
+    await assertSucceeds(
+      ownerA.ref("live/account-isolation-a/current").set({
+        publicationId: "publication-a",
+        currentVersionId: "version-a",
+        revision: 1,
+      }),
+    );
+    await assertSucceeds(
+      ownerB.ref("live/account-isolation-b/current").set({
+        publicationId: "publication-b",
+        currentVersionId: "version-b",
+        revision: 1,
+      }),
+    );
 
-    await assertSucceeds(ownerA.ref("live/account-isolation-a/controlState").set({
-      activationRevision: 1,
-      currentVersionId: "version-a",
-      revision: 1,
-      pageId: "slide-a",
-    }));
-    await assertSucceeds(ownerB.ref("live/account-isolation-b/controlState").set({
-      activationRevision: 1,
-      currentVersionId: "version-b",
-      revision: 1,
-      pageId: "slide-b",
-    }));
+    await assertSucceeds(
+      ownerA.ref("live/account-isolation-a/controlState").set({
+        activationRevision: 1,
+        currentVersionId: "version-a",
+        revision: 1,
+        pageId: "slide-a",
+      }),
+    );
+    await assertSucceeds(
+      ownerB.ref("live/account-isolation-b/controlState").set({
+        activationRevision: 1,
+        currentVersionId: "version-b",
+        revision: 1,
+        pageId: "slide-b",
+      }),
+    );
 
-    await assertSucceeds(playerA.ref("live/account-isolation-a/playerState").set({
-      activationRevision: 1,
-      currentVersionId: "version-a",
-      appliedControlRevision: 1,
-      pageId: "slide-a",
-      pageIndex: 0,
-    }));
-    await assertSucceeds(playerB.ref("live/account-isolation-b/playerState").set({
-      activationRevision: 1,
-      currentVersionId: "version-b",
-      appliedControlRevision: 1,
-      pageId: "slide-b",
-      pageIndex: 0,
-    }));
+    await assertSucceeds(
+      playerA.ref("live/account-isolation-a/playerState").set({
+        activationRevision: 1,
+        currentVersionId: "version-a",
+        appliedControlRevision: 1,
+        pageId: "slide-a",
+        pageIndex: 0,
+      }),
+    );
+    await assertSucceeds(
+      playerB.ref("live/account-isolation-b/playerState").set({
+        activationRevision: 1,
+        currentVersionId: "version-b",
+        appliedControlRevision: 1,
+        pageId: "slide-b",
+        pageIndex: 0,
+      }),
+    );
 
-    await assertFails(playerA.ref("live/account-isolation-b/playerState").set({
-      activationRevision: 1,
-      currentVersionId: "version-b",
-      appliedControlRevision: 1,
-      pageId: "slide-b",
-      pageIndex: 0,
-    }));
-    await assertFails(playerB.ref("live/account-isolation-a/controlState").once("value"));
-    await assertFails(ownerA.ref("live/account-isolation-b/controlState").set({
-      activationRevision: 1,
-      currentVersionId: "version-b",
-      revision: 2,
-      pageId: "slide-b-2",
-    }));
-    await assertFails(ownerB.ref("live/account-isolation-a/playerPresence").once("value"));
+    await assertFails(
+      playerA.ref("live/account-isolation-b/playerState").set({
+        activationRevision: 1,
+        currentVersionId: "version-b",
+        appliedControlRevision: 1,
+        pageId: "slide-b",
+        pageIndex: 0,
+      }),
+    );
+    await assertFails(
+      playerB.ref("live/account-isolation-a/controlState").once("value"),
+    );
+    await assertFails(
+      ownerA.ref("live/account-isolation-b/controlState").set({
+        activationRevision: 1,
+        currentVersionId: "version-b",
+        revision: 2,
+        pageId: "slide-b-2",
+      }),
+    );
+    await assertFails(
+      ownerB.ref("live/account-isolation-a/playerPresence").once("value"),
+    );
   });
 
   it("keeps activation revisions, promotion, and end account-local", async () => {
@@ -564,22 +700,28 @@ describe("Realtime Database Player pairing rules", () => {
 
     await assertSucceeds(liveA.child("activationRevision").set(1));
     await assertSucceeds(liveB.child("activationRevision").set(1));
-    await assertSucceeds(liveA.child("current").set({
-      publicationId: "publication-a",
-      currentVersionId: "version-a",
-      revision: 1,
-    }));
-    await assertSucceeds(liveB.child("current").set({
-      publicationId: "publication-b",
-      currentVersionId: "version-b",
-      revision: 1,
-    }));
+    await assertSucceeds(
+      liveA.child("current").set({
+        publicationId: "publication-a",
+        currentVersionId: "version-a",
+        revision: 1,
+      }),
+    );
+    await assertSucceeds(
+      liveB.child("current").set({
+        publicationId: "publication-b",
+        currentVersionId: "version-b",
+        revision: 1,
+      }),
+    );
 
-    await assertSucceeds(liveA.child("current").set({
-      publicationId: "publication-a",
-      currentVersionId: "version-a-2",
-      revision: 1,
-    }));
+    await assertSucceeds(
+      liveA.child("current").set({
+        publicationId: "publication-a",
+        currentVersionId: "version-a-2",
+        revision: 1,
+      }),
+    );
 
     const bAfterPromotion = await liveB.child("current").once("value");
     expect(bAfterPromotion.val()).toEqual({
@@ -587,8 +729,12 @@ describe("Realtime Database Player pairing rules", () => {
       currentVersionId: "version-b",
       revision: 1,
     });
-    expect((await liveA.child("activationRevision").once("value")).val()).toBe(1);
-    expect((await liveB.child("activationRevision").once("value")).val()).toBe(1);
+    expect((await liveA.child("activationRevision").once("value")).val()).toBe(
+      1,
+    );
+    expect((await liveB.child("activationRevision").once("value")).val()).toBe(
+      1,
+    );
 
     await assertSucceeds(liveA.update({ current: null }));
     expect((await liveA.child("current").once("value")).exists()).toBe(false);

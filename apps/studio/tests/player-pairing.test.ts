@@ -5,7 +5,10 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   onValue: vi.fn(),
   orderByChild: vi.fn((path: string) => ({ orderByChild: path })),
-  query: vi.fn((reference: unknown, ...constraints: unknown[]) => ({ reference, constraints })),
+  query: vi.fn((reference: unknown, ...constraints: unknown[]) => ({
+    reference,
+    constraints,
+  })),
   ref: vi.fn((_database: unknown, path: string) => ({ path })),
   remove: vi.fn(),
   runTransaction: vi.fn(),
@@ -32,7 +35,9 @@ vi.mock("../src/features/auth/firebase-auth", () => ({
 import {
   claimPlayerByPin,
   disconnectOwnedPlayer,
+  normalizePlayerDisplayName,
   normalizePairingPin,
+  saveOwnedPlayerDisplayName,
   subscribeOwnedPlayerBindings,
 } from "../src/features/control/player-pairing";
 
@@ -62,6 +67,14 @@ describe("Control Player pairing", () => {
     expect(mocks.ref).toHaveBeenCalledWith({}, "playerPairingCodes/123456");
   });
 
+  it("normalizes display names and enforces the 40-character limit", () => {
+    expect(normalizePlayerDisplayName("  Classroom display  ")).toBe(
+      "Classroom display",
+    );
+    expect(normalizePlayerDisplayName("   ")).toBeNull();
+    expect(normalizePlayerDisplayName("x".repeat(41))).toBeNull();
+  });
+
   it("rejects an expired PIN without creating a binding", async () => {
     mocks.get.mockResolvedValue({
       val: () => ({ playerUid: "player-1", expiresAt: Date.now() - 1 }),
@@ -80,10 +93,18 @@ describe("Control Player pairing", () => {
     });
 
     expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
-    expect(mocks.ref).toHaveBeenNthCalledWith(2, {}, "playerPairingClaims/player-1");
+    expect(mocks.ref).toHaveBeenNthCalledWith(
+      2,
+      {},
+      "playerPairingClaims/player-1",
+    );
     expect(mocks.ref).toHaveBeenNthCalledWith(3, {}, "playerBindings/player-1");
-    expect(mocks.remove).toHaveBeenNthCalledWith(1, { path: "playerPairingCodes/123456" });
-    expect(mocks.remove).toHaveBeenNthCalledWith(2, { path: "playerPairingClaims/player-1" });
+    expect(mocks.remove).toHaveBeenNthCalledWith(1, {
+      path: "playerPairingCodes/123456",
+    });
+    expect(mocks.remove).toHaveBeenNthCalledWith(2, {
+      path: "playerPairingClaims/player-1",
+    });
   });
 
   it("does not create a binding when the temporary claim cannot be reserved", async () => {
@@ -103,7 +124,13 @@ describe("Control Player pairing", () => {
     mocks.runTransaction
       .mockResolvedValueOnce({
         committed: true,
-        snapshot: { val: () => ({ pin: "123456", ownerUid: "account-1", expiresAt: Date.now() + 10_000 }) },
+        snapshot: {
+          val: () => ({
+            pin: "123456",
+            ownerUid: "account-1",
+            expiresAt: Date.now() + 10_000,
+          }),
+        },
       })
       .mockResolvedValueOnce({
         committed: false,
@@ -113,7 +140,9 @@ describe("Control Player pairing", () => {
     await expect(claimPlayerByPin({} as never, "123456")).rejects.toThrow(
       "already paired",
     );
-    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingClaims/player-1" });
+    expect(mocks.remove).toHaveBeenCalledWith({
+      path: "playerPairingClaims/player-1",
+    });
   });
 
   it("subscribes only to bindings owned by the authenticated account", () => {
@@ -122,7 +151,10 @@ describe("Control Player pairing", () => {
     mocks.onValue.mockImplementation((_query, callback) => {
       callback({
         val: () => ({
-          "player-b": { ownerUid: "account-1" },
+          "player-b": {
+            ownerUid: "account-1",
+            displayName: "Classroom display",
+          },
           "player-other": { ownerUid: "account-2" },
           "player-a": { ownerUid: "account-1" },
         }),
@@ -135,8 +167,49 @@ describe("Control Player pairing", () => {
     expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings");
     expect(mocks.orderByChild).toHaveBeenCalledWith("ownerUid");
     expect(mocks.equalTo).toHaveBeenCalledWith("account-1");
-    expect(onPlayers).toHaveBeenCalledWith(["player-a", "player-b"]);
+    expect(onPlayers).toHaveBeenCalledWith([
+      { playerUid: "player-a" },
+      { playerUid: "player-b", displayName: "Classroom display" },
+    ]);
     expect(cleanup).toBe(unsubscribe);
+  });
+
+  it("saves a trimmed display name only after confirming the authenticated owner", async () => {
+    mocks.get.mockResolvedValueOnce({
+      val: () => ({ ownerUid: "account-1", displayName: "Old name" }),
+    });
+
+    await saveOwnedPlayerDisplayName(
+      {} as never,
+      " player-1 ",
+      "  Front desk  ",
+    );
+
+    expect(mocks.ref).toHaveBeenCalledWith({}, "playerBindings/player-1");
+    expect(mocks.update).toHaveBeenCalledWith(
+      { path: "playerBindings/player-1" },
+      { displayName: "Front desk" },
+    );
+  });
+
+  it("rejects blank and overlong names before writing", async () => {
+    await expect(
+      saveOwnedPlayerDisplayName({} as never, "player-1", "  "),
+    ).rejects.toThrow("1 to 40 characters");
+    await expect(
+      saveOwnedPlayerDisplayName({} as never, "player-1", "x".repeat(41)),
+    ).rejects.toThrow("1 to 40 characters");
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects renaming a Player owned by another account", async () => {
+    mocks.get.mockResolvedValueOnce({ val: () => ({ ownerUid: "account-2" }) });
+
+    await expect(
+      saveOwnedPlayerDisplayName({} as never, "player-1", "New name"),
+    ).rejects.toThrow("not paired to this account");
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("cleans only the target Player presence before removing its owned binding", async () => {
@@ -163,7 +236,9 @@ describe("Control Player pairing", () => {
         "leases/boot-target": null,
       },
     );
-    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerBindings/player-1" });
+    expect(mocks.remove).toHaveBeenCalledWith({
+      path: "playerBindings/player-1",
+    });
   });
 
   it("rejects disconnect when the binding belongs to another account", async () => {
