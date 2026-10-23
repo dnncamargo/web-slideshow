@@ -1,6 +1,6 @@
 "use client";
 
-import { ref, runTransaction, set, type Database } from "firebase/database";
+import { get, ref, runTransaction, set, type Database } from "firebase/database";
 
 import {
   FirebaseAuthenticationError,
@@ -11,6 +11,7 @@ import {
   buildControlCommand,
   buildControlPath,
   buildFullscreenRequest,
+  buildFullscreenRequestPath,
   buildSlideCommandPath,
   type ControlAction,
   type FullscreenRequest,
@@ -21,7 +22,8 @@ import {
   isRealtimeDatabaseConfigured,
 } from "./realtime-db";
 import { getCurrentNonAnonymousUser } from "../auth/firebase-auth";
-import { buildAuthenticatedLiveRoot } from "../live/live-path";
+import { buildAuthenticatedLivePath } from "../live/live-path";
+import { parseLiveCurrentValue } from "../live/live-current-read";
 import {
   buildControlStatePath,
   parseLiveControlState,
@@ -726,30 +728,6 @@ function parseFullscreenRequest(value: unknown): FullscreenRequest | null {
   };
 }
 
-function parseLiveRecord(value: unknown): LiveCurrent | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  if (
-    typeof record.publicationId !== "string" ||
-    record.publicationId.trim() === "" ||
-    typeof record.currentVersionId !== "string" ||
-    record.currentVersionId.trim() === "" ||
-    !isNonNegativeInteger(record.revision)
-  ) {
-    return null;
-  }
-
-  return {
-    publicationId: record.publicationId.trim(),
-    currentVersionId: record.currentVersionId.trim(),
-    revision: record.revision,
-  };
-}
-
 /** Writes a Player fullscreen intent only while the expected Live session is current. */
 export async function writeFullscreenRequest(
   database: Database,
@@ -761,70 +739,57 @@ export async function writeFullscreenRequest(
 
   getCurrentUserIdForControl();
 
-  const outcome: { kind: "pending" | "uncached" | "written" | "stale" } = {
-    kind: "pending",
-  };
+  const currentSnapshot = await get(
+    ref(database, buildAuthenticatedLivePath("current")),
+  );
+  const currentLive = parseLiveCurrentValue(currentSnapshot.val());
+  if (
+    currentLive === null ||
+    currentLive.publicationId !== expectedLive.publicationId ||
+    currentLive.currentVersionId !== expectedLive.currentVersionId ||
+    currentLive.revision !== expectedLive.revision
+  ) {
+    throw new Error("Live session changed before fullscreen request.");
+  }
 
-  const result = await runTransaction(
-    ref(database, buildAuthenticatedLiveRoot()),
-    (current) => {
-      if (current === null) {
-        outcome.kind = "uncached";
-        return null;
-      }
+  let result: Awaited<ReturnType<typeof runTransaction>>;
+  try {
+    result = await runTransaction(
+      ref(database, buildFullscreenRequestPath()),
+      (current) => {
+        const previous = parseFullscreenRequest(current);
+        const revision =
+          previous !== null &&
+          previous.activationRevision === expectedLive.revision &&
+          previous.currentVersionId === expectedLive.currentVersionId
+            ? previous.revision + 1
+            : 1;
 
-      if (typeof current !== "object") {
-        outcome.kind = "stale";
-        return undefined;
-      }
-
-      const currentRecord = current as Record<string, unknown>;
-      const live = parseLiveRecord(currentRecord.current);
-
-      if (
-        live === null ||
-        live.publicationId !== expectedLive.publicationId ||
-        live.currentVersionId !== expectedLive.currentVersionId ||
-        live.revision !== expectedLive.revision
-      ) {
-        outcome.kind = "stale";
-        return undefined;
-      }
-
-      const previous = parseFullscreenRequest(currentRecord.fullscreenRequest);
-      const revision =
-        previous !== null &&
-        previous.activationRevision === expectedLive.revision &&
-        previous.currentVersionId === expectedLive.currentVersionId
-          ? previous.revision + 1
-          : 1;
-
-      outcome.kind = "written";
-      return {
-        ...currentRecord,
-        fullscreenRequest: buildFullscreenRequest(
+        return buildFullscreenRequest(
           expectedLive.revision,
           expectedLive.currentVersionId,
           revision,
-        ),
-      };
-    },
-    { applyLocally: false },
-  );
-
-  if (result.committed !== true || outcome.kind !== "written") {
-    if (outcome.kind === "uncached" || outcome.kind === "stale") {
+        );
+      },
+      { applyLocally: false },
+    );
+  } catch (transactionError) {
+    if (
+      typeof transactionError === "object" &&
+      transactionError !== null &&
+      "code" in transactionError &&
+      transactionError.code === "PERMISSION_DENIED"
+    ) {
       throw new Error("Live session changed before fullscreen request.");
     }
+    throw transactionError;
+  }
+
+  if (result.committed !== true) {
     throw new Error("Fullscreen request transaction did not commit.");
   }
 
-  const committedRecord = result.snapshot.val();
-  const committed =
-    typeof committedRecord === "object" && committedRecord !== null
-      ? (committedRecord as Record<string, unknown>).fullscreenRequest
-      : null;
-  const request = parseFullscreenRequest(committed);
+  const request = parseFullscreenRequest(result.snapshot.val());
 
   if (request === null) {
     throw new Error("Fullscreen request transaction committed a malformed value.");
