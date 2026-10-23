@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   set: vi.fn(),
+  get: vi.fn(),
   ref: vi.fn(),
   getDatabase: vi.fn(),
   runTransaction: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("firebase/database", () => ({
   set: mocks.set,
+  get: mocks.get,
   ref: mocks.ref,
   getDatabase: mocks.getDatabase,
   runTransaction: mocks.runTransaction,
@@ -576,6 +578,13 @@ describe("fullscreen request writer", () => {
     mocks.initializeApp.mockReturnValue({});
     mocks.getDatabase.mockReturnValue({});
     mocks.ref.mockImplementation((_db, path: string) => ({ path }));
+    mocks.get.mockResolvedValue({
+      val: () => ({
+        publicationId: "publication-1",
+        currentVersionId: "version-1",
+        revision: 2,
+      }),
+    });
     mocks.getCurrentNonAnonymousUser.mockReturnValue({ uid: "user-1" });
   });
 
@@ -583,140 +592,119 @@ describe("fullscreen request writer", () => {
     vi.unstubAllEnvs();
   });
 
-  it("starts at revision 1 and increments a matching request", async () => {
+  it("starts at revision 1 and increments the same activation and version", async () => {
     const expectedLive = {
       publicationId: "publication-1",
       currentVersionId: "version-1",
       revision: 2,
     };
-    const values = [
-      {
-        activationRevision: 2,
-        current: expectedLive,
-        controlState: { revision: 4 },
-        playerState: { appliedControlRevision: 4 },
-        fullscreenRequest: { activationRevision: 2, currentVersionId: "version-1", revision: 3 },
-      },
-      {
-        activationRevision: 2,
-        current: expectedLive,
-        controlState: { revision: 5 },
-        playerState: { appliedControlRevision: 5 },
-      },
-    ];
+    const values: unknown[] = [null, {
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 3,
+    }];
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
       const current = values.shift();
-      const result = updater(current) as Record<string, unknown>;
+      const result = updater(current);
       return { committed: true, snapshot: { val: () => result } };
     });
 
-    await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
-      revision: 4,
-    });
     await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
       revision: 1,
     });
-
-    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1");
-  });
-
-  it("retries an uncached null and writes only the fullscreen request", async () => {
-    const expectedLive = {
-      publicationId: "publication-1",
-      currentVersionId: "version-1",
-      revision: 2,
-    };
-    const current = {
-      activationRevision: 2,
-      current: expectedLive,
-      controlState: { revision: 4 },
-      playerState: { appliedControlRevision: 4 },
-      fullscreenRequest: { activationRevision: 2, currentVersionId: "version-1", revision: 3 },
-    };
-    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      expect(updater(null)).toBeNull();
-      const result = updater(current) as Record<string, unknown>;
-      return { committed: true, snapshot: { val: () => result } };
-    });
-
     await expect(writeFullscreenRequest({} as never, expectedLive)).resolves.toMatchObject({
-      activationRevision: 2,
-      currentVersionId: "version-1",
       revision: 4,
     });
 
-    expect(mocks.runTransaction).toHaveBeenCalledWith(
-      { path: "live/user-1" },
-      expect.any(Function),
-      { applyLocally: false },
-    );
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/fullscreenRequest");
+    expect(mocks.ref).toHaveBeenCalledWith({}, "live/user-1/current");
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
+    for (const [transactionRef] of mocks.runTransaction.mock.calls) {
+      expect(transactionRef).toEqual({ path: "live/user-1/fullscreenRequest" });
+      expect(transactionRef).not.toEqual({ path: "live/user-1" });
+    }
   });
 
-  it("rejects when an uncached null remains the server value", async () => {
+  it("restarts revision at 1 when activation or version changes", async () => {
+    const previousRequests = [
+      { activationRevision: 1, currentVersionId: "version-1", revision: 8 },
+      { activationRevision: 2, currentVersionId: "version-1", revision: 8 },
+    ];
     mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      expect(updater(null)).toBeNull();
-      return { committed: true, snapshot: { val: () => null } };
+      const result = updater(previousRequests.shift());
+      return { committed: true, snapshot: { val: () => result } };
     });
 
-    await expect(
-      writeFullscreenRequest({} as never, {
+    await expect(writeFullscreenRequest({} as never, {
+      publicationId: "publication-1",
+      currentVersionId: "version-1",
+      revision: 2,
+    })).resolves.toEqual({
+      activationRevision: 2, currentVersionId: "version-1", revision: 1,
+    });
+    mocks.get.mockResolvedValue({
+      val: () => ({
         publicationId: "publication-1",
+        currentVersionId: "version-2",
+        revision: 2,
+      }),
+    });
+    await expect(writeFullscreenRequest({} as never, {
+      publicationId: "publication-1",
+      currentVersionId: "version-2",
+      revision: 2,
+    })).resolves.toEqual({
+      activationRevision: 2, currentVersionId: "version-2", revision: 1,
+    });
+  });
+
+  it("rejects a stale publication before starting a request transaction", async () => {
+    mocks.get.mockResolvedValue({
+      val: () => ({
+        publicationId: "publication-new",
         currentVersionId: "version-1",
         revision: 2,
       }),
-    ).rejects.toThrow(/changed/);
-    expect(mocks.set).not.toHaveBeenCalled();
-  });
-
-  it("rejects an uncached null followed by a stale identity without writing", async () => {
-    const stale = {
-      current: {
-        publicationId: "publication-new",
-        currentVersionId: "version-new",
-        revision: 3,
-      },
-      fullscreenRequest: { activationRevision: 3, currentVersionId: "version-new", revision: 2 },
-    };
-    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      expect(updater(null)).toBeNull();
-      expect(updater(stale)).toBeUndefined();
-      return { committed: false, snapshot: { val: () => stale } };
     });
 
-    await expect(
-      writeFullscreenRequest({} as never, {
+    await expect(writeFullscreenRequest({} as never, {
+      publicationId: "publication-old",
+      currentVersionId: "version-1",
+      revision: 2,
+    })).rejects.toThrow("Live session changed before fullscreen request.");
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it("reports a stale Live when rules reject the expected activation or version", async () => {
+    mocks.get.mockResolvedValue({
+      val: () => ({
         publicationId: "publication-old",
         currentVersionId: "version-old",
         revision: 2,
       }),
-    ).rejects.toThrow(/changed/);
-    expect(mocks.set).not.toHaveBeenCalled();
+    });
+    const permissionDenied = Object.assign(new Error("Permission denied"), {
+      code: "PERMISSION_DENIED",
+    });
+    mocks.runTransaction.mockRejectedValue(permissionDenied);
+
+    await expect(writeFullscreenRequest({} as never, {
+      publicationId: "publication-old",
+      currentVersionId: "version-old",
+      revision: 2,
+    })).rejects.toThrow("Live session changed before fullscreen request.");
   });
 
-  it("fails closed for a stale identity without changing projection state", async () => {
-    const current = {
-      activationRevision: 3,
-      current: {
-        publicationId: "publication-new",
-        currentVersionId: "version-new",
-        revision: 3,
-      },
-      controlState: { revision: 8 },
-      playerState: { appliedControlRevision: 7 },
-      fullscreenRequest: { activationRevision: 3, currentVersionId: "version-new", revision: 2 },
-    };
-    mocks.runTransaction.mockImplementation(async (_ref, updater) => {
-      expect(updater(current)).toBeUndefined();
-      return { committed: false, snapshot: { val: () => current } };
+  it("reports when the fullscreen transaction does not commit", async () => {
+    mocks.runTransaction.mockResolvedValue({
+      committed: false,
+      snapshot: { val: () => null },
     });
 
-    await expect(
-      writeFullscreenRequest({} as never, {
-        publicationId: "publication-old",
-        currentVersionId: "version-old",
-        revision: 2,
-      }),
-    ).rejects.toThrow(/changed/);
-    expect(mocks.set).not.toHaveBeenCalled();
+    await expect(writeFullscreenRequest({} as never, {
+      publicationId: "publication-1",
+      currentVersionId: "version-1",
+      revision: 2,
+    })).rejects.toThrow("Fullscreen request transaction did not commit.");
   });
 });

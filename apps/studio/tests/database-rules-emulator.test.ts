@@ -404,6 +404,87 @@ describe("Realtime Database Player pairing rules", () => {
     );
   });
 
+  it("authorizes fullscreen requests at the child path and rejects stale Live identities", async () => {
+    const owner = account("account-fullscreen-request");
+    const otherOwner = account("account-fullscreen-other");
+    const current = owner.ref("live/account-fullscreen-request/current");
+    const request = owner.ref("live/account-fullscreen-request/fullscreenRequest");
+
+    await assertSucceeds(current.set({
+      publicationId: "publication-fullscreen",
+      currentVersionId: "version-1",
+      revision: 1,
+    }));
+
+    const writeRequest = (
+      activationRevision: number,
+      currentVersionId: string,
+    ) => request.transaction((previous) => {
+      const sameIdentity =
+        typeof previous === "object" && previous !== null &&
+        previous.activationRevision === activationRevision &&
+        previous.currentVersionId === currentVersionId;
+      const previousRevision =
+        sameIdentity && typeof previous.revision === "number"
+          ? previous.revision
+          : 0;
+      return {
+        activationRevision,
+        currentVersionId,
+        revision: sameIdentity ? previousRevision + 1 : 1,
+      };
+    });
+
+    await assertSucceeds(writeRequest(1, "version-1"));
+    expect((await request.once("value")).val()).toEqual({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 1,
+    });
+    await assertSucceeds(writeRequest(1, "version-1"));
+    expect((await request.once("value")).val()).toEqual({
+      activationRevision: 1,
+      currentVersionId: "version-1",
+      revision: 2,
+    });
+
+    await assertSucceeds(current.set({
+      publicationId: "publication-fullscreen",
+      currentVersionId: "version-1",
+      revision: 2,
+    }));
+    await assertSucceeds(writeRequest(2, "version-1"));
+    expect((await request.once("value")).val()).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-1",
+      revision: 1,
+    });
+
+    await assertSucceeds(current.set({
+      publicationId: "publication-fullscreen",
+      currentVersionId: "version-2",
+      revision: 2,
+    }));
+    await assertSucceeds(writeRequest(2, "version-2"));
+    expect((await request.once("value")).val()).toEqual({
+      activationRevision: 2,
+      currentVersionId: "version-2",
+      revision: 1,
+    });
+
+    await assertFails(writeRequest(1, "version-2"));
+    await assertFails(writeRequest(2, "version-1"));
+    await assertFails(
+      otherOwner
+        .ref("live/account-fullscreen-request/fullscreenRequest")
+        .transaction(() => ({
+          activationRevision: 2,
+          currentVersionId: "version-2",
+          revision: 2,
+        })),
+    );
+  });
+
   it("lets an account query and remove only its own Player bindings", async () => {
     const ownerA = account("account-bindings-a");
     const ownerB = account("account-bindings-b");
