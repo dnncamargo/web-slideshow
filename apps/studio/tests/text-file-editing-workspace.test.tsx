@@ -23,6 +23,7 @@ class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
   callback: ResizeObserverCallback;
   element: Element | null = null;
+  lastObservedElement: Element | null = null;
 
   constructor(callback: ResizeObserverCallback) {
     this.callback = callback;
@@ -31,6 +32,7 @@ class ResizeObserverMock {
 
   observe(element: Element): void {
     this.element = element;
+    this.lastObservedElement = element;
   }
 
   disconnect(): void {
@@ -39,6 +41,10 @@ class ResizeObserverMock {
 
   notify(): void {
     if (this.element) this.callback([], this as unknown as ResizeObserver);
+  }
+
+  notifyPending(): void {
+    if (this.lastObservedElement) this.callback([], this as unknown as ResizeObserver);
   }
 }
 
@@ -494,6 +500,44 @@ describe("Presentation text file editing workspace", () => {
     await act(async () => remountedObserver.notify());
     expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
     expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.height).toBe("270px");
+  });
+
+  it("restores canvas geometry after leaving scripted source editing", async () => {
+    const initialViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const initialObserver = ResizeObserverMock.instances[0];
+    if (!initialViewport || !initialObserver) throw new Error("Initial canvas measurement was not installed");
+
+    Object.defineProperty(initialViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(initialViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => initialObserver.notify());
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+    expect(host.querySelector(".presentation-slide")).not.toBeNull();
+
+    const scriptedElement = host.querySelector<HTMLElement>("[data-presentation-id='scripted']");
+    if (!scriptedElement) throw new Error("Scripted element was not rendered");
+    await act(async () => scriptedElement.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    const sourceEditButton = host.querySelector<HTMLButtonElement>("[data-scripted-source-edit='html']");
+    if (!sourceEditButton) throw new Error("Scripted source Edit button was not rendered");
+    await act(async () => sourceEditButton.click());
+    expect(host.querySelector("[data-structured-text-editor]")).not.toBeNull();
+    expect(host.querySelector("[class*='canvasViewport']")).toBeNull();
+
+    Object.defineProperty(initialViewport, "clientWidth", { configurable: true, value: 0 });
+    Object.defineProperty(initialViewport, "clientHeight", { configurable: true, value: 0 });
+    await act(async () => initialObserver.notifyPending());
+    await exitTextEditing();
+
+    const remountedViewport = host.querySelector<HTMLElement>("[class*='canvasViewport']");
+    const remountedObserver = ResizeObserverMock.instances.find((observer) => observer.element === remountedViewport);
+    if (!remountedViewport || !remountedObserver) throw new Error("Canvas measurement was not rebound after scripted source editing");
+
+    Object.defineProperty(remountedViewport, "clientWidth", { configurable: true, value: 544 });
+    Object.defineProperty(remountedViewport, "clientHeight", { configurable: true, value: 334 });
+    await act(async () => remountedObserver.notify());
+
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.width).toBe("480px");
+    expect(host.querySelector<HTMLElement>("[class*='canvasStage']")?.style.height).toBe("270px");
+    expect(host.querySelector(".presentation-slide")).not.toBeNull();
   });
 
   it("destroys and recreates the transient editor across exit and re-entry", async () => {
