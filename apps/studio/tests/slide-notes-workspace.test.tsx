@@ -18,13 +18,16 @@ function ControlledNotes({
   status?: "idle" | "loading" | "error" | "ready";
 }) {
   const [slideNotes, setSlideNotes] = useState(initialSlideNotes);
+  const [showPointedNoteMarkers, setShowPointedNoteMarkers] = useState(true);
 
   return (
     <StudioI18nProvider>
       <SlideNotesWorkspace
         slideNotes={slideNotes}
+        showPointedNoteMarkers={showPointedNoteMarkers}
         status={status}
         hasCurrentSaveError={false}
+        onShowPointedNoteMarkersChange={setShowPointedNoteMarkers}
         onAddPointedNote={() =>
           setSlideNotes((current) => ({
             ...current,
@@ -88,6 +91,16 @@ describe("SlideNotesWorkspace", () => {
     expect(container.querySelectorAll("textarea")).toHaveLength(0);
     expect(container.textContent).toContain("No pointed notes.");
     expect(container.textContent).not.toContain("[1]");
+
+    const markersToggle = container.querySelector<HTMLInputElement>(
+      "[data-pointed-markers-toggle]",
+    );
+    expect(markersToggle?.checked).toBe(true);
+    expect(markersToggle?.closest("aside")?.textContent?.indexOf("Show pointers"))
+      .toBeLessThan(container.textContent?.indexOf("No pointed notes.") ?? -1);
+    act(() => markersToggle?.click());
+    expect(container.querySelector<HTMLInputElement>("[data-pointed-markers-toggle]")?.checked)
+      .toBe(false);
 
     const addButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "+",

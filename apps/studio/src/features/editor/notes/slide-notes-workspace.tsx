@@ -9,8 +9,10 @@ import styles from "./slide-notes-workspace.module.css";
 
 interface SlideNotesWorkspaceProps {
   slideNotes: SlideNotes;
+  showPointedNoteMarkers: boolean;
   status: EditorNotesStatus;
   hasCurrentSaveError: boolean;
+  onShowPointedNoteMarkersChange: (visible: boolean) => void;
   onAddPointedNote: () => void;
   onPointedNoteChange: (pointedNoteId: string, text: string) => void;
   onRemovePointedNote: (pointedNoteId: string) => void;
@@ -18,8 +20,10 @@ interface SlideNotesWorkspaceProps {
 
 export function SlideNotesWorkspace({
   slideNotes,
+  showPointedNoteMarkers,
   status,
   hasCurrentSaveError,
+  onShowPointedNoteMarkersChange,
   onAddPointedNote,
   onPointedNoteChange,
   onRemovePointedNote,
@@ -65,6 +69,18 @@ export function SlideNotesWorkspace({
       </div>
 
       <div className={styles.notesContent}>
+        <label className={styles.pointedMarkersToggle}>
+          <input
+            type="checkbox"
+            checked={showPointedNoteMarkers}
+            onChange={(event) =>
+              onShowPointedNoteMarkersChange(event.target.checked)
+            }
+            aria-label={t("notes.showPointedMarkers")}
+            data-pointed-markers-toggle
+          />
+          <span>{t("notes.showPointedMarkers")}</span>
+        </label>
         {slideNotes.pointed.length === 0 ? (
           <p className={styles.pointedNotesEmpty}>{t("notes.noPointed")}</p>
         ) : (

@@ -226,9 +226,14 @@ describe("EditorWorkspace slide geometry", () => {
     setViewportSize(viewport, 1024, 604);
     await act(async () => { await Promise.resolve(); });
 
-    const toggle = container.querySelector<HTMLButtonElement>("[data-pointed-markers-toggle]");
+    const notesToggle = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Notes",
+    );
+    act(() => notesToggle?.click());
+
+    const toggle = container.querySelector<HTMLInputElement>("[data-pointed-markers-toggle]");
     const markerSelector = "[data-pointed-note-marker]";
-    expect(toggle?.getAttribute("aria-pressed")).toBe("true");
+    expect(toggle?.checked).toBe(true);
     expect(container.querySelectorAll(markerSelector)).toHaveLength(1);
 
     act(() => toggle?.click());

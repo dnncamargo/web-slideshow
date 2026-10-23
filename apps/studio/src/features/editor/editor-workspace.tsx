@@ -7349,20 +7349,6 @@ export function EditorWorkspace({
                 {t("notes.toggle")}
               </button>
 
-              <button
-                type="button"
-                className={
-                  showPointedNoteMarkers
-                    ? `${styles.notesToggle} ${styles.notesToggleActive}`
-                    : styles.notesToggle
-                }
-                aria-pressed={showPointedNoteMarkers}
-                data-pointed-markers-toggle
-                onClick={() => setShowPointedNoteMarkers((visible) => !visible)}
-              >
-                {t("notes.showPointedMarkers")}
-              </button>
-
               <span>{presentation.aspectRatio}</span>
             </span>
           </div>
@@ -7646,8 +7632,10 @@ export function EditorWorkspace({
         {rightPanelMode === "notes" ? (
           <SlideNotesWorkspace
             slideNotes={editorNotes.slideNotes}
+            showPointedNoteMarkers={showPointedNoteMarkers}
             status={editorNotes.status}
             hasCurrentSaveError={editorNotes.hasCurrentSaveError}
+            onShowPointedNoteMarkersChange={setShowPointedNoteMarkers}
             onAddPointedNote={editorNotes.onAddPointedNote}
             onPointedNoteChange={editorNotes.onPointedNoteChange}
             onRemovePointedNote={editorNotes.onRemovePointedNote}
