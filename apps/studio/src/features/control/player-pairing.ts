@@ -7,6 +7,7 @@ import {
   ref,
   remove,
   runTransaction,
+  set,
   update,
   type Database,
   type Unsubscribe,
@@ -297,7 +298,10 @@ export async function saveOwnedPlayerDisplayName(
     throw new Error("That Player is not paired to this account.");
   }
 
-  await update(bindingRef, { displayName });
+  await set(
+    ref(database, `${bindingPath(canonicalPlayerUid)}/displayName`),
+    displayName,
+  );
 }
 
 export async function disconnectOwnedPlayer(

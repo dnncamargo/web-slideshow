@@ -79,7 +79,13 @@ export function MaintenancePage() {
     Record<string, string>
   >({});
   const [playerNameSaveStates, setPlayerNameSaveStates] = useState<
-    Record<string, { kind: "saving" } | { kind: "saved" } | { kind: "error" }>
+    Record<
+      string,
+      | { kind: "saving" }
+      | { kind: "saved" }
+      | { kind: "invalid" }
+      | { kind: "error" }
+    >
   >({});
   const [disconnectingPlayerUid, setDisconnectingPlayerUid] = useState<
     string | null
@@ -466,7 +472,7 @@ export function MaintenancePage() {
     if (displayName === null) {
       setPlayerNameSaveStates((current) => ({
         ...current,
-        [playerUid]: { kind: "error" },
+        [playerUid]: { kind: "invalid" },
       }));
       return;
     }
@@ -692,11 +698,17 @@ export function MaintenancePage() {
                           Saved
                         </span>
                       )}
-                      {saveState?.kind === "error" && (
+                      {saveState?.kind === "invalid" && (
                         <span className={styles.playerNameError} role="alert">
                           Enter a name with 1 to{" "}
                           {PLAYER_DISPLAY_NAME_MAX_LENGTH} characters, then try
                           again.
+                        </span>
+                      )}
+                      {saveState?.kind === "error" && (
+                        <span className={styles.playerNameError} role="alert">
+                          Could not save Player name. Check your connection and
+                          try again.
                         </span>
                       )}
                     </form>

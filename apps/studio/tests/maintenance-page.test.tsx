@@ -344,6 +344,71 @@ describe("Maintenance page", () => {
     confirm.mockRestore();
   });
 
+  it("shows validation feedback only when the Player name is invalid", async () => {
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([{ playerUid: "player-owned-1" }]);
+        return vi.fn();
+      },
+    );
+    render();
+
+    const input = container.querySelector<HTMLInputElement>(
+      "[data-player-name-input]",
+    );
+    if (input === null) throw new Error("expected the Player name input");
+    act(() => changeInputValue(input, "   "));
+
+    const form = input.closest("form");
+    if (form === null) throw new Error("expected the Player name form");
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(container.textContent).toContain(
+      "Enter a name with 1 to 40 characters, then try again.",
+    );
+    expect(mocks.saveOwnedPlayerDisplayName).not.toHaveBeenCalled();
+  });
+
+  it("shows a persistence error separately from invalid-name feedback", async () => {
+    mocks.subscribeOwnedPlayerBindings.mockImplementation(
+      (_database, onPlayers) => {
+        pairedPlayersCallback = onPlayers;
+        onPlayers([{ playerUid: "player-owned-1" }]);
+        return vi.fn();
+      },
+    );
+    mocks.saveOwnedPlayerDisplayName.mockRejectedValueOnce(
+      new Error("permission_denied"),
+    );
+    render();
+
+    const input = container.querySelector<HTMLInputElement>(
+      "[data-player-name-input]",
+    );
+    if (input === null) throw new Error("expected the Player name input");
+    act(() => changeInputValue(input, "Valid name"));
+
+    const form = input.closest("form");
+    if (form === null) throw new Error("expected the Player name form");
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(container.textContent).toContain(
+      "Could not save Player name. Check your connection and try again.",
+    );
+    expect(container.textContent).not.toContain(
+      "Enter a name with 1 to 40 characters",
+    );
+  });
+
   it("shows saved Player names for matching connected leases and UID fallback otherwise", () => {
     mocks.subscribeOwnedPlayerBindings.mockImplementation(
       (_database, onPlayers) => {
