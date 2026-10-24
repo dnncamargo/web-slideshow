@@ -9,7 +9,11 @@ import type {
   CustomLibraryFileRepresentation,
 } from "./custom-library-file";
 
-export const CUSTOM_LIBRARY_FILE_ACCEPT = Object.keys(MANAGED_ASSET_EXTENSIONS).join(",");
+const INSTALLABLE_FONT_EXTENSIONS = new Set([".ttf", ".otf", ".woff", ".woff2"]);
+
+export const CUSTOM_LIBRARY_FILE_ACCEPT = Object.keys(MANAGED_ASSET_EXTENSIONS)
+  .filter((extension) => !INSTALLABLE_FONT_EXTENSIONS.has(extension))
+  .join(",");
 
 export interface SupportedFileNameClassification {
   extension: string;
@@ -50,5 +54,16 @@ export function classifyCustomLibraryFile(
     throw new UnsupportedCustomLibraryFileError(file.name);
   }
 
+  return classification;
+}
+
+/** Classifies new generic uploads while reserving installable font uploads for Fonts. */
+export function classifyCustomLibraryFileUpload(
+  file: Pick<File, "name" | "type">,
+): CustomLibraryFileClassification {
+  const classification = classifyCustomLibraryFile(file);
+  if (classification.kind === "font") {
+    throw new UnsupportedCustomLibraryFileError(file.name);
+  }
   return classification;
 }

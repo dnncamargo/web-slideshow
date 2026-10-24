@@ -65,6 +65,30 @@ describe("addCustomLibraryFileToPresentation", () => {
     expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
   });
 
+  it("keeps a legacy font-category file as a file and never promotes it to an installed font", () => {
+    const original = presentation({ resources: { fonts: [{
+      id: "existing-font",
+      family: "Existing Sans",
+      source: { type: "url", url: "https://cdn.example.com/existing.woff2", format: "woff2" },
+    }] } });
+    const result = addCustomLibraryFileToPresentation(original, record("legacy-font", {
+      name: "Legacy face",
+      kind: "font",
+      representation: "binary",
+      source: { ...librarySource, contentType: "font/woff2" },
+    }));
+
+    expect(result.kind).toBe("added");
+    if (result.kind !== "added") return;
+    expect(result.presentation.resources?.files?.[0]).toMatchObject({
+      kind: "font",
+      representation: "binary",
+      contentType: "font/woff2",
+    });
+    expect(result.presentation.resources?.fonts).toEqual(original.resources?.fonts);
+    expect(result.presentation.resources?.fonts).toHaveLength(1);
+  });
+
   it("requires text content and stores it instead of the Blob URL", () => {
     const textFile = record("text-record", {
       name: "Workshop notes",

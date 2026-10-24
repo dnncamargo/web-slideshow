@@ -194,4 +194,29 @@ describe("ManagedAssetAvailabilityControl", () => {
     expect(container.textContent).toContain("Unverified");
     expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Reconcile missing asset")).toBe(false);
   });
+
+  it.each([
+    ["an HTTP error", async () => new Response(JSON.stringify({ state: "missing", storeId: "test-store" }), { status: 503 })],
+    ["a malformed response", async () => new Response("not-json", { status: 200 })],
+    ["a response without a Store identity", async () => Response.json({ state: "available" })],
+  ])("keeps the resource unverified after %s", async (_label, makeResponse) => {
+    vi.stubGlobal("fetch", vi.fn(makeResponse));
+    const container = render("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png", {
+      assetName: "Fixture file", associations: ["Fixture file (File)"], onComplete: vi.fn(),
+    });
+    await act(async () => { container.querySelector("button")?.click(); });
+    expect(container.textContent).toContain("Unverified");
+    expect(container.textContent).not.toContain("Source missing");
+    expect(container.textContent).not.toContain("Available");
+    expect(Array.from(container.querySelectorAll("button")).some((button) => button.textContent === "Reconcile missing asset")).toBe(false);
+  });
+
+  it("keeps network failures unverified", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network failure")));
+    const container = render("users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.png");
+    await act(async () => { container.querySelector("button")?.click(); });
+    expect(container.textContent).toContain("Unverified");
+    expect(container.textContent).not.toContain("Available");
+    expect(container.textContent).not.toContain("Source missing");
+  });
 });
