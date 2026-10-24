@@ -135,3 +135,42 @@ test("the generated demo asset visibly uses the configured instance name", () =>
   assert.match(svg, /Batata Chip/);
   assert.doesNotMatch(svg, new RegExp(["Power", "Show"].join("")));
 });
+
+test("build asset preparation generates the demo SVG for Studio and Player", () => {
+  const directory = createConfigDirectory("Build & Present");
+  try {
+    const configPath = path.join(directory, "instance.json");
+    const env = {
+      ...process.env,
+      WEB_SLIDESHOW_INSTANCE_CONFIG: configPath,
+      WEB_SLIDESHOW_ASSET_ROOT: directory,
+    };
+    delete env.WEB_SLIDESHOW_DISPLAY_NAME;
+
+    const result = spawnSync(
+      process.execPath,
+      [path.join(root, "tools", "generate-instance-demo-assets.mjs")],
+      { cwd: root, env, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Build & Present/);
+
+    for (const application of ["studio", "player"]) {
+      const assetPath = path.join(directory, "apps", application, "public", "instance-demo.svg");
+      assert.equal(fs.existsSync(assetPath), true, `${application} demo SVG was not generated`);
+      const svg = fs.readFileSync(assetPath, "utf8");
+      assert.ok(svg.includes("<svg xmlns="));
+      assert.match(svg, /Build &amp; Present demo image/);
+    }
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Studio and Player run demo asset generation before their production builds", () => {
+  const studioPackage = JSON.parse(fs.readFileSync(path.join(root, "apps", "studio", "package.json"), "utf8"));
+  const playerPackage = JSON.parse(fs.readFileSync(path.join(root, "apps", "player", "package.json"), "utf8"));
+
+  assert.equal(studioPackage.scripts.build, "node ../../tools/generate-instance-demo-assets.mjs && next build");
+  assert.equal(playerPackage.scripts.build, "node ../../tools/generate-instance-demo-assets.mjs && vite build");
+});
