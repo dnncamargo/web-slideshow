@@ -136,7 +136,6 @@ test("the generated demo asset visibly uses the configured instance name", () =>
   assert.doesNotMatch(svg, new RegExp(["Power", "Show"].join("")));
 });
 
-
 test("build asset preparation generates the demo SVG for Studio and Player", () => {
   const directory = createConfigDirectory("Build & Present");
   try {
@@ -160,7 +159,7 @@ test("build asset preparation generates the demo SVG for Studio and Player", () 
       const assetPath = path.join(directory, "apps", application, "public", "instance-demo.svg");
       assert.equal(fs.existsSync(assetPath), true, `${application} demo SVG was not generated`);
       const svg = fs.readFileSync(assetPath, "utf8");
-      assert.match(svg, /<svg\\b/);
+      assert.ok(svg.includes("<svg xmlns="));
       assert.match(svg, /Build &amp; Present demo image/);
     }
   } finally {
@@ -172,6 +171,6 @@ test("Studio and Player run demo asset generation before their production builds
   const studioPackage = JSON.parse(fs.readFileSync(path.join(root, "apps", "studio", "package.json"), "utf8"));
   const playerPackage = JSON.parse(fs.readFileSync(path.join(root, "apps", "player", "package.json"), "utf8"));
 
-  assert.match(studioPackage.scripts.build, /^node \.\.\/\.\.\/tools\/generate-instance-demo-assets\\.mjs && next build$/);
-  assert.match(playerPackage.scripts.build, /^node \.\.\/\.\.\/tools\/generate-instance-demo-assets\\.mjs && vite build$/);
+  assert.equal(studioPackage.scripts.build, "node ../../tools/generate-instance-demo-assets.mjs && next build");
+  assert.equal(playerPackage.scripts.build, "node ../../tools/generate-instance-demo-assets.mjs && vite build");
 });
