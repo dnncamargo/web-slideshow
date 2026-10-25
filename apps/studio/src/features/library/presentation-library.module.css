@@ -808,6 +808,10 @@
 }
 
 .customLibraryFontFaceRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   color: var(--ps-ui-text-secondary);
   font-size: 12px;
 }
