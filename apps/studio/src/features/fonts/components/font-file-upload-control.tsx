@@ -5,7 +5,7 @@ import {
   type FontFaceResource,
 } from "@web-slideshow/document-schema";
 
-import { uploadManagedAsset } from "@/features/persistence/managed-asset-storage";
+import { uploadManagedFontAsset } from "@/features/persistence/managed-asset-storage";
 import {
   classifyManagedAssetFilename,
   type ManagedAssetContentType,
@@ -205,10 +205,10 @@ export function FontFileUploadControl({
     onUploadingChange?.(true);
 
     try {
-      let upload: Awaited<ReturnType<typeof uploadManagedAsset>>;
+      let upload: Awaited<ReturnType<typeof uploadManagedFontAsset>>;
 
       try {
-        upload = await uploadManagedAsset(file, {
+        upload = await uploadManagedFontAsset(file, {
           contentType: resolvedFile.contentType,
         });
       } catch (error) {

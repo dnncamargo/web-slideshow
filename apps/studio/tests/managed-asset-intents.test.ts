@@ -94,6 +94,7 @@ import {
   ManagedAssetPhysicalCheckError,
   reconcileManagedAssetIntent,
 } from "../src/features/persistence/managed-asset-intents";
+import { classifyManagedAssetExtension } from "../src/features/persistence/managed-asset-content-types";
 
 const intentInput = {
   assetId: "123e4567-e89b-12d3-a456-426614174000",
@@ -116,30 +117,168 @@ beforeEach(() => {
 
 describe("managed asset durable intents", () => {
   it("persists a canonical intent and reuses its stable identity", async () => {
-    const first = await createManagedAssetIntent("owner", intentInput);
-    const retry = await createManagedAssetIntent("owner", intentInput);
+    const first = await createManagedAssetIntent("owner", intentInput, "fonts");
+    const retry = await createManagedAssetIntent("owner", intentInput, "fonts");
 
     expect(first.storagePath).toBe(`users/owner/assets/${intentInput.assetId}.ttf`);
     expect(retry.assetId).toBe(first.assetId);
+    expect(retry.purpose).toBe("fonts");
     expect(state.documents.size).toBe(1);
     expect(await getManagedAssetIntent("other-owner", intentInput.assetId)).toBeNull();
   });
 
   it("rejects an intent identity reused with a different descriptor", async () => {
-    await createManagedAssetIntent("owner", intentInput);
-    await expect(createManagedAssetIntent("owner", { ...intentInput, expectedSizeBytes: 24 })).rejects.toThrow("identity_conflict");
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await expect(createManagedAssetIntent("owner", { ...intentInput, expectedSizeBytes: 24 }, "fonts")).rejects.toThrow("identity_conflict");
     expect(state.documents.size).toBe(1);
   });
 
+  it.each([".ttf", ".otf", ".woff", ".woff2"])("rejects generic intent creation for font extension %s", async (extension) => {
+    const classification = classifyManagedAssetExtension(extension)!;
+    await expect(createManagedAssetIntent("owner", {
+      ...intentInput,
+      originalFilename: `font${extension}`,
+      extension,
+      contentType: classification.contentType,
+    }, "generic")).rejects.toThrow("invalid_type");
+    expect(state.documents.size).toBe(0);
+  });
+
+  it("persists Fonts purpose and prevents changing it through an idempotent retry", async () => {
+    const fontIntent = await createManagedAssetIntent("owner", intentInput, "fonts");
+    expect(fontIntent.purpose).toBe("fonts");
+    await expect(createManagedAssetIntent("owner", intentInput, "generic")).rejects.toThrow("invalid_type");
+    await expect(createManagedAssetIntent("owner", {
+      ...intentInput,
+      originalFilename: "image.png",
+      extension: ".png",
+      contentType: "image/png",
+    }, "generic")).rejects.toThrow("identity_conflict");
+    expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.purpose).toBe("fonts");
+  });
+
+  it("continues to create generic non-font intents", async () => {
+    const genericInput = { ...intentInput, originalFilename: "image.png", extension: ".png", contentType: "image/png" };
+    await expect(createManagedAssetIntent("owner", genericInput, "generic")).resolves.toMatchObject({ purpose: "generic" });
+    await expect(authorizeManagedAssetUpload("owner", genericInput.assetId, `users/owner/assets/${genericInput.assetId}.png`, "image/png", 23, "generic"))
+      .resolves.toBe("authorized");
+    await expect(authorizeManagedAssetUpload("owner", genericInput.assetId, `users/owner/assets/${genericInput.assetId}.png`, "image/png", 23, "fonts"))
+      .rejects.toThrow("intent_mismatch");
+  });
+
+  it.each([".ttf", ".otf", ".woff2"])("creates a Fonts intent for supported format %s", async (extension) => {
+    const classification = classifyManagedAssetExtension(extension)!;
+    await expect(createManagedAssetIntent("owner", {
+      ...intentInput,
+      originalFilename: `font${extension}`,
+      extension,
+      contentType: classification.contentType,
+    }, "fonts")).resolves.toMatchObject({ purpose: "fonts", extension });
+  });
+
+  it("does not add .woff to the dedicated Fonts formats", async () => {
+    await expect(createManagedAssetIntent("owner", {
+      ...intentInput,
+      originalFilename: "font.woff",
+      extension: ".woff",
+      contentType: "font/woff",
+    }, "fonts")).rejects.toThrow("invalid_type");
+  });
+
+  it("does not authorize a Fonts intent as generic or authorize an old intent without purpose", async () => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "generic"))
+      .rejects.toThrow("intent_mismatch");
+
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    delete stored.purpose;
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts"))
+      .rejects.toThrow("intent_mismatch");
+    expect(stored.state).toBe("pending");
+  });
+
+  it("reconciles an old purpose-less intent only when authoritative Blob metadata proves completion", async () => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    delete stored.purpose;
+    state.physical = {
+      pathname: `users/owner/assets/${intentInput.assetId}.ttf`,
+      contentType: "font/ttf",
+      size: 23,
+      etag: "0123456789abcdef0123456789abcdef",
+      downloadUrl: "https://blob.test/verified.ttf",
+    };
+
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts"))
+      .resolves.toBe("complete");
+    expect(stored.state).toBe("complete");
+  });
+
+  it.each([
+    ["assetId", "123e4567-e89b-12d3-a456-426614174001"],
+    ["storagePath", "users/owner/assets/other.ttf"],
+    ["extension", ".otf"],
+    ["contentType", "font/otf"],
+    ["purpose", "generic"],
+  ])("does not reconcile an intent with inconsistent physical identity field %s", async (field, value) => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    stored[field] = value;
+    state.physical = {
+      pathname: `users/owner/assets/${intentInput.assetId}.ttf`,
+      contentType: "font/ttf",
+      size: 23,
+      etag: "0123456789abcdef0123456789abcdef",
+      downloadUrl: "https://blob.test/verified.ttf",
+    };
+
+    await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "conflict" });
+    expect(state.head).not.toHaveBeenCalled();
+  });
+
+  it("keeps old uploading intents uncertain after lease expiry and does not authorize another transfer", async () => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    delete stored.purpose;
+    stored.state = "uploading";
+    stored.leaseExpiresAt = Timestamp.fromMillis(Date.now() - 1);
+
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts"))
+      .resolves.toBe("uncertain");
+    expect(stored.state).toBe("uncertain");
+  });
+
+  it("keeps old uncertain intents from receiving another transfer authorization", async () => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    delete stored.purpose;
+    stored.state = "uncertain";
+
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts"))
+      .resolves.toBe("uncertain");
+    expect(stored.state).toBe("uncertain");
+  });
+
+  it("preserves old conflict state and does not issue transfer authorization", async () => {
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    const stored = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
+    delete stored.purpose;
+    stored.state = "conflict";
+
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts"))
+      .rejects.toThrow("intent_conflict");
+    expect(stored.state).toBe("conflict");
+  });
+
   it("authorizes only the matching owner's durable intent before token issuance", async () => {
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).rejects.toThrow("intent_mismatch");
-    await createManagedAssetIntent("owner", intentInput);
-    await expect(authorizeManagedAssetUpload("other-owner", intentInput.assetId, `users/other-owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).rejects.toThrow("intent_mismatch");
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("authorized");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).rejects.toThrow("intent_mismatch");
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await expect(authorizeManagedAssetUpload("other-owner", intentInput.assetId, `users/other-owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).rejects.toThrow("intent_mismatch");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("authorized");
   });
 
   it("finalizes from authoritative matching physical metadata and is idempotent", async () => {
-    await createManagedAssetIntent("owner", intentInput);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
     state.physical = {
       pathname: `users/owner/assets/${intentInput.assetId}.ttf`,
       contentType: "font/ttf",
@@ -165,7 +304,7 @@ describe("managed asset durable intents", () => {
     { etag: "invalid etag" },
     { pathname: "users/owner/assets/other.ttf" },
   ])("marks conflicting physical metadata as conflict", async (override) => {
-    await createManagedAssetIntent("owner", intentInput);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
     state.physical = {
       pathname: `users/owner/assets/${intentInput.assetId}.ttf`,
       contentType: "font/ttf",
@@ -178,20 +317,20 @@ describe("managed asset durable intents", () => {
   });
 
   it("never treats lease expiration plus Blob absence as proof that a transfer stopped", async () => {
-    await createManagedAssetIntent("owner", intentInput);
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("authorized");
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("authorized");
     const document = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
     document.leaseExpiresAt = Timestamp.fromMillis(Date.now() - 1);
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("uncertain");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("uncertain");
     expect(document.state).toBe("uncertain");
     expect(document.leaseExpiresAt).toBeInstanceOf(Timestamp);
     expect(state.head).toHaveBeenCalledWith(`users/owner/assets/${intentInput.assetId}.ttf`);
   });
 
   it("preserves a pending intent after a transient provider check failure and retries the same identity", async () => {
-    await createManagedAssetIntent("owner", intentInput);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
     state.head.mockRejectedValueOnce(new Error("provider unavailable"));
 
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).rejects.toBeInstanceOf(ManagedAssetPhysicalCheckError);
@@ -204,12 +343,13 @@ describe("managed asset durable intents", () => {
       `users/owner/assets/${intentInput.assetId}.ttf`,
       "font/ttf",
       23,
+      "fonts",
     )).resolves.toBe("authorized");
     expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.state).toBe("uploading");
   });
 
   it("does not let stale transient reconciliation overwrite concurrent authorization", async () => {
-    await createManagedAssetIntent("owner", intentInput);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
     let rejectStaleHead!: (reason: unknown) => void;
     let signalHeadStarted!: () => void;
     const headStarted = new Promise<void>((resolve) => { signalHeadStarted = resolve; });
@@ -227,6 +367,7 @@ describe("managed asset durable intents", () => {
       `users/owner/assets/${intentInput.assetId}.ttf`,
       "font/ttf",
       23,
+      "fonts",
     )).resolves.toBe("authorized");
 
     rejectStaleHead(new Error("stale provider failure"));
@@ -235,30 +376,30 @@ describe("managed asset durable intents", () => {
   });
 
   it("keeps an expired upload lease uncertain after a provider error", async () => {
-    await createManagedAssetIntent("owner", intentInput);
-    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts");
     const document = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
     document.leaseExpiresAt = Timestamp.fromMillis(Date.now() - 1);
     state.head.mockRejectedValueOnce(new Error("provider unavailable"));
 
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("uncertain");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("uncertain");
     expect(document.state).toBe("uncertain");
   });
 
   it("keeps active operations from issuing a repeated token and persists provider uncertainty", async () => {
-    await createManagedAssetIntent("owner", intentInput);
-    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23);
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("in_progress");
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("in_progress");
     state.head.mockRejectedValueOnce(new Error("provider unavailable"));
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });
     expect(state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)?.state).toBe("uncertain");
-    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23)).resolves.toBe("uncertain");
+    await expect(authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts")).resolves.toBe("uncertain");
   });
 
   it("finalizes a delayed completion callback after the lease expires", async () => {
-    await createManagedAssetIntent("owner", intentInput);
-    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23);
+    await createManagedAssetIntent("owner", intentInput, "fonts");
+    await authorizeManagedAssetUpload("owner", intentInput.assetId, `users/owner/assets/${intentInput.assetId}.ttf`, "font/ttf", 23, "fonts");
     const document = state.documents.get(`users/owner/managedAssets/${intentInput.assetId}`)!;
     document.leaseExpiresAt = Timestamp.fromMillis(Date.now() - 1);
     await expect(reconcileManagedAssetIntent("owner", intentInput.assetId)).resolves.toEqual({ status: "uncertain" });

@@ -10,6 +10,8 @@ const ETAG_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,512}$/;
 const ACTIVE_UPLOAD_LEASE_MS = 2 * 60 * 1000;
 
 export type ManagedAssetIntentState = "pending" | "uploading" | "uncertain" | "complete" | "conflict" | "deleted";
+export type ManagedAssetUploadPurpose = "generic" | "fonts";
+const FONT_UPLOAD_EXTENSIONS = new Set([".ttf", ".otf", ".woff2"]);
 
 export interface ManagedAssetIntentInput {
   assetId: string;
@@ -21,6 +23,8 @@ export interface ManagedAssetIntentInput {
 }
 
 export interface ManagedAssetIntent extends ManagedAssetIntentInput {
+  /** Missing only on intents persisted before upload purposes were introduced. */
+  purpose?: ManagedAssetUploadPurpose;
   storagePath: string;
   state: ManagedAssetIntentState;
   downloadUrl?: string;
@@ -71,8 +75,14 @@ function validateIntentInput(input: ManagedAssetIntentInput, uid: string): strin
   return `users/${uid}/assets/${input.assetId}${classification.extension}`;
 }
 
-function descriptorMatches(data: Record<string, unknown>, input: ManagedAssetIntentInput, storagePath: string): boolean {
+function descriptorMatches(
+  data: Record<string, unknown>,
+  input: ManagedAssetIntentInput,
+  storagePath: string,
+  purpose: ManagedAssetUploadPurpose | undefined,
+): boolean {
   return data.assetId === input.assetId
+    && data.purpose === purpose
     && data.storagePath === storagePath
     && data.originalFilename === input.originalFilename
     && data.extension === input.extension
@@ -81,8 +91,16 @@ function descriptorMatches(data: Record<string, unknown>, input: ManagedAssetInt
     && data.sourceLastModified === input.sourceLastModified;
 }
 
-export async function createManagedAssetIntent(uid: string, input: ManagedAssetIntentInput): Promise<ManagedAssetIntent> {
+export async function createManagedAssetIntent(
+  uid: string,
+  input: ManagedAssetIntentInput,
+  purpose: ManagedAssetUploadPurpose,
+): Promise<ManagedAssetIntent> {
+  if (purpose !== "generic" && purpose !== "fonts") throw new Error("invalid_type");
   const storagePath = validateIntentInput(input, uid);
+  const classification = classifyManagedAssetExtension(input.extension)!;
+  if (purpose === "generic" && classification.category === "font") throw new Error("invalid_type");
+  if (purpose === "fonts" && !FONT_UPLOAD_EXTENSIONS.has(classification.extension)) throw new Error("invalid_type");
   const canonicalInput = {
     ...input,
     extension: classifyManagedAssetExtension(input.extension)!.extension,
@@ -98,11 +116,12 @@ export async function createManagedAssetIntent(uid: string, input: ManagedAssetI
     const snapshot = await transaction.get(ref);
     if (snapshot.exists) {
       const data = snapshot.data() as Record<string, unknown>;
-      if (!descriptorMatches(data, canonicalInput, storagePath)) throw new Error("identity_conflict");
+      if (!descriptorMatches(data, canonicalInput, storagePath, purpose)) throw new Error("identity_conflict");
       return data as unknown as ManagedAssetIntent;
     }
     const intent: ManagedAssetIntent = {
       ...canonicalInput,
+      purpose,
       storagePath,
       state: "pending",
     };
@@ -141,9 +160,25 @@ function metadataMatches(intent: ManagedAssetIntent, physical: HeadBlobResult): 
     && physical.downloadUrl.length > 0;
 }
 
+function hasConsistentPhysicalIdentity(uid: string, assetId: string, intent: ManagedAssetIntent): boolean {
+  const classification = classifyManagedAssetExtension(intent.extension);
+  if (
+    !classification
+    || intent.assetId !== assetId
+    || intent.extension !== classification.extension
+    || intent.contentType !== classification.contentType
+    || intent.storagePath !== `users/${uid}/assets/${assetId}${classification.extension}`
+    || !Number.isSafeInteger(intent.expectedSizeBytes)
+    || intent.expectedSizeBytes < 0
+  ) return false;
+  if (intent.purpose === undefined) return true;
+  if (intent.purpose === "generic") return classification.category !== "font";
+  return intent.purpose === "fonts" && FONT_UPLOAD_EXTENSIONS.has(classification.extension);
+}
+
 export async function reconcileManagedAssetIntent(uid: string, assetId: string): Promise<ReconciledManagedAsset> {
   const intent = await getManagedAssetIntent(uid, assetId);
-  if (!intent || intent.state === "deleted") return { status: "conflict" };
+  if (!intent || intent.state === "deleted" || !hasConsistentPhysicalIdentity(uid, assetId, intent)) return { status: "conflict" };
 
   let physical: HeadBlobResult;
   try {
@@ -193,7 +228,7 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
       const currentSnapshot = await transaction.get(ref);
       if (!currentSnapshot.exists) return { status: "conflict" };
       const current = currentSnapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
-      if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath)) {
+      if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath, intent.purpose)) {
         return { status: "conflict" };
       }
       if (current.state !== intent.state) {
@@ -223,7 +258,7 @@ export async function reconcileManagedAssetIntent(uid: string, assetId: string):
     const currentSnapshot = await transaction.get(ref);
     if (!currentSnapshot.exists) return false;
     const current = currentSnapshot.data() as ManagedAssetIntent;
-    if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath)) return false;
+    if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, intent.storagePath, intent.purpose)) return false;
     if (current.state === "conflict" || current.state === "deleted") return false;
     if (current.state === "complete") {
       return current.downloadUrl === result.downloadUrl && current.etag === result.etag && current.sizeBytes === result.sizeBytes;
@@ -248,23 +283,44 @@ export async function authorizeManagedAssetUpload(
   storagePath: string,
   contentType: string,
   sizeBytes: number,
+  purpose: ManagedAssetUploadPurpose,
 ): Promise<"authorized" | "complete" | "in_progress" | "uncertain"> {
   const intent = await getManagedAssetIntent(uid, assetId);
-  if (!intent || intent.storagePath !== storagePath || intent.contentType !== contentType || intent.expectedSizeBytes !== sizeBytes) {
+  if (
+    !intent
+    || intent.assetId !== assetId
+    || intent.storagePath !== storagePath
+    || intent.contentType !== contentType
+    || intent.expectedSizeBytes !== sizeBytes
+  ) {
     throw new Error("intent_mismatch");
+  }
+  const classification = classifyManagedAssetExtension(intent.extension);
+  if (
+    !classification
+    || intent.extension !== classification.extension
+    || storagePath !== `users/${uid}/assets/${assetId}${classification.extension}`
+  ) throw new Error("intent_mismatch");
+  if (intent.purpose !== undefined) {
+    if (intent.purpose !== purpose) throw new Error("intent_mismatch");
+    if (purpose === "generic" && classification.category === "font") throw new Error("intent_mismatch");
+    if (purpose === "fonts" && !FONT_UPLOAD_EXTENSIONS.has(classification.extension)) throw new Error("intent_mismatch");
   }
   const reconciled = await reconcileManagedAssetIntent(uid, assetId);
   if (reconciled.status === "complete") return "complete";
   if (reconciled.status === "in_progress") return "in_progress";
   if (reconciled.status === "uncertain") return "uncertain";
   if (reconciled.status !== "absent") throw new Error(reconciled.status === "conflict" ? "intent_conflict" : "physical_uncertain");
+  // Old records have no purpose. They may be reconciled above, but their
+  // extension alone cannot authorize a new physical transfer.
+  if (intent.purpose === undefined || intent.purpose !== purpose) throw new Error("intent_mismatch");
 
   const ref = intentRef(uid, assetId);
   return firestore().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new Error("intent_mismatch");
     const current = snapshot.data() as ManagedAssetIntent & { leaseExpiresAt?: Timestamp };
-    if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, storagePath)) throw new Error("intent_mismatch");
+    if (!descriptorMatches(current as unknown as Record<string, unknown>, intent, storagePath, intent.purpose)) throw new Error("intent_mismatch");
     const controlSnapshot = await transaction.get(managedAssetControlRef(uid, storagePath));
     const controlState = controlSnapshot.exists ? controlSnapshot.get("state") : undefined;
     if (controlState === "deleting" || controlState === "delete_failed" || controlState === "deleted") {

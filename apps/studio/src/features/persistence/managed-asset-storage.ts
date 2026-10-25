@@ -9,6 +9,7 @@ import {
   classifyManagedAssetFilename,
   type ManagedAssetContentType,
 } from "./managed-asset-content-types";
+import type { ManagedAssetUploadPurpose } from "./managed-asset-intents";
 import {
   FirebaseAuthenticationError,
   ManagedAssetUploadError,
@@ -36,6 +37,8 @@ export interface ManagedAssetUploadIntent {
   contentType: string;
   expectedSizeBytes: number;
   sourceLastModified: number;
+  /** Missing only on intents persisted before upload purposes were introduced. */
+  purpose?: ManagedAssetUploadPurpose;
   state: "pending" | "uploading" | "uncertain" | "complete" | "conflict" | "deleted";
 }
 
@@ -149,13 +152,20 @@ export async function listManagedAssetUploadIntents(): Promise<ManagedAssetUploa
 async function runManagedAssetUpload(
   file: File,
   options: ManagedAssetUploadOptions,
+  purpose: ManagedAssetUploadPurpose,
   resumeAssetId?: string,
 ): Promise<ManagedAssetUploadResult> {
   const user = requireAuthenticatedFirebaseUser(
     () => getFirebaseAuth().currentUser,
   );
   const classification = classifyManagedAssetFilename(file.name);
-  if (classification === null || (options.contentType !== undefined && options.contentType !== classification.contentType)) {
+  const fontsExtension = classification?.extension === ".ttf" || classification?.extension === ".otf" || classification?.extension === ".woff2";
+  if (
+    classification === null
+    || (purpose === "generic" && classification.category === "font")
+    || (purpose === "fonts" && !fontsExtension)
+    || (options.contentType !== undefined && options.contentType !== classification.contentType)
+  ) {
     throw new ManagedAssetUploadError(
       "Unsupported managed asset file type.",
       new BlobContentTypeNotAllowedError("Unsupported or mismatched file extension and content type."),
@@ -184,8 +194,9 @@ async function runManagedAssetUpload(
   try {
     const existingIntents = await listIntents(idToken);
     let selectedId = resumeAssetId;
+    let selectedIntent: ManagedAssetUploadIntent | undefined;
     if (selectedId !== undefined) {
-      const selectedIntent = existingIntents.find((intent) => intent.assetId === selectedId);
+      selectedIntent = existingIntents.find((intent) => intent.assetId === selectedId);
       if (!selectedIntent) throw recoveryRequired("The selected upload operation no longer exists. Start a new upload instead.");
       if (!intentMatchesFile(selectedIntent, file, classification.extension, contentType)) {
         throw recoveryRequired("The selected file does not match this upload operation.");
@@ -215,14 +226,23 @@ async function runManagedAssetUpload(
       expectedSizeBytes: file.size,
       sourceLastModified: file.lastModified,
     };
+    const storagePath = storagePathFor(selectedId);
+    let prior = resumeAssetId === undefined ? undefined : await recoverIntent(idToken, selectedId);
+    if (prior?.status === "complete" && prior.result) {
+      return assertRecoveredResult(prior.result, selectedId, storagePath, contentType, file.size);
+    }
+    if (prior !== undefined && prior.status !== "absent") {
+      throw recoveryRequired(`Upload operation status is ${prior.status}; it cannot start another physical transfer automatically.`);
+    }
+    if (resumeAssetId !== undefined && selectedIntent?.purpose === undefined) {
+      throw recoveryRequired("This older upload operation has no recorded purpose. Start a new upload to create a fresh operation.");
+    }
     await authorizedRequest<{ intent: ManagedAssetUploadIntent }>(
-      "/api/managed-assets/intents",
+      purpose === "fonts" ? "/api/managed-assets/fonts/intents" : "/api/managed-assets/intents",
       idToken,
       { method: "POST", body: JSON.stringify(intentInput) },
     );
-
-    const storagePath = storagePathFor(selectedId);
-    const prior = await recoverIntent(idToken, selectedId);
+    prior ??= await recoverIntent(idToken, selectedId);
     if (prior.status === "complete" && prior.result) {
       return assertRecoveredResult(prior.result, selectedId, storagePath, contentType, file.size);
     }
@@ -233,7 +253,7 @@ async function runManagedAssetUpload(
     try {
       await upload(storagePath, file, {
         access: "public",
-        clientPayload: JSON.stringify({ idToken, contentType, assetId: selectedId, expectedSizeBytes: file.size }),
+        clientPayload: JSON.stringify({ idToken, contentType, assetId: selectedId, expectedSizeBytes: file.size, purpose }),
         contentType,
         handleUploadUrl: "/api/managed-assets/upload",
       });
@@ -264,7 +284,15 @@ export function uploadManagedAsset(
   file: File,
   options: ManagedAssetUploadOptions = {},
 ): Promise<ManagedAssetUploadResult> {
-  return runManagedAssetUpload(file, options);
+  return runManagedAssetUpload(file, options, "generic");
+}
+
+/** Uploads a font using the dedicated server-side intent contract. */
+export function uploadManagedFontAsset(
+  file: File,
+  options: ManagedAssetUploadOptions = {},
+): Promise<ManagedAssetUploadResult> {
+  return runManagedAssetUpload(file, options, "fonts");
 }
 
 /** Explicitly resumes or reconciles one previously selected server-side upload operation. */
@@ -273,5 +301,14 @@ export function resumeManagedAssetUpload(
   assetId: string,
   options: ManagedAssetUploadOptions = {},
 ): Promise<ManagedAssetUploadResult> {
-  return runManagedAssetUpload(file, options, assetId);
+  return runManagedAssetUpload(file, options, "generic", assetId);
+}
+
+/** Explicitly resumes one selected operation created through the Fonts flow. */
+export function resumeManagedFontAssetUpload(
+  file: File,
+  assetId: string,
+  options: ManagedAssetUploadOptions = {},
+): Promise<ManagedAssetUploadResult> {
+  return runManagedAssetUpload(file, options, "fonts", assetId);
 }

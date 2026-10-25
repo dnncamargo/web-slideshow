@@ -64,12 +64,14 @@ function request(body: Record<string, unknown>): Request {
 function clientPayload(
   idToken = "firebase-id-token",
   contentType = "font/ttf",
+  purpose: "generic" | "fonts" = "generic",
 ): string {
   return JSON.stringify({
     idToken,
     contentType,
     assetId: "123e4567-e89b-12d3-a456-426614174000",
     expectedSizeBytes: 9,
+    purpose,
   });
 }
 
@@ -110,12 +112,12 @@ beforeEach(() => {
 });
 
 describe("managed asset upload route", () => {
-  it.each(Object.entries(MANAGED_ASSET_EXTENSIONS))("accepts supported managed-asset extension %s", async (extension, classification) => {
+  it.each(Object.entries(MANAGED_ASSET_EXTENSIONS).filter(([extension]) => ![".ttf", ".otf", ".woff", ".woff2"].includes(extension)))("accepts generic managed-asset extension %s", async (extension, classification) => {
     const response = await POST(
       request(
         payload(
           `users/owner/assets/123e4567-e89b-12d3-a456-426614174000${extension}`,
-          clientPayload("firebase-id-token", classification.contentType),
+          clientPayload("firebase-id-token", classification.contentType, "generic"),
         ),
       ),
     );
@@ -123,12 +125,40 @@ describe("managed asset upload route", () => {
     expect(response.status).toBe(200);
   });
 
+  it("passes the persisted Fonts purpose claim into server-side intent authorization", async () => {
+    const response = await POST(request(payload(
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
+      clientPayload("firebase-id-token", "font/ttf", "fonts"),
+    )));
+
+    expect(response.status).toBe(200);
+    expect(intentMocks.authorizeManagedAssetUpload).toHaveBeenCalledWith(
+      "owner",
+      "123e4567-e89b-12d3-a456-426614174000",
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
+      "font/ttf",
+      9,
+      "fonts",
+    );
+  });
+
+  it("rejects a generic font authorization before issuing a Blob token", async () => {
+    intentMocks.authorizeManagedAssetUpload.mockRejectedValueOnce(new Error("intent_mismatch"));
+    const response = await POST(request(payload(
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
+      clientPayload("firebase-id-token", "font/ttf", "generic"),
+    )));
+
+    expect(response.status).toBe(401);
+    expect(issuedTokenPayload).toBeUndefined();
+  });
+
   it("authorizes a non-anonymous Firebase user and constrains the Blob token MIME", async () => {
     const response = await POST(
       request(
         payload(
           "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.ttf",
-          clientPayload(),
+          clientPayload("firebase-id-token", "font/ttf", "fonts"),
         ),
       ),
     );
@@ -140,24 +170,25 @@ describe("managed asset upload route", () => {
     expect(beforeGenerateToken).toBeDefined();
 
     const policy = await beforeGenerateToken?.(
-      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.woff2",
-      clientPayload("firebase-id-token", "font/woff2"),
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.otf",
+      clientPayload("firebase-id-token", "font/otf", "fonts"),
       false,
     );
 
     expect(policy).toEqual({
       addRandomSuffix: false,
       allowOverwrite: false,
-      allowedContentTypes: ["font/woff2"],
+      allowedContentTypes: ["font/otf"],
       maximumSizeInBytes: 9,
       tokenPayload: JSON.stringify({ uid: "owner", assetId: "123e4567-e89b-12d3-a456-426614174000" }),
     });
     expect(intentMocks.authorizeManagedAssetUpload).toHaveBeenCalledWith(
       "owner",
       "123e4567-e89b-12d3-a456-426614174000",
-      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.woff2",
-      "font/woff2",
+      "users/owner/assets/123e4567-e89b-12d3-a456-426614174000.otf",
+      "font/otf",
       9,
+      "fonts",
     );
   });
 
@@ -232,6 +263,7 @@ describe("managed asset upload route", () => {
             contentType: "font/ttf",
             expectedSizeBytes: 9,
             idToken: "firebase-id-token",
+            purpose: "generic",
             unexpected: true,
           }),
         ),

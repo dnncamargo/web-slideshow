@@ -6,6 +6,7 @@ import {
   classifyManagedAssetExtension,
   isManagedAssetContentType,
 } from "../../../../features/persistence/managed-asset-content-types";
+import type { ManagedAssetUploadPurpose } from "../../../../features/persistence/managed-asset-intents";
 import {
   authorizeManagedAssetUpload,
   ManagedAssetPhysicalCheckError,
@@ -37,6 +38,7 @@ interface ManagedAssetClientPayload {
   contentType: string;
   assetId: string;
   expectedSizeBytes: number;
+  purpose: ManagedAssetUploadPurpose;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -65,11 +67,12 @@ function parseClientPayload(
   const keys = Object.keys(parsed).sort();
 
   if (
-    keys.length !== 4 ||
+    keys.length !== 5 ||
     keys[0] !== "assetId" ||
     keys[1] !== "contentType" ||
     keys[2] !== "expectedSizeBytes" ||
     keys[3] !== "idToken" ||
+    keys[4] !== "purpose" ||
     typeof parsed.assetId !== "string" ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.assetId) ||
     typeof parsed.expectedSizeBytes !== "number" ||
@@ -80,7 +83,8 @@ function parseClientPayload(
     typeof parsed.contentType !== "string" ||
     !isManagedAssetContentType(parsed.contentType) ||
     parsed.contentType.length > MAX_CONTENT_TYPE_LENGTH ||
-    !/^[\x20-\x7e]*$/.test(parsed.contentType)
+    !/^[\x20-\x7e]*$/.test(parsed.contentType) ||
+    (parsed.purpose !== "generic" && parsed.purpose !== "fonts")
   ) {
     throw new ManagedAssetRequestError(
       "Unsupported upload content type.",
@@ -95,6 +99,7 @@ function parseClientPayload(
     contentType: parsed.contentType,
     assetId: parsed.assetId,
     expectedSizeBytes: parsed.expectedSizeBytes,
+    purpose: parsed.purpose,
   };
 }
 
@@ -177,6 +182,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             pathname,
             payload.contentType,
             payload.expectedSizeBytes,
+            payload.purpose,
           );
         } catch (error) {
           if (error instanceof Error && error.message === "intent_mismatch") {
