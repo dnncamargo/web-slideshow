@@ -40,6 +40,22 @@ const libraryFile: CustomLibraryFileRecord = {
   },
 };
 
+const legacyLibraryFontFile: CustomLibraryFileRecord = {
+  id: "legacy-font-record",
+  file: {
+    name: "legacy-font.woff2",
+    kind: "font",
+    representation: "binary",
+    source: {
+      assetId: "legacy-font-asset",
+      storagePath: "private/storage/legacy-font.woff2",
+      downloadUrl: "https://example.com/legacy-font.woff2",
+      contentType: "font/woff2",
+      sizeBytes: 1024,
+    },
+  },
+};
+
 function repository(records: CustomLibraryFileRecord[] = [libraryFile]): CustomLibraryFileRepository {
   return {
     saveFile: vi.fn(async () => "new-file"),
@@ -145,6 +161,7 @@ describe("Custom Resources Files", () => {
     await flush();
     expect(container.textContent).toContain("lesson-notes.txt");
     expect(container.textContent).toContain("Text · 2 KB");
+    expect(container.querySelector("[data-custom-resource-file] [data-managed-asset-availability]")).toBeNull();
     expect(container.textContent).not.toContain(libraryFile.id);
     expect(container.textContent).not.toContain(libraryFile.file.source.assetId);
     expect(container.textContent).not.toContain(libraryFile.file.source.storagePath);
@@ -182,6 +199,33 @@ describe("Custom Resources Files", () => {
     expect(addButtons).toHaveLength(2);
     expect(addButtons[0]?.disabled).toBe(true);
     expect(addButtons[1]?.disabled).toBe(false);
+    expect(container.querySelectorAll("[data-custom-resource-file] [data-managed-asset-availability]")).toHaveLength(0);
+  });
+
+  it("filters legacy font records and shows the empty state when no other library files exist", async () => {
+    const container = renderWorkspace({ fileRepository: repository([legacyLibraryFontFile]) });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.querySelector("[data-custom-resource-file]")).toBeNull();
+    expect(container.textContent).not.toContain("legacy-font.woff2");
+    expect(container.textContent).toContain("No Library files.");
+  });
+
+  it("filters legacy font records while keeping other library files visible and addable", async () => {
+    const onAdd = vi.fn(async () => "added" as const);
+    const container = renderWorkspace({ fileRepository: repository([legacyLibraryFontFile, libraryFile]), onAdd });
+    const open = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "+ Add file");
+    await act(async () => open?.click());
+    await flush();
+
+    expect(container.textContent).toContain("lesson-notes.txt");
+    expect(container.textContent).not.toContain("legacy-font.woff2");
+    expect(container.querySelectorAll("[data-custom-resource-file]")).toHaveLength(1);
+    expect(container.querySelector("[data-custom-resource-file] [data-managed-asset-availability]")).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Add lesson-notes.txt"]')?.click());
+    expect(onAdd).toHaveBeenCalledWith(libraryFile);
   });
 
   it("shows physically projected files when the legacy collection is empty and keeps stable selection IDs", async () => {
@@ -285,6 +329,7 @@ describe("Custom Resources Files", () => {
 
     expect(container.textContent).toContain("local.png");
     expect(container.textContent).toContain("Image · image/png");
+    expect(container.querySelector("[data-presentation-file-row] [data-managed-asset-availability]")).not.toBeNull();
     expect(container.textContent).not.toContain("https://example.com/local.png");
     expect(container.textContent).not.toContain("local-file-id");
     const remove = container.querySelector<HTMLButtonElement>("[aria-label='Remove local.png']");

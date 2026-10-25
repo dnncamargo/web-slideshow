@@ -100,6 +100,8 @@ describe("Custom Resources Fonts", () => {
     await act(async () => Array.from(rendered.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
     const addFont = rendered.container.querySelector<HTMLButtonElement>("[aria-label='Add Inter']");
     expect(addFont).not.toBeNull();
+    expect(rendered.container.querySelector("[data-custom-resource-font] [data-managed-asset-availability]")).toBeNull();
+    expect(rendered.container.querySelector("[data-custom-resource-font]")?.textContent).not.toContain("Check availability");
     await act(async () => addFont?.click());
     expect(onAdd).toHaveBeenCalledWith(font.font);
   });
@@ -153,6 +155,7 @@ describe("Custom Resources Fonts", () => {
     const local = renderWorkspace({ repository, fonts: unused, onRemovePresentationFont: remove }); root = local.root;
     expect(local.container.textContent).toContain("Inter");
     expect(local.container.textContent).toContain("2 faces");
+    expect(local.container.querySelector("[data-presentation-font-row] [data-managed-asset-availability]")).not.toBeNull();
     const removeButton = local.container.querySelector<HTMLButtonElement>("[aria-label='Remove Inter']");
     expect(removeButton?.disabled).toBe(false);
     await act(async () => removeButton?.click());

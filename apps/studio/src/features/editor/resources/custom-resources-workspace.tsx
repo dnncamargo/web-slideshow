@@ -1834,7 +1834,6 @@ function MasterFontChooser({
         <span className={styles.masterPaletteCount}>{t(font.faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: font.faces.length })}</span>
         {font.faces.map((face, index) => <span key={`${face.source.url}-${index}`} className={styles.masterPaletteCount}>
           {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
-          <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null} expectedStoreId={managedFontFaceAvailabilityIdentity(face)?.storeId ?? null} compact />
         </span>)}
       </div>
       <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFont", { family: font.family })} onClick={() => onAdd(font)}>+</button>
@@ -1884,16 +1883,16 @@ function MasterFileChooser({
 
   if (loadState.kind === "loading") return <p className={styles.status}>{t("customResources.loadingFiles")}</p>;
   if (loadState.kind === "error") return <div className={styles.statusGroup}><p className={styles.status} role="alert">{t("customResources.fileLoadFailed")}</p><button type="button" className={styles.resourceAction} onClick={onRetry}>{t("customResources.retry")}</button></div>;
-  if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFiles")}</p>;
+  const nonFontRecords = loadState.records.filter((record) => record.file.kind !== "font");
+  if (nonFontRecords.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFiles")}</p>;
 
   return <div className={styles.masterFontList}>
-    {loadState.records.map((record) => {
+    {nonFontRecords.map((record) => {
       const alreadyAdded = presentationFiles.some((file) => file.id === getCustomLibraryFileResourceId(record.id));
       return <div key={record.id} className={styles.resourceItem} data-custom-resource-file>
       <div className={styles.resourceItemDetailsStack}>
         <strong>{record.file.name}</strong>
         <span className={styles.masterPaletteCount}>{t(`customLibrary.file.kind.${record.file.kind}`)} · {formatCustomLibraryFileSize(record.file.source.sizeBytes)}{alreadyAdded ? ` · ${t("customResources.fileAlreadyAddedShort")}` : ""}</span>
-        <ManagedAssetAvailabilityControl pathname={customLibraryFileAvailabilityIdentity(record)?.storagePath ?? null} expectedStoreId={customLibraryFileAvailabilityIdentity(record)?.storeId ?? null} compact />
       </div>
       <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFile", { name: record.file.name })} disabled={addingFileId !== null || alreadyAdded} onClick={() => onAdd(record)}>+</button>
     </div>;
