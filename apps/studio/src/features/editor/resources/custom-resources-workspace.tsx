@@ -1,6 +1,6 @@
 "use client";
 
-import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontResource, type Length, type Presentation, type PresentationFileResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
+import { getFontResourceFaces, FUNDAMENTAL_TEXT_STYLE_IDS, TEXT_STYLE_LAYOUT_PROPERTY_NAMES, TEXT_STYLE_TYPOGRAPHY_PROPERTY_NAMES, type Color, type ColorValue, type FontFaceResource, type FontResource, type Length, type Presentation, type PresentationFileResource, type PresentationPaletteColor, type TextElement, type TextStyle, type TextStyleLayoutProperties, type TextStyleTypographyProperties, type TextStyleVisualProperties, type TextStyleRole, type TextStroke, type ContainerElement, type LinkedContainerStyle, type LinkedTopicsStyle, type LinkedStyle, type PresentationElement, type TopicMarkerStyle, type TopicsElement, type LinkedCodeStyle, type LinkedTerminalStyle, type LinkedSimpleTableStyle, type LinkedStructuredTableStyle, type LinkedDividerStyle, type ElementTypography, type Shadow } from "@web-slideshow/document-schema";
 import { paletteColorCssVariableName, renderElement } from "@web-slideshow/renderer";
 import { convertAuthoringLength, parseAuthoringLength, resolveThemeTextTypographyBaseline, serializeAuthoringLength, TEXT_VARIANT_TYPOGRAPHY_DEFAULTS, TOPICS_ITEM_GAP_DEFAULT_PX, THEME_COLORS, type AuthoringLengthUnit } from "@web-slideshow/theme/element-style-defaults";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -24,12 +24,14 @@ import type {
 } from "@/features/custom-library/custom-library-palette-repository";
 import type { CustomLibraryPaletteAddOutcome } from "@/features/custom-library/custom-library-palette-add-picker";
 import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "@/features/custom-library/custom-library-font";
+import { toPresentationFontFace } from "@/features/custom-library/custom-library-font-provenance";
 import type { CustomLibraryFontRepository } from "@/features/custom-library/custom-library-font-repository";
 import type { CustomLibraryFileRecord } from "@/features/custom-library/custom-library-file";
 import { getCustomLibraryFileResourceId } from "@/features/custom-library/custom-library-file-apply";
 import { formatCustomLibraryFileSize } from "@/features/custom-library/custom-library-file";
 import { customLibraryFileAvailabilityIdentity, managedFontFaceAvailabilityIdentity, presentationFileAvailabilityIdentity } from "@/features/custom-library/managed-asset-availability-path";
 import { ManagedAssetAvailabilityControl } from "@/features/custom-library/managed-asset-availability-control";
+import { areFontFacesEquivalent, normalizeFontFamily } from "../font-resource-helpers";
 import type { CustomLibraryFileRepository } from "@/features/custom-library/custom-library-file-repository";
 import { getDefaultCustomLibraryPaletteRepository } from "@/features/persistence/custom-library-palette-repository-instance";
 import { getDefaultCustomLibraryFontRepository } from "@/features/persistence/custom-library-font-repository-instance";
@@ -146,6 +148,32 @@ type FileLoadState =
 
 export type CustomLibraryFileAddOutcome = "added" | "unchanged" | "conflict" | "load-error";
 export type PresentationTextFileCreateOutcome = "created" | "empty" | "unsupported" | "dirty";
+
+function sameFontFaceSlot(first: FontFaceResource, second: FontFaceResource): boolean {
+  return first.weight === second.weight && first.style === second.style && first.subset === second.subset && first.unicodeRange === second.unicodeRange;
+}
+
+function isLibraryFontFullyAdded(font: CustomLibraryFontDraft, presentationFonts: readonly FontResource[]): boolean {
+  const localFont = presentationFonts.find((candidate) => normalizeFontFamily(candidate.family) === normalizeFontFamily(font.family));
+  if (!localFont) return false;
+
+  const localFaces = getFontResourceFaces(localFont);
+  const incomingFaces: FontFaceResource[] = [];
+  for (const storedFace of font.faces) {
+    const incomingFace = toPresentationFontFace(storedFace);
+    const duplicate = incomingFaces.find((candidate) => sameFontFaceSlot(candidate, incomingFace));
+    if (duplicate) {
+      if (!areFontFacesEquivalent(duplicate, incomingFace)) return false;
+      continue;
+    }
+    incomingFaces.push(incomingFace);
+  }
+
+  return incomingFaces.every((incomingFace) => {
+    const localFacesInSlot = localFaces.filter((candidate) => sameFontFaceSlot(candidate, incomingFace));
+    return localFacesInSlot.length > 0 && localFacesInSlot.every((candidate) => areFontFacesEquivalent(candidate, incomingFace));
+  });
+}
 
 const PREVIEW_COLOR_LIMIT = 6;
 
@@ -438,7 +466,7 @@ export function CustomResourcesWorkspace({
                 </button>
               </div>
               {fontFeedback ? <p className={styles.status} role={fontFeedback.kind === "conflict" ? "alert" : undefined}>{fontFeedback.kind === "added" ? t("customResources.fontAdded", { family: fontFeedback.family }) : fontFeedback.kind === "merged" ? t("customResources.fontMerged", { count: fontFeedback.count ?? 0, family: fontFeedback.family }) : fontFeedback.kind === "unchanged" ? t("customResources.fontUnchanged", { family: fontFeedback.family }) : t("customResources.fontConflict", { family: fontFeedback.family })}</p> : null}
-              {fontChooserOpen ? <MasterFontChooser loadState={fontLoadState} onRetry={loadFonts} onAdd={addLibraryFont} /> : null}
+              {fontChooserOpen ? <MasterFontChooser loadState={fontLoadState} presentationFonts={presentationFonts} onRetry={loadFonts} onAdd={addLibraryFont} /> : null}
             </div>
           </InspectorSection>
           <InspectorSection title={t("customResources.files")} open={resourceSections.libraryFiles} onOpenChange={(open) => onResourceSectionChange("libraryFiles", open)}>
@@ -1814,10 +1842,12 @@ function MasterPaletteChooser({
 
 function MasterFontChooser({
   loadState,
+  presentationFonts,
   onRetry,
   onAdd,
 }: {
   loadState: FontLoadState;
+  presentationFonts: readonly FontResource[];
   onRetry: () => void;
   onAdd: (font: CustomLibraryFontDraft) => void;
 }) {
@@ -1828,7 +1858,9 @@ function MasterFontChooser({
   if (loadState.records.length === 0) return <p className={styles.status}>{t("customResources.noLibraryFonts")}</p>;
 
   return <div className={styles.masterFontList}>
-    {loadState.records.map(({ id, font }) => <div key={id} className={styles.resourceItem} data-custom-resource-font={id}>
+    {loadState.records.map(({ id, font }) => {
+      const alreadyAdded = isLibraryFontFullyAdded(font, presentationFonts);
+      return <div key={id} className={styles.resourceItem} data-custom-resource-font={id}>
       <div className={styles.resourceItemDetailsStack}>
         <strong>{font.family}</strong>
         <span className={styles.masterPaletteCount}>{t(font.faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: font.faces.length })}</span>
@@ -1836,8 +1868,12 @@ function MasterFontChooser({
           {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
         </span>)}
       </div>
-      <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFont", { family: font.family })} onClick={() => onAdd(font)}>+</button>
-    </div>)}
+      <div className={styles.resourceActionRow}>
+        {alreadyAdded ? <span className={styles.masterPaletteCount}>{t("customResources.fileAlreadyAddedShort")}</span> : null}
+        <button type="button" className={styles.resourceAction} aria-label={t("customResources.addMasterFont", { family: font.family })} disabled={alreadyAdded} onClick={() => onAdd(font)}>+</button>
+      </div>
+    </div>;
+    })}
   </div>;
 }
 
@@ -1857,10 +1893,13 @@ function LocalPresentationFontRow({
     <div className={styles.resourceItemDetailsStack}>
       <strong>{font.family}</strong>
       <span className={styles.masterPaletteCount}>{t(faces.length === 1 ? "customResources.faceCountOne" : "customResources.faceCountMany", { count: faces.length })}{inUse ? ` · ${t("customResources.inUse")}` : ""}</span>
-      {faces.map((face, index) => <span key={`${face.source.url}-${index}`} className={styles.masterPaletteCount}>
-        {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
-        <ManagedAssetAvailabilityControl pathname={managedFontFaceAvailabilityIdentity(face)?.storagePath ?? null} expectedStoreId={managedFontFaceAvailabilityIdentity(face)?.storeId ?? null} compact />
-      </span>)}
+      {faces.map((face, index) => {
+        const availabilityIdentity = managedFontFaceAvailabilityIdentity(face);
+        return <span key={`${face.source.url}-${index}`} className={styles.masterPaletteCount}>
+          {[face.weight, face.style, face.source.format?.toUpperCase()].filter((value) => value !== undefined).join(" · ")}
+          {availabilityIdentity ? <ManagedAssetAvailabilityControl pathname={availabilityIdentity.storagePath} expectedStoreId={availabilityIdentity.storeId} compact /> : null}
+        </span>;
+      })}
     </div>
     <button type="button" className={styles.resourceIconAction} data-resource-action="remove" aria-label={t("customResources.removePresentationFont", { family: font.family })} disabled={inUse} onClick={() => onRemove(font.id)}>×</button>
   </div>;
