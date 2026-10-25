@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PresentationSchema, type FontResource, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, type FontFaceResource, type FontResource, type Presentation } from "@web-slideshow/document-schema";
 
 import type { CustomLibraryFontDraft, CustomLibraryFontRecord } from "../src/features/custom-library/custom-library-font";
 import type { CustomLibraryFontRepository } from "../src/features/custom-library/custom-library-font-repository";
@@ -100,8 +100,42 @@ describe("Custom Resources Fonts", () => {
     await act(async () => Array.from(rendered.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
     const addFont = rendered.container.querySelector<HTMLButtonElement>("[aria-label='Add Inter']");
     expect(addFont).not.toBeNull();
+    expect(addFont?.disabled).toBe(false);
+    expect(rendered.container.querySelector("[data-custom-resource-font] [data-managed-asset-availability]")).toBeNull();
+    expect(rendered.container.querySelector("[data-custom-resource-font]")?.textContent).not.toContain("Check availability");
     await act(async () => addFont?.click());
     expect(onAdd).toHaveBeenCalledWith(font.font);
+  });
+
+  it("marks a library font already added only when every equivalent face is present", async () => {
+    const repository = { listFonts: vi.fn(async () => [font]) } as unknown as CustomLibraryFontRepository;
+    const rendered = renderWorkspace({
+      repository,
+      fonts: [{ id: "local-inter", family: " inter ", faces: font.font.faces }],
+    }); root = rendered.root;
+    await flush();
+    await act(async () => Array.from(rendered.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
+
+    const row = rendered.container.querySelector("[data-custom-resource-font]");
+    expect(row?.textContent).toContain("Already added");
+    expect(row?.querySelector<HTMLButtonElement>("button")?.disabled).toBe(true);
+  });
+
+  it("keeps a partially added library font available for merging missing faces", async () => {
+    const repository = { listFonts: vi.fn(async () => [font]) } as unknown as CustomLibraryFontRepository;
+    const onAdd = vi.fn(() => ({ kind: "merged" as const, addedFaces: 1 }));
+    const firstFace = font.font.faces[0];
+    if (!firstFace) throw new Error("Expected a library font face");
+    const rendered = renderWorkspace({ repository, fonts: [{ id: "local-inter", family: "Inter", faces: [firstFace] }], onAddLibraryFont: onAdd }); root = rendered.root;
+    await flush();
+    await act(async () => Array.from(rendered.container.querySelectorAll("button")).find((button) => button.textContent === "+ Add font")?.click());
+
+    const add = rendered.container.querySelector<HTMLButtonElement>("[aria-label='Add Inter']");
+    expect(rendered.container.querySelector("[data-custom-resource-font]")?.textContent).not.toContain("Already added");
+    expect(add?.disabled).toBe(false);
+    await act(async () => add?.click());
+    expect(onAdd).toHaveBeenCalledWith(font.font);
+    expect(rendered.container.textContent).toContain("Added 1 font face");
   });
 
   it("shows loading, empty, and error retry states", async () => {
@@ -153,10 +187,31 @@ describe("Custom Resources Fonts", () => {
     const local = renderWorkspace({ repository, fonts: unused, onRemovePresentationFont: remove }); root = local.root;
     expect(local.container.textContent).toContain("Inter");
     expect(local.container.textContent).toContain("2 faces");
+    expect(local.container.querySelector("[data-presentation-font-row] [data-managed-asset-availability]")).toBeNull();
+    expect(local.container.querySelector("[data-presentation-font-row]")?.textContent).not.toContain("Unverified");
     const removeButton = local.container.querySelector<HTMLButtonElement>("[aria-label='Remove Inter']");
     expect(removeButton?.disabled).toBe(false);
     await act(async () => removeButton?.click());
     expect(remove).toHaveBeenCalledWith("exact-id");
+  });
+
+  it("keeps availability controls for presentation font faces with a valid managed identity", async () => {
+    const repository = { listFonts: vi.fn(async () => []) } as unknown as CustomLibraryFontRepository;
+    const face: FontFaceResource = {
+      weight: 400,
+      style: "normal",
+      subset: "latin",
+      source: {
+        type: "url",
+        url: "https://store.public.blob.vercel-storage.com/users/owner-1/assets/123e4567-e89b-42d3-a456-426614174000.woff2",
+        format: "woff2",
+      },
+    };
+    const rendered = renderWorkspace({ repository, fonts: [{ id: "managed-font", family: "Managed Font", faces: [face] }] }); root = rendered.root;
+
+    const row = rendered.container.querySelector("[data-presentation-font-row]");
+    expect(row?.querySelector("[data-managed-asset-availability]")).not.toBeNull();
+    expect(Array.from(row?.querySelectorAll("button") ?? []).some((button) => button.textContent === "Check availability")).toBe(true);
   });
 
   it("renders multiple library fonts as separate master rows", async () => {
