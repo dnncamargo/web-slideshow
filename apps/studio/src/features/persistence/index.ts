@@ -104,7 +104,9 @@ export {
 export {
   createManagedAssetId,
   uploadManagedAsset,
+  uploadManagedFontAsset,
   resumeManagedAssetUpload,
+  resumeManagedFontAssetUpload,
   listManagedAssetUploadIntents,
   type ManagedAssetUploadResult,
   type ManagedAssetUploadOptions,

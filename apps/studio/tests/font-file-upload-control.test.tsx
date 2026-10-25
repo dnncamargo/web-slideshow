@@ -11,10 +11,10 @@ import type { FontFamilyFaces } from "../src/features/fonts/font-acquisition-typ
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const uploadManagedAssetMock = vi.hoisted(() => vi.fn());
+const uploadManagedFontAssetMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../src/features/persistence/managed-asset-storage", () => ({
-  uploadManagedAsset: uploadManagedAssetMock,
+  uploadManagedFontAsset: uploadManagedFontAssetMock,
 }));
 
 const uploadResult = {
@@ -70,8 +70,8 @@ describe("FontFileUploadControl", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    uploadManagedAssetMock.mockReset();
-    uploadManagedAssetMock.mockResolvedValue(uploadResult);
+    uploadManagedFontAssetMock.mockReset();
+    uploadManagedFontAssetMock.mockResolvedValue(uploadResult);
   });
 
   afterEach(async () => {
@@ -109,7 +109,7 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
 
-    expect(uploadManagedAssetMock).toHaveBeenCalledWith(
+    expect(uploadManagedFontAssetMock).toHaveBeenCalledWith(
       expect.any(File),
       { contentType: "font/ttf" },
     );
@@ -156,7 +156,7 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
 
-    expect(uploadManagedAssetMock).toHaveBeenCalledWith(
+    expect(uploadManagedFontAssetMock).toHaveBeenCalledWith(
       expect.any(File),
       { contentType: "font/woff2" },
     );
@@ -176,7 +176,7 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
 
-    expect(uploadManagedAssetMock).toHaveBeenCalledWith(
+    expect(uploadManagedFontAssetMock).toHaveBeenCalledWith(
       expect.any(File),
       { contentType: "font/otf" },
     );
@@ -229,7 +229,7 @@ describe("FontFileUploadControl", () => {
       expect(container.textContent).toContain(
         "Only .ttf, .otf and .woff2 files are supported.",
       );
-      expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+      expect(uploadManagedFontAssetMock).not.toHaveBeenCalled();
       expect(onPhysicalUpload).not.toHaveBeenCalled();
       expect(onAddFontFace).not.toHaveBeenCalled();
     },
@@ -242,13 +242,13 @@ describe("FontFileUploadControl", () => {
 
     await act(async () => click(container, "font-upload-submit"));
     expect(container.textContent).toContain("Enter a font family.");
-    expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(uploadManagedFontAssetMock).not.toHaveBeenCalled();
     expect(onPhysicalUpload).not.toHaveBeenCalled();
 
     setInputValue(container, "font-upload-family", "My Font");
     await act(async () => click(container, "font-upload-submit"));
     expect(container.textContent).toContain("Choose a font file.");
-    expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(uploadManagedFontAssetMock).not.toHaveBeenCalled();
     expect(onPhysicalUpload).not.toHaveBeenCalled();
   });
 
@@ -273,7 +273,7 @@ describe("FontFileUploadControl", () => {
     await act(async () => click(container, "font-upload-submit"));
 
     expect(container.textContent).toContain("This font face already exists.");
-    expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(uploadManagedFontAssetMock).not.toHaveBeenCalled();
     expect(onPhysicalUpload).not.toHaveBeenCalled();
     expect(onAddFontFace).not.toHaveBeenCalled();
   });
@@ -281,7 +281,7 @@ describe("FontFileUploadControl", () => {
   it("shows a safe retryable error when managed storage fails", async () => {
     const onAddFontFace = vi.fn().mockResolvedValue(true);
     const onPhysicalUpload = vi.fn();
-    uploadManagedAssetMock.mockRejectedValueOnce(new Error("raw Firebase secret"));
+    uploadManagedFontAssetMock.mockRejectedValueOnce(new Error("raw Firebase secret"));
     mount([], onAddFontFace, onPhysicalUpload);
     setInputValue(container, "font-upload-family", "My Font");
     setFileValue(container, "font-upload-file", makeFile("MyFont.ttf"));
@@ -326,7 +326,7 @@ describe("FontFileUploadControl", () => {
     expect(initialPersistenceId).toEqual(expect.any(String));
 
     await act(async () => click(container, "font-upload-submit"));
-    expect(uploadManagedAssetMock).toHaveBeenCalledOnce();
+    expect(uploadManagedFontAssetMock).toHaveBeenCalledOnce();
     expect(onPhysicalUpload).toHaveBeenCalledOnce();
     expect(onRetryFontFacePersistence).toHaveBeenCalledWith(
       "My Font",
@@ -346,8 +346,8 @@ describe("Custom Library font upload integration", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    uploadManagedAssetMock.mockReset();
-    uploadManagedAssetMock.mockResolvedValue(uploadResult);
+    uploadManagedFontAssetMock.mockReset();
+    uploadManagedFontAssetMock.mockResolvedValue(uploadResult);
   });
 
   afterEach(async () => {
@@ -419,7 +419,7 @@ describe("Custom Library font upload integration", () => {
       );
     });
 
-    expect(uploadManagedAssetMock).not.toHaveBeenCalled();
+    expect(uploadManagedFontAssetMock).not.toHaveBeenCalled();
     expect(onPhysicalUpload).not.toHaveBeenCalled();
   });
 });

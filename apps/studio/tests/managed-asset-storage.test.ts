@@ -23,7 +23,9 @@ vi.mock("../src/features/persistence/firebase-client", () => ({
 import {
   listManagedAssetUploadIntents,
   resumeManagedAssetUpload,
+  resumeManagedFontAssetUpload,
   uploadManagedAsset,
+  uploadManagedFontAsset,
 } from "../src/features/persistence/managed-asset-storage";
 import {
   BlobAccessError,
@@ -52,7 +54,7 @@ const user = {
   uid: "user-1",
 };
 
-function file(name = "font.ttf", type = "font/ttf", contents = "font-data") {
+function file(name = "asset.png", type = "image/png", contents = "font-data") {
   return new File([contents], name, { type });
 }
 
@@ -71,11 +73,14 @@ beforeEach(() => {
     if (url.endsWith("/api/managed-assets/intents") && init?.method !== "POST") {
       return new Response(JSON.stringify({ intents: authMocks.intents }), { status: 200 });
     }
-    if (url.endsWith("/api/managed-assets/intents")) {
+    if (url.endsWith("/api/managed-assets/intents") || url.endsWith("/api/managed-assets/fonts/intents")) {
       const lastIntent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const purpose = url.endsWith("/fonts/intents") ? "fonts" : "generic";
       authMocks.events.push("persist-intent");
-      if (!authMocks.intents.some((intent) => intent.assetId === lastIntent?.assetId)) authMocks.intents.push({ ...lastIntent, state: "pending" });
-      return new Response(JSON.stringify({ intent: lastIntent }), { status: 201 });
+      const existing = authMocks.intents.find((intent) => intent.assetId === lastIntent?.assetId);
+      if (existing && existing.purpose !== purpose) return new Response(JSON.stringify({ error: "conflict" }), { status: 409 });
+      if (!existing) authMocks.intents.push({ ...lastIntent, purpose, state: "pending" });
+      return new Response(JSON.stringify({ intent: { ...lastIntent, purpose } }), { status: 201 });
     }
     const recovery = JSON.parse(String(init?.body)) as { assetId: string };
     const intent = authMocks.intents.find((candidate) => candidate.assetId === recovery.assetId);
@@ -120,7 +125,7 @@ afterEach(() => {
 
 describe("uploadManagedAsset", () => {
   it("uses the authenticated UID and generated UUID for a logical owner-scoped path", async () => {
-    const result = await uploadManagedAsset(file("my font.ttf"));
+    const result = await uploadManagedFontAsset(file("my font.ttf", "font/ttf"));
 
     expect(result).toEqual({
       assetId,
@@ -143,6 +148,7 @@ describe("uploadManagedAsset", () => {
           contentType: "font/ttf",
           assetId,
           expectedSizeBytes: 9,
+          purpose: "fonts",
         }),
         contentType: "font/ttf",
         handleUploadUrl: "/api/managed-assets/upload",
@@ -152,8 +158,8 @@ describe("uploadManagedAsset", () => {
 
   it("creates different physical identities for distinct uploads with identical file descriptors", async () => {
     const sameFile = file("same-name.ttf");
-    const first = await uploadManagedAsset(sameFile);
-    const second = await uploadManagedAsset(sameFile);
+    const first = await uploadManagedFontAsset(sameFile);
+    const second = await uploadManagedFontAsset(sameFile);
 
     expect(first.assetId).toBe(assetId);
     expect(second.assetId).toBe(secondAssetId);
@@ -175,7 +181,7 @@ describe("uploadManagedAsset", () => {
     });
     authMocks.uploadSucceeded.add(secondAssetId);
 
-    const result = await uploadManagedAsset(sameFile);
+    const result = await uploadManagedFontAsset(sameFile);
 
     expect(result.assetId).toBe(assetId);
     expect(uploadMocks.upload).toHaveBeenCalledWith(
@@ -196,12 +202,13 @@ describe("uploadManagedAsset", () => {
         contentType: "font/ttf",
         expectedSizeBytes: sameFile.size,
         sourceLastModified: sameFile.lastModified,
+        purpose: "fonts",
         state: "pending",
       });
     }
 
     expect(await listManagedAssetUploadIntents()).toHaveLength(2);
-    const resumed = await resumeManagedAssetUpload(sameFile, secondAssetId);
+    const resumed = await resumeManagedFontAssetUpload(sameFile, secondAssetId);
     expect(resumed.assetId).toBe(secondAssetId);
     expect(uploadMocks.upload.mock.calls[0]?.[0]).toBe(`users/user-1/assets/${secondAssetId}.ttf`);
   });
@@ -219,10 +226,13 @@ describe("uploadManagedAsset", () => {
       contentType,
       expectedSizeBytes: selectedFile.size,
       sourceLastModified: selectedFile.lastModified,
+      purpose: extension === ".ttf" ? "fonts" : "generic",
       state: "pending",
     });
 
-    const result = await resumeManagedAssetUpload(selectedFile, secondAssetId);
+    const result = extension === ".ttf"
+      ? await resumeManagedFontAssetUpload(selectedFile, secondAssetId)
+      : await resumeManagedAssetUpload(selectedFile, secondAssetId);
 
     expect(result.assetId).toBe(secondAssetId);
     expect(result.storagePath).toBe(`users/user-1/assets/${secondAssetId}${extension}`);
@@ -239,10 +249,11 @@ describe("uploadManagedAsset", () => {
       contentType: "font/ttf",
       expectedSizeBytes: sameFile.size,
       sourceLastModified: sameFile.lastModified,
+      purpose: "fonts",
       state: "uncertain",
     });
 
-    await expect(uploadManagedAsset(sameFile)).rejects.toMatchObject({ category: "uncertain_completion" });
+    await expect(uploadManagedFontAsset(sameFile)).rejects.toMatchObject({ category: "uncertain_completion" });
     expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
@@ -258,6 +269,7 @@ describe("uploadManagedAsset", () => {
           contentType: "text/plain",
           assetId,
           expectedSizeBytes: 9,
+          purpose: "generic",
         }),
         contentType: "text/plain",
       }),
@@ -277,6 +289,7 @@ describe("uploadManagedAsset", () => {
           contentType: "text/plain",
           assetId,
           expectedSizeBytes: 9,
+          purpose: "generic",
         }),
         contentType: "text/plain",
       }),
@@ -284,7 +297,7 @@ describe("uploadManagedAsset", () => {
   });
 
   it("allows an explicit content type to override the File MIME", async () => {
-    const result = await uploadManagedAsset(
+    const result = await uploadManagedFontAsset(
       file("font.woff2", "application/octet-stream"),
       { contentType: "font/woff2" },
     );
@@ -299,6 +312,7 @@ describe("uploadManagedAsset", () => {
           contentType: "font/woff2",
           assetId,
           expectedSizeBytes: 9,
+          purpose: "fonts",
         }),
         contentType: "font/woff2",
       }),
@@ -312,6 +326,13 @@ describe("uploadManagedAsset", () => {
     expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
+  it.each([".ttf", ".otf", ".woff", ".woff2"])("generic uploader rejects font extension %s before creating an intent", async (extension) => {
+    const response = await uploadManagedAsset(file(`blocked${extension}`, "application/octet-stream")).catch((error: unknown) => error);
+    expect(response).toBeInstanceOf(ManagedAssetUploadError);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported extensions before requesting an upload token", async () => {
     await expect(uploadManagedAsset(file("payload.exe", "application/octet-stream"))).rejects.toBeInstanceOf(ManagedAssetUploadError);
     expect(uploadMocks.upload).not.toHaveBeenCalled();
@@ -319,8 +340,8 @@ describe("uploadManagedAsset", () => {
 
   it("resumes a selected UUID operation without issuing another transfer after completion", async () => {
     const selectedFile = file("font.ttf");
-    await uploadManagedAsset(selectedFile);
-    await resumeManagedAssetUpload(selectedFile, assetId);
+    await uploadManagedFontAsset(selectedFile);
+    await resumeManagedFontAssetUpload(selectedFile, assetId);
 
     expect(uploadMocks.upload.mock.calls.map(([pathname]) => pathname)).toEqual([
       `users/user-1/assets/${assetId}.ttf`,
@@ -328,21 +349,61 @@ describe("uploadManagedAsset", () => {
   });
 
   it("lists a persisted operation after reload and requires explicit selection to recover it", async () => {
-    const sameFile = file("restart.ttf");
+    const sameFile = file("restart.ttf", "font/ttf");
     uploadMocks.upload.mockImplementationOnce(async () => {
       authMocks.events.push("transfer-bytes");
       const intent = authMocks.intents[0];
       if (intent) intent.state = "uploading";
       throw new TypeError("connection ended after request");
     });
-    await expect(uploadManagedAsset(sameFile)).rejects.toBeInstanceOf(ManagedAssetUploadError);
+    await expect(uploadManagedFontAsset(sameFile)).rejects.toBeInstanceOf(ManagedAssetUploadError);
     expect(authMocks.events.indexOf("persist-intent")).toBeLessThan(authMocks.events.indexOf("transfer-bytes"));
     const operations = await listManagedAssetUploadIntents();
     expect(operations).toHaveLength(1);
     expect(operations[0]).toMatchObject({ assetId, state: "uploading" });
     authMocks.recoveryStatuses.set(assetId, "uncertain");
-    await expect(resumeManagedAssetUpload(sameFile, assetId)).rejects.toMatchObject({ category: "uncertain_completion" });
+    await expect(resumeManagedFontAssetUpload(sameFile, assetId)).rejects.toMatchObject({ category: "uncertain_completion" });
     expect(uploadMocks.upload).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles a completed legacy font intent before requiring a purpose", async () => {
+    const legacyFile = file("legacy.ttf", "font/ttf");
+    authMocks.intents.push({
+      assetId,
+      storagePath: `users/user-1/assets/${assetId}.ttf`,
+      originalFilename: legacyFile.name,
+      extension: ".ttf",
+      contentType: "font/ttf",
+      expectedSizeBytes: legacyFile.size,
+      sourceLastModified: legacyFile.lastModified,
+      state: "pending",
+    });
+    authMocks.uploadSucceeded.add(assetId);
+
+    await expect(resumeManagedFontAssetUpload(legacyFile, assetId)).resolves.toMatchObject({
+      assetId,
+      storagePath: `users/user-1/assets/${assetId}.ttf`,
+    });
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
+  });
+
+  it("requires a fresh operation instead of transferring from a legacy intent without purpose", async () => {
+    const legacyFile = file("legacy-pending.ttf", "font/ttf");
+    authMocks.intents.push({
+      assetId,
+      storagePath: `users/user-1/assets/${assetId}.ttf`,
+      originalFilename: legacyFile.name,
+      extension: ".ttf",
+      contentType: "font/ttf",
+      expectedSizeBytes: legacyFile.size,
+      sourceLastModified: legacyFile.lastModified,
+      state: "pending",
+    });
+
+    await expect(resumeManagedFontAssetUpload(legacyFile, assetId)).rejects.toThrow("no recorded purpose");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith("/api/managed-assets/fonts/intents", expect.anything());
+    expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
 
   it("recovers a completed physical upload when the client loses its upload response", async () => {
@@ -370,9 +431,9 @@ describe("uploadManagedAsset", () => {
   });
 
   it.each([
-    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.ttf`, contentType: "font/ttf", etag: undefined },
-    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.ttf`, contentType: "font/ttf", etag: "has whitespace" },
-    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.ttf`, contentType: "application/octet-stream", etag: "0123456789abcdef0123456789abcdef" },
+    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.png`, contentType: "image/png", etag: undefined },
+    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.png`, contentType: "image/png", etag: "has whitespace" },
+    { url: "https://blob.vercel-storage.com/file", downloadUrl: "https://blob.vercel-storage.com/file?download=1", pathname: `users/user-1/assets/${assetId}.png`, contentType: "application/octet-stream", etag: "0123456789abcdef0123456789abcdef" },
   ])("uses verified server metadata even when the client upload response is incomplete", async (response) => {
     uploadMocks.upload.mockImplementationOnce(async () => {
       authMocks.uploadSucceeded.add(assetId);
@@ -382,7 +443,7 @@ describe("uploadManagedAsset", () => {
     await expect(uploadManagedAsset(file())).resolves.toMatchObject({
       etag: "0123456789abcdef0123456789abcdef",
       sizeBytes: 9,
-      contentType: "font/ttf",
+      contentType: "image/png",
     });
   });
 
