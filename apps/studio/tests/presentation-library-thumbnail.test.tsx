@@ -148,6 +148,21 @@ function emptySlide(id: string): Slide {
   };
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#039;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
+function recoverScriptedPayload(srcdoc: string, name: string): unknown {
+  const match = srcdoc.match(new RegExp("data-" + name + "=\"([^\"]*)\""));
+  if (!match) throw new Error("Missing Scripted payload attribute: " + name);
+  return JSON.parse(decodeHtmlEntities(match[1]!)) as unknown;
+}
+
 function previewData(
   firstSlide: Slide,
   aspectRatio: "16:9" | "4:3" = "16:9",
@@ -327,7 +342,7 @@ describe("presentation thumbnail preview", () => {
     const srcdoc = frame?.getAttribute("srcdoc") ?? "";
     expect(frame).not.toBeNull();
     expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
-    expect(srcdoc).toContain('data-scripted-resource-text="file-markdown"');
+    expect(recoverScriptedPayload(srcdoc, "html")).toContain('data-scripted-resource-text="file-markdown"');
     expect(srcdoc).toContain('data-script="&quot;&quot;"');
     expect(srcdoc).not.toContain("window.authoredScriptRan = true;");
   });
