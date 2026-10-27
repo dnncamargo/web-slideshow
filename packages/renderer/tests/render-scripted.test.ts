@@ -213,6 +213,7 @@ function executeScriptedBootstrap(
   messageSource: unknown;
   reports: unknown[];
   runtimeWindow: ScriptedRuntimeTestWindow;
+  headStyles: string[];
 } {
   const rendered = presentation === undefined
     ? renderScripted(element, undefined, undefined, executionPolicy)
@@ -220,6 +221,7 @@ function executeScriptedBootstrap(
   const srcdoc = extractSrcdoc(rendered);
   const reports: unknown[] = [];
   const errors: unknown[] = [];
+  const headStyles: string[] = [];
   const root = {
     innerHTML: "",
     querySelectorAll(selector: string) {
@@ -255,7 +257,11 @@ function executeScriptedBootstrap(
   sandbox.document = {
     getElementById: (id: string) => id === "scripted-runtime-payload" ? payload : root,
     createElement: () => ({ textContent: "" }),
-    head: { appendChild() {} },
+    head: {
+      appendChild(node: { textContent: string }) {
+        headStyles.push(node.textContent);
+      },
+    },
     body: {
       appendChild(node: { textContent: string }) {
         expect(node.textContent).toBe(element.script);
@@ -273,6 +279,7 @@ function executeScriptedBootstrap(
     messageSource,
     reports,
     runtimeWindow: sandbox as unknown as ScriptedRuntimeTestWindow,
+    headStyles,
   };
 }
 
@@ -284,7 +291,28 @@ describe("renderScripted", () => {
 
     expect(recoverPayload(executeSrcdoc, "script")).toBe(element.script);
     expect(recoverPayload(staticSrcdoc, "script")).toBe("");
+    expect(recoverPayload(executeSrcdoc, "execution-policy")).toBe("execute");
+    expect(recoverPayload(staticSrcdoc, "execution-policy")).toBe("static");
     expect(staticSrcdoc).not.toContain("window.authoredScriptRan = true;");
+  });
+
+  it("suppresses CSS motion only in static mode and after authored styles", () => {
+    const element = scripted({
+      css: ".clippy-gif { animation: clippy-bounce 1s infinite; transition: transform 200ms; }",
+    });
+    const executeResult = executeScriptedBootstrap(element);
+    const staticResult = executeScriptedBootstrap(element, undefined, "static");
+    const motionOverride = staticResult.headStyles.at(-1) ?? "";
+
+    expect(executeResult.headStyles).toEqual([element.css]);
+    expect(executeResult.headStyles.join("\n")).not.toContain("animation: none !important");
+    expect(staticResult.headStyles[0]).toBe(element.css);
+    expect(motionOverride).toContain("#scripted-runtime-root *");
+    expect(motionOverride).toContain("animation: none !important");
+    expect(motionOverride).toContain("animation-play-state: paused !important");
+    expect(motionOverride).toContain("transition: none !important");
+    expect(motionOverride).toContain("scroll-behavior: auto !important");
+    expect(staticResult.errors).toHaveLength(0);
   });
 
   it("renders gradient borders on an outer frame with the iframe as the runtime target", () => {
