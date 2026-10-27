@@ -200,12 +200,14 @@ type ScriptedMessageEvent = {
 
 type TestScriptedExecutionPolicy = "execute" | "static";
 type TestTextResourceTarget = { resourceId: string; textContent: string };
+type TestMarkdownTarget = { resourceId: string; innerHTML: string; style: { whiteSpace: string } };
 
 function executeScriptedBootstrap(
   element: ScriptedElement,
   presentation?: Presentation,
   executionPolicy: TestScriptedExecutionPolicy = "execute",
   textResourceTargets: TestTextResourceTarget[] = [],
+  markdownTargets: TestMarkdownTarget[] = [],
 ): {
   context: ReturnType<typeof createContext>;
   errors: unknown[];
@@ -225,15 +227,28 @@ function executeScriptedBootstrap(
   const root = {
     innerHTML: "",
     querySelectorAll(selector: string) {
-      if (selector !== "[data-scripted-resource-text]") return [];
-      return textResourceTargets.map((target) => ({
-        getAttribute(name: string) {
-          return name === "data-scripted-resource-text" ? target.resourceId : null;
-        },
-        set textContent(value: string) {
-          target.textContent = value;
-        },
-      }));
+      if (selector === "[data-scripted-resource-text]") {
+        return textResourceTargets.map((target) => ({
+          getAttribute(name: string) {
+            return name === "data-scripted-resource-text" ? target.resourceId : null;
+          },
+          set textContent(value: string) {
+            target.textContent = value;
+          },
+        }));
+      }
+      if (selector === "[data-scripted-resource-markdown]") {
+        return markdownTargets.map((target) => ({
+          getAttribute(name: string) {
+            return name === "data-scripted-resource-markdown" ? target.resourceId : null;
+          },
+          style: target.style,
+          set innerHTML(value: string) {
+            target.innerHTML = value;
+          },
+        }));
+      }
+      return [];
     },
   };
   let listener: ((event: ScriptedMessageEvent) => void) | undefined;
@@ -284,6 +299,67 @@ function executeScriptedBootstrap(
 }
 
 describe("renderScripted", () => {
+  it("renders attached Markdown resources into declared targets in static and execute modes", () => {
+    const resourceId = "file-markdown-formatted";
+    const markdownContent = [
+      "# Formatação",
+      "",
+      "Texto **importante** e *ênfase*.",
+      "",
+      "- Item A",
+      "- Item B",
+      "",
+      "<script>window.markdownInjected = true;</script>",
+    ].join("\n");
+    const resource: PresentationFileResource = {
+      id: resourceId,
+      name: "life-instructions.md",
+      kind: "markdown",
+      representation: "text",
+      contentType: "text/markdown",
+      source: { type: "text", content: markdownContent },
+    };
+    const presentation = presentationWithFiles([resource]);
+    const element = scripted({
+      resourceIds: [resourceId],
+      html: '<div data-scripted-resource-markdown="' + resourceId + '"></div>',
+      script: "window.authoredScriptRan = true;",
+    });
+    const staticTarget = { resourceId, innerHTML: "", style: { whiteSpace: "pre-wrap" } };
+    const staticResult = executeScriptedBootstrap(
+      element,
+      presentation,
+      "static",
+      [],
+      [staticTarget],
+    );
+
+    expect(staticTarget.innerHTML).toContain("<h1>Formatação</h1>");
+    expect(staticTarget.style.whiteSpace).toBe("normal");
+    expect(staticTarget.innerHTML).toContain("<strong>importante</strong>");
+    expect(staticTarget.innerHTML).toContain("<em>ênfase</em>");
+    expect(staticTarget.innerHTML).toContain("<ul>");
+    expect(staticTarget.innerHTML).toContain("&lt;script&gt;");
+    expect(staticTarget.innerHTML).not.toContain("<script>");
+    expect(recoverPayload(extractSrcdoc(renderElement(element, {
+      presentation,
+      scriptedExecutionPolicy: "static",
+    })), "markdown")).toHaveProperty(resourceId);
+    expect(runInContext("typeof window.authoredScriptRan", staticResult.context)).toBe("undefined");
+
+    const executeTarget = { resourceId, innerHTML: "", style: { whiteSpace: "pre-wrap" } };
+    const executeResult = executeScriptedBootstrap(
+      element,
+      presentation,
+      "execute",
+      [],
+      [executeTarget],
+    );
+    expect(executeTarget.innerHTML).toContain("<h1>Formatação</h1>");
+    expect(runInContext("window.authoredScriptRan", executeResult.context)).toBe(true);
+    expect(executeResult.errors).toHaveLength(0);
+  });
+
   it("defaults to executing authored code and omits it from static render payloads", () => {
     const element = scripted({ script: "window.authoredScriptRan = true;" });
     const executeSrcdoc = extractSrcdoc(renderScripted(element));
