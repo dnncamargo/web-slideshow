@@ -5,7 +5,12 @@ import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Presentation, Slide } from "@web-slideshow/document-schema";
+import type {
+  Presentation,
+  PresentationFileResource,
+  ScriptedElement,
+  Slide,
+} from "@web-slideshow/document-schema";
 import { renderPresentation } from "@web-slideshow/renderer";
 
 import { PresentationThumbnail } from "../src/features/library/presentation-thumbnail";
@@ -285,6 +290,47 @@ describe("presentation thumbnail preview", () => {
   function renderNode(node: ReactNode) {
     act(() => root.render(node));
   }
+
+  it("renders Scripted resources statically in Library thumbnails", () => {
+    const resource: PresentationFileResource = {
+      id: "file-markdown",
+      name: "test.md",
+      kind: "markdown",
+      representation: "text",
+      contentType: "text/markdown",
+      source: { type: "text", content: "# Thumbnail markdown" },
+    };
+    const scriptedElement: ScriptedElement = {
+      id: "scripted-thumbnail",
+      type: "scripted",
+      hidden: false,
+      title: "Markdown preview",
+      html: '<pre data-scripted-resource-text="file-markdown"></pre>',
+      css: "",
+      script: "window.authoredScriptRan = true;",
+      ports: [],
+      resourceIds: [resource.id],
+    };
+    const firstSlide: Slide = {
+      ...emptySlide("static-scripted-slide"),
+      elements: [scriptedElement],
+    };
+    const base = previewData(firstSlide);
+    const preview: PresentationThumbnailPreviewData = {
+      ...base,
+      presentation: { ...base.presentation, resources: { files: [resource] } },
+    };
+
+    renderNode(<PresentationThumbnailPreview preview={preview} />);
+
+    const frame = container.querySelector<HTMLIFrameElement>("iframe.presentation-scripted");
+    const srcdoc = frame?.getAttribute("srcdoc") ?? "";
+    expect(frame).not.toBeNull();
+    expect(srcdoc).toContain('data-scripted-runtime-bootstrap="true"');
+    expect(srcdoc).toContain('data-scripted-resource-text="file-markdown"');
+    expect(srcdoc).toContain('data-script="&quot;&quot;"');
+    expect(srcdoc).not.toContain("window.authoredScriptRan = true;");
+  });
 
   it("renders the first slide with the existing renderer", () => {
     renderNode(

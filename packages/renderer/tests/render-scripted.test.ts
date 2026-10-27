@@ -198,7 +198,15 @@ type ScriptedMessageEvent = {
   data: unknown;
 };
 
-function executeScriptedBootstrap(element: ScriptedElement, presentation?: Presentation): {
+type TestScriptedExecutionPolicy = "execute" | "static";
+type TestTextResourceTarget = { resourceId: string; textContent: string };
+
+function executeScriptedBootstrap(
+  element: ScriptedElement,
+  presentation?: Presentation,
+  executionPolicy: TestScriptedExecutionPolicy = "execute",
+  textResourceTargets: TestTextResourceTarget[] = [],
+): {
   context: ReturnType<typeof createContext>;
   errors: unknown[];
   listener: ((event: ScriptedMessageEvent) => void) | undefined;
@@ -207,12 +215,25 @@ function executeScriptedBootstrap(element: ScriptedElement, presentation?: Prese
   runtimeWindow: ScriptedRuntimeTestWindow;
 } {
   const rendered = presentation === undefined
-    ? renderScripted(element)
-    : renderElement(element, { presentation });
+    ? renderScripted(element, undefined, undefined, executionPolicy)
+    : renderElement(element, { presentation, scriptedExecutionPolicy: executionPolicy });
   const srcdoc = extractSrcdoc(rendered);
   const reports: unknown[] = [];
   const errors: unknown[] = [];
-  const root = { innerHTML: "" };
+  const root = {
+    innerHTML: "",
+    querySelectorAll(selector: string) {
+      if (selector !== "[data-scripted-resource-text]") return [];
+      return textResourceTargets.map((target) => ({
+        getAttribute(name: string) {
+          return name === "data-scripted-resource-text" ? target.resourceId : null;
+        },
+        set textContent(value: string) {
+          target.textContent = value;
+        },
+      }));
+    },
+  };
   let listener: ((event: ScriptedMessageEvent) => void) | undefined;
   const messageSource = {
     postMessage: (message: unknown) => reports.push(message),
@@ -256,6 +277,16 @@ function executeScriptedBootstrap(element: ScriptedElement, presentation?: Prese
 }
 
 describe("renderScripted", () => {
+  it("defaults to executing authored code and omits it from static render payloads", () => {
+    const element = scripted({ script: "window.authoredScriptRan = true;" });
+    const executeSrcdoc = extractSrcdoc(renderScripted(element));
+    const staticSrcdoc = extractSrcdoc(renderScripted(element, undefined, undefined, "static"));
+
+    expect(recoverPayload(executeSrcdoc, "script")).toBe(element.script);
+    expect(recoverPayload(staticSrcdoc, "script")).toBe("");
+    expect(staticSrcdoc).not.toContain("window.authoredScriptRan = true;");
+  });
+
   it("renders gradient borders on an outer frame with the iframe as the runtime target", () => {
     const html = renderScripted(scripted({
       style: {
@@ -740,6 +771,39 @@ describe("renderScripted Presentation file resources bootstrap", () => {
     { id: "file-xml", name: "XML", kind: "structured-data", representation: "text", contentType: "application/xml", content: '<root value="1" />' },
     { id: "file-svg", name: "SVG", kind: "image", representation: "text", contentType: "image/svg+xml", content: '<svg viewBox="0 0 1 1"><path /></svg>' },
   ];
+
+  it("binds declared text resources safely in static mode without executing authored JavaScript", () => {
+    const markdownContent = '# Markdown\n<script>window.injected = true;</script> & "literal" 日本語';
+    const markdownFile: PresentationFileResource = {
+      id: "file-markdown-static",
+      name: "example.md",
+      kind: "markdown",
+      representation: "text",
+      contentType: "text/markdown",
+      source: { type: "text", content: markdownContent },
+    };
+    const presentation = presentationWithFiles([markdownFile]);
+    const element = scripted({
+      resourceIds: [markdownFile.id],
+      html: `<pre data-scripted-resource-text="${markdownFile.id}"></pre>`,
+      script: "window.authoredScriptRan = true;",
+    });
+    const target = { resourceId: markdownFile.id, textContent: "" };
+    const staticResult = executeScriptedBootstrap(element, presentation, "static", [target]);
+    const staticSrcdoc = extractSrcdoc(renderElement(element, {
+      presentation,
+      scriptedExecutionPolicy: "static",
+    }));
+
+    expect(target.textContent).toBe(markdownContent);
+    expect(staticResult.errors).toHaveLength(0);
+    expect(runInContext("typeof window.authoredScriptRan", staticResult.context)).toBe("undefined");
+    expect(runInContext("typeof window.injected", staticResult.context)).toBe("undefined");
+    expect(recoverPayload(staticSrcdoc, "script")).toBe("");
+
+    const executeResult = executeScriptedBootstrap(element, presentation);
+    expect(runInContext("window.authoredScriptRan", executeResult.context)).toBe(true);
+  });
 
   it("serializes files through the safe payload in canonical order", () => {
     const presentation = presentationWithFiles(files);

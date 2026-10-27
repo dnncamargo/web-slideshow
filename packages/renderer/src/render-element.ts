@@ -7,7 +7,7 @@ import { renderDivider } from "./render-divider";
 import { renderGallery } from "./render-gallery";
 import { renderEmbed } from "./render-embed";
 import { renderBlocks } from "./render-blocks";
-import { renderScripted } from "./render-scripted";
+import { renderScripted, type ScriptedExecutionPolicy } from "./render-scripted";
 import { renderShape } from "./render-shape";
 
 import type {
@@ -46,6 +46,7 @@ function hasGradientBorder(element: ImageElement): boolean {
 
 export type RenderContext = Readonly<{
   presentation: Presentation;
+  scriptedExecutionPolicy?: ScriptedExecutionPolicy;
 }>;
 
 function renderImageCropBoxStyle(element: ImageElement): string {
@@ -421,6 +422,7 @@ export function renderElement(
         element,
         context?.presentation.resources?.fonts,
         selectedFiles,
+        context?.scriptedExecutionPolicy,
       );
     }
 

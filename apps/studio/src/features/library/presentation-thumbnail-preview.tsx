@@ -33,7 +33,10 @@ export function PresentationThumbnailPreview({
   preview,
 }: PresentationThumbnailPreviewProps) {
   const markup = useMemo(
-    () => renderSlide(preview.firstSlide, { presentation: preview.presentation }),
+    () => renderSlide(preview.firstSlide, {
+      presentation: preview.presentation,
+      scriptedExecutionPolicy: "static",
+    }),
     [preview.firstSlide, preview.presentation],
   );
   const renderedMarkup = useMemo(() => ({ __html: markup }), [markup]);
