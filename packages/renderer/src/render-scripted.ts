@@ -119,6 +119,8 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var css = String(decode('css'));" +
   "\n" +
+  "var executionPolicy = String(decode('execution-policy'));" +
+  "\n" +
   "var script = String(decode('script'));" +
   "\n" +
   "var elementId = String(decode('element-id'));" +
@@ -140,6 +142,16 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "  styleNode.textContent = css;" +
   "\n" +
   "  document.head.appendChild(styleNode);" +
+  "\n" +
+  "}" +
+  "\n" +
+  "if (executionPolicy === 'static') {" +
+  "\n" +
+  "  var staticMotionStyleNode = document.createElement('style');" +
+  "\n" +
+  "  staticMotionStyleNode.textContent = 'html, body, #scripted-runtime-root, #scripted-runtime-root *, body::before, body::after, #scripted-runtime-root *::before, #scripted-runtime-root *::after { animation: none !important; animation-play-state: paused !important; transition: none !important; scroll-behavior: auto !important; }';" +
+  "\n" +
+  "  document.head.appendChild(staticMotionStyleNode);" +
   "\n" +
   "}" +
   "\n" +
@@ -435,6 +447,9 @@ function buildScriptedDocument(
     "\"" +
     " data-script=\"" +
     serializedPayloadValue(executionPolicy === "static" ? "" : element.script) +
+    "\"" +
+    " data-execution-policy=\"" +
+    serializedPayloadValue(executionPolicy) +
     "\"" +
     " data-element-id=\"" +
     serializedPayloadValue(element.id) +
