@@ -5,6 +5,7 @@ import type {
 } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
+import { renderMarkdownToSafeHtml } from "./render-markdown";
 import { renderFontResources } from "./render-font-resources";
 import { renderCanonicalSurfaceStyle } from "./render-canonical-surface";
 import { renderGradientBorder } from "./render-visual";
@@ -132,6 +133,10 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "var decodedResources = decode('resources');" +
   "\n" +
   "var resources = Array.isArray(decodedResources) ? decodedResources : [];" +
+  "\n" +
+  "var decodedMarkdown = decode('markdown');" +
+  "\n" +
+  "var markdownById = decodedMarkdown && typeof decodedMarkdown === 'object' && !Array.isArray(decodedMarkdown) ? decodedMarkdown : Object.create(null);" +
   "\n" +
   "root.innerHTML = html;" +
   "\n" +
@@ -320,6 +325,32 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
   "\n" +
+  "function renderMarkdownTargets() {" +
+  "\n" +
+  "  if (typeof root.querySelectorAll !== 'function') { return; }" +
+  "\n" +
+  "  var markdownTargets = root.querySelectorAll('[data-scripted-resource-markdown]');" +
+  "\n" +
+  "  for (var markdownTargetIndex = 0; markdownTargetIndex < markdownTargets.length; markdownTargetIndex += 1) {" +
+  "\n" +
+  "    var markdownTarget = markdownTargets[markdownTargetIndex];" +
+  "\n" +
+  "    if (!markdownTarget || typeof markdownTarget.getAttribute !== 'function') { continue; }" +
+  "\n" +
+  "    var markdownResourceId = markdownTarget.getAttribute('data-scripted-resource-markdown');" +
+  "\n" +
+  "    if (typeof markdownResourceId !== 'string' || !own(markdownById, markdownResourceId) || typeof markdownById[markdownResourceId] !== 'string') { continue; }" +
+  "\n" +
+  "    if (markdownTarget.style && typeof markdownTarget.style === 'object') { markdownTarget.style.whiteSpace = 'normal'; }" +
+  "\n" +
+  "    markdownTarget.innerHTML = markdownById[markdownResourceId];" +
+  "\n" +
+  "  }" +
+  "\n" +
+  "}" +
+  "\n" +
+  "renderMarkdownTargets();" +
+  "\n" +
   "function exactKeys(value, first, second, third, fourth) {" +
   "\n" +
   "  var keys = Object.keys(value);" +
@@ -366,6 +397,8 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "}" +
   "\n" +
+  "renderMarkdownTargets();" +
+  "\n" +
   "payload.remove();" +
   "\n" +
   "})();";
@@ -387,6 +420,33 @@ type ScriptedResourcePayload = {
   url?: string;
   content?: string;
 };
+
+function scriptedMarkdownPayload(
+  element: ScriptedElement,
+  files: readonly PresentationFileResource[] | undefined,
+): Record<string, string> {
+  const referencedIds = new Set<string>();
+  const attributePattern = /\bdata-scripted-resource-markdown\s*=\s*(?:"([^"]+)"|'([^']+)')/gi;
+
+  for (const match of element.html.matchAll(attributePattern)) {
+    const resourceId = match[1] ?? match[2];
+    if (resourceId !== undefined) referencedIds.add(resourceId);
+  }
+
+  const markdownById: Record<string, string> = Object.create(null) as Record<string, string>;
+  for (const file of files ?? []) {
+    if (
+      referencedIds.has(file.id)
+      && file.kind === "markdown"
+      && file.representation === "text"
+      && file.contentType === "text/markdown"
+    ) {
+      markdownById[file.id] = renderMarkdownToSafeHtml(file.source.content);
+    }
+  }
+
+  return markdownById;
+}
 
 function scriptedResourcePayload(
   files: readonly PresentationFileResource[] | undefined,
@@ -424,6 +484,7 @@ function buildScriptedDocument(
     ? `<style data-presentation-font-resources>${fontResources}</style>`
     : "";
   const resourcePayload = scriptedResourcePayload(files);
+  const markdownPayload = scriptedMarkdownPayload(element, files);
 
   return (
     "<!doctype html><html><head>" +
@@ -459,6 +520,9 @@ function buildScriptedDocument(
     "\"" +
     " data-resources=\"" +
     serializedPayloadValue(resourcePayload) +
+    "\"" +
+    " data-markdown=\"" +
+    serializedPayloadValue(markdownPayload) +
     "\"></template>" +
     "<script data-scripted-runtime-bootstrap=\"true\">" +
     SCRIPTED_BOOTSTRAP_SOURCE +

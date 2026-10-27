@@ -13,6 +13,7 @@
   "dependencies": {
     "@web-slideshow/document-schema": "workspace:*",
     "@web-slideshow/math-source": "workspace:*",
+    "marked": "^18.1.2",
     "qrcode": "1.5.4"
   },
   "devDependencies": {
