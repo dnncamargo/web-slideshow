@@ -56,6 +56,8 @@ const SCRIPTED_SANDBOX = "allow-scripts";
 // transmit an HTTP Referer derived from the application origin.
 const SCRIPTED_REFERRERPOLICY = "no-referrer";
 
+export type ScriptedExecutionPolicy = "execute" | "static";
+
 // Renderer-owned fixed CSP. Never authored, never configurable, and
 // serialized with a stable ordering so the exact rendered document is
 // deterministic. The browser decodes the escapeHtml'd attribute value
@@ -289,7 +291,19 @@ const SCRIPTED_BOOTSTRAP_SOURCE =
   "\n" +
   "var resourcesApi = Object.freeze({ list: resourceList, get: resourceGet });" +
   "\n" +
-  "var runtimeApi = Object.freeze({ ports: portsApi, resources: resourcesApi });" +
+  "if (typeof root.querySelectorAll === 'function') {" +
+"  var textTargets = root.querySelectorAll('[data-scripted-resource-text]');" +
+"  for (var textTargetIndex = 0; textTargetIndex < textTargets.length; textTargetIndex += 1) {" +
+"    var textTarget = textTargets[textTargetIndex];" +
+"    if (!textTarget || typeof textTarget.getAttribute !== 'function') { continue; }" +
+"    var textResourceId = textTarget.getAttribute('data-scripted-resource-text');" +
+"    if (typeof textResourceId !== 'string' || !own(resourcesById, textResourceId)) { continue; }" +
+"    var textResource = resourcesById[textResourceId];" +
+"    if (textResource.representation === 'text' && typeof textResource.content === 'string') { textTarget.textContent = textResource.content; }" +
+"  }" +
+"}" +
+"\n" +
+"var runtimeApi = Object.freeze({ ports: portsApi, resources: resourcesApi });" +
   "Object.defineProperty(window, 'ScriptedRuntime', { value: runtimeApi, writable: false, configurable: false });" +
   "\n" +
   "function plainRecord(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]'; }" +
@@ -391,6 +405,7 @@ function buildScriptedDocument(
   element: ScriptedElement,
   fonts?: readonly FontResource[],
   files?: readonly PresentationFileResource[],
+  executionPolicy: ScriptedExecutionPolicy = "execute",
 ): string {
   const fontResources = renderFontResources(fonts);
   const fontResourceStyle = fontResources
@@ -419,7 +434,7 @@ function buildScriptedDocument(
     serializedPayloadValue(element.css) +
     "\"" +
     " data-script=\"" +
-    serializedPayloadValue(element.script) +
+    serializedPayloadValue(executionPolicy === "static" ? "" : element.script) +
     "\"" +
     " data-element-id=\"" +
     serializedPayloadValue(element.id) +
@@ -441,6 +456,7 @@ export function renderScripted(
   element: ScriptedElement,
   fonts?: readonly FontResource[],
   files?: readonly PresentationFileResource[],
+  executionPolicy: ScriptedExecutionPolicy = "execute",
 ): string {
   if (element.hidden) {
     return "";
@@ -528,7 +544,7 @@ export function renderScripted(
     ` title="${escapeHtml(element.title)}"` +
     ` sandbox="${SCRIPTED_SANDBOX}"` +
     ` referrerpolicy="${SCRIPTED_REFERRERPOLICY}"` +
-    ` srcdoc="${escapeHtml(buildScriptedDocument(element, fonts, files))}"` +
+    ` srcdoc="${escapeHtml(buildScriptedDocument(element, fonts, files, executionPolicy))}"` +
     ` style="${escapeHtml(iframeStyles.join(";"))}"` +
     `></iframe>`
   );
