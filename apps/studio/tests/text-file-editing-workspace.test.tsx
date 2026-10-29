@@ -1047,11 +1047,13 @@ describe("Presentation text file editing workspace", () => {
 
   it("keeps formatting local until the explicit text Save creates one content History action", async () => {
     await enterTextFileEditing("data.json");
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.textContent).toBe("Save and Apply");
     await act(async () => setText('{"answer":42}'));
     await formatText();
     expect(saved).toHaveLength(0);
 
     await saveText();
+    expect(host.querySelector("[data-text-file-editor-region]")).not.toBeNull();
     expect(editorText()).toContain('"answer": 42');
     const canonical = await saveCanonicalSnapshot();
     expect(canonical.resources?.files?.find((file) => file.id === "json-text-file")?.source).toEqual({

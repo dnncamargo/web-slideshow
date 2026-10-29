@@ -105,8 +105,20 @@ function ScriptedResourceRow({
   onRemove: () => void;
 }) {
   const { t } = useStudioI18n();
+  const [copyStatus, setCopyStatus] = useState<"copied" | "failed" | null>(null);
   const resourceIdLiteral = JSON.stringify(resource.id);
   const address = `ScriptedRuntime.resources.get(${resourceIdLiteral})`;
+  const usageExample = resourceUsageExample(resource);
+
+  async function copyUsageExample(): Promise<void> {
+    setCopyStatus(null);
+    try {
+      await navigator.clipboard.writeText(usageExample);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
 
   return (
     <div className={resourceStyles.resourceItem} data-presentation-scripted-resource-row>
@@ -114,7 +126,17 @@ function ScriptedResourceRow({
         <strong>{resource.name}</strong>
         <span className={resourceStyles.masterPaletteCount}>{resource.kind} · {resource.contentType}</span>
         <code>{address}</code>
-        <pre className={styles.fieldHint}>{resourceUsageExample(resource)}</pre>
+        <pre className={styles.fieldHint}>{usageExample}</pre>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          data-presentation-scripted-resource-copy="true"
+          onClick={() => void copyUsageExample()}
+        >
+          {t("scripted.copyResourceExample")}
+        </button>
+        {copyStatus === "copied" ? <span role="status">{t("scripted.resourceExampleCopied")}</span> : null}
+        {copyStatus === "failed" ? <span role="alert">{t("scripted.resourceExampleCopyFailed")}</span> : null}
       </div>
       <button
         type="button"

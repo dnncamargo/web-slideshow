@@ -85,6 +85,7 @@ describe("StructuredTextEditor CodeMirror ergonomics", () => {
   it("renders native line numbers and active line/gutter highlighting", async () => {
     await mount();
     const view = editorView();
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.textContent).toBe("Save");
 
     expect(host.querySelector(".cm-lineNumbers")).not.toBeNull();
     view.focus();

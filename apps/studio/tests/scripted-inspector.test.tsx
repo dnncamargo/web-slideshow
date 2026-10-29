@@ -763,6 +763,7 @@ describe("ScriptedInspector port drafts", () => {
   let updates: ScriptedElement[];
   let presentationFiles: readonly PresentationFileResource[] = [];
   let latestSourceRequest: ScriptedSourceEditRequest | null = null;
+  let clipboardDescriptor: PropertyDescriptor | undefined;
 
   function renderInspector(): void {
     root.render(<StudioI18nProvider><ScriptedInspector element={elementState} presentationFiles={presentationFiles} onEditSource={(request) => { latestSourceRequest = request; }} onUpdate={(update) => {
@@ -818,6 +819,7 @@ describe("ScriptedInspector port drafts", () => {
   }
 
   beforeEach(() => {
+    clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -826,6 +828,11 @@ describe("ScriptedInspector port drafts", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     document.body.innerHTML = "";
+    if (clipboardDescriptor) {
+      Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+    } else {
+      Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 
   it("renders canonical ports in order and keeps selection, add, remove, and reset local", async () => {
@@ -890,11 +897,36 @@ describe("ScriptedInspector port drafts", () => {
     expect(row?.querySelector("code")?.textContent).toBe(`ScriptedRuntime.resources.get(${JSON.stringify(resourceId)})`);
     expect(row?.querySelector("pre")?.textContent).toContain(`ScriptedRuntime.resources.get(${JSON.stringify(resourceId)})`);
 
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const copy = row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-copy]");
+    expect(copy?.textContent).toBe("Copy example");
+    await act(async () => copy?.click());
+    expect(writeText).toHaveBeenCalledWith(`const resource = ScriptedRuntime.resources.get(${JSON.stringify(resourceId)});\nconst content = resource.content;`);
+    expect(row?.querySelector('[role="status"]')?.textContent).toBe("JavaScript example copied.");
+
     const remove = row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-remove]");
     expect(remove).not.toBeNull();
     expect(remove?.getAttribute("aria-label")).toBe("Remove resource Long ID");
     await act(async () => remove?.click());
     expect(container.querySelector("[data-presentation-scripted-resource-row]")).toBeNull();
+  });
+
+  it("reports when copying a Scripted resource example fails", async () => {
+    const resourceId = 'file-"quoted"\\path';
+    const files: PresentationFileResource[] = [
+      { id: resourceId, name: "Escaped", kind: "text", representation: "text", contentType: "text/plain", source: { type: "text", content: "Escaped" } },
+    ];
+    const writeText = vi.fn().mockRejectedValue(new Error("Clipboard unavailable"));
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await act(async () => mount(scripted({ resourceIds: [resourceId] }), files));
+
+    const row = container.querySelector<HTMLElement>("[data-presentation-scripted-resource-row]");
+    const expectedExample = `const resource = ScriptedRuntime.resources.get(${JSON.stringify(resourceId)});\nconst content = resource.content;`;
+    await act(async () => row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-copy]")?.click());
+
+    expect(writeText).toHaveBeenCalledWith(expectedExample);
+    expect(row?.querySelector('[role="alert"]')?.textContent).toBe("Could not copy the JavaScript example.");
   });
 
   it("escapes resource ids in displayed ScriptedRuntime usage guidance", async () => {
