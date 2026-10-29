@@ -443,8 +443,8 @@ const englishMessages = {
   "scripted.resourceAvailable": "Available Presentation Files",
   "scripted.addResource": "Add resource {name}",
   "scripted.removeResource": "Remove resource {name}",
-  "scripted.copyResourceExample": "Copy example",
-  "scripted.resourceExampleCopied": "JavaScript example copied.",
+  "scripted.copyResourceExample": "Copy",
+  "scripted.resourceExampleCopied": "JavaScript code copied.",
   "scripted.resourceExampleCopyFailed": "Could not copy the JavaScript example.",
 
   "elementCrud.add": "+ Add",
@@ -1960,8 +1960,8 @@ const portugueseMessages = {
   "scripted.resourceAvailable": "Presentation Files disponíveis",
   "scripted.addResource": "Adicionar recurso {name}",
   "scripted.removeResource": "Remover recurso {name}",
-  "scripted.copyResourceExample": "Copiar exemplo",
-  "scripted.resourceExampleCopied": "Exemplo JavaScript copiado.",
+  "scripted.copyResourceExample": "Copiar",
+  "scripted.resourceExampleCopied": "Código JavaScript copiado.",
   "scripted.resourceExampleCopyFailed": "Não foi possível copiar o exemplo JavaScript.",
 
   "elementCrud.add": "+ Adicionar",

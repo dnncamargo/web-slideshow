@@ -900,10 +900,10 @@ describe("ScriptedInspector port drafts", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const copy = row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-copy]");
-    expect(copy?.textContent).toBe("Copy example");
+    expect(copy?.textContent).toBe("Copy");
     await act(async () => copy?.click());
     expect(writeText).toHaveBeenCalledWith(`const resource = ScriptedRuntime.resources.get(${JSON.stringify(resourceId)});\nconst content = resource.content;`);
-    expect(row?.querySelector('[role="status"]')?.textContent).toBe("JavaScript example copied.");
+    expect(row?.querySelector('[role="status"]')?.textContent).toBe("JavaScript code copied.");
 
     const remove = row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-remove]");
     expect(remove).not.toBeNull();
