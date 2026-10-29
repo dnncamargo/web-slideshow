@@ -7130,6 +7130,7 @@ export function EditorWorkspace({
               baseline={scriptedSourceSession.baseline}
               profile={scriptedSourceProfile(scriptedSourceSession.source)}
               ariaLabel={t("editor.scriptedSourceEditor")}
+              saveLabel={t("editor.textFileSaveApply")}
               onSave={saveScriptedSourceDraft}
               onDirtyChange={setScriptedSourceEditorDirty}
               onExit={exitScriptedSourceEditor}

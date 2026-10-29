@@ -129,7 +129,7 @@ function ScriptedResourceRow({
         <pre className={styles.fieldHint}>{usageExample}</pre>
         <button
           type="button"
-          className={styles.secondaryButton}
+          className={styles.copyExampleLink}
           data-presentation-scripted-resource-copy="true"
           onClick={() => void copyUsageExample()}
         >

@@ -520,6 +520,7 @@ describe("Presentation text file editing workspace", () => {
     if (!sourceEditButton) throw new Error("Scripted source Edit button was not rendered");
     await act(async () => sourceEditButton.click());
     expect(host.querySelector("[data-structured-text-editor]")).not.toBeNull();
+    expect(host.querySelector<HTMLButtonElement>("[data-text-file-action='save']")?.textContent).toBe("Save and Apply");
     expect(host.querySelector("[class*='canvasViewport']")).toBeNull();
 
     Object.defineProperty(initialViewport, "clientWidth", { configurable: true, value: 0 });
