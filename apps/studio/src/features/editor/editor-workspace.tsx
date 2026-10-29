@@ -261,6 +261,7 @@ import {
 import type { SlideLayoutPreset } from "./slide-operations";
 import {
   createRootDefinitionFromPreset,
+  duplicateRootDefinition,
   deleteRootDefinition,
   getSlideRootDefinitionAssignmentBlocker,
   renameRootDefinition,
@@ -6119,6 +6120,26 @@ export function EditorWorkspace({
     setIsSlideLayoutPickerOpen(false);
   }
 
+  function duplicatePresentationRootDefinition(rootDefinitionId: string) {
+    const source = presentation.rootDefinitions?.find((definition) => definition.id === rootDefinitionId);
+    if (!source) return "not-found" as const;
+
+    const duplicateName = t("customResources.duplicateRootDefinitionName", { name: source.name });
+    const result = duplicateRootDefinition(presentation, rootDefinitionId, duplicateName);
+    if (!result.ok) return result.reason;
+
+    commitPresentationGlobalAction(
+      { kind: "rootDefinition.duplicate", labelKey: "history.rootDefinition.duplicate" },
+      (current) => {
+        const currentResult = duplicateRootDefinition(current, rootDefinitionId, duplicateName);
+        return currentResult.ok ? currentResult.presentation : current;
+      },
+    );
+    setAuthoringTarget({ kind: "root-definition", rootDefinitionId: result.value });
+    setSelectedElement(null);
+    return null;
+  }
+
   function renamePresentationRootDefinition(rootDefinitionId: string, name: string) {
     const result = renameRootDefinition(presentation, rootDefinitionId, name);
     if (!result.ok) return result.reason;
@@ -7695,6 +7716,7 @@ export function EditorWorkspace({
             selectedElement={selectedDocumentElement}
             activeRootDefinitionId={authoringTarget.kind === "root-definition" ? authoringTarget.rootDefinitionId : undefined}
             onOpenRootDefinition={openRootDefinition}
+            onDuplicateRootDefinition={duplicatePresentationRootDefinition}
             onRenameRootDefinition={renamePresentationRootDefinition}
             onDeleteRootDefinition={deletePresentationRootDefinition}
             onCreateLinkedStyleFromSelected={createLinkedStyleFromSelectedElement}

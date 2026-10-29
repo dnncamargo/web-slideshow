@@ -87,6 +87,7 @@ interface CustomResourcesWorkspaceProps {
   presentation?: Presentation;
   activeRootDefinitionId?: string;
   onOpenRootDefinition?: (rootDefinitionId: string) => void;
+  onDuplicateRootDefinition?: (rootDefinitionId: string) => RootDefinitionLifecycleFailure | null;
   onRenameRootDefinition?: (rootDefinitionId: string, name: string) => RootDefinitionLifecycleFailure | null;
   onDeleteRootDefinition?: (rootDefinitionId: string) => RootDefinitionLifecycleFailure | null;
   authoringHistory?: AuthoringHistoryContextValue | null;
@@ -295,6 +296,7 @@ export function CustomResourcesWorkspace({
   selectedElement = null,
   activeRootDefinitionId,
   onOpenRootDefinition = () => undefined,
+  onDuplicateRootDefinition = () => null,
   onRenameRootDefinition = () => null,
   onDeleteRootDefinition = () => null,
   onCreateLinkedStyleFromSelected = () => undefined,
@@ -503,6 +505,10 @@ export function CustomResourcesWorkspace({
                       onSelectSlide={onSelectRootDefinitionSlide}
                       feedback={rootDefinitionFeedback?.id === definition.id ? rootDefinitionFeedback.reason : null}
                       onOpen={() => { setRootDefinitionFeedback(null); onOpenRootDefinition(definition.id); }}
+                      onDuplicate={() => {
+                        const reason = onDuplicateRootDefinition(definition.id);
+                        setRootDefinitionFeedback(reason ? { id: definition.id, reason } : null);
+                      }}
                       onRename={(name) => {
                         const reason = onRenameRootDefinition(definition.id, name);
                         setRootDefinitionFeedback(reason ? { id: definition.id, reason } : null);
@@ -650,6 +656,7 @@ function RootDefinitionResourceRow({
   onSelectSlide,
   feedback,
   onOpen,
+  onDuplicate,
   onRename,
   onRemove,
   onClearFeedback,
@@ -664,6 +671,7 @@ function RootDefinitionResourceRow({
   onSelectSlide: (slideIndex: number) => void;
   feedback: RootDefinitionLifecycleFailure | null;
   onOpen: () => void;
+  onDuplicate: () => void;
   onRename: (name: string) => void;
   onRemove: () => void;
   onClearFeedback: () => void;
@@ -688,6 +696,7 @@ function RootDefinitionResourceRow({
       </div>
       <div className={`${styles.resourceActionRow} ${styles.rootDefinitionActionRow}`}>
         <button type="button" className={styles.resourceAction} data-root-definition-action="open" onClick={onOpen}>{t("customResources.openRootDefinition")}</button>
+        <button type="button" className={styles.resourceAction} data-root-definition-action="duplicate" onClick={onDuplicate}>{t("customResources.duplicateRootDefinition")}</button>
       </div>
       <div className={styles.linkedStyleSection} data-root-definition-section="reuse">
         <h3 className={styles.linkedStyleSectionTitle}>{t("customResources.reuse")}</h3>
