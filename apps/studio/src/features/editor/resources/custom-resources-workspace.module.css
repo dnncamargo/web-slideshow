@@ -589,6 +589,26 @@
   white-space: nowrap;
 }
 
+.resourceItem[data-presentation-scripted-resource-row] {
+  align-items: flex-start;
+}
+
+.resourceItem[data-presentation-scripted-resource-row] .resourceItemDetailsStack {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.resourceItem[data-presentation-scripted-resource-row] code {
+  overflow-wrap: anywhere;
+}
+
+.resourceItem[data-presentation-scripted-resource-row] pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .resourceItemDetailsStack {
   display: flex;
   min-width: 0;

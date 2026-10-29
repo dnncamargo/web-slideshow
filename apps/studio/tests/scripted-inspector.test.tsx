@@ -878,6 +878,25 @@ describe("ScriptedInspector port drafts", () => {
     expect(elementState.resourceIds).toEqual(["file-a", "file-b"]);
   });
 
+  it("shows long resource ids in full in the address and usage example and keeps removal available", async () => {
+    const resourceId = "file-2a5c2149-1a1d-42b9-bb50-6513e2c00c25";
+    const files: PresentationFileResource[] = [
+      { id: resourceId, name: "Long ID", kind: "text", representation: "text", contentType: "text/plain", source: { type: "text", content: "Long ID" } },
+    ];
+    await act(async () => mount(scripted({ resourceIds: [resourceId] }), files));
+
+    const row = container.querySelector<HTMLElement>("[data-presentation-scripted-resource-row]");
+    expect(row).not.toBeNull();
+    expect(row?.querySelector("code")?.textContent).toBe(`ScriptedRuntime.resources.get(${JSON.stringify(resourceId)})`);
+    expect(row?.querySelector("pre")?.textContent).toContain(`ScriptedRuntime.resources.get(${JSON.stringify(resourceId)})`);
+
+    const remove = row?.querySelector<HTMLButtonElement>("[data-presentation-scripted-resource-remove]");
+    expect(remove).not.toBeNull();
+    expect(remove?.getAttribute("aria-label")).toBe("Remove resource Long ID");
+    await act(async () => remove?.click());
+    expect(container.querySelector("[data-presentation-scripted-resource-row]")).toBeNull();
+  });
+
   it("escapes resource ids in displayed ScriptedRuntime usage guidance", async () => {
     const escapedId = 'file-"quoted"\\path';
     const files: PresentationFileResource[] = [
@@ -886,7 +905,9 @@ describe("ScriptedInspector port drafts", () => {
     await act(async () => mount(scripted({ resourceIds: [escapedId] }), files));
 
     const expectedAddress = `ScriptedRuntime.resources.get(${JSON.stringify(escapedId)})`;
-    expect(container.textContent).toContain(expectedAddress);
+    const row = container.querySelector("[data-presentation-scripted-resource-row]");
+    expect(row?.querySelector("code")?.textContent).toBe(expectedAddress);
+    expect(row?.querySelector("pre")?.textContent).toContain(expectedAddress);
     expect(container.textContent).not.toContain(`ScriptedRuntime.resources.get("${escapedId}")`);
   });
 
