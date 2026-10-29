@@ -122,6 +122,7 @@ export interface StructuredTextEditorProps {
   baseline: string;
   profile: StructuredTextEditorProfile;
   ariaLabel: string;
+  saveLabel?: string;
   onSave: (content: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   onExit: () => void;
@@ -132,6 +133,7 @@ export function StructuredTextEditor({
   baseline,
   profile,
   ariaLabel,
+  saveLabel,
   onSave,
   onDirtyChange,
   onExit,
@@ -360,7 +362,7 @@ export function StructuredTextEditor({
               }
             }}
           >
-            {t("topbar.save")}
+            {saveLabel ?? t("topbar.save")}
           </button>
           <button
             type="button"

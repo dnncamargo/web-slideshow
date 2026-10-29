@@ -64,6 +64,7 @@ export function PresentationTextFileEditor({
         baseline={file.source.content}
         profile={getEditorProfile(file.contentType)}
         ariaLabel={t("editor.textFileEditor")}
+        saveLabel={t("editor.textFileSaveApply")}
         onSave={onSave}
         onDirtyChange={handleDirtyChange}
         onExit={onExit}

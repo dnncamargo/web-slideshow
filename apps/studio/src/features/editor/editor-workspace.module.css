@@ -2916,6 +2916,33 @@
 }
 
 
+.copyExampleLink {
+  align-self: flex-start;
+  width: fit-content;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #93c5fd;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.copyExampleLink:hover {
+  color: #e0f2fe;
+}
+
+.copyExampleLink:focus-visible {
+  outline: 2px solid var(--ps-ui-semantic-focus);
+  outline-offset: 2px;
+}
+
 .secondaryButton {
   min-height: 32px;
 
