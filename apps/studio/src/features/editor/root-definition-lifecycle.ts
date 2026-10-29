@@ -7,6 +7,7 @@ import {
 } from "@web-slideshow/document-schema";
 
 import { createRootPresetContainer, createUniqueId, type SlideLayoutPreset } from "./preset-structure";
+import { duplicateElement } from "./element-operations";
 import { collectPresentationAuthoringIds } from "./presentation-authoring-trees";
 
 export type RootDefinitionLifecycleFailure =
@@ -155,6 +156,67 @@ export function createRootDefinitionFromPreset(
     { ...presentation, rootDefinitions },
     rootDefinitionId,
   );
+}
+
+/** Creates an independent copy of a Root Definition with fresh structural IDs. */
+export function duplicateRootDefinition(
+  presentation: Presentation,
+  rootDefinitionId: string,
+  requestedName: string,
+): RootDefinitionLifecycleOutcome<string> {
+  const found = findRootDefinition(presentation, rootDefinitionId);
+  if (found === null) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  const trimmedName = requestedName.trim();
+  if (trimmedName.length === 0) {
+    return { ok: false, reason: "invalid-name" };
+  }
+
+  const usedIds = collectPresentationAuthoringIds(presentation);
+  const duplicateId = createUniqueId("root-definition", usedIds);
+  const duplicatedRootElement = duplicateElement(found.definition.root, usedIds);
+  if (duplicatedRootElement.type !== "container") {
+    return invalidResult<string>();
+  }
+  const duplicatedRoot = duplicatedRootElement;
+
+  // Local child targets refer to Container IDs. Preserve those permissions,
+  // but retarget them to the corresponding Containers in the cloned tree.
+  const sourceContainerIds = [...findRootDefinitionContainers(found.definition.root).keys()];
+  const duplicateContainerIds = [...findRootDefinitionContainers(duplicatedRoot).keys()];
+  if (sourceContainerIds.length !== duplicateContainerIds.length) {
+    return invalidResult<string>();
+  }
+  const containerIdMap = new Map(
+    sourceContainerIds.map((sourceId, index) => [sourceId, duplicateContainerIds[index]] as const),
+  );
+  let localChildTargetIds: string[] | undefined;
+  if (found.definition.localChildTargetIds !== undefined) {
+    const mappedTargets = found.definition.localChildTargetIds.map((targetId) => containerIdMap.get(targetId));
+    if (mappedTargets.some((targetId) => targetId === undefined)) {
+      return invalidResult<string>();
+    }
+    localChildTargetIds = mappedTargets as string[];
+  }
+
+  const existingNames = new Set((presentation.rootDefinitions ?? []).map((definition) => definition.name));
+  let name = trimmedName;
+  let suffix = 2;
+  while (existingNames.has(name)) {
+    name = `${trimmedName} ${suffix}`;
+    suffix += 1;
+  }
+
+  const duplicate: RootDefinition = {
+    id: duplicateId,
+    name,
+    root: duplicatedRoot,
+    ...(localChildTargetIds === undefined ? {} : { localChildTargetIds }),
+  };
+  const rootDefinitions = [...(presentation.rootDefinitions ?? []), duplicate];
+  return validated({ ...presentation, rootDefinitions }, duplicateId);
 }
 
 /** Renames an existing Root Definition without changing its tree or references. */

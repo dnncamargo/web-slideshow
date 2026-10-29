@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PresentationSchema, type Presentation } from "@web-slideshow/document-schema";
+import { PresentationSchema, listRootDefinitionStructuralIds, type Presentation } from "@web-slideshow/document-schema";
 
 import { EditorWorkspace } from "../src/features/editor/editor-workspace";
 import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
@@ -145,6 +145,43 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     expect(container.textContent).toContain("Master slide · Root B");
     expect(container.querySelector('[data-presentation-id="root-b-text"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-a-text"]')).toBeNull();
+  });
+
+  it("duplicates a Root Definition with independent IDs and no reference changes", async () => {
+    const initial = presentation({ referenced: true });
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+    await openResources();
+    const section = await openRootDefinitions();
+    await expandRoot("root-a");
+
+    const duplicateButton = row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="duplicate"]');
+    expect(duplicateButton?.textContent).toBe("Duplicate");
+    await act(async () => duplicateButton?.click());
+
+    const duplicateRow = Array.from(section.querySelectorAll<HTMLElement>("[data-root-definition-id]"))
+      .find((candidate) => candidate.querySelector("[data-root-definition-disclosure] strong")?.textContent === "Copy of Root A");
+    expect(duplicateRow).toBeDefined();
+    const duplicateId = duplicateRow?.dataset.rootDefinitionId;
+    expect(duplicateId).toBeTruthy();
+    expect(duplicateId).not.toBe("root-a");
+    expect(duplicateRow?.dataset.active).toBe("true");
+    expect(section.querySelectorAll("[data-root-definition-id]")).toHaveLength(3);
+
+    await save();
+    const snapshot = saved.at(-1);
+    expect(snapshot).toBeDefined();
+    const original = snapshot?.rootDefinitions?.find((definition) => definition.id === "root-a");
+    const duplicate = snapshot?.rootDefinitions?.find((definition) => definition.id === duplicateId);
+    expect(original).toBeDefined();
+    expect(duplicate).toBeDefined();
+    expect(duplicate?.root.children.map((element) => element.type)).toEqual(original?.root.children.map((element) => element.type));
+
+    const originalIds = listRootDefinitionStructuralIds(original!.root);
+    const duplicateIds = listRootDefinitionStructuralIds(duplicate!.root);
+    expect(new Set([...originalIds, ...duplicateIds]).size).toBe(originalIds.length + duplicateIds.length);
+    expect(snapshot?.defaultRootDefinitionId).toBe(initial.defaultRootDefinitionId);
+    expect(snapshot?.slides.map((slide) => slide.rootDefinitionId)).toEqual(initial.slides.map((slide) => slide.rootDefinitionId));
   });
 
   it("switches directly from Root A to Root B without changing the retained Slides", async () => {

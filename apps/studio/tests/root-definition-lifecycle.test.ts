@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   PresentationSchema,
+  findRootDefinitionContainers,
+  listRootDefinitionStructuralIds,
   type Presentation,
   type RootDefinition,
 } from "@web-slideshow/document-schema";
@@ -12,6 +14,7 @@ import {
 } from "../src/features/editor/preset-structure";
 import {
   createRootDefinitionFromPreset,
+  duplicateRootDefinition,
   deleteRootDefinition,
   getSlideRootDefinitionAssignmentBlocker,
   renameRootDefinition,
@@ -234,6 +237,61 @@ describe("Root Definition lifecycle operations", () => {
     if (!result.ok) return;
     expect(result.value).toBe("root-definition-4");
     expect(result.presentation.rootDefinitions?.[1]?.root.id).toBe("root-definition-4-root-2");
+  });
+
+  it("duplicates an independent Root Definition with fresh structural IDs and remapped local targets", () => {
+    const source = presentation({
+      rootDefinitions: [{
+        id: "root-a",
+        name: "Root A",
+        root: {
+          id: "root-a-root",
+          type: "container",
+          hidden: false,
+          children: [{
+            id: "target",
+            type: "container",
+            hidden: false,
+            children: [{ id: "root-text", type: "text", hidden: false, variant: "body", content: "Keep this content" }],
+          }],
+        },
+        localChildTargetIds: ["target"],
+      }],
+      defaultRootDefinitionId: "root-a",
+      slides: [{ id: "slide-1", title: "", summary: "", speakerNotes: "", rootDefinitionId: "root-a", elements: [] }],
+    });
+    const before = structuredClone(source);
+
+    const result = duplicateRootDefinition(source, "root-a", "Copy of Root A");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const original = source.rootDefinitions?.[0];
+    const duplicate = result.presentation.rootDefinitions?.find((definition) => definition.id === result.value);
+    expect(duplicate).toBeDefined();
+    expect(duplicate?.id).not.toBe("root-a");
+    expect(duplicate?.name).toBe("Copy of Root A");
+    expect(duplicate?.root.children[0]).toMatchObject({
+      type: "container",
+      children: [{ type: "text", content: "Keep this content" }],
+    });
+    const originalIds = listRootDefinitionStructuralIds(original!.root);
+    const duplicateIds = listRootDefinitionStructuralIds(duplicate!.root);
+    expect(new Set([...originalIds, ...duplicateIds]).size).toBe(originalIds.length + duplicateIds.length);
+
+    const duplicateTarget = duplicate?.localChildTargetIds?.[0];
+    expect(duplicateTarget).toBeDefined();
+    expect(duplicateTarget).not.toBe("target");
+    expect(findRootDefinitionContainers(duplicate!.root).has(duplicateTarget!)).toBe(true);
+    expect(result.presentation.defaultRootDefinitionId).toBe("root-a");
+    expect(result.presentation.slides[0]?.rootDefinitionId).toBe("root-a");
+    expect(PresentationSchema.safeParse(result.presentation).success).toBe(true);
+    expect(source).toEqual(before);
+
+    const second = duplicateRootDefinition(result.presentation, "root-a", "Copy of Root A");
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.presentation.rootDefinitions?.at(-1)?.name).toBe("Copy of Root A 2");
   });
 
   it("appends without changing the default Root reference", () => {
