@@ -1,6 +1,7 @@
 import type { Presentation } from "@web-slideshow/document-schema";
 
 import { loadPublishedVersion } from "./published-presentation-loader";
+import { consumePlayerIdentityResetParameter } from "./player-identity-reset-url";
 import { getRealtimeDatabaseOrNull } from "./realtime-db";
 import {
   parseEntrySearch,
@@ -50,6 +51,7 @@ import { mountPlayer, type PlayerController } from "./player";
 import {
   formatPairingPin,
   startPlayerPairing,
+  resetPlayerIdentity,
   type PlayerPairingSession,
   type PlayerPairingState,
 } from "./player-pairing";
@@ -75,7 +77,12 @@ function isVersionPromotion(previous: LiveCurrent, next: LiveCurrent): boolean {
 
 /** Boots the existing Player runtime on the shared root element. */
 export function startPlayer(root: HTMLElement): () => void {
+  const identityResetRequested = consumePlayerIdentityResetParameter(
+    window.location.href,
+    (relativeUrl) => window.history.replaceState(window.history.state, "", relativeUrl),
+  );
   let destroyed = false;
+  let resetPreparing = identityResetRequested;
   let liveStarted = false;
   let pairingSession: PlayerPairingSession | undefined;
   let ownerUid: string | undefined;
@@ -167,6 +174,19 @@ export function startPlayer(root: HTMLElement): () => void {
         <span>Enter this PIN in Control.</span>
       </div>
     `;
+  }
+
+  function renderPairingError(message: string, retry: () => void): void {
+    root.innerHTML = `<div class="player-load-state" data-loading="false"></div>`;
+    const state = root.querySelector<HTMLElement>(".player-load-state");
+    if (!state) return;
+    const messageElement = document.createElement("span");
+    messageElement.textContent = message;
+    const retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.textContent = "Try again";
+    retryButton.addEventListener("click", retry, { once: true });
+    state.append(messageElement, retryButton);
   }
 
   function renderRecoveryExpanded(): void {
@@ -456,7 +476,7 @@ export function startPlayer(root: HTMLElement): () => void {
     cleanupLivePlayerLogs = undefined;
   }
 
-  function teardownLiveSession(): void {
+  function teardownLiveSession(): Promise<void> {
     loadToken += 1;
     currentSessionKey = null;
     detachLiveProjectionSubscriptions();
@@ -468,8 +488,18 @@ export function startPlayer(root: HTMLElement): () => void {
     markAppliedScriptedInput = undefined;
     activePresentation = undefined;
     activeLive = undefined;
-    presenceReporter?.stop();
+    let presenceStop: Promise<void> | undefined;
+    if (presenceReporter !== undefined) {
+      if (typeof presenceReporter.stopAndWait === "function") {
+        presenceStop = presenceReporter.stopAndWait();
+      } else {
+        presenceReporter.stop();
+      }
+    }
     presenceReporter = undefined;
+    const stopped = presenceStop ?? Promise.resolve();
+    void stopped.catch((error: unknown) => recordPlayerDiagnostic("PLAYER_PRESENCE_STOP_ERROR", { error }));
+    return stopped;
   }
 
   async function loadAndMount(
@@ -737,7 +767,7 @@ export function startPlayer(root: HTMLElement): () => void {
   }
 
   function handlePairingState(state: PlayerPairingState): void {
-    if (destroyed) return;
+    if (destroyed || resetPreparing) return;
 
     if (state.kind === "pairing") {
       cleanupLiveCurrent?.();
@@ -756,6 +786,11 @@ export function startPlayer(root: HTMLElement): () => void {
       return;
     }
 
+    cleanupLiveCurrent?.();
+    cleanupLiveCurrent = undefined;
+    liveStarted = false;
+    teardownLiveSession();
+    ownerUid = undefined;
     renderLoadState("Could not configure Player.");
   }
 
@@ -777,22 +812,73 @@ export function startPlayer(root: HTMLElement): () => void {
   if (!database) {
     renderLoadState("Could not load presentation.");
   } else {
-    renderLoadState("Configuring Player…", true);
-    void startPlayerPairing(database, handlePairingState)
-      .then((session) => {
-        if (destroyed) {
-          session.destroy();
-          return;
-        }
-        pairingSession = session;
-        handlePairingState(session.state);
-      })
-      .catch((error: unknown) => {
-        if (destroyed) return;
-        recordPlayerDiagnostic("PLAYER_PAIRING_INIT_ERROR", { error });
-        renderLoadState("Could not configure Player.");
-      });
+    let identityResetComplete = false;
+    const startPairing = (): void => {
+      renderLoadState("Configuring Player…", true);
+      void startPlayerPairing(database, handlePairingState)
+        .then((session) => {
+          if (destroyed || resetPreparing) {
+            session.destroy();
+            return;
+          }
+          pairingSession = session;
+          handlePairingState(session.state);
+        })
+        .catch((error: unknown) => {
+          if (destroyed || resetPreparing) return;
+          recordPlayerDiagnostic("PLAYER_PAIRING_INIT_ERROR", { error });
+          renderPairingError("Could not configure Player.", startPairing);
+        });
+    };
+    const startReset = (): void => {
+      renderLoadState("Resetting Player identity…", true);
+      void resetPlayerIdentity(database)
+        .then(() => {
+          identityResetComplete = true;
+          resetPreparing = false;
+          startPairing();
+        })
+        .catch((error: unknown) => {
+          if (destroyed) return;
+          recordPlayerDiagnostic("PLAYER_IDENTITY_RESET_ERROR", { error });
+          renderPairingError(
+            error instanceof Error ? error.message : "Could not reset Player identity.",
+            identityResetComplete ? startPairing : startReset,
+          );
+        });
+    };
+    if (identityResetRequested) startReset();
+    else startPairing();
   }
+
+  const resetPreparationChannel = typeof BroadcastChannel === "undefined"
+    ? undefined
+    : new BroadcastChannel("web-slideshow-player-identity");
+  resetPreparationChannel?.addEventListener("message", (event: MessageEvent<unknown>) => {
+    const message = event.data;
+    if (typeof message !== "object" || message === null) return;
+    const record = message as { kind?: unknown; playerUid?: unknown; requestId?: unknown };
+    if (record.kind !== "prepare-reset" || typeof record.playerUid !== "string" || typeof record.requestId !== "string") return;
+
+    resetPreparing = true;
+    const session = pairingSession;
+    if (session?.playerUid !== record.playerUid) {
+      resetPreparationChannel?.postMessage({ kind: "prepared", playerUid: record.playerUid, requestId: record.requestId, ok: true });
+      return;
+    }
+
+    session.destroy();
+    pairingSession = undefined;
+    cleanupLiveCurrent?.();
+    cleanupLiveCurrent = undefined;
+    liveStarted = false;
+    ownerUid = undefined;
+    renderLoadState("Player identity reset in another tab. Reload this Player to continue.");
+    void teardownLiveSession().then(
+      () => resetPreparationChannel?.postMessage({ kind: "prepared", playerUid: record.playerUid, requestId: record.requestId, ok: true }),
+      () => resetPreparationChannel?.postMessage({ kind: "prepared", playerUid: record.playerUid, requestId: record.requestId, ok: false }),
+    );
+  });
 
   const cleanup = (): void => {
     destroyed = true;
@@ -801,7 +887,8 @@ export function startPlayer(root: HTMLElement): () => void {
     ownerUid = undefined;
     cleanupLiveCurrent?.();
     cleanupLiveCurrent = undefined;
-    teardownLiveSession();
+    void teardownLiveSession();
+    resetPreparationChannel?.close();
   };
 
   window.addEventListener("pagehide", cleanup, { once: true });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   cancel: vi.fn(),
   disconnectSet: vi.fn(),
+  get: vi.fn(),
   onDisconnect: vi.fn(),
   ref: vi.fn(),
   remove: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("firebase/database", () => ({
+  get: mocks.get,
   onDisconnect: mocks.onDisconnect,
   ref: mocks.ref,
   remove: mocks.remove,
@@ -21,6 +23,7 @@ vi.mock("firebase/database", () => ({
 }));
 
 import {
+  clearPlayerPresence,
   PLAYER_PRESENCE_CURRENT_PATH,
   PLAYER_PRESENCE_PATH,
   startPlayerPresence,
@@ -39,6 +42,7 @@ describe("Player presence reporter", () => {
     vi.clearAllMocks();
     mocks.ref.mockImplementation((_database: unknown, path: string) => ({ path }));
     mocks.disconnectSet.mockResolvedValue(undefined);
+    mocks.get.mockResolvedValue({ val: () => null });
     mocks.cancel.mockResolvedValue(undefined);
     mocks.onDisconnect.mockReturnValue({ set: mocks.disconnectSet, cancel: mocks.cancel });
     mocks.remove.mockResolvedValue(undefined);
@@ -164,7 +168,7 @@ describe("Player presence reporter", () => {
     expect(onError).toHaveBeenNthCalledWith(2, "load-failed", failedFailure);
   });
 
-  it("stops transitions, removes its lease, and conditionally clears its current report", async () => {
+  it("cancels its disconnect write before removing its lease and current report", async () => {
     const reporter = await startPlayerPresence({} as never, "owner-a", "player-a", 7, "version-1");
     const leaseRef = mocks.set.mock.calls[0]?.[0];
     const currentRef = mocks.set.mock.calls[1]?.[0];
@@ -177,6 +181,7 @@ describe("Player presence reporter", () => {
     await vi.waitFor(() => {
       expect(mocks.remove).toHaveBeenCalledTimes(1);
       expect(mocks.runTransaction).toHaveBeenCalledTimes(1);
+      expect(mocks.cancel).toHaveBeenCalledTimes(1);
     });
 
     expect(mocks.remove).toHaveBeenCalledWith(leaseRef);
@@ -188,8 +193,30 @@ describe("Player presence reporter", () => {
     const update = mocks.runTransaction.mock.calls[0]?.[1] as (value: unknown) => unknown;
     expect(update({ playerUid: "player-a", bootId: reporter.bootId })).toBeNull();
     expect(update({ playerUid: "player-other", bootId: reporter.bootId })).toBeUndefined();
-    expect(mocks.cancel).not.toHaveBeenCalled();
+    expect(mocks.cancel).toHaveBeenCalledOnce();
     expect(mocks.disconnectSet).toHaveBeenCalledTimes(1);
     expect(mocks.set).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears only leases and current that belong to this Player", async () => {
+    mocks.get.mockResolvedValueOnce({
+      val: () => ({
+        current: { playerUid: "player-a", bootId: "boot-a" },
+        leases: {
+          "boot-a": { playerUid: "player-a", bootId: "boot-a" },
+          "boot-other": { playerUid: "player-other", bootId: "boot-other" },
+        },
+      }),
+    });
+
+    await clearPlayerPresence({} as never, "owner-a", "player-a");
+
+    expect(mocks.cancel).toHaveBeenCalledOnce();
+    expect(mocks.onDisconnect).toHaveBeenCalledWith({ path: "live/owner-a/playerPresence/leases/boot-a" });
+    expect(mocks.runTransaction).toHaveBeenCalledTimes(2);
+    const paths = mocks.runTransaction.mock.calls.map(([target]) => (target as { path: string }).path);
+    expect(paths).toContain("live/owner-a/playerPresence/leases/boot-a");
+    expect(paths).toContain("live/owner-a/playerPresence/current");
+    expect(paths).not.toContain("live/owner-a/playerPresence/leases/boot-other");
   });
 });

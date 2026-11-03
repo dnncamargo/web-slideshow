@@ -47,6 +47,104 @@ afterAll(async () => {
 });
 
 describe("Realtime Database Player pairing rules", () => {
+  it("allows reset to remove only the anonymous Player's own identity resources", async () => {
+    const player = anonymous("player-reset-own");
+    const otherPlayer = anonymous("player-reset-other");
+    const racePlayer = anonymous("player-reset-claim-race");
+    const owner = account("account-reset-owner");
+    const raceOwner = account("account-reset-race-owner");
+    const pin = "654321";
+    const expiresAt = Date.now() + 30_000;
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const database = context.database();
+      await database.ref("playerBindings/player-reset-own").set({
+        ownerUid: "account-reset-owner",
+        displayName: "Projector A",
+      });
+      await database.ref("playerPairingCodes/654321").set({
+        playerUid: "player-reset-own",
+        expiresAt,
+      });
+      await database.ref("playerPairingCodes/654322").set({
+        playerUid: "player-reset-other",
+        expiresAt,
+      });
+      await database.ref("playerPairingCodes/654323").set({
+        playerUid: "player-reset-claim-race",
+        expiresAt,
+      });
+      await database.ref("playerPairingClaims/player-reset-own").set({
+        pin,
+        ownerUid: "account-reset-owner",
+        expiresAt: Math.min(expiresAt, Date.now() + 10_000),
+      });
+      await database.ref("playerPairingClaims/player-reset-claim-race").set({
+        pin: "654323",
+        ownerUid: "account-reset-race-owner",
+        expiresAt: Math.min(expiresAt, Date.now() + 10_000),
+      });
+      await database.ref("live/account-reset-owner/current").set({
+        publicationId: "publication-reset",
+        currentVersionId: "version-reset",
+        revision: 1,
+      });
+      await database.ref("live/account-reset-owner/playerPresence/current").set({
+        activationRevision: 1,
+        currentVersionId: "version-reset",
+        playerUid: "player-reset-own",
+        bootId: "boot-reset-own",
+        stage: "ready",
+        transitionedAt: Date.now(),
+      });
+      await database.ref("live/account-reset-owner/playerPresence/leases/boot-reset-own").set({
+        activationRevision: 1,
+        currentVersionId: "version-reset",
+        playerUid: "player-reset-own",
+        bootId: "boot-reset-own",
+        connected: true,
+        transitionedAt: Date.now(),
+      });
+      await database.ref("live/account-reset-owner/playerPresence/leases/boot-reset-other").set({
+        activationRevision: 1,
+        currentVersionId: "version-reset",
+        playerUid: "player-reset-other",
+        bootId: "boot-reset-other",
+        connected: true,
+        transitionedAt: Date.now(),
+      });
+    });
+
+    await assertSucceeds(
+      player.ref("playerPairingCodes").orderByChild("playerUid").equalTo("player-reset-own").once("value"),
+    );
+    await assertFails(
+      otherPlayer.ref("playerPairingCodes").orderByChild("playerUid").equalTo("player-reset-own").once("value"),
+    );
+    await assertSucceeds(player.ref("playerPairingCodes/654321").remove());
+    await assertFails(player.ref("playerPairingCodes/654322").remove());
+    await assertSucceeds(player.ref("playerPairingClaims/player-reset-own").remove());
+    await assertFails(otherPlayer.ref("playerPairingClaims/player-reset-own").remove());
+
+    await assertFails(otherPlayer.ref("playerBindings/player-reset-own").remove());
+    await assertFails(owner.ref("playerBindings/player-reset-other").remove());
+    await assertSucceeds(player.ref("playerBindings/player-reset-own").remove());
+    await assertFails(account("player-reset-own").ref("playerBindings/player-reset-own").remove());
+
+    await assertSucceeds(player.ref("live/account-reset-owner/playerPresence/current").remove());
+    await assertSucceeds(player.ref("live/account-reset-owner/playerPresence/leases/boot-reset-own").remove());
+    await assertFails(player.ref("live/account-reset-owner/playerPresence/leases/boot-reset-other").remove());
+    const otherLease = await owner.ref("live/account-reset-owner/playerPresence/leases/boot-reset-other").once("value");
+    expect(otherLease.exists()).toBe(true);
+
+    await assertSucceeds(racePlayer.ref("playerPairingCodes/654323").remove());
+    await assertFails(
+      raceOwner.ref("playerBindings/player-reset-claim-race").set({
+        ownerUid: "account-reset-race-owner",
+      }),
+    );
+  });
+
   it("rejects the current Player expiration when the client clock is ahead", async () => {
     const player = anonymous("player-clock-ahead");
     const clientClockAheadMs = 5_000;
@@ -517,7 +615,12 @@ describe("Realtime Database Player pairing rules", () => {
     );
 
     await assertFails(ownerB.ref("playerBindings/player-bindings-a").remove());
-    await assertFails(playerA.ref("playerBindings/player-bindings-a").remove());
+    await assertSucceeds(playerA.ref("playerBindings/player-bindings-a").remove());
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-bindings-a").set({
+        ownerUid: "account-bindings-a",
+      });
+    });
     await assertSucceeds(
       ownerA.ref("playerBindings/player-bindings-a").remove(),
     );

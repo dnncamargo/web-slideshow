@@ -4,13 +4,18 @@ import {
   initializeAuth,
   onAuthStateChanged,
   signInAnonymously,
+  signOut,
   type Auth,
   type User,
 } from "firebase/auth";
 import {
   get,
+  equalTo,
   onValue,
+  orderByChild,
+  query,
   ref,
+  remove,
   runTransaction,
   type Database,
   type Unsubscribe,
@@ -18,15 +23,43 @@ import {
 
 import { getPlayerFirebaseApp } from "./realtime-db";
 import { recordPlayerDiagnostic } from "./player-diagnostics";
+import { clearPlayerPresence } from "./live-player-presence";
 
 export const PLAYER_BINDINGS_PATH = "playerBindings";
 export const PLAYER_PAIRING_CODES_PATH = "playerPairingCodes";
+export const PLAYER_PAIRING_CLAIMS_PATH = "playerPairingClaims";
 export const PLAYER_PAIRING_PIN_TTL_MS = 60_000;
 export const PLAYER_PAIRING_PIN_RENEWAL_MS = 30_000;
 export const PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS = 5_000;
 
 const SERVER_TIME_OFFSET_PATH = ".info/serverTimeOffset";
 const SERVER_TIME_OFFSET_TIMEOUT_MS = 5_000;
+const IDENTITY_RESET_CHANNEL = "web-slideshow-player-identity";
+
+function identityResetLockName(playerUid: string): string {
+  return `web-slideshow-player-reset:${playerUid}`;
+}
+
+function identityResetMarkerKey(playerUid: string): string {
+  return `web-slideshow:player-identity-reset:${playerUid}`;
+}
+
+function identityResetIsComplete(playerUid: string): boolean {
+  try {
+    return typeof localStorage !== "undefined" &&
+      localStorage.getItem(identityResetMarkerKey(playerUid))?.startsWith("complete:") === true;
+  } catch {
+    return false;
+  }
+}
+
+function identityResetIsMarked(playerUid: string): boolean {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(identityResetMarkerKey(playerUid)) !== null;
+  } catch {
+    return false;
+  }
+}
 
 export type PlayerPairingState =
   | { kind: "pairing"; pin: string }
@@ -179,12 +212,193 @@ function parseOwnerUid(value: unknown): string | null {
   return typeof ownerUid === "string" && ownerUid.length > 0 ? ownerUid : null;
 }
 
+function bindingUnchanged(current: unknown, expected: unknown): boolean {
+  if (typeof current !== "object" || current === null) return false;
+  if (typeof expected !== "object" || expected === null) return false;
+  const currentRecord = current as Record<string, unknown>;
+  const expectedRecord = expected as Record<string, unknown>;
+  const currentKeys = Object.keys(currentRecord).sort();
+  const expectedKeys = Object.keys(expectedRecord).sort();
+  return currentKeys.length === expectedKeys.length &&
+    currentKeys.every((key, index) => key === expectedKeys[index]) &&
+    currentRecord.ownerUid === expectedRecord.ownerUid &&
+    currentRecord.displayName === expectedRecord.displayName;
+}
+
 function bindingPath(playerUid: string): string {
   return `${PLAYER_BINDINGS_PATH}/${playerUid}`;
 }
 
 function pairingCodePath(pin: string): string {
   return `${PLAYER_PAIRING_CODES_PATH}/${pin}`;
+}
+
+function pairingClaimPath(playerUid: string): string {
+  return `${PLAYER_PAIRING_CLAIMS_PATH}/${playerUid}`;
+}
+
+/** Clear only the durable resources and binding owned by this anonymous identity. */
+export async function resetPlayerIdentity(database: Database): Promise<void> {
+  const auth = getPlayerAuth();
+  const restoredUser = await waitForRestoredUser(auth);
+
+  // A previous reset may have completed sign-out but not yet signed in again.
+  // With no identity there is no owner to infer; the normal pairing bootstrap
+  // will create exactly one fresh anonymous user.
+  if (restoredUser === null) return;
+  const oldUser = currentAnonymousUser(auth, restoredUser);
+  const playerUid = oldUser.uid;
+  const lockManager = typeof navigator === "undefined" ? undefined : navigator.locks;
+  if (lockManager === undefined) {
+    throw new Error("This browser cannot coordinate a safe multi-tab Player reset. Open the Player in a current browser and retry.");
+  }
+
+  await lockManager.request(identityResetLockName(playerUid), async () => {
+    // Another tab may have completed the reset while this tab waited.
+    if (auth.currentUser?.uid !== playerUid) return;
+    if (identityResetIsComplete(playerUid)) {
+      await waitForChangedIdentity(auth, playerUid);
+      return;
+    }
+
+    const markerKey = identityResetMarkerKey(playerUid);
+    let resetCommitted = false;
+    const channel = typeof BroadcastChannel === "undefined"
+      ? undefined
+      : new BroadcastChannel(IDENTITY_RESET_CHANNEL);
+    try {
+      localStorage.setItem(markerKey, String(Date.now()));
+      const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      if (channel !== undefined) {
+        await waitForPlayerTabsToStop(channel, playerUid, requestId);
+      }
+
+      const bindingRef = ref(database, bindingPath(playerUid));
+      const bindingSnapshot = await get(bindingRef);
+      const bindingValue = bindingSnapshot.val();
+      const ownerUid = parseOwnerUid(bindingValue);
+      if (bindingValue !== null && ownerUid === null) {
+        throw new Error("The Player binding could not be verified. Try again.");
+      }
+
+      if (ownerUid !== null) {
+        await clearPlayerPresence(database, ownerUid, playerUid);
+      }
+
+      const codes = await get(query(
+        ref(database, PLAYER_PAIRING_CODES_PATH),
+        orderByChild("playerUid"),
+        equalTo(playerUid),
+      ));
+      const codeRecords = codes.val();
+      if (typeof codeRecords === "object" && codeRecords !== null) {
+        const removals = Object.entries(codeRecords as Record<string, unknown>)
+          .filter(([pin, value]) => /^\d{6}$/.test(pin) && parsePairingRecord(value)?.playerUid === playerUid)
+          .map(([pin]) => remove(ref(database, pairingCodePath(pin))));
+        await Promise.all(removals);
+      }
+
+      const claimRef = ref(database, pairingClaimPath(playerUid));
+      const claimSnapshot = await get(claimRef);
+      if (claimSnapshot.exists()) await remove(claimRef);
+
+      if (ownerUid !== null) {
+        const bindingRemoval = await runTransaction(
+          bindingRef,
+          (current) => {
+            if (!bindingUnchanged(current, bindingValue)) return;
+            return null;
+          },
+          { applyLocally: false },
+        );
+        const resultingOwnerUid = parseOwnerUid(bindingRemoval.snapshot.val());
+        if (resultingOwnerUid !== null) {
+          throw new Error("The Player binding changed during reset. Try again.");
+        }
+      }
+
+      const confirmedBinding = await get(bindingRef);
+      if (confirmedBinding.exists()) {
+        throw new Error("The Player could not be unpaired. Try again.");
+      }
+
+      resetCommitted = true;
+      await signOut(auth);
+      const credentials = await signInAnonymously(auth);
+      if (credentials.user.uid === playerUid) {
+        throw new Error("Firebase did not create a new Player identity. Try again.");
+      }
+      localStorage.setItem(markerKey, `complete:${credentials.user.uid}`);
+    } catch (error) {
+      if (!resetCommitted) {
+        try {
+          localStorage.removeItem(markerKey);
+        } catch {
+          // Best effort marker rollback.
+        }
+      }
+      throw error;
+    } finally {
+      channel?.close();
+    }
+  });
+}
+
+function waitForChangedIdentity(auth: Auth, oldUid: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let unsubscribe: Unsubscribe | undefined;
+    const timeout = setTimeout(() => {
+      unsubscribe?.();
+      reject(new Error("The other Player tab completed the reset, but this tab has not received the new identity yet. Reload and retry."));
+    }, 5_000);
+    unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user?.uid === oldUid) return;
+      clearTimeout(timeout);
+      unsubscribe?.();
+      resolve();
+    });
+  });
+}
+
+function waitForPlayerTabsToStop(
+  channel: BroadcastChannel,
+  playerUid: string,
+  requestId: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let quietTimer: ReturnType<typeof setTimeout>;
+    const timeout = setTimeout(
+      () => finish(new Error("Another Player tab did not stop cleanly. Try again.")),
+      2_000,
+    );
+    const finish = (error?: Error): void => {
+      clearTimeout(quietTimer);
+      clearTimeout(timeout);
+      channel.removeEventListener("message", onMessage);
+      if (error === undefined) resolve();
+      else reject(error);
+    };
+    const onMessage = (event: MessageEvent<unknown>): void => {
+      if (typeof event.data !== "object" || event.data === null) return;
+      const message = event.data as {
+        kind?: unknown;
+        playerUid?: unknown;
+        requestId?: unknown;
+        ok?: unknown;
+      };
+      if (message.kind === "prepared" && message.playerUid === playerUid && message.requestId === requestId) {
+        if (message.ok !== true) {
+          finish(new Error("Another Player tab could not stop its live resources. Close it and retry."));
+          return;
+        }
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(() => finish(), 150);
+      }
+    };
+    channel.addEventListener("message", onMessage);
+    quietTimer = setTimeout(() => finish(), 150);
+    channel.postMessage({ kind: "prepare-reset", playerUid, requestId });
+  });
 }
 
 function readServerTimeOffset(database: Database): Promise<number> {
@@ -254,6 +468,25 @@ function readServerTimeOffset(database: Database): Promise<number> {
 }
 
 async function reservePairingPin(
+  database: Database,
+  auth: Auth,
+  playerUid: string,
+  preferredPin?: string,
+): Promise<string> {
+  const lockManager = typeof navigator === "undefined" ? undefined : navigator.locks;
+  if (lockManager === undefined) {
+    return reservePairingPinUnlocked(database, auth, playerUid, preferredPin);
+  }
+
+  return lockManager.request(identityResetLockName(playerUid), async () => {
+    if (auth.currentUser?.uid !== playerUid || identityResetIsMarked(playerUid)) {
+      throw new Error("Player pairing was stopped because its identity is being reset.");
+    }
+    return reservePairingPinUnlocked(database, auth, playerUid, preferredPin);
+  });
+}
+
+async function reservePairingPinUnlocked(
   database: Database,
   auth: Auth,
   playerUid: string,
@@ -397,6 +630,7 @@ export async function startPlayerPairing(
   let pin: string | undefined;
   let renewalTimer: ReturnType<typeof setInterval> | undefined;
   let unsubscribeBinding: Unsubscribe | undefined;
+  let unsubscribeAuth: Unsubscribe | undefined;
   let currentState: PlayerPairingState =
     existingOwnerUid === null
       ? { kind: "error", message: "Player pairing is not ready." }
@@ -433,6 +667,7 @@ export async function startPlayerPairing(
     }
 
     const nextPin = await reservePairingPin(database, auth, playerUid, pin);
+    if (destroyed || identityResetIsMarked(playerUid)) return;
     if (nextPin !== pin) {
       pin = nextPin;
       publish({ kind: "pairing", pin });
@@ -449,6 +684,7 @@ export async function startPlayerPairing(
   const publishPairing = async (): Promise<void> => {
     if (destroyed || paired) return;
     pin = await reservePairingPin(database, auth, playerUid, pin);
+    if (destroyed || identityResetIsMarked(playerUid)) return;
     publish({ kind: "pairing", pin });
     startRenewal();
   };
@@ -480,17 +716,28 @@ export async function startPlayerPairing(
     () => publish({ kind: "error", message: "Could not observe Player pairing." }),
   );
 
+  const destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    stopRenewal();
+    unsubscribeBinding?.();
+    unsubscribeBinding = undefined;
+    unsubscribeAuth?.();
+    unsubscribeAuth = undefined;
+  };
+
+  unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    if (user?.uid === playerUid && user.isAnonymous) return;
+    publish({ kind: "error", message: "Player identity changed. Reload to continue." });
+    destroy();
+  });
+
   const state = currentState;
   if (state.kind === "error") throw new Error(state.message);
 
   return {
     playerUid,
     state,
-    destroy(): void {
-      if (destroyed) return;
-      destroyed = true;
-      if (renewalTimer !== undefined) clearInterval(renewalTimer);
-      unsubscribeBinding?.();
-    },
+    destroy,
   };
 }
