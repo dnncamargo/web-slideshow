@@ -5,10 +5,16 @@ const mocks = vi.hoisted(() => ({
   initializeAuth: vi.fn(),
   getAuth: vi.fn(),
   onAuthStateChanged: vi.fn(),
+  signOut: vi.fn(),
   signInAnonymously: vi.fn(),
   getPlayerFirebaseApp: vi.fn(() => ({})),
   recordPlayerDiagnostic: vi.fn(),
   get: vi.fn(),
+  equalTo: vi.fn((_key: string, value: string) => value),
+  orderByChild: vi.fn((key: string) => key),
+  query: vi.fn((target: { path: string }) => ({ ...target, query: true })),
+  remove: vi.fn(),
+  onDisconnect: vi.fn(() => ({ cancel: vi.fn().mockResolvedValue(undefined) })),
   onValue: vi.fn(),
   bindingCallback: null as ((snapshot: { val(): unknown }) => void) | null,
   serverTimeOffset: 0 as unknown,
@@ -22,13 +28,19 @@ vi.mock("firebase/auth", () => ({
   getAuth: mocks.getAuth,
   initializeAuth: mocks.initializeAuth,
   onAuthStateChanged: mocks.onAuthStateChanged,
+  signOut: mocks.signOut,
   signInAnonymously: mocks.signInAnonymously,
 }));
 
 vi.mock("firebase/database", () => ({
   get: mocks.get,
+  equalTo: mocks.equalTo,
+  onDisconnect: mocks.onDisconnect,
+  orderByChild: mocks.orderByChild,
   onValue: mocks.onValue,
+  query: mocks.query,
   ref: mocks.ref,
+  remove: mocks.remove,
   runTransaction: mocks.runTransaction,
 }));
 
@@ -45,6 +57,7 @@ import {
   normalizePairingPin,
   PLAYER_PAIRING_PIN_CLOCK_SAFETY_MARGIN_MS,
   PLAYER_PAIRING_PIN_TTL_MS,
+  resetPlayerIdentity,
   startPlayerPairing,
 } from "../src/player-pairing";
 
@@ -53,6 +66,7 @@ describe("Player pairing identity", () => {
     vi.clearAllMocks();
     mocks.recordPlayerDiagnostic.mockReset();
     mocks.auth.currentUser = null;
+    mocks.signOut.mockImplementation(async () => { mocks.auth.currentUser = null; });
     mocks.initializeAuth.mockReturnValue(mocks.auth);
     mocks.getAuth.mockReturnValue(mocks.auth);
     mocks.onAuthStateChanged.mockImplementation((_auth, callback) => {
@@ -65,6 +79,7 @@ describe("Player pairing identity", () => {
       return { user };
     });
     mocks.get.mockResolvedValue({ val: () => null });
+    mocks.remove.mockResolvedValue(undefined);
     mocks.bindingCallback = null;
     mocks.serverTimeOffset = 0;
     mocks.offsetUnsubscribe = vi.fn();
@@ -85,6 +100,7 @@ describe("Player pairing identity", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("normalizes visual spacing without changing the canonical PIN", () => {
@@ -297,5 +313,135 @@ describe("Player pairing identity", () => {
     expect(mocks.runTransaction).toHaveBeenCalled();
 
     session.destroy();
+  });
+
+  it("removes only the old identity resources before signing in a different UID", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    let bindingReadCount = 0;
+    mocks.get.mockImplementation(async (target: { path: string; query?: boolean }) => {
+      if (target.path === "playerBindings/player-old") {
+        bindingReadCount += 1;
+        if (bindingReadCount > 1) return { val: () => null, exists: () => false };
+        return { val: () => ({ ownerUid: "account-old" }), exists: () => true };
+      }
+      if (target.path === "live/account-old/playerPresence") {
+        return { val: () => ({
+          current: { playerUid: "player-old", bootId: "boot-old" },
+          leases: { "boot-old": { playerUid: "player-old", bootId: "boot-old" } },
+        }) };
+      }
+      if (target.path === "playerPairingCodes") {
+        return { val: () => ({ "111111": { playerUid: "player-old", expiresAt: Date.now() + 10_000 } }) };
+      }
+      if (target.path === "playerPairingClaims/player-old") {
+        return { val: () => ({ pin: "111111" }), exists: () => true };
+      }
+      return { val: () => null, exists: () => false };
+    });
+    mocks.runTransaction.mockImplementation(async (target: { path: string }, update) => ({
+      committed: true,
+      snapshot: (() => {
+        const value = update(target.path === "playerBindings/player-old" ? { ownerUid: "account-old" } : null);
+        return { val: () => value, exists: () => value !== null };
+      })(),
+    }));
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    await resetPlayerIdentity({} as never);
+
+    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingCodes/111111" });
+    expect(mocks.remove).toHaveBeenCalledWith({ path: "playerPairingClaims/player-old" });
+    expect(mocks.runTransaction).toHaveBeenCalledWith(
+      { path: "playerBindings/player-old" },
+      expect.any(Function),
+      { applyLocally: false },
+    );
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(mocks.auth.currentUser?.uid).toBe("player-anonymous");
+  });
+
+  it("records a sanitized Firebase error when conditional binding removal is denied", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    mocks.get.mockImplementation(async (target: { path: string; query?: boolean }) => {
+      if (target.path === "playerBindings/player-old") {
+        return { val: () => ({ ownerUid: "account-old" }), exists: () => true };
+      }
+      if (target.path === "playerPairingClaims/player-old") {
+        return { val: () => null, exists: () => false };
+      }
+      return { val: () => null, exists: () => false };
+    });
+    mocks.runTransaction.mockRejectedValueOnce({
+      name: "FirebaseError",
+      code: "PERMISSION_DENIED",
+      message: "playerBindings/player-old denied for PIN 123456",
+    });
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    await expect(resetPlayerIdentity({} as never)).rejects.toThrow("The Player could not be unpaired. Try again.");
+
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_IDENTITY_RESET_STEP",
+      expect.objectContaining({
+        stage: "binding-transaction",
+        result: "error",
+        name: "FirebaseError",
+        code: "PERMISSION_DENIED",
+        message: "playerBindings/<redacted> denied for PIN <redacted>",
+      }),
+    );
+  });
+
+  it("completes reset if the binding was removed by the owner during the transaction", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    let bindingReads = 0;
+    mocks.get.mockImplementation(async (target: { path: string; query?: boolean }) => {
+      if (target.path === "playerBindings/player-old") {
+        bindingReads += 1;
+        return bindingReads === 1
+          ? { val: () => ({ ownerUid: "account-old" }), exists: () => true }
+          : { val: () => null, exists: () => false };
+      }
+      return { val: () => null, exists: () => false };
+    });
+    mocks.runTransaction.mockRejectedValueOnce({
+      name: "FirebaseError",
+      code: "PERMISSION_DENIED",
+      message: "binding was already removed",
+    });
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    await resetPlayerIdentity({} as never);
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(mocks.signInAnonymously).toHaveBeenCalledOnce();
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_IDENTITY_RESET_STEP",
+      expect.objectContaining({
+        stage: "binding-confirmation-read",
+        result: "result",
+        exists: false,
+        outcome: "absent",
+      }),
+    );
+  });
+
+  it("does not reset authentication if another tab already changed the UID", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => {
+      mocks.auth.currentUser = { uid: "player-new", isAnonymous: true };
+      return callback();
+    } } });
+
+    await resetPlayerIdentity({} as never);
+
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
   });
 });

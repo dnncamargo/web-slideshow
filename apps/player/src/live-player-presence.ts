@@ -1,4 +1,5 @@
 import {
+  get,
   onDisconnect,
   ref,
   remove,
@@ -24,6 +25,7 @@ export interface PlayerPresenceReporter {
   ready(): void;
   failed(errorCode: PlayerBootErrorCode): void;
   stop(): void;
+  stopAndWait(): Promise<void>;
 }
 
 export type PlayerPresenceTransition =
@@ -35,6 +37,49 @@ export type PlayerPresenceErrorHandler = (
   transition: PlayerPresenceTransition,
   error: unknown,
 ) => void;
+
+function recordPlayerUid(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  const playerUid = (value as { playerUid?: unknown }).playerUid;
+  return typeof playerUid === "string" ? playerUid : null;
+}
+
+/** Removes only this Player's presence and cancels its pending disconnect writes. */
+export async function clearPlayerPresence(
+  database: Database,
+  ownerUid: string,
+  playerUid: string,
+): Promise<void> {
+  const presenceRef = ref(database, buildLivePath(ownerUid, PLAYER_PRESENCE_PATH));
+  const snapshot = await get(presenceRef);
+  const value = snapshot.val();
+  if (typeof value !== "object" || value === null) return;
+
+  const root = value as Record<string, unknown>;
+  const leases = typeof root.leases === "object" && root.leases !== null
+    ? root.leases as Record<string, unknown>
+    : {};
+  const ownedBootIds = Object.entries(leases)
+    .filter(([bootId, lease]) => bootId !== "" && !bootId.includes("/") && recordPlayerUid(lease) === playerUid)
+    .map(([bootId]) => bootId);
+
+  await Promise.all(ownedBootIds.map((bootId) =>
+    onDisconnect(ref(database, buildLivePath(ownerUid, `${PLAYER_PRESENCE_PATH}/leases/${bootId}`))).cancel(),
+  ));
+
+  await Promise.all([
+    ...ownedBootIds.map((bootId) => runTransaction(
+      ref(database, buildLivePath(ownerUid, `${PLAYER_PRESENCE_PATH}/leases/${bootId}`)),
+      (current) => recordPlayerUid(current) === playerUid ? null : undefined,
+      { applyLocally: false },
+    )),
+    ...(recordPlayerUid(root.current) === playerUid ? [runTransaction(
+      ref(database, buildLivePath(ownerUid, `${PLAYER_PRESENCE_PATH}/current`)),
+      (current) => recordPlayerUid(current) === playerUid ? null : undefined,
+      { applyLocally: false },
+    )] : []),
+  ]);
+}
 
 function createBootId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -89,6 +134,8 @@ export async function startPlayerPresence(
   await writeCurrent("starting");
 
   let stopped = false;
+  let stopPromise: Promise<void> | undefined;
+  const pendingTransitions = new Set<Promise<void>>();
 
   const transition = (
     stage: PlayerBootStage,
@@ -96,9 +143,35 @@ export async function startPlayerPresence(
   ): void => {
     if (stopped) return;
 
-    void writeCurrent(stage, errorCode).catch((error: unknown) => {
+    const write = writeCurrent(stage, errorCode).catch((error: unknown) => {
       onError(stage, error);
     });
+    pendingTransitions.add(write);
+    void write.finally(() => pendingTransitions.delete(write));
+  };
+
+  const stopAndWait = (): Promise<void> => {
+    if (stopPromise !== undefined) return stopPromise;
+    stopped = true;
+    stopPromise = (async () => {
+      await disconnect.cancel();
+      await Promise.all([...pendingTransitions]);
+      await Promise.all([
+        remove(leaseRef),
+        runTransaction(
+          currentRef,
+          (current) => {
+            if (typeof current !== "object" || current === null) return;
+            const record = current as { bootId?: unknown; playerUid?: unknown };
+            return record.bootId === bootId && record.playerUid === playerUid
+              ? null
+              : undefined;
+          },
+          { applyLocally: false },
+        ),
+      ]);
+    })();
+    return stopPromise;
   };
 
   return {
@@ -106,22 +179,7 @@ export async function startPlayerPresence(
     starting: () => transition("starting"),
     ready: () => transition("ready"),
     failed: (errorCode) => transition("load-failed", errorCode),
-    stop: () => {
-      if (stopped) return;
-      stopped = true;
-
-      void remove(leaseRef).catch(() => undefined);
-      void runTransaction(
-        currentRef,
-        (current) => {
-          if (typeof current !== "object" || current === null) return;
-          const record = current as { bootId?: unknown; playerUid?: unknown };
-          return record.bootId === bootId && record.playerUid === playerUid
-            ? null
-            : undefined;
-        },
-        { applyLocally: false },
-      ).catch(() => undefined);
-    },
+    stop: () => { void stopAndWait().catch(() => undefined); },
+    stopAndWait,
   };
 }
