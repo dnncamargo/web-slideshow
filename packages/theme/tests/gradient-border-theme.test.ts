@@ -74,6 +74,18 @@ describe("gradient border theme ownership", () => {
     expect(surface).toContain("var(--presentation-code-outer-radius, var(--presentation-radius-md))");
   });
 
+  it("keeps Code content padding, line rhythm, and native overflow", () => {
+    const codeBase = cssBlock(".presentation-code");
+    const codeLine = cssBlock(".presentation-code-line");
+
+    expect(codeBase).toContain("--presentation-code-content-padding: 20px");
+    expect(codeBase).toContain("padding: var(--presentation-code-content-padding)");
+    expect(codeBase).toContain("overflow: auto");
+    expect(codeBase).toContain("line-height: 1.2");
+    expect(codeLine).toContain("display: block");
+    expect(codeLine).toContain("min-height: 1.45em");
+  });
+
   it("keeps Gallery gradient sizing on a neutral inner surface", () => {
     const surface = cssBlock(".presentation-gallery-gradient-surface");
     const constrained = cssBlock(".presentation-gallery-gradient-surface-constrained");
