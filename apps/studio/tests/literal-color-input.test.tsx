@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LiteralColorInput } from "../src/features/editor/color/literal-color-input";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const literalColorInputCss = readFileSync(
+  join(process.cwd(), "src/features/editor/color/literal-color-input.module.css"),
+  "utf8",
+);
 
 describe("LiteralColorInput", () => {
   let container: HTMLDivElement;
@@ -35,6 +42,13 @@ describe("LiteralColorInput", () => {
     expect(container.querySelector("input[type=color]")).toBeTruthy();
     expect(container.querySelector<HTMLInputElement>("#color-value")?.value).toBe("#facc15");
     expect(container.querySelector<HTMLSelectElement>("#color-format")?.value).toBe("hex");
+  });
+
+  it("keeps HEX text, caret, and selected text legible on the dark input", () => {
+    expect(literalColorInputCss).toMatch(/\.control input\[type="text"\]\s*\{[\s\S]*?color:\s*var\(--ps-ui-text-resource-primary\)/);
+    expect(literalColorInputCss).toMatch(/\.control input\[type="text"\]\s*\{[\s\S]*?caret-color:\s*var\(--ps-ui-text-resource-primary\)/);
+    expect(literalColorInputCss).toMatch(/\.control input\[type="text"\]::selection\s*\{[\s\S]*?color:\s*var\(--ps-ui-background-input\)[\s\S]*?background:\s*var\(--ps-ui-semantic-focus\)/);
+    expect(literalColorInputCss).toMatch(/\.control:focus-within\s*\{[\s\S]*?border-color:\s*var\(--ps-ui-semantic-focus\)/);
   });
 
   it("supports an empty authored value with a preview swatch and placeholder", () => {

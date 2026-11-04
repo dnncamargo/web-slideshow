@@ -49,6 +49,16 @@
   background: transparent;
 }
 
+.control input[type="text"] {
+  color: var(--ps-ui-text-resource-primary);
+  caret-color: var(--ps-ui-text-resource-primary);
+}
+
+.control input[type="text"]::selection {
+  color: var(--ps-ui-background-input);
+  background: var(--ps-ui-semantic-focus);
+}
+
 .control select {
   grid-column: var(--ps-studio-literal-color-format-column, auto);
   width: var(--ps-studio-literal-color-format-width, auto);
