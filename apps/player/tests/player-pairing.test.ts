@@ -340,7 +340,10 @@ describe("Player pairing identity", () => {
     });
     mocks.runTransaction.mockImplementation(async (target: { path: string }, update) => ({
       committed: true,
-      snapshot: { val: () => update(target.path === "playerBindings/player-old" ? { ownerUid: "account-old" } : null) },
+      snapshot: (() => {
+        const value = update(target.path === "playerBindings/player-old" ? { ownerUid: "account-old" } : null);
+        return { val: () => value, exists: () => value !== null };
+      })(),
     }));
     vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
     vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });

@@ -7,6 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
+import { playerBindingRemovalUpdater } from "../../player/src/player-binding-reset";
 
 const projectId = "demo-web-slideshow-database-rules";
 const rules = readFileSync(
@@ -47,6 +48,153 @@ afterAll(async () => {
 });
 
 describe("Realtime Database Player pairing rules", () => {
+  it("commits the same conditional runTransaction used by Player reset", async () => {
+    const playerContext = testEnv.authenticatedContext("player-reset-transaction", {
+      firebase: { sign_in_provider: "anonymous" },
+    });
+    const database = playerContext.database();
+    const player = database.ref("playerBindings/player-reset-transaction");
+    const owner = account("account-reset-transaction");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-reset-transaction").set({
+        ownerUid: "account-reset-transaction",
+        displayName: "Projector transaction",
+      });
+    });
+
+    const initial = await player.once("value");
+    const decisions: string[] = [];
+    const result = await player.transaction(
+      playerBindingRemovalUpdater(initial.val(), (decision) => decisions.push(decision)),
+      undefined,
+      false,
+    );
+
+    expect(decisions).toContain("local-cache-empty");
+    expect(decisions).toContain("remove");
+    expect(result.committed).toBe(true);
+    expect(result.snapshot.exists()).toBe(false);
+    expect((await owner.ref("playerBindings/player-reset-transaction").once("value")).exists()).toBe(false);
+    expect((await database.ref("playerBindings/player-reset-transaction").once("value")).exists()).toBe(false);
+  });
+
+  it("does not write when the binding is already absent", async () => {
+    const database = anonymous("player-reset-already-absent");
+    const result = await database.ref("playerBindings/player-reset-already-absent")
+      .transaction(playerBindingRemovalUpdater(null), undefined, false);
+
+    expect(result.committed).toBe(false);
+    expect(result.snapshot.exists()).toBe(false);
+  });
+
+  it("aborts the conditional transaction when the binding changes after the initial read", async () => {
+    const database = anonymous("player-reset-changed");
+    const player = database.ref("playerBindings/player-reset-changed");
+    const owner = account("account-reset-changed");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-reset-changed").set({
+        ownerUid: "account-reset-changed",
+        displayName: "Before",
+      });
+    });
+    const initial = await player.once("value");
+    await assertSucceeds(owner.ref("playerBindings/player-reset-changed/displayName").set("After"));
+
+    const decisions: string[] = [];
+    const result = await player.transaction(
+      playerBindingRemovalUpdater(initial.val(), (decision) => decisions.push(decision)),
+      undefined,
+      false,
+    );
+
+    expect(decisions).toContain("local-cache-empty");
+    expect(decisions).toContain("changed");
+    expect(result.committed).toBe(false);
+    expect((await player.once("value")).val()).toEqual({
+      ownerUid: "account-reset-changed",
+      displayName: "After",
+    });
+  });
+
+  it("removes a valid binding without an optional displayName", async () => {
+    const database = anonymous("player-reset-no-display-name");
+    const player = database.ref("playerBindings/player-reset-no-display-name");
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-reset-no-display-name").set({
+        ownerUid: "account-reset-no-display-name",
+      });
+    });
+    const initial = await player.once("value");
+    const result = await player.transaction(playerBindingRemovalUpdater(initial.val()), undefined, false);
+
+    expect(result.committed).toBe(true);
+    expect(result.snapshot.exists()).toBe(false);
+    expect((await player.once("value")).exists()).toBe(false);
+  });
+
+  it("cannot transact against another Player's binding", async () => {
+    const database = anonymous("player-reset-wrong-uid");
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.database().ref("playerBindings/player-reset-victim").set({
+        ownerUid: "account-reset-victim",
+        displayName: "Victim",
+      });
+    });
+
+    try {
+      await database.ref("playerBindings/player-reset-victim")
+        .transaction(playerBindingRemovalUpdater({ ownerUid: "account-reset-victim", displayName: "Victim" }), undefined, false);
+    } catch {
+      // A denied transaction may reject or report an uncommitted result.
+    }
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      expect((await context.database().ref("playerBindings/player-reset-victim").once("value")).exists()).toBe(true);
+    });
+  });
+
+  it("does not recreate a binding when an old claim races reset after PIN invalidation", async () => {
+    const playerContext = testEnv.authenticatedContext("player-reset-recreate-race", {
+      firebase: { sign_in_provider: "anonymous" },
+    });
+    const database = playerContext.database();
+    const player = database.ref("playerBindings/player-reset-recreate-race");
+    const owner = account("account-reset-recreate-race");
+    const now = Date.now();
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const seed = context.database();
+      await seed.ref("playerBindings/player-reset-recreate-race").set({
+        ownerUid: "account-reset-recreate-race",
+      });
+      await seed.ref("playerPairingCodes/654399").set({
+        playerUid: "player-reset-recreate-race",
+        expiresAt: now + 30_000,
+      });
+      await seed.ref("playerPairingClaims/player-reset-recreate-race").set({
+        pin: "654399",
+        ownerUid: "account-reset-recreate-race",
+        expiresAt: now + 10_000,
+      });
+    });
+    const initial = await player.once("value");
+    await assertSucceeds(database.ref("playerPairingCodes/654399").remove());
+    await assertSucceeds(database.ref("playerPairingClaims/player-reset-recreate-race").remove());
+
+    const [result] = await Promise.all([
+      player.transaction(playerBindingRemovalUpdater(initial.val()), undefined, false),
+      assertFails(owner.ref("playerBindings/player-reset-recreate-race").set({
+        ownerUid: "account-reset-recreate-race",
+      })),
+    ]);
+
+    expect(result.committed).toBe(true);
+    expect(result.snapshot.exists()).toBe(false);
+    expect((await player.once("value")).exists()).toBe(false);
+  });
+
   it("allows reset to remove only the anonymous Player's own identity resources", async () => {
     const player = anonymous("player-reset-own");
     const otherPlayer = anonymous("player-reset-other");

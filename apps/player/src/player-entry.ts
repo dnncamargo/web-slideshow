@@ -50,6 +50,7 @@ import {
 import { mountPlayer, type PlayerController } from "./player";
 import {
   formatPairingPin,
+  sanitizePairingError,
   startPlayerPairing,
   resetPlayerIdentity,
   type PlayerPairingSession,
@@ -840,7 +841,9 @@ export function startPlayer(root: HTMLElement): () => void {
         })
         .catch((error: unknown) => {
           if (destroyed) return;
-          recordPlayerDiagnostic("PLAYER_IDENTITY_RESET_ERROR", { error });
+          recordPlayerDiagnostic("PLAYER_IDENTITY_RESET_ERROR", {
+            error: sanitizePairingError(error),
+          });
           renderPairingError(
             error instanceof Error ? error.message : "Could not reset Player identity.",
             identityResetComplete ? startPairing : startReset,

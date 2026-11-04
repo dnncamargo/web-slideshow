@@ -18,12 +18,14 @@ import {
   remove,
   runTransaction,
   type Database,
+  type TransactionResult,
   type Unsubscribe,
 } from "firebase/database";
 
 import { getPlayerFirebaseApp } from "./realtime-db";
 import { recordPlayerDiagnostic } from "./player-diagnostics";
 import { clearPlayerPresence } from "./live-player-presence";
+import { playerBindingRemovalUpdater } from "./player-binding-reset";
 
 export const PLAYER_BINDINGS_PATH = "playerBindings";
 export const PLAYER_PAIRING_CODES_PATH = "playerPairingCodes";
@@ -85,6 +87,17 @@ type PairingDiagnosticCode =
   | "PLAYER_PAIRING_PIN_TRANSACTION_OK"
   | "PLAYER_PAIRING_PIN_TRANSACTION_ERROR";
 
+type IdentityResetStage =
+  | "binding-initial-read"
+  | "owner-identification"
+  | "presence-cleanup"
+  | "pin-query"
+  | "pin-removal"
+  | "claim-read"
+  | "claim-removal"
+  | "binding-transaction"
+  | "binding-confirmation-read";
+
 function pairingNow(): number {
   if (typeof performance !== "undefined" && typeof performance.now === "function") {
     return performance.now();
@@ -120,7 +133,7 @@ function sanitizePairingErrorText(value: string): string {
     .slice(0, 240);
 }
 
-function sanitizePairingError(error: unknown): {
+export function sanitizePairingError(error: unknown): {
   name: string;
   code?: string;
   message: string;
@@ -144,6 +157,22 @@ function recordPairingDiagnostic(
     recordPlayerDiagnostic(code, details);
   } catch {
     // Diagnostics are observational and must never affect pairing.
+  }
+}
+
+function recordIdentityResetStep(
+  stage: IdentityResetStage,
+  result: string,
+  details: Record<string, unknown> = {},
+): void {
+  try {
+    recordPlayerDiagnostic("PLAYER_IDENTITY_RESET_STEP", {
+      stage,
+      result,
+      ...details,
+    });
+  } catch {
+    // Reset diagnostics must never affect identity recovery.
   }
 }
 
@@ -212,19 +241,6 @@ function parseOwnerUid(value: unknown): string | null {
   return typeof ownerUid === "string" && ownerUid.length > 0 ? ownerUid : null;
 }
 
-function bindingUnchanged(current: unknown, expected: unknown): boolean {
-  if (typeof current !== "object" || current === null) return false;
-  if (typeof expected !== "object" || expected === null) return false;
-  const currentRecord = current as Record<string, unknown>;
-  const expectedRecord = expected as Record<string, unknown>;
-  const currentKeys = Object.keys(currentRecord).sort();
-  const expectedKeys = Object.keys(expectedRecord).sort();
-  return currentKeys.length === expectedKeys.length &&
-    currentKeys.every((key, index) => key === expectedKeys[index]) &&
-    currentRecord.ownerUid === expectedRecord.ownerUid &&
-    currentRecord.displayName === expectedRecord.displayName;
-}
-
 function bindingPath(playerUid: string): string {
   return `${PLAYER_BINDINGS_PATH}/${playerUid}`;
 }
@@ -273,53 +289,161 @@ export async function resetPlayerIdentity(database: Database): Promise<void> {
         await waitForPlayerTabsToStop(channel, playerUid, requestId);
       }
 
+      recordIdentityResetStep("binding-initial-read", "start");
       const bindingRef = ref(database, bindingPath(playerUid));
-      const bindingSnapshot = await get(bindingRef);
+      let bindingSnapshot;
+      try {
+        bindingSnapshot = await get(bindingRef);
+      } catch (error) {
+        recordIdentityResetStep("binding-initial-read", "error", sanitizePairingError(error));
+        throw error;
+      }
       const bindingValue = bindingSnapshot.val();
       const ownerUid = parseOwnerUid(bindingValue);
+      recordIdentityResetStep("binding-initial-read", "ok", {
+        exists: bindingSnapshot.exists(),
+        ownerUidValid: ownerUid !== null,
+      });
+      recordIdentityResetStep("owner-identification", ownerUid === null ? "none" : "valid");
       if (bindingValue !== null && ownerUid === null) {
         throw new Error("The Player binding could not be verified. Try again.");
       }
 
       if (ownerUid !== null) {
-        await clearPlayerPresence(database, ownerUid, playerUid);
-      }
-
-      const codes = await get(query(
-        ref(database, PLAYER_PAIRING_CODES_PATH),
-        orderByChild("playerUid"),
-        equalTo(playerUid),
-      ));
-      const codeRecords = codes.val();
-      if (typeof codeRecords === "object" && codeRecords !== null) {
-        const removals = Object.entries(codeRecords as Record<string, unknown>)
-          .filter(([pin, value]) => /^\d{6}$/.test(pin) && parsePairingRecord(value)?.playerUid === playerUid)
-          .map(([pin]) => remove(ref(database, pairingCodePath(pin))));
-        await Promise.all(removals);
-      }
-
-      const claimRef = ref(database, pairingClaimPath(playerUid));
-      const claimSnapshot = await get(claimRef);
-      if (claimSnapshot.exists()) await remove(claimRef);
-
-      if (ownerUid !== null) {
-        const bindingRemoval = await runTransaction(
-          bindingRef,
-          (current) => {
-            if (!bindingUnchanged(current, bindingValue)) return;
-            return null;
-          },
-          { applyLocally: false },
-        );
-        const resultingOwnerUid = parseOwnerUid(bindingRemoval.snapshot.val());
-        if (resultingOwnerUid !== null) {
-          throw new Error("The Player binding changed during reset. Try again.");
+        recordIdentityResetStep("presence-cleanup", "start");
+        try {
+          await clearPlayerPresence(database, ownerUid, playerUid);
+          recordIdentityResetStep("presence-cleanup", "ok");
+        } catch (error) {
+          recordIdentityResetStep("presence-cleanup", "error", sanitizePairingError(error));
+          throw error;
         }
       }
 
-      const confirmedBinding = await get(bindingRef);
+      recordIdentityResetStep("pin-query", "start");
+      let codes;
+      let codeRecords: unknown;
+      try {
+        codes = await get(query(
+          ref(database, PLAYER_PAIRING_CODES_PATH),
+          orderByChild("playerUid"),
+          equalTo(playerUid),
+        ));
+        codeRecords = codes.val();
+        const count = typeof codeRecords === "object" && codeRecords !== null
+          ? Object.keys(codeRecords).length
+          : 0;
+        recordIdentityResetStep("pin-query", "ok", { count });
+      } catch (error) {
+        recordIdentityResetStep("pin-query", "error", sanitizePairingError(error));
+        throw error;
+      }
+      let ownPinCount = 0;
+      if (typeof codeRecords === "object" && codeRecords !== null) {
+        const removals = Object.entries(codeRecords as Record<string, unknown>)
+          .filter(([pin, value]) => /^\d{6}$/.test(pin) && parsePairingRecord(value)?.playerUid === playerUid)
+          .map(([pin]) => pairingCodePath(pin));
+        ownPinCount = removals.length;
+        recordIdentityResetStep("pin-removal", "start", { count: ownPinCount });
+        try {
+          await Promise.all(removals.map((path) => remove(ref(database, path))));
+          recordIdentityResetStep("pin-removal", "ok", { count: ownPinCount });
+        } catch (error) {
+          recordIdentityResetStep("pin-removal", "error", sanitizePairingError(error));
+          throw error;
+        }
+      }
+
+      const claimRef = ref(database, pairingClaimPath(playerUid));
+      recordIdentityResetStep("claim-read", "start");
+      let claimSnapshot;
+      try {
+        claimSnapshot = await get(claimRef);
+        recordIdentityResetStep("claim-read", "ok", { exists: claimSnapshot.exists() });
+      } catch (error) {
+        recordIdentityResetStep("claim-read", "error", sanitizePairingError(error));
+        throw error;
+      }
+      if (claimSnapshot.exists()) {
+        recordIdentityResetStep("claim-removal", "start");
+        try {
+          await remove(claimRef);
+          recordIdentityResetStep("claim-removal", "ok");
+        } catch (error) {
+          recordIdentityResetStep("claim-removal", "error", sanitizePairingError(error));
+          throw error;
+        }
+      }
+
+      let bindingDeleteCommitted = false;
+      let bindingCallbackRejectedChangedValue = false;
+      if (ownerUid !== null) {
+        recordIdentityResetStep("binding-transaction", "start");
+        let bindingRemoval: TransactionResult;
+        let bindingCallbackAborted = false;
+        let bindingStartedWithoutCachedValue = false;
+        try {
+          bindingRemoval = await runTransaction(
+            bindingRef,
+            playerBindingRemovalUpdater(bindingValue, (decision) => {
+              if (decision === "changed") bindingCallbackAborted = true;
+              if (decision === "local-cache-empty") bindingStartedWithoutCachedValue = true;
+            }),
+            { applyLocally: false },
+          );
+        } catch (error) {
+          recordIdentityResetStep("binding-transaction", "error", sanitizePairingError(error));
+          throw error;
+        }
+        const transactionSnapshotExists = bindingRemoval.snapshot.exists();
+        const transactionOwnerUidValid = parseOwnerUid(bindingRemoval.snapshot.val()) !== null;
+        bindingDeleteCommitted = bindingRemoval.committed;
+        bindingCallbackRejectedChangedValue = bindingCallbackAborted ||
+          (!bindingRemoval.committed && transactionOwnerUidValid);
+        recordIdentityResetStep("binding-transaction", "result", {
+          committed: bindingRemoval.committed,
+          snapshotExists: transactionSnapshotExists,
+          ownerUidValid: transactionOwnerUidValid,
+          callbackAborted: bindingCallbackRejectedChangedValue,
+          initialCacheWasEmpty: bindingStartedWithoutCachedValue,
+          outcome: bindingRemoval.committed
+            ? "committed"
+            : bindingCallbackRejectedChangedValue
+              ? "callback-aborted-binding-changed"
+              : transactionSnapshotExists
+                ? "not-committed-binding-present"
+                : "not-committed-snapshot-empty",
+        });
+      }
+
+      recordIdentityResetStep("binding-confirmation-read", "start");
+      let confirmedBinding;
+      try {
+        confirmedBinding = await get(bindingRef);
+      } catch (error) {
+        recordIdentityResetStep("binding-confirmation-read", "error", sanitizePairingError(error));
+        throw error;
+      }
+      recordIdentityResetStep("binding-confirmation-read", "result", {
+        exists: confirmedBinding.exists(),
+        ownerUidValid: parseOwnerUid(confirmedBinding.val()) !== null,
+        outcome: confirmedBinding.exists()
+          ? bindingDeleteCommitted
+            ? "binding-reappeared-after-committed-removal"
+            : "binding-remains-after-uncommitted-removal"
+          : "absent",
+      });
       if (confirmedBinding.exists()) {
-        throw new Error("The Player could not be unpaired. Try again.");
+        const confirmedOwnerUid = parseOwnerUid(confirmedBinding.val());
+        if (confirmedOwnerUid === null) {
+          throw new Error("The Player binding has an unexpected structure. Try again.");
+        }
+        if (bindingDeleteCommitted) {
+          throw new Error("The Player binding reappeared after removal. Try again.");
+        }
+        throw new Error(bindingCallbackRejectedChangedValue
+          ? "The Player binding changed during reset. Try again."
+          : "The Player could not be unpaired. Try again.");
       }
 
       resetCommitted = true;
