@@ -61,17 +61,61 @@ describe("gradient border theme ownership", () => {
     const highlighted = cssBlock(".presentation-code-line-highlighted");
 
     expect(codeBase).toContain("--presentation-code-content-padding: 20px");
-    expect(codeBase).toContain("padding: var(--presentation-code-content-padding)");
+    expect(codeBase).toContain("padding: var(--presentation-code-content-padding) var(--presentation-code-content-padding) 0");
     expect(codeBase).toContain("overflow: auto");
     expect(highlighted).toContain("var(--presentation-code-content-padding)");
     expect(frame).toContain("border: 0");
     expect(frame).toContain("overflow: hidden");
     expect(frame).toContain("var(--presentation-gradient-border-width)");
     expect(surface).toContain("overflow: auto");
-    expect(surface).toContain("height: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding))");
-    expect(surface).toContain("margin: calc(0px - var(--presentation-code-content-padding))");
-    expect(surface).toContain("padding: var(--presentation-code-content-padding)");
+    expect(surface).toContain("height: calc(100% + var(--presentation-code-content-padding))");
+    expect(surface).toContain("margin-block-start: calc(0px - var(--presentation-code-content-padding))");
+    expect(surface).toContain("margin-block-end: 0");
+    expect(surface).toContain("margin-inline: calc(0px - var(--presentation-code-content-padding))");
+    expect(surface).toContain("padding: var(--presentation-code-content-padding) var(--presentation-code-content-padding) 0");
     expect(surface).toContain("var(--presentation-code-outer-radius, var(--presentation-radius-md))");
+  });
+
+  it("keeps Code content padding, line rhythm, and native overflow", () => {
+    const codeBase = cssBlock(".presentation-code");
+    const codeLine = cssBlock(".presentation-code-line");
+
+    expect(codeBase).toContain("--presentation-code-content-padding: 20px");
+    expect(codeBase).toMatch(/padding:\s*var\(--presentation-code-content-padding\)\s+var\(--presentation-code-content-padding\)\s+0;/);
+    expect(codeBase).toContain("overflow: auto");
+    expect(codeBase).toContain("line-height: 1.2");
+    expect(codeLine).toContain("display: block");
+    expect(codeLine).toContain("min-height: 1.45em");
+  });
+
+  it("keeps 20px top and side spacing while removing Code bottom content padding", () => {
+    const codeBase = cssBlock(".presentation-code");
+
+    expect(codeBase).toContain("--presentation-code-content-padding: 20px");
+    expect(codeBase).toMatch(/padding:\s*var\(--presentation-code-content-padding\)\s+var\(--presentation-code-content-padding\)\s+0;/);
+    expect(codeBase).toContain("overflow: auto");
+  });
+
+  it("removes bottom spacing from the gradient surface without shifting its border frame", () => {
+    const frame = cssBlock(".presentation-code-gradient-frame");
+    const surface = cssBlock(".presentation-code-gradient-frame > .presentation-code-gradient-surface");
+
+    expect(frame).toMatch(/padding:\s*calc\(var\(--presentation-code-content-padding\)\s*\+\s*var\(--presentation-gradient-border-width\)\)\s+calc\(var\(--presentation-code-content-padding\)\s*\+\s*var\(--presentation-gradient-border-width\)\)\s+var\(--presentation-gradient-border-width\);/);
+    expect(frame).toContain("overflow: hidden");
+    expect(surface).toContain("height: calc(100% + var(--presentation-code-content-padding))");
+    expect(surface).toContain("margin-block-start: calc(0px - var(--presentation-code-content-padding))");
+    expect(surface).toContain("margin-block-end: 0");
+    expect(surface).toContain("margin-inline: calc(0px - var(--presentation-code-content-padding))");
+    expect(surface).toMatch(/padding:\s*var\(--presentation-code-content-padding\)\s+var\(--presentation-code-content-padding\)\s+0;/);
+    expect(surface).toContain("overflow: auto");
+  });
+
+  it("keeps highlighted Code rows flush with the preserved side padding", () => {
+    const highlighted = cssBlock(".presentation-code-line-highlighted");
+
+    expect(highlighted).toContain("margin-inline: calc(0px - var(--presentation-code-content-padding))");
+    expect(highlighted).toContain("padding-inline: var(--presentation-code-content-padding)");
+    expect(highlighted).toContain("background: rgba(34, 211, 238, 0.08)");
   });
 
   it("keeps Gallery gradient sizing on a neutral inner surface", () => {

@@ -55,14 +55,25 @@ describe("renderCode", () => {
     expect(html).toContain("next");
   });
 
-  it("preserves the trailing empty physical line", () => {
+  it("does not render a synthetic visual row for a terminal newline", () => {
     const html = renderCode(createCodeElement({
       code: { type: "rich-text", runs: [{ text: "a\n", marks: { bold: true } }] },
     }));
 
-    expect(countOccurrences(html, 'data-line="')).toBe(2);
-    expect(html).toContain('data-line="2"');
-    expect(html).toContain('data-line="2"><span class="presentation-code-line-number"');
+    expect(countOccurrences(html, 'data-line="')).toBe(1);
+    expect(html).toContain('data-line="1"');
+    expect(html).not.toContain('data-line="2"');
+    expect(html).toContain("<strong>a</strong>");
+  });
+
+  it("renders exactly one row for a single line, with or without a terminal newline", () => {
+    for (const code of ["single", "single\n"]) {
+      const html = renderCode(createCodeElement({ code, showLineNumbers: true }));
+
+      expect(countOccurrences(html, 'data-line="')).toBe(1);
+      expect(countOccurrences(html, 'class="presentation-code-line-number"')).toBe(1);
+      expect(html).not.toContain('data-line="2"');
+    }
   });
   it("renders empty code as one empty visual line", () => {
     const html = renderCode(
@@ -91,6 +102,26 @@ describe("renderCode", () => {
     expect(html.indexOf("second();")).toBeLessThan(
       html.indexOf("third();"),
     );
+  });
+
+  it("preserves intentional empty rows between source lines", () => {
+    const html = renderCode(createCodeElement({ code: "first\n\nthird" }));
+
+    expect(countOccurrences(html, 'data-line="')).toBe(3);
+    expect(getLineOpeningTag(html, 2)).toContain('data-line="2"');
+    expect(html).toContain('<span class="presentation-code-line-content"> </span>');
+    expect(html).toContain('data-line="3"');
+  });
+
+  it("does not add a row when multiple lines end with a terminal newline", () => {
+    const html = renderCode(createCodeElement({
+      code: "first\nsecond\n",
+      showLineNumbers: true,
+    }));
+
+    expect(countOccurrences(html, 'data-line="')).toBe(2);
+    expect(countOccurrences(html, 'class="presentation-code-line-number"')).toBe(2);
+    expect(html).not.toContain('data-line="3"');
   });
 
   it("renders a line number for each line when enabled", () => {

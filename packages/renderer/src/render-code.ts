@@ -94,6 +94,15 @@ export function renderCode(
   }
 
   const lines = splitTextContentLines(element.code);
+  const sourceText = typeof element.code === "string"
+    ? element.code
+    : element.code.runs.map((run) => run.text).join("");
+
+  // A terminal newline separates the final source line from EOF; it does not
+  // add another visible code row. Keep empty rows between source lines.
+  if (lines.length > 1 && sourceText.endsWith("\n")) {
+    lines.pop();
+  }
 
   const content = lines
     .map((line, index) => {
