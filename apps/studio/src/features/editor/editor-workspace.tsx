@@ -5086,43 +5086,54 @@ export function EditorWorkspace({
         labelParams: { setting: "linkedStyle.createFromElement" },
       },
       (current, currentTarget) => {
-        const elements = resolveOwnedAuthoringTree(current, currentTarget, elementId)?.elements ?? null;
+        // A selected master element may be materialized in a root-backed Slide,
+        // while its persisted owner remains the Root Definition. Resolve that
+        // owner before reading or replacing the selected element.
+        const owned = resolveStructuralMovementOwner(current, currentTarget, elementId);
+        const elements = owned?.elements ?? null;
         const currentElement = elements ? findElementById(elements, elementId) : undefined;
         if (!currentElement || currentElement.type !== expectedType) return current;
+
+        const applyCreatedElement = (candidate: { presentation: Presentation; element: PresentationElement }): Presentation => {
+          const nextElements = updateElementById(elements, elementId, (element) =>
+            element.type === candidate.element.type ? candidate.element : element,
+          );
+          return nextElements === elements
+            ? current
+            : replaceStructuralMovementOwner(candidate.presentation, currentTarget, elementId, nextElements);
+        };
 
         if (expectedType === "container") {
           if (currentElement.type !== "container" || !canCreateLinkedStyleFromContainer(currentElement)) return current;
           const candidate = createLinkedStyleFromContainerElement(current, currentElement, name);
-          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) =>
-            updateElementById(currentElements, elementId, (element) => element.type === "container" ? candidate.element : element),
-          );
+          return candidate === null ? current : applyCreatedElement(candidate);
         }
         if (expectedType === "topics") {
           if (currentElement.type !== "topics" || !canCreateLinkedStyleFromTopics(currentElement)) return current;
           const candidate = createLinkedStyleFromTopicsElement(current, currentElement, name);
-          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "topics" ? candidate.element : element));
+          return candidate === null ? current : applyCreatedElement(candidate);
         }
         if (expectedType === "code" && currentElement.type === "code" && canCreateLinkedStyleFromCode(currentElement)) {
           const candidate = createLinkedStyleFromCodeElement(current, currentElement, name);
-          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "code" ? candidate.element : element));
+          return candidate === null ? current : applyCreatedElement(candidate);
         }
         if (expectedType === "terminal" && currentElement.type === "terminal" && canCreateLinkedStyleFromTerminal(currentElement)) {
           const candidate = createLinkedStyleFromTerminalElement(current, currentElement, name);
-          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "terminal" ? candidate.element : element));
+          return candidate === null ? current : applyCreatedElement(candidate);
         }
         if (expectedType === "table" && currentElement.type === "table") {
           if (currentElement.mode === "structured" && canCreateLinkedStyleFromStructuredTable(currentElement)) {
             const candidate = createLinkedStyleFromStructuredTableElement(current, currentElement, name);
-            return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "table" ? candidate.element : element));
+            return candidate === null ? current : applyCreatedElement(candidate);
           }
           if (currentElement.mode !== "structured" && canCreateLinkedStyleFromSimpleTable(currentElement)) {
             const candidate = createLinkedStyleFromSimpleTableElement(current, currentElement, name);
-            return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "table" ? candidate.element : element));
+            return candidate === null ? current : applyCreatedElement(candidate);
           }
         }
         if (expectedType === "divider" && currentElement.type === "divider" && canCreateLinkedStyleFromDivider(currentElement)) {
           const candidate = createLinkedStyleFromDividerElement(current, currentElement, name);
-          return candidate === null ? current : updateOwnedAuthoringTree(candidate.presentation, currentTarget, elementId, (currentElements) => updateElementById(currentElements, elementId, (element) => element.type === "divider" ? candidate.element : element));
+          return candidate === null ? current : applyCreatedElement(candidate);
         }
         return current;
       },
