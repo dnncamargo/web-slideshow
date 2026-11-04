@@ -5091,7 +5091,8 @@ export function EditorWorkspace({
         // owner before reading or replacing the selected element.
         const owned = resolveStructuralMovementOwner(current, currentTarget, elementId);
         const elements = owned?.elements ?? null;
-        const currentElement = elements ? findElementById(elements, elementId) : undefined;
+        if (!elements) return current;
+        const currentElement = findElementById(elements, elementId);
         if (!currentElement || currentElement.type !== expectedType) return current;
 
         const applyCreatedElement = (candidate: { presentation: Presentation; element: PresentationElement }): Presentation => {
