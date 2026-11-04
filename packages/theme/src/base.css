@@ -125,7 +125,7 @@
 
   --presentation-code-content-padding: 20px;
 
-  padding: var(--presentation-code-content-padding);
+  padding: var(--presentation-code-content-padding) var(--presentation-code-content-padding) 0;
 
   overflow: auto;
 
@@ -189,10 +189,10 @@
 
 .presentation-code-gradient-frame {
   border: 0;
-  padding: calc(
-    var(--presentation-code-content-padding) +
-    var(--presentation-gradient-border-width)
-  );
+  padding:
+    calc(var(--presentation-code-content-padding) + var(--presentation-gradient-border-width))
+    calc(var(--presentation-code-content-padding) + var(--presentation-gradient-border-width))
+    var(--presentation-gradient-border-width);
   overflow: hidden;
 }
 
@@ -200,10 +200,12 @@
   display: block;
   box-sizing: border-box;
   width: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding));
-  height: calc(100% + var(--presentation-code-content-padding) + var(--presentation-code-content-padding));
+  height: calc(100% + var(--presentation-code-content-padding));
   min-width: 0;
-  margin: calc(0px - var(--presentation-code-content-padding));
-  padding: var(--presentation-code-content-padding);
+  margin-block-start: calc(0px - var(--presentation-code-content-padding));
+  margin-block-end: 0;
+  margin-inline: calc(0px - var(--presentation-code-content-padding));
+  padding: var(--presentation-code-content-padding) var(--presentation-code-content-padding) 0;
   overflow: auto;
   background: transparent;
   border-radius: max(
