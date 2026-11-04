@@ -41,6 +41,36 @@ function presentation(options: { referenced?: boolean } = {}): Presentation {
   });
 }
 
+function styledReferencedPresentation(): Presentation {
+  const base = presentation({ referenced: true });
+  return PresentationSchema.parse({
+    ...base,
+    rootDefinitions: base.rootDefinitions?.map((definition) =>
+      definition.id === "root-a"
+        ? {
+            ...definition,
+            root: {
+              ...definition.root,
+              children: [{
+                id: "root-a-card",
+                type: "container",
+                hidden: false,
+                layout: { padding: 16 },
+                children: [{
+                  id: "root-a-card-text",
+                  type: "text",
+                  hidden: false,
+                  variant: "body",
+                  content: "Root-owned card",
+                }],
+              }],
+            },
+          }
+        : definition,
+    ),
+  });
+}
+
 function usagePresentation(): Presentation {
   return PresentationSchema.parse({
     ...presentation(),
@@ -110,6 +140,14 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     return details;
   }
 
+  async function openLinkedStyles(): Promise<HTMLElement> {
+    const details = Array.from(container.querySelectorAll<HTMLDetailsElement>("details"))
+      .find((candidate) => candidate.querySelector("summary")?.textContent?.includes("Linked Styles"));
+    if (!details) throw new Error("Linked Styles section not found");
+    if (!details.open) await act(async () => details.querySelector("summary")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    return details;
+  }
+
   function row(id: string): HTMLElement {
     const result = container.querySelector<HTMLElement>(`[data-root-definition-id="${id}"]`);
     if (!result) throw new Error(`Root row not found: ${id}`);
@@ -145,6 +183,86 @@ describe("SM6E1E This Presentation Root Definitions browser", () => {
     expect(container.textContent).toContain("Master slide · Root B");
     expect(container.querySelector('[data-presentation-id="root-b-text"]')).not.toBeNull();
     expect(container.querySelector('[data-presentation-id="root-a-text"]')).toBeNull();
+  });
+
+  it("creates a Linked Style from a Root Definition element selected through a Slide and preserves the binding when duplicated", async () => {
+    const initial = styledReferencedPresentation();
+    const saved: Presentation[] = [];
+    await mount(initial, saved);
+
+    const masterCard = container.querySelector<HTMLElement>('[data-presentation-id="root-a-card"]');
+    if (!masterCard) throw new Error("Root-owned Container not found in the materialized Slide");
+    await act(async () => {
+      masterCard.dispatchEvent(new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 1,
+        clientY: 1,
+      }));
+    });
+
+    await openResources();
+    const linkedStyles = await openLinkedStyles();
+    const startCreation = Array.from(linkedStyles.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Add to Linked Styles" && !candidate.disabled);
+    if (!startCreation) throw new Error("Add to Linked Styles action was not enabled for the Root-owned Container");
+    await act(async () => startCreation.click());
+
+    const nameInput = linkedStyles.querySelector<HTMLInputElement>("input");
+    if (!nameInput) throw new Error("Linked Style name input not found");
+    await act(async () => changeInput(nameInput, "Root Card"));
+    const createButton = Array.from(linkedStyles.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "Add to Linked Styles" && !candidate.disabled);
+    if (!createButton) throw new Error("Linked Style creation action not found");
+    await act(async () => createButton.click());
+
+    await save();
+    const createdSnapshot = saved.at(-1);
+    expect(createdSnapshot).toBeDefined();
+    const sourceRoot = createdSnapshot?.rootDefinitions?.find((definition) => definition.id === "root-a")?.root;
+    const sourceCard = sourceRoot?.children.find((element) => element.id === "root-a-card");
+    expect(sourceCard?.type).toBe("container");
+    if (sourceCard?.type !== "container") return;
+    expect(sourceCard.linkedStyleId).toBeTruthy();
+    const linkedStyleId = sourceCard.linkedStyleId!;
+    expect(createdSnapshot?.linkedStyles?.find((style) => style.id === linkedStyleId)).toMatchObject({
+      name: "Root Card",
+      layout: { padding: 16 },
+    });
+
+    const roots = await openRootDefinitions();
+    await expandRoot("root-a");
+    const duplicateButton = row("root-a").querySelector<HTMLButtonElement>('[data-root-definition-action="duplicate"]');
+    if (!duplicateButton) throw new Error("Root Definition duplicate action not found");
+    await act(async () => duplicateButton.click());
+
+    const duplicateRow = Array.from(roots.querySelectorAll<HTMLElement>("[data-root-definition-id]"))
+      .find((candidate) => candidate.querySelector("[data-root-definition-disclosure] strong")?.textContent === "Copy of Root A");
+    expect(duplicateRow).toBeDefined();
+    const duplicateId = duplicateRow?.dataset.rootDefinitionId;
+    expect(duplicateId).toBeTruthy();
+
+    await save();
+    const duplicatedSnapshot = saved.at(-1);
+    const original = duplicatedSnapshot?.rootDefinitions?.find((definition) => definition.id === "root-a");
+    const duplicate = duplicatedSnapshot?.rootDefinitions?.find((definition) => definition.id === duplicateId);
+    expect(original).toBeDefined();
+    expect(duplicate).toBeDefined();
+    const originalCard = original?.root.children.find((element) => element.id === "root-a-card");
+    const duplicateCard = duplicate?.root.children.find((element) =>
+      element.type === "container" && element.linkedStyleId === linkedStyleId,
+    );
+    expect(originalCard?.type).toBe("container");
+    expect(duplicateCard?.type).toBe("container");
+    if (originalCard?.type !== "container" || duplicateCard?.type !== "container") return;
+    expect(originalCard.linkedStyleId).toBe(linkedStyleId);
+    expect(duplicateCard.linkedStyleId).toBe(linkedStyleId);
+    expect(duplicateCard.id).not.toBe(originalCard.id);
+
+    const originalIds = listRootDefinitionStructuralIds(original!.root);
+    const duplicateIds = listRootDefinitionStructuralIds(duplicate!.root);
+    expect(new Set([...originalIds, ...duplicateIds]).size).toBe(originalIds.length + duplicateIds.length);
+    expect(duplicatedSnapshot?.linkedStyles?.filter((style) => style.id === linkedStyleId)).toHaveLength(1);
+    expect(PresentationSchema.safeParse(duplicatedSnapshot).success).toBe(true);
   });
 
   it("duplicates a Root Definition with independent IDs and no reference changes", async () => {
