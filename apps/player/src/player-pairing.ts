@@ -377,9 +377,10 @@ export async function resetPlayerIdentity(database: Database): Promise<void> {
 
       let bindingDeleteCommitted = false;
       let bindingCallbackRejectedChangedValue = false;
+      let bindingTransactionFailed = false;
       if (ownerUid !== null) {
         recordIdentityResetStep("binding-transaction", "start");
-        let bindingRemoval: TransactionResult;
+        let bindingRemoval: TransactionResult | undefined;
         let bindingCallbackAborted = false;
         let bindingStartedWithoutCachedValue = false;
         try {
@@ -392,28 +393,30 @@ export async function resetPlayerIdentity(database: Database): Promise<void> {
             { applyLocally: false },
           );
         } catch (error) {
+          bindingTransactionFailed = true;
           recordIdentityResetStep("binding-transaction", "error", sanitizePairingError(error));
-          throw error;
         }
-        const transactionSnapshotExists = bindingRemoval.snapshot.exists();
-        const transactionOwnerUidValid = parseOwnerUid(bindingRemoval.snapshot.val()) !== null;
-        bindingDeleteCommitted = bindingRemoval.committed;
-        bindingCallbackRejectedChangedValue = bindingCallbackAborted ||
-          (!bindingRemoval.committed && transactionOwnerUidValid);
-        recordIdentityResetStep("binding-transaction", "result", {
-          committed: bindingRemoval.committed,
-          snapshotExists: transactionSnapshotExists,
-          ownerUidValid: transactionOwnerUidValid,
-          callbackAborted: bindingCallbackRejectedChangedValue,
-          initialCacheWasEmpty: bindingStartedWithoutCachedValue,
-          outcome: bindingRemoval.committed
-            ? "committed"
-            : bindingCallbackRejectedChangedValue
-              ? "callback-aborted-binding-changed"
-              : transactionSnapshotExists
-                ? "not-committed-binding-present"
-                : "not-committed-snapshot-empty",
-        });
+        if (bindingRemoval !== undefined) {
+          const transactionSnapshotExists = bindingRemoval.snapshot.exists();
+          const transactionOwnerUidValid = parseOwnerUid(bindingRemoval.snapshot.val()) !== null;
+          bindingDeleteCommitted = bindingRemoval.committed;
+          bindingCallbackRejectedChangedValue = bindingCallbackAborted ||
+            (!bindingRemoval.committed && transactionOwnerUidValid);
+          recordIdentityResetStep("binding-transaction", "result", {
+            committed: bindingRemoval.committed,
+            snapshotExists: transactionSnapshotExists,
+            ownerUidValid: transactionOwnerUidValid,
+            callbackAborted: bindingCallbackRejectedChangedValue,
+            initialCacheWasEmpty: bindingStartedWithoutCachedValue,
+            outcome: bindingRemoval.committed
+              ? "committed"
+              : bindingCallbackRejectedChangedValue
+                ? "callback-aborted-binding-changed"
+                : transactionSnapshotExists
+                  ? "not-committed-binding-present"
+                  : "not-committed-snapshot-empty",
+          });
+        }
       }
 
       recordIdentityResetStep("binding-confirmation-read", "start");
@@ -430,7 +433,11 @@ export async function resetPlayerIdentity(database: Database): Promise<void> {
         outcome: confirmedBinding.exists()
           ? bindingDeleteCommitted
             ? "binding-reappeared-after-committed-removal"
-            : "binding-remains-after-uncommitted-removal"
+            : bindingCallbackRejectedChangedValue
+              ? "binding-changed-during-transaction"
+              : bindingTransactionFailed
+                ? "binding-remains-after-transaction-error"
+                : "binding-remains-after-uncommitted-removal"
           : "absent",
       });
       if (confirmedBinding.exists()) {

@@ -382,7 +382,7 @@ describe("Player pairing identity", () => {
     vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
     vi.stubGlobal("BroadcastChannel", undefined);
 
-    await expect(resetPlayerIdentity({} as never)).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    await expect(resetPlayerIdentity({} as never)).rejects.toThrow("The Player could not be unpaired. Try again.");
 
     expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
       "PLAYER_IDENTITY_RESET_STEP",
@@ -392,6 +392,42 @@ describe("Player pairing identity", () => {
         name: "FirebaseError",
         code: "PERMISSION_DENIED",
         message: "playerBindings/<redacted> denied for PIN <redacted>",
+      }),
+    );
+  });
+
+  it("completes reset if the binding was removed by the owner during the transaction", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    let bindingReads = 0;
+    mocks.get.mockImplementation(async (target: { path: string; query?: boolean }) => {
+      if (target.path === "playerBindings/player-old") {
+        bindingReads += 1;
+        return bindingReads === 1
+          ? { val: () => ({ ownerUid: "account-old" }), exists: () => true }
+          : { val: () => null, exists: () => false };
+      }
+      return { val: () => null, exists: () => false };
+    });
+    mocks.runTransaction.mockRejectedValueOnce({
+      name: "FirebaseError",
+      code: "PERMISSION_DENIED",
+      message: "binding was already removed",
+    });
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    await resetPlayerIdentity({} as never);
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(mocks.signInAnonymously).toHaveBeenCalledOnce();
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_IDENTITY_RESET_STEP",
+      expect.objectContaining({
+        stage: "binding-confirmation-read",
+        result: "result",
+        exists: false,
+        outcome: "absent",
       }),
     );
   });
