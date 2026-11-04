@@ -362,6 +362,40 @@ describe("Player pairing identity", () => {
     expect(mocks.auth.currentUser?.uid).toBe("player-anonymous");
   });
 
+  it("records a sanitized Firebase error when conditional binding removal is denied", async () => {
+    mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
+    mocks.get.mockImplementation(async (target: { path: string; query?: boolean }) => {
+      if (target.path === "playerBindings/player-old") {
+        return { val: () => ({ ownerUid: "account-old" }), exists: () => true };
+      }
+      if (target.path === "playerPairingClaims/player-old") {
+        return { val: () => null, exists: () => false };
+      }
+      return { val: () => null, exists: () => false };
+    });
+    mocks.runTransaction.mockRejectedValueOnce({
+      name: "FirebaseError",
+      code: "PERMISSION_DENIED",
+      message: "playerBindings/player-old denied for PIN 123456",
+    });
+    vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => callback() } });
+    vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn() });
+    vi.stubGlobal("BroadcastChannel", undefined);
+
+    await expect(resetPlayerIdentity({} as never)).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+
+    expect(mocks.recordPlayerDiagnostic).toHaveBeenCalledWith(
+      "PLAYER_IDENTITY_RESET_STEP",
+      expect.objectContaining({
+        stage: "binding-transaction",
+        result: "error",
+        name: "FirebaseError",
+        code: "PERMISSION_DENIED",
+        message: "playerBindings/<redacted> denied for PIN <redacted>",
+      }),
+    );
+  });
+
   it("does not reset authentication if another tab already changed the UID", async () => {
     mocks.auth.currentUser = { uid: "player-old", isAnonymous: true };
     vi.stubGlobal("navigator", { locks: { request: async (_name: string, callback: () => Promise<void>) => {
