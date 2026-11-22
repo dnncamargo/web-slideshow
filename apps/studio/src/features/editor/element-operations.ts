@@ -62,7 +62,8 @@ export type ElementCreateType =
   | "embed"
   | "blocks"
   | "scripted"
-  | "plot";
+  | "plot"
+  | "math";
 
 // ============================================================
 // END: TIPOS DE ELEMENTOS CRIÁVEIS
@@ -1250,6 +1251,16 @@ export function createElement(
         type: "blocks",
         hidden: false,
         source: "",
+      };
+    }
+
+    case "math": {
+      return {
+        id: createUniqueId("math-element", usedIds),
+        type: "math",
+        hidden: false,
+        format: "latex",
+        source: String.raw`x^2`,
       };
     }
 

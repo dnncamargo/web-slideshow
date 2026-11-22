@@ -135,6 +135,8 @@ const insertionDescription =
             {t("element.text")}
           </option>
 
+          <option value="math">{t("element.math")}</option>
+
           <option value="container">
             {t("element.container")}
           </option>

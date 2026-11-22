@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "firebase-admin": "13.10.0",
-    "firebase-tools": "^15.30.2"
+    "firebase-tools": "^15.30.2",
+    "katex": "0.19.1"
   }
 }

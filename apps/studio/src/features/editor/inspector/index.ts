@@ -3,6 +3,7 @@ export { CodeInspector } from "./code-inspector";
 export { PlotInspector } from "./plot-inspector";
 
 export { BlocksInspector } from "./blocks-inspector";
+export { MathInspector } from "./math-inspector";
 
 export { ContainerInspector } from "./container-inspector";
 
