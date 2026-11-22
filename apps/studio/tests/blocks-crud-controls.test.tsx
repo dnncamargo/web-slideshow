@@ -54,6 +54,17 @@ describe("ElementCrudControls Blocks wiring", () => {
     expect(blocksOption?.textContent).toBe("Blocks");
   });
 
+  it("places Math immediately after Blocks in the Add Element select", () => {
+    renderControls(() => {});
+
+    const options = Array.from(
+      container.querySelectorAll<HTMLSelectElement>("select option"),
+      (option) => option.value,
+    );
+
+    expect(options.indexOf("math")).toBe(options.indexOf("blocks") + 1);
+  });
+
   it("calls onAdd with blocks when Blocks is selected and Add is pressed", () => {
     const onAdd = vi.fn();
     renderControls(onAdd);

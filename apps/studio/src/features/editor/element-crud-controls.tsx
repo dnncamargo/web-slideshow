@@ -135,8 +135,6 @@ const insertionDescription =
             {t("element.text")}
           </option>
 
-          <option value="math">{t("element.math")}</option>
-
           <option value="container">
             {t("element.container")}
           </option>
@@ -176,6 +174,8 @@ const insertionDescription =
           <option value="blocks">
             {t("element.blocks")}
           </option>
+
+          <option value="math">{t("element.math")}</option>
 
           <option value="scripted">
             {t("element.scripted")}
