@@ -21,6 +21,7 @@ import {
   TerminalInspector,
   TextInspector,
   TopicsInspector,
+  MathInspector,
 } from "./inspector";
 
 import type {
@@ -308,6 +309,9 @@ function ElementTypeInspector({
           onUpdate={onUpdate}
         />
       );
+
+    case "math":
+      return <MathInspector element={element} onUpdate={onUpdate} />;
 
     default:
       return (

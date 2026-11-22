@@ -150,6 +150,11 @@ export function visitPresentationColorValues(
           });
         }
         break;
+      case "math":
+        visitStyle(element.style, [...path, "style"]);
+        visitTypography(element.typography, [...path, "typography"]);
+        visitEffect(element.effect, [...path, "effect"]);
+        break;
       case "container":
         visitStyle(element.style, [...path, "style"]);
         visitTypography(element.typography, [...path, "typography"]);

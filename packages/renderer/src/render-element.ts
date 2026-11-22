@@ -9,6 +9,7 @@ import { renderEmbed } from "./render-embed";
 import { renderBlocks } from "./render-blocks";
 import { renderScripted, type ScriptedExecutionPolicy } from "./render-scripted";
 import { renderShape } from "./render-shape";
+import katex from "katex";
 
 import type {
   ElementLink,
@@ -28,7 +29,8 @@ import { renderContainer } from "./render-container";
 import { renderCanonicalTextStyle, renderTextGlowFilter } from "./render-canonical-text";
 import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
-import { renderGradient, renderGradientBorder } from "./render-visual";
+import { renderGradient, renderGradientBorder, renderBorder, renderShadow } from "./render-visual";
+import { renderColorValue } from "./render-palette";
 import {
   renderCanonicalImageCropMetadata,
   renderCanonicalImageMediaStyle,
@@ -95,7 +97,7 @@ function buildAttributes(
   const outputClasses = ["presentation-element", ...classes];
 
   const customClass =
-    element.type === "container" || element.type === "text" || element.type === "image"
+    element.type === "container" || element.type === "text" || element.type === "image" || element.type === "math"
       ? element.style?.className?.trim()
       : undefined;
 
@@ -377,6 +379,39 @@ export function renderElement(
   context?: RenderContext,
 ): string {
   switch (element.type) {
+    case "math": {
+      if (element.hidden) return "";
+      const gradient = element.style?.gradient;
+      const extra = ["overflow-x:auto", "overflow-y:hidden", "max-width:100%"];
+      const layout = element.layout;
+      for (const [key, value] of [["width", layout?.width], ["height", layout?.height], ["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left], ["margin", layout?.margin], ["margin-top", layout?.marginTop], ["margin-right", layout?.marginRight], ["margin-bottom", layout?.marginBottom], ["margin-left", layout?.marginLeft]] as const) if (value !== undefined) extra.push(`${key}:${renderLength(value)}`);
+      if (layout?.position) extra.push(`position:${layout.position}`);
+      if (element.style?.color) extra.push(`color:${renderColorValue(element.style.color)}`);
+      if (element.style?.background?.color) extra.push(`background:${renderColorValue(element.style.background.color)}`);
+      if (element.style?.background?.gradient) extra.push(`background-image:${renderGradient(element.style.background.gradient)}`);
+      if (element.style?.border) extra.push(...renderBorder(element.style.border));
+      if (element.style?.borderRadius !== undefined) extra.push(`border-radius:${renderLength(element.style.borderRadius)}`);
+      if (element.typography?.fontSize !== undefined) extra.push(`font-size:${renderLength(element.typography.fontSize)}`);
+      if (element.typography?.textAlign) extra.push(`text-align:${element.typography.textAlign}`);
+      if (element.typography?.lineHeight !== undefined) extra.push(`line-height:${element.typography.lineHeight}`);
+      if (element.effect?.opacity !== undefined) extra.push(`opacity:${element.effect.opacity}`);
+      const filters: string[] = [];
+      if (element.effect?.shadow) filters.push(`drop-shadow(${renderShadow(element.effect.shadow)})`);
+      if (element.effect?.glow) filters.push(`drop-shadow(0 0 ${renderLength(element.effect.glow.blur)} ${renderColorValue(element.effect.glow.color)})`);
+      if (filters.length > 0) extra.push(`filter:${filters.join(" ")}`);
+      if (gradient) extra.push(`--presentation-text-gradient:${renderGradient(gradient)}`);
+      const attrs = buildAttributes(element, ["presentation-math", ...(gradient ? [TEXT_GRADIENT_CONTENT_CLASS] : [])], context, extra.join(";"));
+      let body: string;
+      try {
+        if (element.source.length > 4096) throw new Error("Math source exceeds limit");
+        if (/\\(?:href|url|includegraphics|htmlClass|htmlId|htmlStyle|htmlData)\b/.test(element.source)) throw new Error("Untrusted TeX command");
+        body = katex.renderToString(element.source, { output: "htmlAndMathml", displayMode: true, throwOnError: true, trust: false, maxExpand: 1000, maxSize: 50 });
+        if (/class="[^"]*katex-error/.test(body)) throw new Error("KaTeX returned error markup");
+      } catch {
+        body = `<span class="presentation-math-error" role="img" aria-label="Mathematical expression unavailable">&#xFFFD;</span>`;
+      }
+      return `<div ${attrs}>${renderLinkContent(body, element.link)}</div>`;
+    }
     case "text":
       return renderText(element, context);
 

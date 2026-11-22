@@ -14,6 +14,9 @@ importers:
       firebase-tools:
         specifier: ^15.30.2
         version: 15.30.2(@types/node@20.19.43)
+      katex:
+        specifier: 0.19.1
+        version: 0.19.1
 
   apps/player:
     dependencies:
@@ -204,6 +207,9 @@ importers:
       '@web-slideshow/math-source':
         specifier: workspace:*
         version: link:../math-source
+      katex:
+        specifier: 0.19.1
+        version: 0.19.1
       marked:
         specifier: ^18.1.2
         version: 18.1.2
@@ -222,6 +228,10 @@ importers:
         version: 3.2.7(@types/node@20.19.43)(jsdom@26.1.0)(lightningcss@1.33.0)(yaml@2.9.1)
 
   packages/theme:
+    dependencies:
+      katex:
+        specifier: 0.19.1
+        version: 0.19.1
     devDependencies:
       typescript:
         specifier: ^5.9.0
@@ -2430,6 +2440,10 @@ packages:
     resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
     engines: {node: '>=14'}
 
+  commander@15.1.0:
+    resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
+    engines: {node: '>=22.12.0'}
+
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -3748,6 +3762,10 @@ packages:
 
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
+
+  katex@0.19.1:
+    resolution: {integrity: sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==}
+    hasBin: true
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -7799,6 +7817,8 @@ snapshots:
 
   commander@10.0.1: {}
 
+  commander@15.1.0: {}
+
   commander@2.20.3: {}
 
   commander@5.1.0: {}
@@ -9618,6 +9638,10 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
+  katex@0.19.1:
+    dependencies:
+      commander: 15.1.0
+
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
@@ -9795,6 +9819,7 @@ snapshots:
       supports-hyperlinks: 3.2.0
 
   marked@13.0.3: {}
+
   marked@18.1.2: {}
 
   math-intrinsics@1.1.0: {}

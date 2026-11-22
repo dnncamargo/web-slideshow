@@ -25,6 +25,20 @@ import {
 } from "./fixtures/valid-presentation";
 
 describe("PresentationSchema", () => {
+  it("round-trips Math source and authored properties without changing schemaVersion", () => {
+    const source = String.raw`\begin{aligned}x^2&=4\\x&=2\end{aligned}`;
+    const input = {
+      schemaVersion: 1 as const, id: "math-roundtrip", title: "Math", palette: { colors: [{ id: "accent", name: "Accent", value: "#123456" }] },
+      slides: [{ id: "slide", elements: [{ id: "math", type: "math", format: "latex", source, hidden: false,
+        layout: { width: 400, margin: 8 }, style: { color: { kind: "palette", colorId: "accent" }, background: { color: "#ffffff" }, borderRadius: 4 },
+        typography: { fontSize: 24, textAlign: "center", lineHeight: 1.2 }, effect: { opacity: 0.8 }, link: { kind: "url", href: "https://example.com" } }] }],
+    };
+    const parsed = PresentationSchema.parse(input);
+    const json = JSON.stringify(parsed);
+    const restored = PresentationSchema.parse(JSON.parse(json));
+    expect(restored.schemaVersion).toBe(1);
+    expect(restored.slides[0]?.elements[0]).toMatchObject(input.slides[0]!.elements[0]!);
+  });
   describe("valid presentations", () => {
     it("accepts the comprehensive presentation", () => {
       const result =

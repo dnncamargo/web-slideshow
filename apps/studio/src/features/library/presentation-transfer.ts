@@ -57,6 +57,7 @@ function createIdCounters(): IdCounters {
     terminal: 0,
     table: 0,
     plot: 0,
+    math: 0,
     interactive: 0,
     divider: 0,
     embed: 0,

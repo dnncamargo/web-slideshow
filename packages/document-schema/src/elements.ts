@@ -324,6 +324,21 @@ export const PlotElementSchema =
 export type PlotElement =
   z.infer<typeof PlotElementSchema>;
 
+export const MATH_SOURCE_MAX_LENGTH = 4096;
+export const MathElementSchema = z.object({
+  id: ElementIdSchema,
+  type: z.literal("math"),
+  hidden: z.boolean().default(false),
+  source: z.string().max(MATH_SOURCE_MAX_LENGTH),
+  format: z.literal("latex"),
+  layout: ResizablePositionedLayoutSchema.optional(),
+  style: TextVisualStyleSchema.optional(),
+  typography: ElementTypographySchema.pick({ fontSize: true, textAlign: true, lineHeight: true }).optional(),
+  effect: TextEffectSchema.optional(),
+  link: ElementLinkSchema.optional(),
+}).strict();
+export type MathElement = z.infer<typeof MathElementSchema>;
+
 export const InteractiveElementSchema =
   z.object({
     id: ElementIdSchema,
@@ -1072,6 +1087,7 @@ export type PresentationElement =
   | TerminalElement
   | TableElement
   | PlotElement
+  | MathElement
   | InteractiveElement
   | ShapeElement
   | DividerElement
@@ -1114,6 +1130,7 @@ export const PresentationElementSchema:
       TerminalElementSchema,
       TableElementSchema,
       PlotElementSchema,
+      MathElementSchema,
       InteractiveElementSchema,
       ShapeElementSchema,
       DividerElementSchema,

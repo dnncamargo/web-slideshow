@@ -62,4 +62,4 @@ describe("renderMarkdownToSafeHtml", () => {
     expect(html).toContain('<a href="https://example.com" rel="noopener noreferrer">seguro</a>');
     expect(html).toContain('<img src="https://example.com/poster.png" alt="poster"');
   });
-}
+});

@@ -627,3 +627,9 @@ ol.presentation-element.presentation-topics {
 /* ==========================================================
    END: IMAGE
    ========================================================== */
+
+.presentation-math { max-width: 100%; color: var(--presentation-container-color, var(--presentation-text-primary)); }
+.presentation-math .katex { white-space: nowrap; }
+.presentation-math .katex-display { margin: 0; text-align: inherit; }
+.presentation-math.presentation-text-gradient-content .katex { background: var(--presentation-text-gradient); background-clip: text; color: transparent; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.presentation-math-error { color: inherit; }

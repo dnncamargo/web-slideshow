@@ -22,6 +22,7 @@ const ELEMENT_TYPE_NAMES = {
   terminal: true,
   table: true,
   plot: true,
+  math: true,
   interactive: true,
   divider: true,
   embed: true,
