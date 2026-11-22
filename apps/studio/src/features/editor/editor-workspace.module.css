@@ -2564,6 +2564,37 @@
   cursor: pointer;
 }
 
+.mathToolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 92px), 1fr));
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mathToolbarCategory {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mathToolbarButton {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .textEditorToolbarButton:hover {
   background: #1a2230;
   color: #e2e8f0;

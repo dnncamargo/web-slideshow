@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 import { MathInspector } from "../src/features/editor/inspector/math-inspector";
@@ -9,8 +9,16 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 import type { MathElement, PresentationElement } from "@web-slideshow/document-schema";
 import type { ElementInspectorUpdate } from "../src/features/editor/inspector/inspector-types";
 import { translateStudioMessage } from "../src/features/i18n/studio-i18n";
+import type { StudioLocale } from "../src/features/i18n/studio-i18n";
+import { useStudioI18n } from "../src/features/i18n/studio-i18n-context";
 
 Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
+
+function SetStudioLocale({ locale }: { locale: StudioLocale }) {
+  const { setLocale } = useStudioI18n();
+  useLayoutEffect(() => setLocale(locale), [locale, setLocale]);
+  return null;
+}
 
 describe("Math authoring", () => {
   it("creates a canonical editable Math element", () => {
@@ -40,11 +48,52 @@ describe("Math authoring", () => {
     const element: MathElement = { id: "m", type: "math", format: "latex", source: "", hidden: false };
     await act(async () => root.render(<StudioI18nProvider><MathInspector element={element} onUpdate={() => {}} /></StudioI18nProvider>));
     const category = host.querySelector("select"); if (!category) throw new Error("category select missing");
-    expect(category.options).toHaveLength(6);
-    for (const value of ["functions", "relations", "operators", "sets", "multiline"] as const) {
+    expect(Array.from(category.options, option => option.value)).toEqual(["structures", "functions", "relations", "operators", "sets", "multiline"]);
+    for (const value of ["structures", "functions", "relations", "operators", "sets", "multiline"] as const) {
       await act(async () => { category.value = value; category.dispatchEvent(new Event("change", { bubbles: true })); });
       expect(host.querySelector('[role="group"]')?.querySelectorAll("button").length).toBeGreaterThan(0);
     }
+    await act(async () => root.unmount()); host.remove();
+  });
+  it("keeps every localized insertion control accessible and fully labeled in English and Portuguese", async () => {
+    const host = document.createElement("div"); document.body.appendChild(host); const root = createRoot(host);
+    const element: MathElement = { id: "m", type: "math", format: "latex", source: "", hidden: false };
+    const render = (locale: StudioLocale) => <StudioI18nProvider><SetStudioLocale locale={locale} /><MathInspector element={element} onUpdate={() => {}} /></StudioI18nProvider>;
+    const categories = ["structures", "functions", "relations", "operators", "sets", "multiline"] as const;
+    await act(async () => root.render(render("en")));
+    const toolbar = host.querySelector<HTMLElement>('[role="group"][aria-label="Mathematical insertion toolbar"]');
+    const category = host.querySelector<HTMLSelectElement>("[aria-label='Insertion category']");
+    expect(toolbar?.className).toContain("mathToolbar");
+    expect(category?.className).toContain("mathToolbarCategory");
+
+    for (const locale of ["en", "pt-BR"] as const) {
+      await act(async () => root.render(render(locale)));
+      const selector = host.querySelector<HTMLSelectElement>("[data-presentation-math-inspector] select");
+      if (!selector) throw new Error("Math category selector missing");
+      for (const value of categories) {
+        await act(async () => { selector.value = value; selector.dispatchEvent(new Event("change", { bubbles: true })); });
+        const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>("[data-presentation-math-inspector] [role='group'] button"));
+        expect(buttons.length).toBeGreaterThan(0);
+        for (const button of buttons) {
+          const label = button.getAttribute("aria-label");
+          expect(label).toBeTruthy();
+          expect(button.title).toBe(label);
+          expect(button.textContent?.trim()).toBe(label);
+          expect(button.className).toContain("mathToolbarButton");
+        }
+      }
+      const expectedLongLabels = locale === "en"
+        ? { relations: "Greater or equal", multiline: "System of equations" }
+        : { relations: "Maior ou igual", multiline: "Sistema de equações" };
+      for (const value of ["relations", "multiline"] as const) {
+        await act(async () => { const selector = host.querySelector<HTMLSelectElement>("[data-presentation-math-inspector] select")!; selector.value = value; selector.dispatchEvent(new Event("change", { bubbles: true })); });
+        const label = expectedLongLabels[value];
+        const button = host.querySelector<HTMLButtonElement>(`[data-presentation-math-inspector] button[aria-label="${label}"]`);
+        expect(button?.textContent?.trim()).toBe(label);
+      }
+    }
+
+    await act(async () => root.render(render("en")));
     await act(async () => root.unmount()); host.remove();
   });
   it("wraps a selection in an exponent and restores the cursor to the input", async () => {
