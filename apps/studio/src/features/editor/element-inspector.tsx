@@ -311,7 +311,7 @@ function ElementTypeInspector({
       );
 
     case "math":
-      return <MathInspector element={element} onUpdate={onUpdate} />;
+      return <MathInspector element={element} onUpdate={onUpdate} presentation={presentation} parent={parent} ancestorContainers={ancestorContainers} layerControls={layerControls} />;
 
     default:
       return (
@@ -508,7 +508,7 @@ export function ElementInspector({
         ) : null
       )}
 
-      {(element.type === "text" || element.type === "image" || element.type === "container" || element.type === "shape") && (
+      {(element.type === "text" || element.type === "image" || element.type === "container" || element.type === "shape" || element.type === "math") && (
         <ElementInteractionSection
           element={element}
           onUpdate={onUpdate}

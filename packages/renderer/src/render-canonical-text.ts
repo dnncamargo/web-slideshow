@@ -126,7 +126,7 @@ function renderTypography(typography: ElementTypography | undefined): string[] {
   return output;
 }
 
-function renderTextShadow(shadow: Shadow): string {
+export function renderTextShadow(shadow: Shadow): string {
   return [
     renderLength(shadow.x),
     renderLength(shadow.y),

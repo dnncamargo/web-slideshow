@@ -2,6 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { renderElement } from "@web-slideshow/renderer";
+
 import { isAuthoredPresentationLink } from "../src/features/editor/canvas-link-interception";
 
 function createCanvas(html: string): HTMLDivElement {
@@ -33,6 +35,26 @@ describe("isAuthoredPresentationLink", () => {
 
     expect(anchor).not.toBeNull();
     expect(isAuthoredPresentationLink(anchor)).toBe(true);
+  });
+
+  it("suppresses navigation for the Math renderer's marked link on the Editor canvas", () => {
+    const canvas = createCanvas(renderElement({
+      id: "math-link",
+      type: "math",
+      format: "latex",
+      source: String.raw`\begin{aligned}x&=1\\y&=2\end{aligned}`,
+      hidden: false,
+      link: { kind: "url", href: "https://example.com/math" },
+    }));
+    const anchor = canvas.querySelector<HTMLAnchorElement>('a[data-presentation-link="true"]');
+    if (!anchor) throw new Error("Rendered Math link is missing");
+
+    anchor.addEventListener("click", createCanvasClickHandler());
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(anchor.querySelector(".katex-display")).not.toBeNull();
   });
 
   it("recognizes activation inside a nested child of an authored link", () => {

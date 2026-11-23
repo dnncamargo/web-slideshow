@@ -364,6 +364,39 @@ describe("Projection surface", () => {
     projection.destroy();
   });
 
+  it("keeps linked Math as a native keyboard-focusable anchor in the Player", () => {
+    const presentation = PresentationSchema.parse({
+      ...playerTestPresentation,
+      id: "math-link-projection",
+      slides: [{
+        id: "math-link-slide",
+        title: "Math link",
+        elements: [{
+          id: "math-link",
+          type: "math",
+          format: "latex",
+          source: String.raw`\begin{aligned}x&=1\\y&=2\end{aligned}`,
+          hidden: false,
+          link: { kind: "url", href: "https://example.com/math", target: "_blank" },
+        }],
+      }],
+    });
+    const projection = mountProjectionSurface(root, presentation, { transition: "none" });
+    const anchor = root.querySelector<HTMLAnchorElement>('[data-presentation-type="math"] a[data-presentation-link="true"]');
+    if (!anchor) throw new Error("Player Math link is missing");
+
+    expect(anchor.getAttribute("href")).toBe("https://example.com/math");
+    expect(anchor.target).toBe("_blank");
+    expect(anchor.rel).toBe("noopener noreferrer");
+    expect(anchor.tabIndex).toBe(0);
+    expect(anchor.querySelector(".katex-display")).not.toBeNull();
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+
+    projection.destroy();
+  });
+
   it("fills a neutral single-container root to the logical slide viewport", () => {
     const projection = mountProjectionSurface(root, neutralRootPresentation(), { transition: "none" });
     const rootNode = root.querySelector<HTMLElement>('[data-presentation-id="neutral-root"]');

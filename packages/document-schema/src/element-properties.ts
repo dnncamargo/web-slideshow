@@ -169,7 +169,7 @@ export const ImageVisualStyleSchema = z.object({
 
 export type ImageVisualStyle = z.infer<typeof ImageVisualStyleSchema>;
 
-export const ResizablePositionedLayoutSchema = z.object({
+const ResizablePositionedLayoutFields = {
   width: LengthSchema.optional(),
   height: LengthSchema.optional(),
   position: z.literal("absolute").optional(),
@@ -178,9 +178,22 @@ export const ResizablePositionedLayoutSchema = z.object({
   bottom: LengthSchema.optional(),
   left: LengthSchema.optional(),
   ...ElementMarginFields,
-}).strict().superRefine(requireAbsoluteEdges);
+};
+
+export const ResizablePositionedLayoutSchema = z.object(ResizablePositionedLayoutFields).strict().superRefine(requireAbsoluteEdges);
 
 export type ResizablePositionedLayout = z.infer<typeof ResizablePositionedLayoutSchema>;
+
+export const MathLayoutSchema = z.object({
+  ...ResizablePositionedLayoutFields,
+  padding: LengthSchema.optional(),
+  paddingTop: LengthSchema.optional(),
+  paddingRight: LengthSchema.optional(),
+  paddingBottom: LengthSchema.optional(),
+  paddingLeft: LengthSchema.optional(),
+}).strict().superRefine(requireAbsoluteEdges);
+
+export type MathLayout = z.infer<typeof MathLayoutSchema>;
 
 const SurfaceBackgroundSchema = z.object({
   color: ColorValueSchema.optional(),

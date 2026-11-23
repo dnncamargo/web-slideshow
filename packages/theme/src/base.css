@@ -630,6 +630,9 @@ ol.presentation-element.presentation-topics {
 
 .presentation-math { max-width: 100%; color: var(--presentation-container-color, var(--presentation-text-primary)); }
 .presentation-math .katex { white-space: nowrap; }
+/* KaTeX's root font shorthand resets authored weight/style. Apply overrides only when explicitly authored, preserving its defaults otherwise. */
+.presentation-math-weight .katex { font-weight: inherit; }
+.presentation-math-style .katex { font-style: inherit; }
 .presentation-math .katex-display { margin: 0; text-align: inherit; }
 .presentation-math.presentation-text-gradient-content .katex { background: var(--presentation-text-gradient); background-clip: text; color: transparent; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .presentation-math-error { color: inherit; }

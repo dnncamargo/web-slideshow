@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ContainerElement,
   ElementLink,
+  MathElement,
   ImageElement,
   PresentationElement,
   ShapeElement,
@@ -24,7 +25,7 @@ const FONT_RESOURCES: readonly { id: string; family: string }[] = [];
 
 type LinkableElement = Extract<
   PresentationElement,
-  { type: "text" | "image" | "container" }
+  { type: "text" | "image" | "container" | "math" }
 >;
 
 function textElement(
@@ -74,6 +75,10 @@ function shapeElement(overrides: Partial<Omit<ShapeElement, "type" | "hidden">> 
     geometry: { mode: "generated", generator: "triangle", config: { apexX: 50 } },
     ...overrides,
   };
+}
+
+function mathElement(overrides: Partial<Omit<MathElement, "type" | "id" | "hidden">> = {}): MathElement {
+  return { id: "math-1", type: "math", format: "latex", source: String.raw`\frac{x}{y}`, hidden: false, ...overrides };
 }
 
 function urlInput(container: HTMLElement, prefix: string): HTMLInputElement {
@@ -143,7 +148,9 @@ describe("ElementInteractionSection", () => {
               ? "text"
               : elementState.type === "image"
                 ? "image"
-                : "container"
+                : elementState.type === "math"
+                  ? "math"
+                  : "container"
           }
           onUpdate={(update) => {
             const next = update(elementState);
@@ -175,7 +182,8 @@ describe("ElementInteractionSection", () => {
     return (
       element.type === "text" ||
       element.type === "image" ||
-      element.type === "container"
+      element.type === "container" ||
+      element.type === "math"
     );
   }
 
@@ -200,6 +208,34 @@ describe("ElementInteractionSection", () => {
 
     expect(updates).toHaveLength(0);
     expect(elementState).not.toHaveProperty("link");
+  });
+
+  it("edits Math links through the shared validation, target, QR, and removal controls", async () => {
+    await act(async () => { mount(mathElement({ layout: { width: 240 }, typography: { fontWeight: 700 }, style: { color: "#123456" } })); });
+    expect(updates).toHaveLength(0);
+    expect(targetSelect(container, "math").value).toBe("same");
+
+    await act(async () => { changeInput(urlInput(container, "math"), "javascript:alert(1)"); });
+    await act(async () => { blurInput(urlInput(container, "math")); });
+    expect(elementState).not.toHaveProperty("link");
+    expect(urlInput(container, "math").value).toBe("");
+
+    await act(async () => { changeInput(urlInput(container, "math"), "https://example.com/math?a=1&b=2"); });
+    await act(async () => { blurInput(urlInput(container, "math")); });
+    expect(elementState).toMatchObject({ type: "math", source: String.raw`\frac{x}{y}`, link: { kind: "url", href: "https://example.com/math?a=1&b=2" } });
+
+    await act(async () => { changeSelect(targetSelect(container, "math"), "new"); });
+    expect(elementState.link?.target).toBe("_blank");
+    const qrButton = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.includes("Create QR code from link"));
+    expect(qrButton).toBeDefined();
+    await act(async () => { qrButton?.click(); });
+    expect(onCreateQrFromLink).toHaveBeenCalledWith("https://example.com/math?a=1&b=2");
+
+    const removeButton = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.includes("Remove link"));
+    expect(removeButton).toBeDefined();
+    await act(async () => { removeButton?.click(); });
+    expect(elementState).not.toHaveProperty("link");
+    expect(elementState).toMatchObject({ type: "math", source: String.raw`\frac{x}{y}`, layout: { width: 240 }, typography: { fontWeight: 700 }, style: { color: "#123456" } });
   });
 
   it("offers QR creation only from the canonical URL", async () => {
@@ -1174,6 +1210,17 @@ describe("shared Interaction control in inspectors", () => {
     expect(targetSelect(container, "image")).toBeDefined();
   });
 
+  it("renders Math Interaction last in the canonical Inspector order", async () => {
+    await renderElementInspector(mathElement());
+
+    expect(urlInput(container, "math")).toBeDefined();
+    expect(targetSelect(container, "math")).toBeDefined();
+    const sectionTitles = Array.from(container.querySelectorAll("details"))
+      .filter(section => section.parentElement?.closest("details") === null)
+      .map(section => section.querySelector("summary span:first-child")?.textContent?.trim());
+    expect(sectionTitles).toEqual(["Content", "Typography", "Size", "Spacing", "Appearance", "Effects", "Placement", "Interaction"]);
+  });
+
   it("ImageInspector writes canonical style, layout, and effect responsibilities", async () => {
     const initial = imageElement();
     let updated: ImageElement = initial;
@@ -1273,7 +1320,7 @@ describe("shared Interaction control in inspectors", () => {
     expect(targetSelect(container, "container")).toBeDefined();
   });
 
-  it("preserves QR creation for Text, Image, and Container without granting it to Shape", async () => {
+  it("preserves QR creation for Text, Image, Container, and Math without granting it to Shape", async () => {
     const onCreateQrFromLink = vi.fn();
     const linked = { kind: "url" as const, href: "https://example.com/linked" };
 
@@ -1281,6 +1328,7 @@ describe("shared Interaction control in inspectors", () => {
       textElement({ link: linked }),
       imageElement({ link: linked }),
       containerElement({ link: linked }),
+      mathElement({ link: linked }),
     ]) {
       await renderElementInspector(element, onCreateQrFromLink);
       const button = Array.from(container.querySelectorAll("button")).find(
@@ -1294,6 +1342,6 @@ describe("shared Interaction control in inspectors", () => {
     expect(Array.from(container.querySelectorAll("button")).some(
       (button) => button.textContent?.includes("Create QR code from link"),
     )).toBe(false);
-    expect(onCreateQrFromLink).toHaveBeenCalledTimes(3);
+    expect(onCreateQrFromLink).toHaveBeenCalledTimes(4);
   });
 });
