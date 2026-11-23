@@ -124,6 +124,9 @@ describe("element style authoring defaults", () => {
     expect(
       resolveEffectiveElementStyleDefaults({ type: "plot" }).borderRadius,
     ).toBe(0);
+    expect(
+      resolveEffectiveElementStyleDefaults({ type: "math" }),
+    ).toEqual({ borderRadius: 0 });
   });
 
   it("resolves Code and Terminal authoring defaults without injecting a font family", () => {

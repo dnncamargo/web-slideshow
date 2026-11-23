@@ -311,7 +311,7 @@ function ElementTypeInspector({
       );
 
     case "math":
-      return <MathInspector element={element} onUpdate={onUpdate} />;
+      return <MathInspector element={element} onUpdate={onUpdate} presentation={presentation} parent={parent} ancestorContainers={ancestorContainers} layerControls={layerControls} />;
 
     default:
       return (

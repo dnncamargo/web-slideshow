@@ -392,6 +392,8 @@ export function renderElement(
       if (element.style?.border) extra.push(...renderBorder(element.style.border));
       if (element.style?.borderRadius !== undefined) extra.push(`border-radius:${renderLength(element.style.borderRadius)}`);
       if (element.typography?.fontSize !== undefined) extra.push(`font-size:${renderLength(element.typography.fontSize)}`);
+      if (element.typography?.fontWeight !== undefined) extra.push(`font-weight:${element.typography.fontWeight}`);
+      if (element.typography?.fontStyle !== undefined) extra.push(`font-style:${element.typography.fontStyle}`);
       if (element.typography?.textAlign) extra.push(`text-align:${element.typography.textAlign}`);
       if (element.typography?.lineHeight !== undefined) extra.push(`line-height:${element.typography.lineHeight}`);
       if (element.effect?.opacity !== undefined) extra.push(`opacity:${element.effect.opacity}`);
@@ -400,7 +402,13 @@ export function renderElement(
       if (element.effect?.glow) filters.push(`drop-shadow(0 0 ${renderLength(element.effect.glow.blur)} ${renderColorValue(element.effect.glow.color)})`);
       if (filters.length > 0) extra.push(`filter:${filters.join(" ")}`);
       if (gradient) extra.push(`--presentation-text-gradient:${renderGradient(gradient)}`);
-      const attrs = buildAttributes(element, ["presentation-math", ...(gradient ? [TEXT_GRADIENT_CONTENT_CLASS] : [])], context, extra.join(";"));
+      const mathClasses = [
+        "presentation-math",
+        ...(element.typography?.fontWeight !== undefined ? ["presentation-math-weight"] : []),
+        ...(element.typography?.fontStyle !== undefined ? ["presentation-math-style"] : []),
+        ...(gradient ? [TEXT_GRADIENT_CONTENT_CLASS] : []),
+      ];
+      const attrs = buildAttributes(element, mathClasses, context, extra.join(";"));
       let body: string;
       try {
         if (element.source.length > 4096) throw new Error("Math source exceeds limit");

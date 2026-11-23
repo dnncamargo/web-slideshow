@@ -333,7 +333,7 @@ export const MathElementSchema = z.object({
   format: z.literal("latex"),
   layout: ResizablePositionedLayoutSchema.optional(),
   style: TextVisualStyleSchema.optional(),
-  typography: ElementTypographySchema.pick({ fontSize: true, textAlign: true, lineHeight: true }).optional(),
+  typography: ElementTypographySchema.pick({ fontSize: true, fontWeight: true, fontStyle: true, textAlign: true, lineHeight: true }).optional(),
   effect: TextEffectSchema.optional(),
   link: ElementLinkSchema.optional(),
 }).strict();

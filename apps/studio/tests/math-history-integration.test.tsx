@@ -9,7 +9,7 @@ import { StudioI18nProvider } from "../src/features/i18n/studio-i18n-context";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const MATH_ID = "math-history";
 function presentation(source = "x^2") {
-  return PresentationSchema.parse({ schemaVersion: 1, id: "math-history-presentation", title: "Math history", slides: [{ id: "slide", title: "Slide", elements: [{ id: MATH_ID, type: "math", format: "latex", source, hidden: false }] }] });
+  return PresentationSchema.parse({ schemaVersion: 1, id: "math-history-presentation", title: "Math history", palette: { colors: [{ id: "accent", name: "Accent", value: "#abcdef" }] }, slides: [{ id: "slide", title: "Slide", elements: [{ id: MATH_ID, type: "math", format: "latex", source, hidden: false }] }] });
 }
 function key(value: string, options: KeyboardEventInit = {}) { return new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...options }); }
 
@@ -23,6 +23,7 @@ describe("Math workspace history integration", () => {
   async function undo() { const event = key("z", { ctrlKey: true }); await act(async () => window.dispatchEvent(event)); return event; }
   async function redo() { const event = key("z", { ctrlKey: true, shiftKey: true }); await act(async () => window.dispatchEvent(event)); return event; }
   function setSource(input: HTMLTextAreaElement, value: string) { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set; setter?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); }
+  function setInput(input: HTMLInputElement, value: string) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); }
 
   it("undoes and redoes an insertion through the workspace shortcut", async () => {
     await mount(); await selectMath(); const input = sourceInput(); input.focus(); input.setSelectionRange(0, 0);
@@ -58,5 +59,76 @@ describe("Math workspace history integration", () => {
     await undo(); expect(sourceInput().value).toBe("y+1");
     await redo(); expect(sourceInput().value).toContain(String.raw`\sqrt`);
     await redo(); expect(sourceInput().value).toContain(String.raw`\sum`);
+  });
+
+  it("undoes and redoes Math typography, palette color, dimensions, and placement through shared history", async () => {
+    await mount(); await selectMath();
+
+    const selectValue = async (id: string, value: string) => {
+      const select = host.querySelector<HTMLSelectElement>(`#${id}`);
+      if (!select) throw new Error(`${id} control missing`);
+      await act(async () => { select.value = value; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    };
+    await selectValue("math-font-weight", "700");
+    expect(host.querySelector<HTMLSelectElement>("#math-font-weight")?.value).toBe("700");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-font-weight")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-font-weight")?.value).toBe("700");
+
+    const fontStyle = host.querySelector<HTMLSelectElement>("#math-font-style");
+    if (!fontStyle) throw new Error("Math font style control missing");
+    await act(async () => { fontStyle.value = "italic"; fontStyle.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(host.querySelector<HTMLSelectElement>("#math-font-style")?.value).toBe("italic");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-font-style")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-font-style")?.value).toBe("italic");
+
+    const fontSize = host.querySelector<HTMLInputElement>("#math-font-size");
+    if (!fontSize) throw new Error("Math font size control missing");
+    await act(async () => { fontSize.focus(); setInput(fontSize, "28"); fontSize.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#math-font-size")?.value).toBe("28");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-font-size")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-font-size")?.value).toBe("28");
+
+    const lineHeight = host.querySelector<HTMLInputElement>("#math-line-height");
+    if (!lineHeight) throw new Error("Math line-height control missing");
+    await act(async () => { lineHeight.focus(); setInput(lineHeight, "1.7"); lineHeight.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#math-line-height")?.value).toBe("1.7");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-line-height")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-line-height")?.value).toBe("1.7");
+
+    const paletteButton = Array.from(host.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"))
+      .find(button => button.textContent?.trim() === "Use palette");
+    if (!paletteButton) throw new Error("Math palette button missing");
+    await act(async () => paletteButton.click());
+    const accent = host.querySelector<HTMLButtonElement>("button[aria-label='Apply palette color Accent']");
+    if (!accent) throw new Error("Accent palette entry missing");
+    await act(async () => accent.click());
+    expect(host.textContent).toContain("Linked to presentation palette");
+    await undo(); expect(host.textContent).not.toContain("Linked to presentation palette");
+    await redo(); expect(host.textContent).toContain("Linked to presentation palette");
+
+    const width = host.querySelector<HTMLInputElement>("#element-width");
+    if (!width) throw new Error("Math width input missing");
+    await act(async () => { width.focus(); setInput(width, "50"); width.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#element-width")?.value).toBe("50");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#element-width")?.value).toBe("0");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#element-width")?.value).toBe("50");
+
+    const height = host.querySelector<HTMLInputElement>("#element-height");
+    if (!height) throw new Error("Math height input missing");
+    await act(async () => { height.focus(); setInput(height, "120"); height.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#element-height")?.value).toBe("120");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#element-height")?.value).toBe("0");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#element-height")?.value).toBe("120");
+
+    await selectValue("element-canonical-position-mode", "absolute");
+    expect(host.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value).toBe("absolute");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value).toBe("flow");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#element-canonical-position-mode")?.value).toBe("absolute");
+    const top = host.querySelector<HTMLInputElement>("#element-canonical-top");
+    if (!top) throw new Error("Math top coordinate missing");
+    await act(async () => { top.focus(); setInput(top, "24"); top.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("24");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("24");
   });
 });

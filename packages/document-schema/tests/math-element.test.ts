@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MathElementSchema, MATH_SOURCE_MAX_LENGTH, PresentationElementSchema } from "../src";
+import { MathElementSchema, MATH_SOURCE_MAX_LENGTH, PresentationElementSchema, PresentationSchema } from "../src";
 
 const valid = { id: "m1", type: "math", format: "latex", source: String.raw`\frac{x^2}{\sqrt{y}}` };
 
@@ -22,5 +22,11 @@ describe("MathElementSchema", () => {
   it("accepts gradient style and palette references", () => {
     expect(MathElementSchema.safeParse({ ...valid, style: { color: { kind: "palette", colorId: "accent" } } }).success).toBe(true);
     expect(MathElementSchema.safeParse({ ...valid, style: { gradient: { type: "linear", stops: [{ position: 0, color: "#000000" }, { position: 100, color: "#ffffff" }] } } }).success).toBe(true);
+  });
+  it("accepts shared weight and style typography while preserving old Math documents and schema version", () => {
+    expect(MathElementSchema.parse({ ...valid, typography: { fontWeight: 700, fontStyle: "italic" } }).typography).toEqual({ fontWeight: 700, fontStyle: "italic" });
+    expect(MathElementSchema.parse(valid).typography).toBeUndefined();
+    expect(PresentationSchema.parse({ schemaVersion: 1, id: "p", title: "P", slides: [{ id: "s", elements: [valid] }] }).schemaVersion).toBe(1);
+    expect(MathElementSchema.safeParse({ ...valid, typography: { fontFamily: "KaTeX_Main" } }).success).toBe(false);
   });
 });
