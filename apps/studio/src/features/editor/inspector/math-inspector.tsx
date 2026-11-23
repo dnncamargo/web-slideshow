@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { ColorValue, ContainerElement, ElementTypography, MathElement, Presentation, ResizablePositionedLayout } from "@web-slideshow/document-schema";
+import type { ColorValue, ContainerElement, ElementTypography, MathElement, MathLayout, Presentation, TextEffect } from "@web-slideshow/document-schema";
 import { renderElement } from "@web-slideshow/renderer";
 import { THEME_COLORS } from "@web-slideshow/theme/element-style-defaults";
 import { useStudioI18n } from "@/features/i18n/studio-i18n-context";
@@ -8,11 +8,14 @@ import type { ElementInspectorUpdate } from "./inspector-types";
 import { InspectorSection } from "./inspector-section";
 import { useAuthoringHistory } from "../authoring-history-context";
 import { ElementTypographyFields } from "./sections/element-typography-control";
-import { ColorControl } from "./sections/color-control";
 import { CanonicalElementSizeSection } from "./sections/canonical-element-size-section";
 import { CanonicalElementPositionSection } from "./sections/canonical-text-position-section";
 import { shouldShowElementPositioning, type ElementLayerControls } from "./sections/element-positioning-helpers";
 import { resolveNearestContainerColor } from "./color-inheritance";
+import { MathSpacingSection } from "./sections/math-spacing-section";
+import { MathAppearanceSection } from "./sections/math-appearance-section";
+import { CanonicalTextEffectsSection } from "./sections/canonical-text-effects-section";
+import { isAuthoredPresentationLink } from "../canvas-link-interception";
 
 const groups = {
   structures: [["fraction", "\\frac{}{}", 6, true], ["root", "\\sqrt{}", 6, true], ["indexedRoot", "\\sqrt[]{}", 6, false], ["power", "^{}", 2, true], ["index", "_{}", 2, true], ["paren", "\\left(\\right)", 6, true], ["bracket", "\\left[\\right]", 6, true], ["brace", "\\left\\{\\right\\}", 7, true], ["absolute", "\\left|\\right|", 6, true]] as const,
@@ -52,23 +55,15 @@ export function MathInspector({ element, onUpdate, presentation, parent = null, 
   const updateTypography = (update: (current: ElementTypography | undefined) => ElementTypography) => {
     onUpdate(current => current.type === "math" ? { ...current, typography: update(current.typography) } : current);
   };
-  const updateLayout = (update: (current: ResizablePositionedLayout | undefined) => ResizablePositionedLayout | undefined) => {
+  const updateLayout = (update: (current: MathLayout | undefined) => MathLayout | undefined) => {
     onUpdate(current => current.type === "math" ? { ...current, layout: update(current.layout) } : current);
   };
-  const updateColor = (color: ColorValue) => {
-    onUpdate(current => {
-      if (current.type !== "math") return current;
-      const style = { ...(current.style ?? {}), color };
-      delete style.gradient;
-      return { ...current, style };
-    });
+  const updateStyle = (update: (current: MathElement["style"]) => MathElement["style"]) => {
+    onUpdate(current => current.type === "math" ? { ...current, style: update(current.style) } : current);
   };
-  const resetColor = () => onUpdate(current => {
-    if (current.type !== "math" || current.style?.color === undefined) return current;
-    const style = { ...current.style };
-    delete style.color;
-    return { ...current, style: Object.keys(style).length > 0 ? style : undefined };
-  });
+  const updateEffect = (update: (current: TextEffect | undefined) => TextEffect) => {
+    onUpdate(current => current.type === "math" ? { ...current, effect: update(current.effect) } : current);
+  };
   useLayoutEffect(() => { if (pending.current !== null && ref.current) { ref.current.focus(); ref.current.setSelectionRange(pending.current, pending.current); pending.current = null; } }, [element.source]);
   const insert = (snippet: string, offset: number, wrap: boolean) => {
     const input = ref.current; const [savedStart, savedEnd] = selection.current;
@@ -101,13 +96,24 @@ export function MathInspector({ element, onUpdate, presentation, parent = null, 
         {groups[group].map(([id, snippet, offset, wrap]) => <button key={id} type="button" className={`${styles.textEditorToolbarButton} ${styles.mathToolbarButton}`} aria-label={t(`inspector.math.${id}`)} title={t(`inspector.math.${id}`)} onMouseDown={event => { if (ref.current) selection.current = [ref.current.selectionStart, ref.current.selectionEnd]; event.preventDefault(); }} onClick={() => insert(snippet, offset, wrap)}>{t(`inspector.math.${id}`)}</button>)}
       </div><textarea ref={ref} className={styles.textArea} value={element.source} maxLength={4096} rows={8} aria-label={t("inspector.math.source")} onSelect={event => { selection.current = [event.currentTarget.selectionStart, event.currentTarget.selectionEnd]; }} onKeyUp={event => { selection.current = [event.currentTarget.selectionStart, event.currentTarget.selectionEnd]; }} onFocus={() => history?.begin(key, { kind: "text.edit", labelKey: "history.text.edit" })} onBlur={() => history?.finish(key)} onChange={event => { const source = event.target.value; const update = () => onUpdate(current => current.type === "math" && source.length <= 4096 ? { ...current, source } : current); if (history) { history.begin(key, { kind: "text.edit", labelKey: "history.text.edit" }); history.update(key, update); } else update(); }} /></div>
       {invalid ? <div role="alert" className={styles.fieldHint}>{t("inspector.math.invalid")}</div> : <div role="status" className={styles.fieldHint}>{t("inspector.math.valid")}</div>}
-      <div className={styles.field} data-presentation-math-preview="true" dangerouslySetInnerHTML={{ __html: html }} />
+      <div className={styles.field} data-presentation-math-preview="true" onClick={event => { if (isAuthoredPresentationLink(event.target)) event.preventDefault(); }} dangerouslySetInnerHTML={{ __html: html }} />
     </div></InspectorSection>
     <InspectorSection title={t("inspector.typography")}>
-      <label className={styles.field}><span>{t("inspector.color")}</span><ColorControl id="math-foreground-color" name="mathForegroundColor" value={element.style?.color} effectiveValue={effectiveColor} effectiveSource={effectiveColorSource} onChange={updateColor} secondaryAction={element.style?.color === undefined ? undefined : { label: containerColor === undefined ? t("inspector.useThemeDefault") : t("inspector.useInheritedColor"), onClick: resetColor }} /></label>
       <ElementTypographyFields typography={element.typography} effectiveDefaults={{}} onUpdateTypography={updateTypography} controlPrefix="math" fontResources={[]} visibleProperties={MATH_TYPOGRAPHY_PROPERTIES} />
     </InspectorSection>
     <CanonicalElementSizeSection layout={element.layout} onUpdateLayout={updateLayout} />
+    <MathSpacingSection layout={element.layout} onUpdateLayout={updateLayout} />
+    <MathAppearanceSection element={element} effectiveColor={effectiveColor} effectiveColorSource={effectiveColorSource} onUpdateStyle={updateStyle} />
+    <CanonicalTextEffectsSection
+      effect={element.effect}
+      typography={element.typography}
+      textColor={typeof effectiveColor === "string" ? effectiveColor : undefined}
+      onUpdateEffect={updateEffect}
+      onUpdateTypography={updateTypography}
+      controlPrefix="math"
+      showTypographyEffects={false}
+      showOpacity
+    />
     {shouldShowElementPositioning(layerControls) && <CanonicalElementPositionSection element={element} parent={parent} layerControls={layerControls} onUpdateLayout={updateLayout} />}
   </>;
 }

@@ -19,7 +19,7 @@ import type { CreateQrCodeFromLink } from "../inspector-types";
 
 type LinkableElement = Extract<
   PresentationElement,
-  { type: "text" | "image" | "container" | "shape" }
+  { type: "text" | "image" | "container" | "shape" | "math" }
 >;
 
 type OpenInSelection = "same" | "new";
@@ -41,7 +41,8 @@ function isLinkableElement(
     element.type === "text" ||
     element.type === "image" ||
     element.type === "container" ||
-    element.type === "shape"
+    element.type === "shape" ||
+    element.type === "math"
   );
 }
 
@@ -69,8 +70,8 @@ function elementWithoutLink(element: LinkableElement): LinkableElement {
 // ============================================================
 // BEGIN: ELEMENT INTERACTION SECTION
 //
-// Shared semantic Interaction control used by Text, Image, Container
-// and Shape.
+// Shared semantic Interaction control used by Text, Image, Container,
+// Shape and Math.
 //
 // The section never creates a link just by mounting. URL commits
 // happen on blur or Enter; invalid drafts are never written to

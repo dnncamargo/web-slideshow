@@ -508,7 +508,7 @@ export function ElementInspector({
         ) : null
       )}
 
-      {(element.type === "text" || element.type === "image" || element.type === "container" || element.type === "shape") && (
+      {(element.type === "text" || element.type === "image" || element.type === "container" || element.type === "shape" || element.type === "math") && (
         <ElementInteractionSection
           element={element}
           onUpdate={onUpdate}

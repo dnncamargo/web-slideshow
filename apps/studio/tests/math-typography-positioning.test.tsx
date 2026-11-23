@@ -98,6 +98,62 @@ describe("Math typography and positioning Inspector", () => {
     expect(preview?.innerHTML).toContain("line-height:1.7");
   });
 
+  it("shows Math Effects in canonical order and edits opacity, shadow, and glow", async () => {
+    await render();
+    const sectionTitles = Array.from(host.querySelectorAll("details"))
+      .filter(section => section.parentElement?.closest("details") === null)
+      .map(section => section.querySelector("summary span:first-child")?.textContent?.trim());
+    expect(sectionTitles).toEqual(["Content", "Typography", "Size", "Spacing", "Appearance", "Effects", "Placement"]);
+    expect(host.querySelector("#math-text-stroke-mode")).toBeNull();
+    expect(host.querySelector("#math-text-decoration-color")).toBeNull();
+
+    const setNumber = async (id: string, value: string) => {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      if (!input) throw new Error(`${id} control missing`);
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      await act(async () => { setValue?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    };
+    const setSelect = async (id: string, value: string) => {
+      const select = host.querySelector<HTMLSelectElement>(`#${id}`);
+      if (!select) throw new Error(`${id} control missing`);
+      await act(async () => { select.value = value; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    };
+
+    await setNumber("math-opacity", "40");
+    expect(current.effect?.opacity).toBe(0.4);
+    await render();
+    await setSelect("math-shadow-mode", "outer");
+    expect(current.effect?.shadow).toBeDefined();
+    await render();
+    await setNumber("math-shadow-x", "3");
+    expect(current.effect?.shadow).toMatchObject({ x: 3, y: 4, blur: 12, color: "#000000" });
+    await render();
+    await setSelect("math-glow-mode", "glow");
+    await render();
+    await setNumber("math-glow-blur", "18");
+    expect(current.effect?.glow).toMatchObject({ blur: 18 });
+    expect(current.effect?.opacity).toBe(0.4);
+    expect(current.effect?.shadow).toMatchObject({ x: 3 });
+  });
+
+  it("blocks authored-link navigation in the secondary preview without disturbing LaTeX selection", async () => {
+    current = { ...current, link: { kind: "url", href: "https://example.com/math", target: "_blank" } };
+    await render();
+    const source = host.querySelector<HTMLTextAreaElement>("[data-presentation-math-inspector] textarea");
+    const anchor = host.querySelector<HTMLAnchorElement>('[data-presentation-math-preview] a[data-presentation-link="true"]');
+    if (!source || !anchor) throw new Error("Math source or linked preview missing");
+    source.focus();
+    source.setSelectionRange(2, 6);
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    await act(async () => { anchor.dispatchEvent(click); });
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(source);
+    expect([source.selectionStart, source.selectionEnd]).toEqual([2, 6]);
+    expect(current.link?.href).toBe("https://example.com/math");
+  });
+
   it("uses the palette for Math foreground and removes only the conflicting gradient", async () => {
     current = {
       ...current,
@@ -108,6 +164,10 @@ describe("Math typography and positioning Inspector", () => {
         className: "kept-style",
       },
     };
+    await render();
+    const fillMode = host.querySelector<HTMLSelectElement>("#math-fill-mode");
+    if (!fillMode) throw new Error("Math fill mode control missing");
+    await act(async () => { fillMode.value = "color"; fillMode.dispatchEvent(new Event("change", { bubbles: true })); });
     await render();
     const chooser = host.querySelector<HTMLButtonElement>("button[aria-expanded]");
     if (!chooser) throw new Error("Math color palette chooser missing");
@@ -169,5 +229,69 @@ describe("Math typography and positioning Inspector", () => {
     await act(async () => { refreshedVertical.value = "center"; refreshedVertical.dispatchEvent(new Event("change", { bubbles: true })); });
     expect(container.layout?.children).toMatchObject({ horizontalAlign: "center", verticalAlign: "center" });
     expect(container.children[0]).toEqual(mathChild);
+  });
+
+  it("edits Math padding and appearance while preserving unrelated layout and style properties", async () => {
+    current = {
+      ...current,
+      layout: { width: "60%", height: 90, margin: 7, left: 12 },
+      style: { color: "#123456", background: { color: "#202020" }, borderRadius: 6, className: "retained" },
+    };
+    await render();
+    const setInputValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    const setNumber = async (id: string, value: string) => {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      if (!input) throw new Error(`${id} control missing`);
+      await act(async () => { setInputValue?.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    };
+    await setNumber("math-padding", "12");
+    await setNumber("math-paddingTop", "2");
+    await setNumber("math-paddingRight", "3");
+    await setNumber("math-paddingBottom", "4");
+    await setNumber("math-paddingLeft", "5");
+    for (const field of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] as const) {
+      expect(host.querySelector(`#math-${field}`)).not.toBeNull();
+    }
+    expect(current.layout).toMatchObject({ width: "60%", height: 90, margin: 7, left: 12, padding: 12, paddingTop: 2, paddingRight: 3, paddingBottom: 4, paddingLeft: 5 });
+
+    const select = async (id: string, value: string) => {
+      const control = host.querySelector<HTMLSelectElement>(`#${id}`);
+      if (!control) throw new Error(`${id} control missing`);
+      await act(async () => { control.value = value; control.dispatchEvent(new Event("change", { bubbles: true })); });
+      await render();
+    };
+    await select("math-fill-mode", "gradient");
+    expect(current.style?.gradient).toBeDefined();
+    expect(current.style).not.toHaveProperty("color");
+    expect(current.style).toMatchObject({ background: { color: "#202020" }, borderRadius: 6, className: "retained" });
+    await select("math-fill-mode", "color");
+    expect(current.style?.color).toBeDefined();
+    expect(current.style).not.toHaveProperty("gradient");
+
+    const backgroundColor = host.querySelector<HTMLInputElement>("#math-background-color");
+    if (!backgroundColor) throw new Error("Math background color control missing");
+    expect(current.style?.background?.color).toBe("#202020");
+    await select("math-background-gradient-type", "linear");
+    expect(current.style?.background).toMatchObject({ color: "#202020", gradient: { type: "linear" } });
+    const backgroundValue = host.querySelector<HTMLInputElement>("#math-background-color-value");
+    if (!backgroundValue) throw new Error("Math background color value input missing");
+    const setTextValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    await act(async () => { setTextValue?.call(backgroundValue, "#abcdef"); backgroundValue.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect(current.style?.background).toMatchObject({ color: "#abcdef", gradient: { type: "linear" } });
+    await select("math-background-gradient-type", "none");
+    expect(current.style?.background).toEqual({ color: "#abcdef" });
+
+    await select("math-border-style", "dashed");
+    expect(current.style?.border?.style).toBe("dashed");
+    await render();
+    await select("math-border-paint", "gradient");
+    expect(current.style?.border?.gradient).toBeDefined();
+    expect(current.style?.border?.width).toBeDefined();
+    expect(current.style?.border?.style).toBe("solid");
+    await setNumber("math-border-width", "5");
+    expect(current.style?.border?.width).toBe(5);
+    await setNumber("math-border-radius", "14");
+    expect(current.style?.borderRadius).toBe(14);
+    expect(current.style).toMatchObject({ background: { color: "#abcdef" }, className: "retained" });
   });
 });

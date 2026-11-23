@@ -26,6 +26,8 @@ interface CanonicalTextEffectsSectionProps {
   textDecorationColorFallback?: ElementTypography["textDecorationColor"];
   textDecorationColorSource?: TextStylePropertyInfo;
   onResetTextDecorationColor?: () => void;
+  showTypographyEffects?: boolean;
+  showOpacity?: boolean;
 }
 
 type ShadowMode = "none" | "outer";
@@ -65,6 +67,8 @@ export function CanonicalTextEffectsSection({
   textDecorationColorFallback,
   textDecorationColorSource,
   onResetTextDecorationColor,
+  showTypographyEffects = true,
+  showOpacity = false,
 }: CanonicalTextEffectsSectionProps) {
   const { t } = useStudioI18n();
   const authoringHistory = useAuthoringHistory();
@@ -74,6 +78,17 @@ export function CanonicalTextEffectsSection({
   const effectiveTextStroke = typography?.textStroke ?? textStrokeFallback;
   const strokeMode = effectiveTextStroke === undefined || readAbsoluteNumber(effectiveTextStroke.width) === 0 ? "none" : "stroke";
   const shadow = effect?.shadow;
+  const opacityHistoryKey = `number:${controlPrefix}-opacity`;
+  const updateOpacity = (opacity: number | undefined) => {
+    if (opacity === effect?.opacity) return;
+    const update = () => onUpdateEffect((current) => ({ ...current, opacity }));
+    if (!authoringHistory) {
+      update();
+      return;
+    }
+    authoringHistory.begin(opacityHistoryKey, numberHistoryMeta);
+    authoringHistory.update(opacityHistoryKey, update);
+  };
 
   function runDiscrete(setting: string, callback: () => void): void {
     const meta = {
@@ -138,6 +153,27 @@ export function CanonicalTextEffectsSection({
 
   return (
     <InspectorSection title={t("inspector.effects")}>
+      {showOpacity && <label className={styles.field}>
+        <span title={t("inspector.opacityHelp")}>{t("inspector.opacity")}</span>
+        <div className={styles.unitInput}>
+          <input
+            id={`${controlPrefix}-opacity`}
+            name={getControlName(controlPrefix, "Opacity")}
+            type="number"
+            min="0"
+            max="100"
+            value={effect?.opacity === undefined ? 100 : effect.opacity * 100}
+            onFocus={() => authoringHistory?.begin(opacityHistoryKey, numberHistoryMeta)}
+            onBlur={() => authoringHistory?.finish(opacityHistoryKey)}
+            onChange={(event) => {
+              const percentage = parseOptionalNumber(event.target.value);
+              updateOpacity(percentage === undefined ? undefined : Math.max(0, Math.min(100, percentage)) / 100);
+            }}
+          />
+          <span>%</span>
+        </div>
+      </label>}
+      {showTypographyEffects && <>
       <label className={styles.field}>
         <span>{t("inspector.textStroke")}</span>
         <select
@@ -253,6 +289,7 @@ export function CanonicalTextEffectsSection({
           onReset={onResetTextDecorationColor}
         />
       </label>
+      </>}
       <label className={styles.field}>
         <span title={t("inspector.shadowHelp")}>{t("inspector.shadow")}</span>
         <select
@@ -300,6 +337,7 @@ export function CanonicalTextEffectsSection({
           <label className={styles.field}>
             <span>{t("inspector.shadowBlur")}</span>
             <input
+              id={`${controlPrefix}-shadow-blur`}
               type="number"
               min="0"
               value={readAbsoluteNumber(shadow.blur)}

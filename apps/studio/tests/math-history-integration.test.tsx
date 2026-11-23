@@ -131,4 +131,154 @@ describe("Math workspace history integration", () => {
     await undo(); expect(host.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("");
     await redo(); expect(host.querySelector<HTMLInputElement>("#element-canonical-top")?.value).toBe("24");
   });
+
+  it("undoes and redoes Math padding, fill mode, gradient edits, background, border, and radius", async () => {
+    await mount(); await selectMath();
+    const selectValue = async (id: string, value: string) => {
+      const select = host.querySelector<HTMLSelectElement>(`#${id}`);
+      if (!select) throw new Error(`${id} control missing`);
+      await act(async () => { select.value = value; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    };
+    const editNumber = async (id: string, value: string) => {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      if (!input) throw new Error(`${id} control missing`);
+      await act(async () => { input.focus(); setInput(input, value); input.blur(); });
+    };
+
+    await editNumber("math-padding", "16");
+    expect(host.querySelector<HTMLInputElement>("#math-padding")?.value).toBe("16");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-padding")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-padding")?.value).toBe("16");
+    await editNumber("math-paddingTop", "5");
+    expect(host.querySelector<HTMLInputElement>("#math-paddingTop")?.value).toBe("5");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-paddingTop")?.value).toBe("");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-paddingTop")?.value).toBe("5");
+
+    await selectValue("math-fill-mode", "gradient");
+    expect(host.querySelector<HTMLSelectElement>("#math-fill-mode")?.value).toBe("gradient");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-fill-mode")?.value).toBe("color");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-fill-mode")?.value).toBe("gradient");
+
+    await editNumber("math-fill-gradient-angle", "90");
+    expect(host.querySelector<HTMLInputElement>("#math-fill-gradient-angle")?.value).toBe("90");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-fill-gradient-angle")?.value).toBe("135");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-fill-gradient-angle")?.value).toBe("90");
+
+    const backgroundPalette = host.querySelector<HTMLButtonElement>('button[aria-controls="math-background-color-palette-chooser"]');
+    if (!backgroundPalette) throw new Error("Math background palette control missing");
+    await act(async () => backgroundPalette.click());
+    const accent = host.querySelector<HTMLButtonElement>('button[aria-label="Apply palette color Accent"]');
+    if (!accent) throw new Error("Accent palette entry missing");
+    await act(async () => accent.click());
+    expect(host.textContent).toContain("Linked to presentation palette");
+    await undo(); expect(host.textContent).not.toContain("Linked to presentation palette");
+    await redo(); expect(host.textContent).toContain("Linked to presentation palette");
+
+    await selectValue("math-background-gradient-type", "linear");
+    expect(host.querySelector<HTMLSelectElement>("#math-background-gradient-type")?.value).toBe("linear");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-background-gradient-type")?.value).toBe("none");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-background-gradient-type")?.value).toBe("linear");
+
+    await selectValue("math-border-style", "solid");
+    expect(host.querySelector<HTMLSelectElement>("#math-border-style")?.value).toBe("solid");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-border-style")?.value).toBe("none");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-border-style")?.value).toBe("solid");
+
+    const borderPalette = host.querySelector<HTMLButtonElement>('button[aria-controls="math-border-color-palette-chooser"]');
+    if (!borderPalette) throw new Error("Math border palette control missing");
+    await act(async () => borderPalette.click());
+    const borderAccent = host.querySelector<HTMLButtonElement>('button[aria-label="Apply palette color Accent"]');
+    if (!borderAccent) throw new Error("Accent border palette entry missing");
+    await act(async () => borderAccent.click());
+    expect(host.querySelector<HTMLInputElement>("#math-border-color-value")?.value).toBe("#abcdef");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-border-color-value")?.value).toBe("#94a3b8");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-border-color-value")?.value).toBe("#abcdef");
+
+    await selectValue("math-border-paint", "gradient");
+    expect(host.querySelector<HTMLSelectElement>("#math-border-paint")?.value).toBe("gradient");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-border-paint")?.value).toBe("color");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-border-paint")?.value).toBe("gradient");
+
+    await editNumber("math-border-width", "4");
+    expect(host.querySelector<HTMLInputElement>("#math-border-width")?.value).toBe("4");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-border-width")?.value).toBe("1");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-border-width")?.value).toBe("4");
+
+    await editNumber("math-border-radius", "12");
+    expect(host.querySelector<HTMLInputElement>("#math-border-radius")?.value).toBe("12");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-border-radius")?.value).toBe("0");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-border-radius")?.value).toBe("12");
+  });
+
+  it("records Math opacity, shadow, and glow as independent history actions", async () => {
+    await mount(); await selectMath();
+    const opacity = host.querySelector<HTMLInputElement>("#math-opacity");
+    if (!opacity) throw new Error("Math opacity control missing");
+    await act(async () => { opacity.focus(); setInput(opacity, "40"); opacity.blur(); });
+    expect(host.querySelector<HTMLInputElement>("#math-opacity")?.value).toBe("40");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-opacity")?.value).toBe("100");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-opacity")?.value).toBe("40");
+
+    const selectValue = async (id: string, value: string) => {
+      const select = host.querySelector<HTMLSelectElement>(`#${id}`);
+      if (!select) throw new Error(`${id} control missing`);
+      await act(async () => { select.value = value; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    };
+    const editNumber = async (id: string, value: string) => {
+      const input = host.querySelector<HTMLInputElement>(`#${id}`);
+      if (!input) throw new Error(`${id} control missing`);
+      await act(async () => { input.focus(); setInput(input, value); input.blur(); });
+    };
+    await selectValue("math-shadow-mode", "outer");
+    expect(host.querySelector<HTMLSelectElement>("#math-shadow-mode")?.value).toBe("outer");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-shadow-mode")?.value).toBe("none");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-shadow-mode")?.value).toBe("outer");
+    await editNumber("math-shadow-x", "3");
+    expect(host.querySelector<HTMLInputElement>("#math-shadow-x")?.value).toBe("3");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-shadow-x")?.value).toBe("0");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-shadow-x")?.value).toBe("3");
+    await selectValue("math-glow-mode", "glow");
+    expect(host.querySelector<HTMLSelectElement>("#math-glow-mode")?.value).toBe("glow");
+    await undo(); expect(host.querySelector<HTMLSelectElement>("#math-glow-mode")?.value).toBe("none");
+    await redo(); expect(host.querySelector<HTMLSelectElement>("#math-glow-mode")?.value).toBe("glow");
+    await editNumber("math-glow-blur", "18");
+    expect(host.querySelector<HTMLInputElement>("#math-glow-blur")?.value).toBe("18");
+    await undo(); expect(host.querySelector<HTMLInputElement>("#math-glow-blur")?.value).toBe("12");
+    await redo(); expect(host.querySelector<HTMLInputElement>("#math-glow-blur")?.value).toBe("18");
+    expect(host.querySelector<HTMLInputElement>("#math-opacity")?.value).toBe("40");
+    expect(host.querySelector<HTMLSelectElement>("#math-shadow-mode")?.value).toBe("outer");
+  });
+
+  it("records Math URL, target, and link removal in shared Undo/Redo history", async () => {
+    await mount(); await selectMath();
+    const url = host.querySelector<HTMLInputElement>("#math-link-url");
+    const target = host.querySelector<HTMLSelectElement>("#math-link-target");
+    if (!url || !target) throw new Error("Math Interaction controls missing");
+    await act(async () => { url.focus(); setInput(url, "javascript:alert(1)"); url.blur(); });
+    expect(host.querySelector('[data-presentation-math-preview] a')).toBeNull();
+    expect(sourceInput().value).toBe("x^2");
+
+    const invalidMessage = Array.from(host.querySelectorAll("small")).find(node => node.textContent?.includes("valid HTTP or HTTPS URL"));
+    expect(invalidMessage).toBeDefined();
+    expect((await undo()).defaultPrevented).toBe(false);
+
+    await act(async () => { const input = host.querySelector<HTMLInputElement>("#math-link-url")!; input.focus(); setInput(input, "https://example.com/math?a=1&b=2"); input.blur(); });
+    const linkedAnchor = host.querySelector<HTMLAnchorElement>("[data-presentation-math-preview] a[data-presentation-link='true']");
+    expect(linkedAnchor?.getAttribute("href")).toBe("https://example.com/math?a=1&b=2");
+    await undo(); expect(host.querySelector("[data-presentation-math-preview] a")).toBeNull();
+    await redo(); expect(host.querySelector("[data-presentation-math-preview] a")).not.toBeNull();
+
+    await act(async () => { const currentTarget = host.querySelector<HTMLSelectElement>("#math-link-target")!; currentTarget.value = "new"; currentTarget.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(host.querySelector<HTMLAnchorElement>("[data-presentation-math-preview] a")?.target).toBe("_blank");
+    await undo(); expect(host.querySelector<HTMLAnchorElement>("[data-presentation-math-preview] a")?.target).toBe("");
+    await redo(); expect(host.querySelector<HTMLAnchorElement>("[data-presentation-math-preview] a")?.target).toBe("_blank");
+
+    const remove = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent?.includes("Remove link"));
+    if (!remove) throw new Error("Math remove-link control missing");
+    await act(async () => remove.click());
+    expect(host.querySelector("[data-presentation-math-preview] a")).toBeNull();
+    await undo(); expect(host.querySelector<HTMLAnchorElement>("[data-presentation-math-preview] a")?.target).toBe("_blank");
+    await redo(); expect(host.querySelector("[data-presentation-math-preview] a")).toBeNull();
+    expect(sourceInput().value).toBe("x^2");
+  });
 });

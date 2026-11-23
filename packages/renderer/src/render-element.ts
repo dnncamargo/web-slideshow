@@ -26,10 +26,10 @@ import { FundamentalTextStyleIdSchema } from "@web-slideshow/document-schema";
 
 import { escapeHtml } from "./escape-html";
 import { renderContainer } from "./render-container";
-import { renderCanonicalTextStyle, renderTextGlowFilter } from "./render-canonical-text";
+import { renderCanonicalTextStyle, renderTextGlowFilter, renderTextShadow } from "./render-canonical-text";
 import { renderPlot } from "./render-plot";
 import { renderLength } from "./render-length";
-import { renderGradient, renderGradientBorder, renderBorder, renderShadow } from "./render-visual";
+import { renderGradient, renderGradientBorder, renderGradientBorderBox, renderBorder, renderShadow } from "./render-visual";
 import { renderColorValue } from "./render-palette";
 import {
   renderCanonicalImageCropMetadata,
@@ -382,14 +382,29 @@ export function renderElement(
     case "math": {
       if (element.hidden) return "";
       const gradient = element.style?.gradient;
-      const extra = ["overflow-x:auto", "overflow-y:hidden", "max-width:100%"];
+      const extra = ["overflow-x:auto", "overflow-y:hidden", "max-width:100%", "box-sizing:border-box"];
       const layout = element.layout;
       for (const [key, value] of [["width", layout?.width], ["height", layout?.height], ["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left], ["margin", layout?.margin], ["margin-top", layout?.marginTop], ["margin-right", layout?.marginRight], ["margin-bottom", layout?.marginBottom], ["margin-left", layout?.marginLeft]] as const) if (value !== undefined) extra.push(`${key}:${renderLength(value)}`);
+      const gradientBorder = element.style?.border?.gradient !== undefined ? element.style.border : undefined;
+      const borderGradient = gradientBorder?.gradient;
+      if (gradientBorder && borderGradient) {
+        const borderWidth = renderLength(gradientBorder.width);
+        const effectivePadding = (side: "Top" | "Right" | "Bottom" | "Left") => {
+          const value = layout?.[`padding${side}`] ?? layout?.padding;
+          return value === undefined ? borderWidth : `calc(${renderLength(value)} + ${borderWidth})`;
+        };
+        for (const side of ["Top", "Right", "Bottom", "Left"] as const) extra.push(`padding-${side.toLowerCase()}:${effectivePadding(side)}`);
+        extra.push("border:0", ...renderGradientBorder(borderGradient, gradientBorder.width), ...renderGradientBorderBox(gradientBorder.width));
+        if (layout?.position === undefined) extra.push("position:relative");
+      } else if (element.style?.border) extra.push(...renderBorder(element.style.border));
+      if (!gradientBorder && layout?.padding !== undefined) extra.push(`padding:${renderLength(layout.padding)}`);
+      if (!gradientBorder) {
+        for (const [key, value] of [["padding-top", layout?.paddingTop], ["padding-right", layout?.paddingRight], ["padding-bottom", layout?.paddingBottom], ["padding-left", layout?.paddingLeft]] as const) if (value !== undefined) extra.push(`${key}:${renderLength(value)}`);
+      }
       if (layout?.position) extra.push(`position:${layout.position}`);
       if (element.style?.color) extra.push(`color:${renderColorValue(element.style.color)}`);
       if (element.style?.background?.color) extra.push(`background:${renderColorValue(element.style.background.color)}`);
       if (element.style?.background?.gradient) extra.push(`background-image:${renderGradient(element.style.background.gradient)}`);
-      if (element.style?.border) extra.push(...renderBorder(element.style.border));
       if (element.style?.borderRadius !== undefined) extra.push(`border-radius:${renderLength(element.style.borderRadius)}`);
       if (element.typography?.fontSize !== undefined) extra.push(`font-size:${renderLength(element.typography.fontSize)}`);
       if (element.typography?.fontWeight !== undefined) extra.push(`font-weight:${element.typography.fontWeight}`);
@@ -398,12 +413,13 @@ export function renderElement(
       if (element.typography?.lineHeight !== undefined) extra.push(`line-height:${element.typography.lineHeight}`);
       if (element.effect?.opacity !== undefined) extra.push(`opacity:${element.effect.opacity}`);
       const filters: string[] = [];
-      if (element.effect?.shadow) filters.push(`drop-shadow(${renderShadow(element.effect.shadow)})`);
+      if (element.effect?.shadow) extra.push(`text-shadow:${renderTextShadow(element.effect.shadow)}`);
       if (element.effect?.glow) filters.push(`drop-shadow(0 0 ${renderLength(element.effect.glow.blur)} ${renderColorValue(element.effect.glow.color)})`);
       if (filters.length > 0) extra.push(`filter:${filters.join(" ")}`);
       if (gradient) extra.push(`--presentation-text-gradient:${renderGradient(gradient)}`);
       const mathClasses = [
         "presentation-math",
+        ...(gradientBorder ? ["presentation-gradient-border"] : []),
         ...(element.typography?.fontWeight !== undefined ? ["presentation-math-weight"] : []),
         ...(element.typography?.fontStyle !== undefined ? ["presentation-math-style"] : []),
         ...(gradient ? [TEXT_GRADIENT_CONTENT_CLASS] : []),

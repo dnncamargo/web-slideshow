@@ -436,6 +436,29 @@ describe("nested linked Containers", () => {
     );
   });
 
+  it("keeps a linked Container surface above a linked Math child", () => {
+    const html = renderElement(containerElement({
+      link: HTTPS_LINK,
+      children: [{
+        id: "math-child-link",
+        type: "math",
+        format: "latex",
+        source: String.raw`\begin{aligned}x&=1\\y&=2\end{aligned}`,
+        hidden: false,
+        link: { kind: "url", href: "https://example.com/math" },
+      }],
+    }));
+    const childHrefIndex = html.indexOf('href="https://example.com/math"');
+    const surfaceIndex = html.indexOf('data-presentation-container-link-surface="true"');
+    const surface = html.slice(surfaceIndex, html.indexOf(">", surfaceIndex));
+
+    expect(html).toContain('href="https://example.com/math"');
+    expect(html).toContain('href="https://example.com/hero"');
+    expect(childHrefIndex).toBeGreaterThanOrEqual(0);
+    expect(surfaceIndex).toBeGreaterThan(childHrefIndex);
+    expect(surface).toContain("z-index:100");
+  });
+
   it("keeps descendant linked Image and Text anchors inside a linked Container", () => {
     const html = renderElement(
       containerElement({
