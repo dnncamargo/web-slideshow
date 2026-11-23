@@ -629,6 +629,7 @@ ol.presentation-element.presentation-topics {
    ========================================================== */
 
 .presentation-math { max-width: 100%; color: var(--presentation-container-color, var(--presentation-text-primary)); }
+.presentation-math-scroll { box-sizing: border-box; max-width: 100%; overflow-x: auto; overflow-y: visible; }
 .presentation-math .katex { white-space: nowrap; }
 /* KaTeX's root font shorthand resets authored weight/style. Apply overrides only when explicitly authored, preserving its defaults otherwise. */
 .presentation-math-weight .katex { font-weight: inherit; }

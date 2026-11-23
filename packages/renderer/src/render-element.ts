@@ -382,9 +382,12 @@ export function renderElement(
     case "math": {
       if (element.hidden) return "";
       const gradient = element.style?.gradient;
-      const extra = ["overflow-x:auto", "overflow-y:hidden", "max-width:100%", "box-sizing:border-box"];
+      // Keep overflow off the flex item itself so its intrinsic minimum height
+      // remains the complete KaTeX expression. The inner scroller handles only
+      // horizontal overflow and has no fixed block size, so it grows naturally.
+      const extra = ["max-width:100%", "box-sizing:border-box"];
       const layout = element.layout;
-      for (const [key, value] of [["width", layout?.width], ["height", layout?.height], ["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left], ["margin", layout?.margin], ["margin-top", layout?.marginTop], ["margin-right", layout?.marginRight], ["margin-bottom", layout?.marginBottom], ["margin-left", layout?.marginLeft]] as const) if (value !== undefined) extra.push(`${key}:${renderLength(value)}`);
+      for (const [key, value] of [["width", layout?.width], ["min-height", layout?.height], ["top", layout?.top], ["right", layout?.right], ["bottom", layout?.bottom], ["left", layout?.left], ["margin", layout?.margin], ["margin-top", layout?.marginTop], ["margin-right", layout?.marginRight], ["margin-bottom", layout?.marginBottom], ["margin-left", layout?.marginLeft]] as const) if (value !== undefined) extra.push(`${key}:${renderLength(value)}`);
       const gradientBorder = element.style?.border?.gradient !== undefined ? element.style.border : undefined;
       const borderGradient = gradientBorder?.gradient;
       if (gradientBorder && borderGradient) {
@@ -434,7 +437,7 @@ export function renderElement(
       } catch {
         body = `<span class="presentation-math-error" role="img" aria-label="Mathematical expression unavailable">&#xFFFD;</span>`;
       }
-      return `<div ${attrs}>${renderLinkContent(body, element.link)}</div>`;
+      return `<div ${attrs}><div class="presentation-math-scroll">${renderLinkContent(body, element.link)}</div></div>`;
     }
     case "text":
       return renderText(element, context);
